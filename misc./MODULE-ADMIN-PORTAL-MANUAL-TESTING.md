@@ -41,6 +41,7 @@
 | | TC-E05 | ZIP waitlist queue + status filter |
 | | TC-E06 | Node tagging completeness (N6) — every record resolves to one node |
 | | TC-E07 | Per-node KPIs (N6) — expansion-gate metrics per node |
+| | TC-E08 | Waitlist API authorization (401 without admin session) |
 | **F — Global Config & Settings** | TC-F01 | Global configuration inline edit + permission gate |
 | | TC-F02 | Cart settings (min value, max carts, expiry) |
 | | TC-F03 | Trade timing config (timing keys + nested validation) |
@@ -68,6 +69,9 @@
 | | TC-L03 | SP Wallet admin — economy metrics + search |
 | | TC-L04 | SP adjustment (credit/deduct) with reason |
 | | TC-L05 | Freeze / unfreeze / suspend wallet |
+| | TC-L06 | SP Wallet entry points — home card, summary metrics, sidebar link |
+| | TC-L07 | SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state |
+| | TC-L08 | SP Wallet warning banners (mobile) — frozen/suspended/grace |
 | **M — Subscriptions Admin** | TC-M01 | Grace period config (days + reminders) |
 | | TC-M02 | Subscriptions list, filters, metrics |
 | | TC-M03 | Extend / cancel / send reminder |
@@ -554,10 +558,33 @@
 **Objective:** Verify the ZIP waitlist queue.
 
 **Steps:**
-1. Open **/waitlist**; search by email/name; filter status all/pending/notified/joined; click **Refresh**.
+1. Open **/waitlist**; review the page title and four metric cards.
+2. Search by email (substring) and by ZIP; filter status all/pending/notified/joined; combine search + status.
+3. Click **Refresh** after inserting a new row; page through results with Next/Previous.
+4. Apply filters that match nothing.
 
 **Expected Result:**
-- Stats (Total, Pending, Notified, Joined); table with user, email, requested ZIP, assigned node, status badge, created date; search/filter/refresh work.
+- Stats (Total, Pending, Notified, Joined); table with user (display name, fallback "Unknown user"), email, requested ZIP, assigned node, status badge (amber/blue/green), requested-at date, user ID.
+- Search matches email OR ZIP; status filter and search combine (AND); total count and pagination update.
+- Refresh reloads and shows the new entry; pagination advances/retreats correctly.
+- No matches → "No waitlist entries found for the selected filters." and "Page 1 of 1".
+
+---
+
+### TC-E08 · Waitlist API authorization
+
+**Ref:** FLOW-03 · /waitlist
+**Actors:** test-admin
+
+**Objective:** Verify unauthenticated access is blocked.
+
+**Steps:**
+1. Log out and navigate directly to /waitlist.
+2. From the browser console, call `fetch('/api/admin/waitlist')`.
+
+**Expected Result:**
+- Logged-out navigation redirects to /auth/login (or shows no data).
+- The API returns 401 `{ "error": "Unauthorized" }` without an admin session/secret.
 
 ---
 
@@ -1043,14 +1070,19 @@
 **Ref:** FLOW-30 · /sp-wallet
 **Actors:** test-admin
 
-**Objective:** Verify wallet economy metrics and user wallet lookup.
+**Objective:** Verify wallet economy metrics, user lookup, and ledger rendering.
 
 **Steps:**
-1. Open **/sp-wallet**; review economy metrics; search a user by ID/email.
+1. Open **/sp-wallet**; review the economy metrics grid.
+2. Search a user by ID or email; verify the wallet detail panel.
+3. Search for a non-existent user ID, then an invalid (non-UUID) string.
+4. Load a wallet with many ledger entries and inspect the ledger table.
 
 **Expected Result:**
-- Metrics: total SP in circulation, users with wallet, active/frozen wallets, average balance.
-- Search shows the user's info, SP balance + status badge, lifetime earned/spent, and a ledger (type badges: admin purple, earnings green, debits red).
+- Metrics grid shows the 7 economy tiles (SP in circulation, total earned, total spent, active wallets, avg balance, admin adjustments, admin-adj total); values are non-negative and reconcile with the sp_wallets table.
+- Search shows the user's info, SP balance + status badge (active/frozen/suspended), available/pending balances, lifetime earned/spent, last activity, and a ledger table (type badges: admin purple, earnings green, debits red; newest first; capped at 100 rows).
+- Non-existent user → "SP wallet not found for this user" (no panel, no console errors).
+- Invalid user ID → "Invalid user ID format" (no crash).
 
 ---
 
@@ -1059,28 +1091,92 @@
 **Ref:** FLOW-30 · /sp-wallet
 **Actors:** test-admin
 
-**Objective:** Verify manual SP adjustment.
+**Objective:** Verify manual SP adjustment and its validation rules.
 
 **Steps:**
 1. On a wallet, enter a positive amount (add) with a reason and submit; repeat with a negative amount (deduct).
+2. Try a deduction larger than the available balance.
+3. Submit with an empty reason, then with a zero amount.
 
 **Expected Result:**
-- Amount must be a non-zero integer and reason is required; the balance updates and a ledger entry (admin_grant/admin_deduct) is recorded.
+- Amount must be a non-zero integer and reason is required; a valid adjustment updates the balance and records a ledger entry (earn_admin_grant / admin_deduct) plus an admin_audit_logs row (sp_adjustment).
+- Deduction larger than balance → blocked with "Insufficient balance"; balance unchanged, no ledger/audit row.
+- Empty reason → "Reason is mandatory"; zero amount → "Amount cannot be zero"; no rows written.
 
 ---
 
 ### TC-L05 · Freeze / unfreeze / suspend wallet
 
 **Ref:** FLOW-30 · /sp-wallet
-**Actors:** test-admin
+**Actors:** test-admin + test user (mobile)
 
-**Objective:** Verify wallet status changes.
+**Objective:** Verify wallet status changes and their mobile enforcement.
 
 **Steps:**
 1. On a wallet, toggle Freeze/Unfreeze and Suspend/Unsuspend.
+2. After freezing, call `debit_sp_for_trade` and `can_user_spend_sp` in SQL; relaunch the app and check the SP slider at checkout.
+3. After suspending, call `earn_sp_for_trade` and `debit_sp_for_trade`.
 
 **Expected Result:**
-- The status badge updates (active/frozen/suspended) and the mobile wallet reflects the frozen/suspended state.
+- Status badge updates (active/frozen/suspended); each change writes an admin_audit_logs row (sp_wallet_status_change).
+- Frozen → debit_sp_for_trade raises "wallet is frozen"; can_user_spend_sp() = false; mobile AuthContext can_spend_sp = false and the checkout SP slider is disabled.
+- Suspended → both earn_sp_for_trade and debit_sp_for_trade raise "wallet is suspended".
+- Restoring to active re-enables SP spending in the mobile app.
+
+---
+
+### TC-L06 · SP Wallet entry points — home card, summary metrics, sidebar link
+
+**Ref:** FLOW-30 · /sp-wallet
+**Actors:** test-admin
+
+**Objective:** Verify the SP economy/wallet entry points across the portal.
+
+**Steps:**
+1. Open the admin home page and scroll past the existing cards.
+2. Open any page and check the sidebar for the SP Wallet link.
+
+**Expected Result:**
+- Home page shows an "SP Economy" navigation card (data-testid="card-sp-wallet") routing to /sp-wallet, and an "SP Economy" summary section with 4 metric tiles (total earned, total spent, in circulation, active wallets); the section renders nothing if the metrics RPC fails.
+- Sidebar shows an "SP Wallet" link that routes to /sp-wallet.
+
+---
+
+### TC-L07 · SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state
+
+**Ref:** FLOW-30 · /sp-wallet
+**Actors:** test-admin (SQL Editor)
+
+**Objective:** Verify the wallet summary RPC exposes wallet_state.
+
+**Steps:**
+1. Run `SELECT * FROM get_user_sp_wallet_summary('<user_id>')` with an active wallet.
+2. Freeze the wallet and re-run; suspend and re-run; restore to active.
+
+**Expected Result:**
+- Columns include available_points, pending_points, lifetime_earned, lifetime_spent, wallet_state.
+- wallet_state returns active / frozen / suspended to match sp_wallets.state; the mobile AuthContext consumes this value to set can_spend_sp.
+
+---
+
+### TC-L08 · SP Wallet warning banners (mobile)
+
+**Ref:** FLOW-30 · /sp-wallet · WalletWarningBanner
+**Actors:** test user (mobile)
+
+**Objective:** Verify wallet-state warning banners in the mobile app.
+
+**Steps:**
+1. Freeze the wallet, relaunch the app, open the Wallet and checkout screens.
+2. Suspend the wallet, relaunch, open the Wallet screen.
+3. Set state = grace_period, relaunch, open the Wallet screen.
+4. Restore active, relaunch, confirm no banner.
+
+**Expected Result:**
+- Frozen → blue banner ("Swap Points Frozen — renew your subscription…") in Wallet + checkout.
+- Suspended → red banner ("Wallet Suspended — contact support…").
+- grace_period → yellow banner ("Grace Period Active — 90 days…").
+- Active → no banner.
 
 ---
 
@@ -1363,6 +1459,9 @@
 
 **Expected Result:**
 - Sections and examples can be created/edited/deleted/reordered; Analytics shows view counts and engagement; success/error messages auto-dismiss.
+- Publishing a section uses the `publish_section` RPC (atomic swap — no direct `UPDATE` to is_published).
+- Deleting a published example is blocked with `EXAMPLE_IS_PUBLISHED` (ContentValidationError).
+- Analytics aggregation shows onboarding.started/completed/skipped, completion rate, help.views, and calculator.uses.
 
 ---
 

@@ -25,6 +25,11 @@
 | | TC-B06 | Continue Kids Club+ (mid-trial) urgency + benefits |
 | | TC-B07 | Referred user warned about bonus loss before choosing Free |
 | | TC-B08 | Admin changes trial-limit config → trial CTA updates |
+| | TC-B09 | Cancel Stripe payment sheet — no error, retry available |
+| | TC-B10 | Card declined — clear error + retry |
+| | TC-B11 | Re-subscribe reuses saved payment method (1-click) |
+| | TC-B12 | Network error during payment — retry succeeds |
+| | TC-B13 | Apple Pay / Google Pay payment |
 | **C — Manage & Cancel** | TC-C01 | My Subscription screen — paid member view |
 | | TC-C02 | My Subscription quick menu (Billing / Payment / Help) |
 | | TC-C03 | Manage Kids Club+ — status, next billing, days remaining |
@@ -147,7 +152,7 @@
 - Column 1 = feature names; Column 2 = Free (grey crown, $0, "Forever"); Column 3 = Kids Club+ (green crown, monthly price, "/month", **POPULAR** badge).
 - Rows include monthly subscription, trial period ("{N} days"), and transaction fee (free fee vs subscriber fee), each with a check/X or text value.
 - "Why Upgrade to Kids Club+?" section shows "Trade with PIPs" and "Lower fees".
-- **[Choose Free]** returns to the previous screen; **[Choose Kids Club+]** navigates to the payment screen with isRenewal = false.
+- **[Free Plan]** returns to the previous screen; **[Start {N}-day Trial]** navigates to the payment screen with isRenewal = false.
 
 ---
 
@@ -291,6 +296,8 @@
 
 ### TC-B06 · Continue Kids Club+ (mid-trial) urgency + benefits
 
+> ⚠️ **Needs re-verification (2026-08-12):** The exact phrase "{N} days left in trial" was not found in the source — verify the actual days-remaining badge wording.
+
 **Ref:** FLOW-12 · ContinueKidsClubScreen
 **Actors:** test-trial (mid-trial)
 
@@ -341,6 +348,87 @@
 
 ---
 
+### TC-B09 · Cancel Stripe payment sheet — no error, retry available
+
+**Ref:** FLOW-12A · SubscriptionPaymentScreen
+**Actors:** test-free
+
+**Objective:** Verify cancelling the Stripe sheet is a non-error path.
+
+**Steps:**
+1. Open the payment screen and tap **[Subscribe]**.
+2. Tap ✕ / Cancel in the Payment Sheet header.
+
+**Expected Result:**
+- Sheet closes; no error alert shown; user stays on the payment screen and the Subscribe button is immediately tappable again.
+
+---
+
+### TC-B10 · Card declined — clear error + retry
+
+**Ref:** FLOW-12A · SubscriptionPaymentScreen
+**Actors:** test-free (declining test card `4000 0000 0000 0002`)
+
+**Objective:** Verify decline detection and a clear error.
+
+**Steps:**
+1. Enter the declining card and attempt to subscribe.
+2. Close the sheet and review the alert.
+
+**Expected Result:**
+- The sheet surfaces "Your card was declined"; an app alert "Payment Error — Unable to process payment" appears; the user remains on the payment screen and can retry with a valid card.
+
+---
+
+### TC-B11 · Re-subscribe reuses saved payment method (1-click)
+
+**Ref:** FLOW-12A · SubscriptionPaymentScreen (isRenewal)
+**Actors:** test-grace (with a saved method)
+
+**Objective:** Verify saved-card pre-selection for re-subscribe.
+
+**Steps:**
+1. From grace, tap **[Re-subscribe Now]**.
+2. Review the Payment Sheet.
+3. Tap **[Subscribe]** without re-entering card details.
+
+**Expected Result:**
+- The sheet pre-selects the saved method (e.g., "Visa •••• 4242"); no re-entry required; success restores Active.
+
+---
+
+### TC-B12 · Network error during payment — retry succeeds
+
+**Ref:** FLOW-12A · SubscriptionPaymentScreen
+**Actors:** test-free
+
+**Objective:** Verify graceful network failure and recovery.
+
+**Steps:**
+1. Enable airplane mode and tap **[Subscribe]**; wait for timeout.
+2. Re-enable network and tap **[Subscribe]** again.
+
+**Expected Result:**
+- Error alert "Unable to process payment. Please check your connection."; after restoring connectivity the retry succeeds.
+
+---
+
+### TC-B13 · Apple Pay / Google Pay payment
+
+**Ref:** FLOW-12A · SubscriptionPaymentScreen
+**Actors:** test-free
+
+**Objective:** Verify wallet-pay entry points.
+
+**Steps:**
+1. Open the Payment Sheet and confirm Apple Pay (iOS) / Google Pay (Android) is visible.
+2. Complete wallet authentication.
+
+**Expected Result:**
+- The wallet option is visible; payment completes with the same success flow as card entry.
+
+---
+
 ## Group C — Manage & Cancel
 
 ### TC-C01 · My Subscription screen — paid member view
@@ -378,6 +466,8 @@
 ---
 
 ### TC-C03 · Manage Kids Club+ — status, next billing, days remaining
+
+> ⚠️ **Needs re-verification (2026-08-12):** The helper text "You'll continue to have access until the end of your current billing period." was not found verbatim — verify the actual helper copy.
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (active)
@@ -431,6 +521,8 @@
 ---
 
 ### TC-C06 · Cancelled subscription stays active until period end
+
+> ⚠️ **Needs re-verification (2026-08-12):** The "can reactivate" message was not found verbatim — verify the actual reactivation messaging.
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (just cancelled)
@@ -498,6 +590,8 @@
 ---
 
 ### TC-D03 · Subscription Expired screen — benefits lost + Renew
+
+> ⚠️ **Needs re-verification (2026-08-12):** Index title says "benefits lost" but the screen uses "What you're missing out on:" — verify the intended description matches current copy.
 
 **Ref:** FLOW-12 · SubscriptionExpiredScreen
 **Actors:** A user whose grace period has fully expired
@@ -640,7 +734,7 @@
 1. Open the **Subscription Status** screen for a subscriber.
 
 **Expected Result:**
-- Shows a status badge, Stripe customer & subscription IDs, billing period start/end + days remaining, payment-failure retry count (max 3 before grace), grace-period info (if any) with the SP-freeze warning, trial end date, and last-updated timestamp.
+- Shows a status badge, Stripe customer & subscription IDs, billing period start/end + days remaining, next billing date, auto-renew flag, payment-failure retry count (max 3 before grace), grace-period info (if any) with the SP-freeze warning, trial end date, and last-updated timestamp.
 - Loading, error (with Retry), and "No subscription record found" states render appropriately.
 
 ---

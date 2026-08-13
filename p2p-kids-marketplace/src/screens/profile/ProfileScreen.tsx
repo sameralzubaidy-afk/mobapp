@@ -29,6 +29,7 @@ import {
   IdentificationCard,
   Gear,
   Receipt,
+  Question,
   SignOut,
   Buildings,
 } from 'phosphor-react-native';
@@ -564,6 +565,16 @@ export default function ProfileScreen({ route }: any) {
             >
               <Buildings size={20} color="#92400E" weight="regular" />
               <Text style={[styles.utilityText, { color: '#92400E' }]}>Admin Dashboard</Text>
+              <CaretRight size={16} color="#CCCCCC" weight="bold" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.utilityRow}
+              onPress={() => navigation.navigate('HelpSupport')}
+              testID="profile-help-support"
+            >
+              <Question size={20} color="#6B6B6B" weight="regular" />
+              <Text style={styles.utilityText}>Help & Support</Text>
               <CaretRight size={16} color="#CCCCCC" weight="bold" />
             </TouchableOpacity>
 

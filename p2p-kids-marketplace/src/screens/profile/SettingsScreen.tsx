@@ -24,7 +24,6 @@ import {
   BellSimpleSlash,
   PaperPlaneTilt,
   Link,
-  Question,
   CreditCard,
 } from 'phosphor-react-native';
 import { sendTestPushNotification } from '../../services/pushDelivery';
@@ -157,13 +156,6 @@ export default function SettingsScreen({ navigation }: any) {
             /* TODO(UX): Link to Privacy & Security screen when implemented */
           },
           testID: 'settings-privacy-security-button',
-        },
-        {
-          id: 'help',
-          title: 'Help & Support',
-          icon: <Question size={20} color="#5DBB8E" weight="regular" />,
-          onPress: () => navigation.navigate('HelpSupport'),
-          testID: 'settings-help-support-button',
         },
       ],
     },

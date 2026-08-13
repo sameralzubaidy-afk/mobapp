@@ -248,16 +248,17 @@ export default function ChatScreen() {
           console.warn('[ChatScreen] Failed to mark as delivered:', error);
         });
 
-      // MSG-008: Mark as read after 3 second delay
-      markAsReadTimeoutRef.current = setTimeout(() => {
-        markTradeMessagesAsRead(tradeId, session.user.id)
-          .then(() => {
-            console.log('[ChatScreen] Marked trade messages as read');
-          })
-          .catch((error) => {
-            console.warn('[ChatScreen] Failed to mark as read:', error);
-          });
-      }, 3000);
+      // MSG-008: Mark as read immediately on open. The previous 3-second
+      // delay could be cleared by unmount before it fired, so reading a
+      // message didn't reliably set read_at and the unread badge stayed stuck
+      // (the read never registered in the DB).
+      markTradeMessagesAsRead(tradeId, session.user.id)
+        .then(() => {
+          console.log('[ChatScreen] Marked trade messages as read');
+        })
+        .catch((error) => {
+          console.warn('[ChatScreen] Failed to mark as read:', error);
+        });
     }
 
     // Subscribe to new messages and status updates

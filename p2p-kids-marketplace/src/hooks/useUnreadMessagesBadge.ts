@@ -78,6 +78,16 @@ export function useUnreadMessagesBadge(
           refresh();
         }
       );
+      // MSG: also refresh when a message is marked read/delivered (read_at /
+      // delivery_status change) so the header badge decrements as soon as the
+      // user reads a message instead of waiting for the next foreground event.
+      channel.on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages' },
+        () => {
+          refresh();
+        }
+      );
       channel.subscribe();
     } catch (error) {
       console.warn('[useUnreadMessagesBadge] Realtime setup failed:', error);

@@ -56,6 +56,13 @@
 | | TC-J03 | Privacy Policy view + acceptance |
 | | TC-J04 | Liability Disclaimer view (read-only + retry) |
 | | TC-J05 | Policy versioning — re-acceptance on new version |
+| | TC-J06 | Signup implies TOS + Privacy agreement (no mandatory dialog) |
+| | TC-J07 | Legal screen unavailable state (no published policy) |
+| | TC-J08 | Legal screen load failure — error + Retry |
+| | TC-J09 | Very long policy content renders + scrolls smoothly |
+| | TC-J10 | Legal screens render consistently on iOS and Android |
+| | TC-J11 | Legal screen loads < 2s and scrolls without lag |
+| | TC-J12 | Liability Disclaimer unavailable state |
 | **K — Privacy & Security / MFA** | TC-K01 | MFA factors list + enrollment entry points |
 | | TC-K02 | Enroll and verify an authenticator factor |
 | | TC-K03 | Protected action prompts MFA challenge + invalid code handling |
@@ -160,6 +167,7 @@
 
 **Expected Result:**
 - Each opens its respective screen; "Privacy & Security" is a known not-yet-implemented stub.
+- Back-navigation returns correctly for every legal/help row; signup form data is preserved after back-navigation from a legal screen.
 
 ---
 
@@ -182,6 +190,8 @@
 ---
 
 ### TC-B02 · Email change requires re-verification
+
+> ⚠️ **Needs re-verification (2026-08-12):** No edit-profile email verification flow was found in the current codebase — email verification exists only in the ID-badge context. This behavior appears not implemented; verify before trusting this test case.
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
@@ -441,6 +451,8 @@
 ---
 
 ### TC-F02 · Unsubscribe via email token (success/error)
+
+> ⚠️ **Needs re-verification (2026-08-12):** The unsubscribe flow uses a deep-link token as a route param rather than "email token" terminology — verify the description wording.
 
 **Ref:** FLOW-17 · UnsubscribeScreen
 **Actors:** test-buyer (via email link)
@@ -770,6 +782,7 @@
 
 **Expected Result:**
 - View-only from Settings (last updated + markdown). With requireAcceptance, **[Accept Privacy Policy]** records acceptance and proceeds.
+- Policy version number and effective date are displayed (in addition to "Last updated"); markdown formatting (bold, italic, bullet/numbered lists, links) renders correctly.
 
 ---
 
@@ -801,6 +814,117 @@
 
 **Expected Result:**
 - The user is treated as not having accepted the current version and is prompted to accept the new one; after accepting, the check passes.
+- Draft versions are never visible to end users; only the latest published version is shown after an app restart.
+
+---
+
+### TC-J06 · Signup implies TOS + Privacy agreement (no mandatory dialog)
+
+**Ref:** FLOW-31/32 · SignupScreen
+**Actors:** A fresh (not logged-in) user
+
+**Objective:** Verify that completing signup implies agreement to the current published policies without a separate mandatory accept/decline dialog.
+
+**Steps:**
+1. Open the Signup screen; confirm the "By signing up, you agree to our Terms of Service and Privacy Policy" text renders with tappable links.
+2. Fill valid signup fields and submit.
+
+**Expected Result:**
+- Signup proceeds normally (e.g., to phone verification); no separate policy accept/decline dialog is shown; no error is displayed.
+
+---
+
+### TC-J07 · Legal screen unavailable state (no published policy)
+
+**Ref:** FLOW-31/32 · TermsOfServiceScreen / PrivacyPolicyScreen
+**Actors:** test-buyer
+
+**Objective:** Verify graceful behavior when no published policy exists.
+
+**Steps:**
+1. With no published TOS/Privacy, open Settings → Terms of Service (repeat for Privacy Policy).
+
+**Expected Result:**
+- A clear "…not available" message is shown; the app does not crash; the user can navigate back.
+
+---
+
+### TC-J08 · Legal screen load failure — error + Retry
+
+**Ref:** FLOW-31/32 · TermsOfServiceScreen / PrivacyPolicyScreen
+**Actors:** test-buyer
+
+**Objective:** Verify a fetch failure shows an error with a retry path.
+
+**Steps:**
+1. Simulate a load failure and open Settings → Terms of Service (repeat for Privacy Policy).
+2. Tap **[Retry]**.
+
+**Expected Result:**
+- A warning/error message with a Retry action renders; retry reloads once connectivity/state is restored; no crash or blank screen.
+
+---
+
+### TC-J09 · Very long policy content renders + scrolls smoothly
+
+**Ref:** FLOW-31 · TermsOfServiceScreen
+**Actors:** test-buyer
+
+**Objective:** Verify a large published policy renders and scrolls without issue.
+
+**Steps:**
+1. Open Settings → Terms of Service for a 10,000+ word policy.
+2. Scroll through the full content.
+
+**Expected Result:**
+- Markdown formatting (headings/lists) preserved; content scrolls smoothly with no lag; back returns to Settings.
+
+---
+
+### TC-J10 · Legal screens render consistently on iOS and Android
+
+**Ref:** FLOW-31/32/33
+**Actors:** test-buyer
+
+**Objective:** Verify identical legal-screen behavior on both platforms.
+
+**Steps:**
+1. Repeat TC-J01 / TC-J03 / TC-J04 on iOS Simulator, then Android Emulator.
+
+**Expected Result:**
+- Same content, formatting, link behavior, and navigation on both platforms; no platform-specific bugs.
+
+---
+
+### TC-J11 · Legal screen loads < 2s and scrolls without lag
+
+**Ref:** FLOW-31/32/33
+**Actors:** test-buyer
+
+**Objective:** Verify acceptable load performance.
+
+**Steps:**
+1. Clear cache and open Settings → Terms of Service / Privacy Policy; measure time to render.
+
+**Expected Result:**
+- Policy renders in < 2s; no noticeable scroll lag; repeated opens do not leak memory.
+
+---
+
+### TC-J12 · Liability Disclaimer unavailable state
+
+**Ref:** FLOW-33 · LiabilityDisclaimerScreen
+**Actors:** test-buyer
+
+**Objective:** Verify the no-policy state for the disclaimer.
+
+**Steps:**
+1. With no published disclaimer, open Settings → Liability Disclaimer.
+
+**Expected Result:**
+- "Liability Disclaimer not available" message; no Accept button; user can navigate back.
+
+---
 
 ## Group K — Privacy & Security / MFA
 

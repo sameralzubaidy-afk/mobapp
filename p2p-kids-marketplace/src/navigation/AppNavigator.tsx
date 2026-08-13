@@ -87,6 +87,7 @@ import ErrorScreen from '@/screens/feedback/ErrorScreen';
 import ChatScreen from '@/screens/messaging/ChatScreen';
 import HelpScreen from '@/screens/help/HelpScreen';
 import HelpSupportMenuScreen from '@/screens/support/HelpSupportMenuScreen';
+import FAQScreen from '@/screens/support/HelpScreen';
 import ContactSupportScreen from '@/screens/support/ContactSupportScreen';
 import FAQDetailScreen from '@/screens/support/FAQDetailScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
@@ -799,9 +800,10 @@ function RootNavigator() {
               component={HelpSupportMenuScreen}
               options={{ headerShown: false }}
             />
+            {/* FAQ screen — route "Support" must render the published-FAQ screen, not the "How to Earn SP" education screen */}
             <Stack.Screen
               name="Support"
-              component={HelpScreen}
+              component={FAQScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

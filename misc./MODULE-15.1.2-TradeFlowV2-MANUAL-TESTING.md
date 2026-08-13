@@ -73,6 +73,12 @@
 | | TC-I03 | In-chat safety banner persistent |
 | | TC-I04 | Pre-first-message safety modal once per listing |
 | | TC-I05 | Chat quick-reply chips on in_progress trade |
+| | TC-I06 | Liability disclaimer modal gates purchase (checkbox + Accept & Continue) |
+| | TC-I07 | Disclaimer modal Cancel path — no trade created |
+| | TC-I08 | Disclaimer modal ✕ close behaves like Cancel |
+| | TC-I09 | Disclaimer checkbox resets to unchecked on reopen |
+| | TC-I10 | Disclaimer modal loading state |
+| | TC-I11 | Disclaimer modal not shown for non-trade actions |
 | **J — Seller Cancel Consequences** | TC-J01 | Seller cancels in_progress trade → Level 1 |
 | | TC-J02 | 2nd post-acceptance cancel → Level 2 |
 | | TC-J03 | 3rd post-acceptance cancel → Level 3 |
@@ -128,6 +134,12 @@
 | | TC-N06 | Existing listing auto-paused when threshold raised above price |
 | | TC-N07 | Seller raises price to meet threshold → listing repurchasable |
 | | TC-N08 | Regression: single-item + bundle checkout at/above threshold |
+| | TC-N09 | Price adjustment modal displays correct copy and button text (single-item) |
+| | TC-N10 | "Update Price" dismisses modal and auto-scrolls + auto-focuses price field (single-item) |
+| | TC-N11 | Price adjustment modal in edit listing flow (single-item edit) |
+| | TC-N12 | Bulk listing: per-item chip shows dynamic threshold in missing-required warning |
+| | TC-N13 | Bulk listing: publish failure shows clear error message for below-threshold items |
+| | TC-N14 | Regression: minimum-price validation still blocks publish in single-item and bulk flows |
 | **O — Tax (End User)** | TC-O01 | Sales tax shown in checkout/cart breakdown (0 SP) |
 | | TC-O02 | Tax recalculates on SP slider change (offer + checkout) |
 | | TC-O03 | Tax $0 when globally disabled |
@@ -136,6 +148,49 @@
 | | TC-O06 | Transaction history shows tax details |
 | | TC-O07 | Refund shows proportional tax refunded |
 | | TC-O08 | Tax shown on trade timeline/detail for buyer only |
+| **O-1 — Tax Categories (Admin Config)** | TC-O1-C01 | Admin creates a new tax rule for general_tangible_goods |
+| | TC-O1-C02 | Admin creates second rule for same category — overlap blocked |
+| | TC-O1-C03 | Admin edits existing rule — new version created |
+| | TC-O1-C04 | Admin deactivates a rule |
+| | TC-O1-C05 | Existing listings backfill to general_tangible_goods |
+| | TC-O1-C06 | New single-listing creation receives default tax category |
+| | TC-O1-C07 | New bulk-listing creation receives default tax category |
+| | TC-O1-C08 | Admin changes individual listing's tax category |
+| | TC-O1-C09 | Tax-exempt category configuration |
+| | TC-O1-C10 | Price-threshold category configuration (clothing_footwear) |
+| | TC-O1-C11 | Fee-in-tax-base toggle on and off |
+| | TC-O1-C12 | Unauthorized user cannot view or edit tax configuration |
+| | TC-O1-C13 | Audit trail shows actor, timestamp, before/after values |
+| | TC-O1-C14 | Admin views and edits category→tax-category mapping |
+| | TC-O1-C15 | Category mapping change affects new listings immediately |
+| | TC-O1-C16 | Admin cannot map to non-existent or inactive tax category |
+| | TC-O1-C17 | Admin filters tax rules by active / inactive status |
+| **O-2 — Tax Status Lifecycle** | TC-O2-C01 | Single taxable item, no SP — offer is quoted/authorized, not collected |
+| | TC-O2-C02 | Bundle with taxable, exempt, and threshold items — line-level tax correct |
+| | TC-O2-C03 | Platform-fee tax toggle off and on — tax base changes by fee amount |
+| | TC-O2-C04 | SP used — taxable base unchanged, card auth reflects SP tender |
+| | TC-O2-C05 | Seller accepts — tax remains quoted/authorized, not collected |
+| | TC-O2-C06 | Buyer cancels while Awaiting Seller — PI canceled, tax voided, SP released once |
+| | TC-O2-C07 | Seller declines and offer expiry — PI canceled, tax voided |
+| | TC-O2-C08 | Buyer completes successfully — capture succeeds, tax collected |
+| | TC-O2-C09 | Auto-complete after 48 hours — capture succeeds, tax collected |
+| | TC-O2-C10 | Capture failure — no payout, no collected tax, recovery state visible |
+| | TC-O2-C11 | Duplicate webhook/retry — no duplicate tax collection, payout, or SP event |
+| | TC-O2-C12 | Historical/backfill records — clearly classified, never falsely marked as collected |
+| **O-3 — Tax Refund & Reconciliation** | TC-O3-C01 | Buyer wording: "Payment authorized" before capture (Awaiting Seller) |
+| | TC-O3-C02 | Buyer wording: "Payment authorized" after seller accept (In Progress) |
+| | TC-O3-C03 | Buyer wording: "Paid" after successful capture (Completed) |
+| | TC-O3-C04 | Capture failure shows "payment could not be completed" (no completed state) |
+| | TC-O3-C05 | Admin dispute route: full refund with Stripe + tax reversal (captured trade) |
+| | TC-O3-C06 | Duplicate refund/retry is idempotent |
+| | TC-O3-C07 | Admin dispute route: uncaptured PI is cancelled (not refunded) |
+| | TC-O3-C08 | Admin dispute route: Stripe refund failure stays unresolved |
+| | TC-O3-C09 | Stripe refund pending → tax pending_refund |
+| | TC-O3-C10 | Report: newly submitted offer → Pending/Authorized Tax |
+| | TC-O3-C11 | Report: captured trade → Tax Collected using capture timestamp |
+| | TC-O3-C12 | Report: cancelled/declined/expired → Voided/Expired Tax, not collected |
+| | TC-O3-C13 | Report: refunded trade → Tax Refunded, Net adjusts |
+| | TC-O3-C14 | Report: CSV totals match on-screen totals |
 | **P — Tax (Admin)** | TC-P01 | Node tax rate config (view/edit, validation) |
 | | TC-P02 | Bulk tax update across nodes |
 | | TC-P03 | Tax rate change history / audit |
@@ -204,6 +259,17 @@
 | | TC-S11 | Regression: Discover/search grid unchanged (no badges) |
 | | TC-S12 | Regression: single-item offer flow unchanged |
 | | TC-S13 | Regression: seller identity unlocks only post-acceptance |
+| | TC-S14 | More from seller — Item Detail CTA in standalone position (below seller card) |
+| | TC-S15 | More from seller — Item Detail CTA hidden at 0 additional listings |
+| | TC-S16 | More from seller — Item Detail CTA does not disrupt "Matches Your Cart" badge |
+| | TC-S17 | More from seller — Trade Basket banner shows correct remaining-item count |
+| | TC-S18 | More from seller — Trade Basket banner recalculates after adding item from filtered page |
+| | TC-S19 | More from seller — Trade Basket banner disappears when all seller's listings are in basket |
+| | TC-S20 | More from seller — Trade Basket banner dismissible via X button |
+| | TC-S21 | More from seller — Banner and filtered page never reveal seller identity |
+| | TC-S22 | Regression: Seller Info card elements unchanged |
+| | TC-S23 | Regression: Trade Basket subtotal/total/bundle CTA layout unaffected |
+| | TC-S24 | More from seller — Return-to-Cart navigation after adding item from filtered page |
 | **X — Navigation Consistency & Bottom Nav** | TC-X01 | Bottom nav renders identically on Home (Dashboard) |
 | | TC-X02 | Bottom nav renders identically on Discover |
 | | TC-X03 | Bottom nav renders identically on Inbox |
@@ -271,7 +337,7 @@
 - For cart tests: test-seller has at least 3 available items; a second seller (test-seller-2) has at least 1 available item in the same node as test-buyer.
 - For tax tests: the buyer's node has a tax rate configured (e.g., 6.35%) and sales tax is enabled globally, unless a case states otherwise. Admin portal access is available for admin-side cases.
 
-> **Note:** Donate listings (TC-A04) are deferred to post-MVP. See `MODULE-15.1.2-TradeFlowV2-DEFERRED-MANUAL-TESTING.md`.
+> **Note:** Donate listings (TC-A04) and the platform-SP reward for cash-only Accept SP trades (TC-A03) are deferred to post-MVP. See `MODULE-15.1.2-TradeFlowV2-DEFERRED-MANUAL-TESTING.md`.
 
 ## Accounts for testing
 
@@ -1088,7 +1154,7 @@ SELECT public.rpc_process_expired_offers(100);
 3. Log in as **Buyer** and open the trade after it completes.
 
 **Expected Result:**
-- The buyer sees an auto-complete banner ("Confirm pickup — auto-completing in [time]" + "Received it? Tap 'I Got It'").
+- The buyer sees an auto-complete banner ("Auto-completes in [time]" + "Received it? Tap 'I Got It'").
 - The seller does not see the banner; instead sees "Buyer paid. Awaiting pickup confirmation."
 - Once completed, the banner is gone.
 
@@ -1533,6 +1599,103 @@ SELECT public.rpc_process_expired_offers(100);
 - 📍 Suggest times pre-fills the composer with "Here are some times that work for me: [add your times]".
 - Chips are hidden when the trade is pending or completed.
 - Only 3 chips show initially; a "+More" reveals the rest.
+
+---
+
+### TC-I06 · Liability disclaimer modal gates purchase (checkbox + Accept & Continue)
+
+**Ref:** TRADING-FLOW-V2 · Safety UX (Liability Disclaimer at trade time)
+**Actors:** test-buyer
+
+**Objective:** Verify a liability disclaimer modal appears at trade confirmation and that "Accept & Continue" is disabled until the checkbox is checked.
+
+**Steps:**
+1. Open an available listing and tap **[Request to Buy]**.
+2. On the trade screen, tap **[Confirm & Pay]**.
+3. Check the checkbox, then tap **[Accept & Continue]**.
+
+**Expected Result:**
+- Modal opens with title "Liability Disclaimer" and scrollable content.
+- "Accept & Continue" is disabled until the checkbox is checked.
+- After accepting, the modal closes and the trade proceeds; the trade's disclaimer acknowledgment (policy id + timestamp) is recorded.
+
+---
+
+### TC-I07 · Disclaimer modal Cancel path — no trade created
+
+**Ref:** TRADING-FLOW-V2 · Safety UX
+**Actors:** test-buyer
+
+**Objective:** Verify cancelling the disclaimer modal aborts the purchase attempt without creating a trade.
+
+**Steps:**
+1. Trigger the disclaimer modal via **[Confirm & Pay]**.
+2. Tap **[Cancel]** without checking the checkbox.
+
+**Expected Result:**
+- The modal closes; no trade is created; the user can retry the purchase flow.
+
+---
+
+### TC-I08 · Disclaimer modal ✕ close behaves like Cancel
+
+**Ref:** TRADING-FLOW-V2 · Safety UX
+**Actors:** test-buyer
+
+**Objective:** Verify the ✕ close button behaves the same as Cancel.
+
+**Steps:**
+1. Trigger the disclaimer modal.
+2. Tap the ✕ close button.
+
+**Expected Result:**
+- The modal closes without creating a trade or recording acknowledgment; the user can reopen it by retrying.
+
+---
+
+### TC-I09 · Disclaimer checkbox resets to unchecked on reopen
+
+**Ref:** TRADING-FLOW-V2 · Safety UX
+**Actors:** test-buyer
+
+**Objective:** Verify the acknowledgment checkbox does not persist across modal opens.
+
+**Steps:**
+1. Open the disclaimer modal, check the checkbox, then close via ✕ or Cancel.
+2. Reopen the modal.
+
+**Expected Result:**
+- The checkbox is reset to unchecked; "Accept & Continue" is disabled until re-checked.
+
+---
+
+### TC-I10 · Disclaimer modal loading state
+
+**Ref:** TRADING-FLOW-V2 · Safety UX
+**Actors:** test-buyer
+
+**Objective:** Verify the modal shows a loading state while the disclaimer policy loads.
+
+**Steps:**
+1. Trigger the disclaimer modal under slow network.
+
+**Expected Result:**
+- A "Loading disclaimer…" indicator shows until content arrives; no blank modal; errors show a retry path.
+
+---
+
+### TC-I11 · Disclaimer modal not shown for non-trade actions
+
+**Ref:** TRADING-FLOW-V2 · Safety UX
+**Actors:** test-buyer
+
+**Objective:** Verify the trade-time disclaimer does not appear for unrelated actions.
+
+**Steps:**
+1. Create/edit a listing, edit the profile, and open the SP wallet.
+
+**Expected Result:**
+- No liability disclaimer modal appears for listing creation, profile editing, or wallet actions; it is trade-specific only.
 
 ---
 

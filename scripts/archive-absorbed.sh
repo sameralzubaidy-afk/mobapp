@@ -1,0 +1,251 @@
+#!/bin/bash
+# Archive fully-absorbed manual test files (Phase 4)
+# Moves candidate files that are FULLY ABSORBED into the archive/ folder,
+# preserving their original subdirectory structure.
+set -e
+ROOT="/Users/sameralzubaidi/Desktop/kids_marketplace_app"
+ARCH="$ROOT/archive"
+
+mkdir -p "$ARCH/misc" "$ARCH/docs" "$ARCH/docs-manual-verification" "$ARCH/.docs" "$ARCH/p2p-kids-marketplace" "$ARCH/p2p-kids-admin"
+
+move() {
+  local src="$1"
+  if [ -f "$src" ]; then
+    mkdir -p "$(dirname "$ARCH/${src#$ROOT/}")"
+    mv "$src" "$ARCH/${src#$ROOT/}"
+    echo "MOVED: ${src#$ROOT/}"
+  else
+    echo "SKIP (not found): ${src#$ROOT/}"
+  fi
+}
+
+# --- TradeFlowV2 candidates ---
+for f in \
+  "MODULE-15.1.2-TradeFlowV2-COMPLETE-MANUAL-TESTING.md" \
+  "MODULE-15.1.2-FLOW-TradeFlowV2-08-MANUAL-TESTING.md" \
+  "MODULE-15.2-MANUAL-TEST-CASES.md" \
+  "MODULE-15.3-PART3-TAX-MANUAL-TEST-CASES.md" \
+  "TAX-TESTING-CONSOLIDATED.md" \
+  "TRADE-V2-002-MANUAL-TESTING.md" \
+  "TRADE-V2-010-MANUAL-TEST-GUIDE.md" \
+  "TASK-FLOW-08-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-07-MANUAL-TESTING.md" ; do
+  move "$ROOT/misc./$f"
+done
+
+# --- Admin Portal candidates ---
+for f in \
+  "ADMIN-V2-005-REVENUE-ANALYTICS-MANUAL-TESTING.md" \
+  "ADMIN-V2-006-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V2-007-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V3-001-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V3-002-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V3-004-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V3-005-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V3-006-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V3-007-MANUAL-TESTING-GUIDE.md" \
+  "ADMIN-V3-009-MANUAL-TESTING-GUIDE.md" \
+  "PAY-008-MANUAL-TEST-CASES.md" \
+  "PAY-008-TEST-CASES.md" \
+  "EDU-008-MANUAL-TESTING-GUIDE.md" \
+  "EDU-009-MANUAL-TESTING-GUIDE.md" ; do
+  move "$ROOT/misc./$f"
+done
+
+# --- Auth / Onboarding / Listing / Discovery ---
+for f in \
+  "AUTH-V2-COMPLETE-TEST-GUIDE.md" \
+  "AUTH-V3-001-MANUAL-TESTING-GUIDE.md" \
+  "AUTH-V3-002-MANUAL-TESTING-GUIDE.md" \
+  "AUTH-V3-003-MANUAL-TESTING-GUIDE.md" \
+  "AUTH-V3-004-MANUAL-TESTING.md" \
+  "AUTH-V3-005-MANUAL-TESTING.md" \
+  "AUTH-V3-006-MANUAL-TESTING.md" \
+  "AUTH-V3-007-MANUAL-TESTING-GUIDE.md" \
+  "AUTH-V3-008-MANUAL-TESTING-GUIDE.md" \
+  "AUTH-V3-009-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-01-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-02-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-04-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-06-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-15-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-16-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-21-MANUAL-TESTING.md" \
+  "TASK-EDU-004-MANUAL-TESTING.md" \
+  "FLOW-26-MANUAL-TESTING-GUIDE.md" \
+  "NODE-003-MANUAL-TESTING-GUIDE.md" \
+  "NODE-006-MANUAL-TESTING-GUIDE.md" \
+  "NODE-007-MANUAL-TEST-GUIDE.md" \
+  "LISTING-V3-001-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-002-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-003-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-005-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-006-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-007-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-008-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-009-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-010-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-011-MANUAL-TESTING.md" \
+  "DISCOVERY-V3-001-MANUAL-TEST.md" \
+  "DISCOVERY-V3-002-MANUAL-TESTING-GUIDE.md" \
+  "DISCOVERY-V3-003-MANUAL-TESTING-GUIDE.md" \
+  "DISCOVERY-V3-005-MANUAL-TEST-GUIDE.md" \
+  "DISCOVERY-V3-006-MANUAL-TESTING-GUIDE.md" \
+  "DISCOVERY-V3-008-MANUAL-TESTING-GUIDE.md" ; do
+  move "$ROOT/misc./$f"
+done
+
+# --- Messaging / Badges / ID / Referrals / Safety / Notifications ---
+for f in \
+  "MSG-001-MANUAL-TESTING-GUIDE.md" \
+  "MSG-002-MANUAL-TEST-GUIDE.md" \
+  "MSG-003-Manual-Test-Cases.md" \
+  "MSG-004-MANUAL-TESTING-GUIDE.md" \
+  "MSG-005-MANUAL-TESTING-GUIDE.md" \
+  "MSG-005-COMPLETE-VERIFICATION-MANUAL.md" \
+  "MSG-006-009-MANUAL-TESTING-GUIDE.md" \
+  "MSG-006-009-MANUAL-TESTING-GUIDE-UPDATED.md" \
+  "MSG-006-009-COMPLETE-TESTING-GUIDE.md" \
+  "MSG-002-UNREAD-TEST-GUIDE.md" \
+  "MODULE-15.1-FLOW-14-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-13-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-17-MANUAL-TESTING.md" \
+  "BADGE-008-MANUAL-TESTING-GUIDE.md" \
+  "BADGE-009-MANUAL-TESTING-GUIDE.md" \
+  "BADGE-010-MANUAL-TESTING-GUIDE.md" \
+  "BADGE-011-MANUAL-TESTING-GUIDE.md" \
+  "BADGE-012-MANUAL-TESTING-GUIDE.md" \
+  "BADGE-013-MANUAL-TESTING-GUIDE.md" \
+  "BADGES-V2-005-MANUAL-TESTING-GUIDE.md" \
+  "BADGES-V2-006-MANUAL-TESTING-GUIDE.md" \
+  "BADGES-V2-007-MANUAL-TESTING-GUIDE.md" \
+  "BADGES-V2-008-009-MANUAL-TESTING.md" \
+  "BADGES-V2-008-MANUAL-TESTING-GUIDE.md" \
+  "manual_test_badges_v2_001.md" \
+  "manual_test_badges_v2_002.md" \
+  "manual_test_badges_v2_003.md" \
+  "manual_test_badges_v2_004.md" \
+  "REVIEW-001-MANUAL-TEST-GUIDE.md" \
+  "REVIEW-002-MANUAL-TEST-GUIDE.md" \
+  "REVIEW-003-MANUAL-TESTING-GUIDE.md" \
+  "REVIEW-004-MANUAL-TESTING-GUIDE.md" \
+  "REVIEW-005-MANUAL-TESTING-GUIDE.md" \
+  "REVIEW-006-MANUAL-TESTING-GUIDE.md" \
+  "REVIEW-007-MANUAL-TESTING-GUIDE.md" \
+  "REF-V2-002-MANUAL-TESTING-GUIDE.md" \
+  "REF-V2-005-MANUAL-TESTING-GUIDE.md" \
+  "REF-V2-006-MANUAL-TESTING.md" \
+  "REF-V2-007-MANUAL-TESTING-GUIDE.md" \
+  "REF-V2-008-MANUAL-TESTING-GUIDE.md" \
+  "REFERRALS-V2-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-001-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-002-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-004-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-008-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-009-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-010-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-011-PRIVACY-POLICY-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-012-LIABILITY-DISCLAIMER-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-P001-MANUAL-TESTING.md" \
+  "SAFETY-P002-MANUAL-TESTING-GUIDE.md" \
+  "SAFETY-P003-MANUAL-TEST-GUIDE.md" \
+  "NOTIF-V2-002-MANUAL-TESTING-GUIDE.md" \
+  "NOTIF-V2-003-MANUAL-TESTING.md" \
+  "NOTIF-V2-004-MANUAL-TESTING.md" \
+  "NOTIF-V2-005-MANUAL-TESTING-GUIDE.md" \
+  "NOTIF-V2-007-MANUAL-TESTING-GUIDE.md" \
+  "NOTIF-V2-009-MANUAL-TESTING-GUIDE.md" \
+  "NOTIF-V2-010-MANUAL-TESTING-GUIDE.md" ; do
+  move "$ROOT/misc./$f"
+done
+
+# --- Subscriptions / Payouts / SP Wallet ---
+for f in \
+  "SUB-002-MANUAL-TEST-CASES.md" \
+  "SUB-003-MANUAL-TESTING-GUIDE.md" \
+  "SUB-004-MANUAL-TESTING-GUIDE.md" \
+  "SUB-005-MANUAL-TESTING-GUIDE.md" \
+  "SUB-006-MANUAL-TESTING-GUIDE.md" \
+  "SUB-007-MANUAL-TESTING-GUIDE.md" \
+  "SUB-008-MANUAL-TEST-CASES.md" \
+  "SUB-009-MANUAL-TEST-CASES.md" \
+  "SUB-009-MANUAL-TEST-CASES-UPDATED.md" \
+  "SUB-010-MANUAL-TESTING-GUIDE.md" \
+  "SUB-011-MANUAL-TESTING-GUIDE.md" \
+  "SUB-014-MANUAL-TEST-CASES.md" \
+  "SUB-016-017-MANUAL-TEST-CASES.md" \
+  "SUB-018-MANUAL-TEST-CASES.md" \
+  "MANUAL-TEST-SUB-EXT-001.md" \
+  "FLOW-12-MANUAL-TEST-GUIDE.md" \
+  "TC-SUB002-008-DYNAMIC-TRANSACTION-FEES-TESTING.md" \
+  "PAY-001-MANUAL-TEST-GUIDE.md" \
+  "PAY-003-MANUAL-TEST-GUIDE.md" \
+  "PAY-004-005-MANUAL-TEST-CASES.md" \
+  "MANUAL_TEST_PAY-002.md" \
+  "MODULE-15.1-FLOW-10-11-MANUAL-TESTING.md" \
+  "MODULE-15.1-FLOW-22-MANUAL-TESTING.md" \
+  "MANUAL-TEST-SP-001.md" ; do
+  move "$ROOT/misc./$f"
+done
+
+# --- Account / Dashboard / Help / Legal remaining ---
+for f in \
+  "MODULE-15.1-FLOW-19-MANUAL-TESTING.md" \
+  "EDU-005-MANUAL-TESTING-GUIDE.md" \
+  "EDU-006-MANUAL-TESTING-GUIDE.md" ; do
+  move "$ROOT/misc./$f"
+done
+
+# --- docs/ ---
+for f in \
+  "manual-test-cases-module-06.md" \
+  "TRADE-V2-007-MANUAL-TEST.md" \
+  "PROD-004-MANUAL-TC.md" \
+  "PROD-010-MANUAL-TC.md" \
+  "SUB-001-MANUAL-TESTING-GUIDE.md" ; do
+  move "$ROOT/docs/$f"
+done
+
+# --- docs/manual-verification/ ---
+for f in \
+  "MANUAL-VERIFICATION-DISCOVERY-V2-002.md" \
+  "MANUAL-VERIFICATION-READY.md" \
+  "SP-ECONOMY-HUB-MANUAL-TEST-CASES.md" \
+  "SUB-011-verification.md" \
+  "SUB-015-verification.md" \
+  "SUB-020-TRIAL-LIMIT-MANUAL-TEST-CASES.md" ; do
+  move "$ROOT/docs/manual-verification/$f"
+done
+
+# --- .docs/ ---
+move "$ROOT/.docs/PAY-006-MANUAL-TESTS.md"
+
+# --- p2p-kids-marketplace/ ---
+for f in \
+  "NOTIF-V2-001-Notification-Preferences-Manual-Tests.md" \
+  "NOTIF-V2-006-MANUAL-TESTING.md" \
+  "NOTIF-V2-008-MANUAL-TEST-GUIDE.md" \
+  "DISCOVERY-V3-004-MANUAL-TESTING-GUIDE.md" \
+  "LISTING-V3-004-MANUAL-TESTING-GUIDE.md" \
+  "FLOW-22-MANUAL-TESTING.md" \
+  "FLOW-25-MANUAL-TESTING.md" ; do
+  # some live at repo root, one lives under docs/manual-tests/
+  if [ -f "$ROOT/p2p-kids-marketplace/$f" ]; then
+    move "$ROOT/p2p-kids-marketplace/$f"
+  elif [ -f "$ROOT/p2p-kids-marketplace/docs/manual-tests/$f" ]; then
+    move "$ROOT/p2p-kids-marketplace/docs/manual-tests/$f"
+  else
+    echo "SKIP (not found): p2p-kids-marketplace/$f"
+  fi
+done
+
+# --- p2p-kids-admin/ ---
+for f in \
+  "SP-002-MANUAL-TEST-GUIDE.md" \
+  "SP-003-004-MANUAL-TEST-CASES.md" ; do
+  move "$ROOT/p2p-kids-admin/$f"
+done
+
+echo "--- ALL archiving complete ---"
+echo "Total files in archive/:"
+find "$ARCH" -type f | wc -l

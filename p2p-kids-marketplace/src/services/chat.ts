@@ -512,15 +512,14 @@ export async function getTotalUnreadMessageCount(userId: string): Promise<number
   if (!userId) return 0;
 
   try {
-    // Get recent trades where user is a participant AND that have at least one
-    // message (trades without messages can't have unread messages).
-    // TFV2-002: V2 trade statuses are pending, in_progress, completed, cancelled
-    // Exclude cancelled trades — chat is frozen and no new messages expected
+    // Get the user's trades that have at least one message (trades without
+    // messages can't have unread messages). We include ALL statuses — a trade
+    // can be cancelled/completed/payment_failed yet still hold messages the
+    // user never opened.
     const { data: trades, error: tradesError } = await supabase
       .from('trades')
       .select('id, buyer_id, seller_id, messages!inner(id)')
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-      .in('status', ['pending', 'in_progress', 'completed'])
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -530,25 +529,30 @@ export async function getTotalUnreadMessageCount(userId: string): Promise<number
 
     for (const trade of trades) {
       const otherUserId = trade.buyer_id === userId ? trade.seller_id : trade.buyer_id;
-      const lastViewedKey = `last_viewed_${userId}_${trade.id}`;
-      const lastViewedStr = await AsyncStorage.getItem(lastViewedKey);
-      const lastViewed = parseLastViewedMs(lastViewedStr);
 
-      const { data: unreadMessages } = await supabase
+      // Unread = messages from the other party that this user has NOT read yet.
+      // Source of truth is messages.read_at (set by mark_trade_messages_read
+      // when the user views the chat) — this matches the ChatScreen read
+      // mechanism, unlike the old AsyncStorage last_viewed timestamp which got
+      // out of sync and hid unread messages.
+      const { data: unreadMessages, error: msgError } = await supabase
         .from('messages')
-        .select('id, created_at')
+        .select('id')
         .eq('trade_id', trade.id)
         .eq('sender_id', otherUserId)
         .is('deleted_at', null)
-        .gte('created_at', new Date(lastViewed).toISOString());
+        .is('read_at', null);
 
-      const actualUnread =
-        unreadMessages?.filter((msg: { id: string; created_at: string }) => {
-          const msgTime = new Date(msg.created_at).getTime();
-          return Number.isFinite(msgTime) && msgTime > lastViewed;
-        }) || [];
+      if (msgError) {
+        console.error(
+          '[chat.getTotalUnreadMessageCount] Error counting unread for trade',
+          trade.id,
+          msgError.message
+        );
+        continue;
+      }
 
-      totalUnread += actualUnread.length;
+      totalUnread += unreadMessages?.length ?? 0;
     }
 
     return totalUnread;

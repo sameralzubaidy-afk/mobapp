@@ -125,6 +125,13 @@
 | | TC-P17 | Logout still reachable from Profile/Settings |
 | | TC-P18 | Composer analytics (tap + submit with/without text) |
 | | TC-P19 | Accessibility identifiers (Trades tab, header chat) |
+| **Q — Trading Education (End User)** | TC-Q01 | Education Help screen — published sections only |
+| | TC-Q02 | Education Help screen — section by type |
+| | TC-Q03 | SP calculator — sell mode (no hardcoded rates) |
+| | TC-Q04 | SP calculator — buy mode (cash + fee + cap) |
+| | TC-Q05 | SP calculator — bonus categories + example SP |
+| | TC-Q06 | Education analytics — event tracking (no throw) |
+| | TC-Q07 | Education prompts — onboarding + in-app prompt state machine |
 
 ---
 
@@ -1734,6 +1741,120 @@
 **Expected Result:**
 - Trades tab has a button role + label "Trades" (testID `tab-trades`).
 - Header chat button has label "Messages" (testID `header-chat-btn`); the node chip is not announced as a button.
+
+---
+
+## Group Q — Trading Education (End User)
+
+### TC-Q01 · Education Help screen — published sections only
+
+**Ref:** FLOW-21 / FLOW-EDU-001 · HelpScreen
+**Actors:** test user (mobile)
+
+**Objective:** Verify the Help screen lists only published, ordered education sections.
+
+**Steps:**
+1. Open the in-app Help/Education screen.
+2. Inspect the loaded sections.
+
+**Expected Result:**
+- Only published sections are shown, ordered by display_order ascending; each has id/title/body/section_type/image_url/published_at/created_at; drafts are hidden.
+
+---
+
+### TC-Q02 · Education Help screen — section by type
+
+**Ref:** FLOW-21 / FLOW-EDU-001 · HelpScreen
+**Actors:** test user (mobile)
+
+**Objective:** Verify a specific section type resolves to one published section.
+
+**Steps:**
+1. Request the "sp_definition" section (e.g., tap the SP-definition entry).
+
+**Expected Result:**
+- A single section object is returned with section_type = 'sp_definition', is_published = true, and non-empty title/body.
+
+---
+
+### TC-Q03 · SP calculator — sell mode (no hardcoded rates)
+
+**Ref:** FLOW-EDU-001 · SP calculator
+**Actors:** test user (mobile, subscriber)
+
+**Objective:** Verify sell-mode SP calculation delegates to MODULE-12 V3 (no hardcoded rates).
+
+**Steps:**
+1. In the education SP calculator, select a bonus category and enter a price (e.g., 25).
+
+**Expected Result:**
+- mode = 'sell'; earn_sp = round(price × category multiplier); is_bonus = true for multiplier > 1.10; category_name shown; source code contains no literal rates (1.10 / 1.30 / 70, etc.).
+
+---
+
+### TC-Q04 · SP calculator — buy mode (cash + fee + cap)
+
+**Ref:** FLOW-EDU-001 · SP calculator
+**Actors:** test user (mobile)
+
+**Objective:** Verify buy-mode SP calculation (cash, fee, total, cap).
+
+**Steps:**
+1. In the SP calculator, enter price 25 and SP 10 for the same category.
+
+**Expected Result:**
+- mode = 'buy'; sp_to_use = 10; cash_paid = 15; fee = 2.5 (10%); total_cost = 17.5; max_sp_usable is floored to the category cap (e.g., 70%).
+
+---
+
+### TC-Q05 · SP calculator — bonus categories + example SP
+
+**Ref:** FLOW-EDU-001 · SP calculator
+**Actors:** test user (mobile)
+
+**Objective:** Verify bonus-category listing and example SP calculation.
+
+**Steps:**
+1. List bonus categories; then calculate example SP for a price + category and for a null category.
+
+**Expected Result:**
+- Bonus list returns only categories with sp_earning_multiplier > 1.10, ordered descending.
+- Example SP returns { earn_sp, max_use_sp, cash_paid, fee, is_bonus, category_name } with rounded/floored values; null category returns null.
+
+---
+
+### TC-Q06 · Education analytics — event tracking (no throw)
+
+**Ref:** FLOW-EDU-001 · analytics
+**Actors:** test user (mobile)
+
+**Objective:** Verify education events are tracked without throwing.
+
+**Steps:**
+1. Trigger a help_view event; also fire an invalid event type.
+
+**Expected Result:**
+- No exception; the valid event lands in education_analytics with correct user_id, event_type, event_data; the invalid event fails silently (warning only).
+
+---
+
+### TC-Q07 · Education prompts — onboarding + in-app prompt state machine
+
+**Ref:** FLOW-EDU-001 · analytics
+**Actors:** test user (mobile)
+
+**Objective:** Verify onboarding/prompt show logic, idempotency, and auto-suppression.
+
+**Steps:**
+1. With onboarding_completed_at/skipped_at NULL, check shouldShowOnboarding.
+2. Mark complete, then mark skipped (after reset).
+3. Mark a prompt seen twice and inspect education_prompts_seen.
+4. With onboarding skipped + 3 prompts seen, check a new prompt.
+
+**Expected Result:**
+- shouldShowOnboarding = true initially; false after complete or skip.
+- markPromptSeen is idempotent (single array entry).
+- After 3 seen prompts, a new prompt is auto-suppressed and education_prompts_suppressed_at is set.
 
 ---
 
