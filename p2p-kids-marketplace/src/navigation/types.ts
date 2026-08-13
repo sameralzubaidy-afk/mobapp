@@ -18,7 +18,6 @@ export type RootStackParamList = {
   ResetPassword: { token?: string } | undefined;
   // MODULE-04: Listing routes
   MyListings: undefined;
-  CreateListing: undefined;
   // MODULE-04 V3: Photo-first listing creation
   ItemCreate: {
     draftId?: string;

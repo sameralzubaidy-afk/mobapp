@@ -260,7 +260,7 @@ export default function SubscriptionChoiceScreen() {
               text: 'Get Started',
               onPress: () => {
                 // If coming from onboarding, navigate to FeatureHighlights screen (tutorials)
-                // If coming from authenticated app (CreateListingScreen or TradeSuccessScreen), go to Home
+                // If coming from authenticated app (TradeSuccessScreen), go to Home
                 if (isOnboardingFlow) {
                   setTimeout(() => {
                     (navigation as any).navigate('FeatureHighlights', { userId });
@@ -346,7 +346,7 @@ export default function SubscriptionChoiceScreen() {
             text: 'Get Started',
             onPress: () => {
               // If coming from onboarding, navigate to FeatureHighlights screen (tutorials)
-              // If coming from authenticated app (CreateListingScreen or TradeSuccessScreen), go to Home
+              // If coming from authenticated app (TradeSuccessScreen), go to Home
               if (isOnboardingFlow) {
                 console.log('[SubscriptionChoice] ✅ Navigating to tutorials (FeatureHighlights)');
                 setTimeout(() => {

@@ -31,7 +31,6 @@ import JoinKidsClubScreen from '@/screens/subscription/JoinKidsClubScreen';
 import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
 // MODULE-18 EDU-004: Trading education onboarding carousel
 import OnboardingScreen from '@/screens/onboarding/OnboardingScreen';
-import CreateListingScreen from '@/screens/listing/CreateListingScreen';
 import ItemCreateScreen from '@/screens/ItemCreateScreen';
 import BulkListingCreateScreen from '@/screens/BulkListingCreateScreen';
 import EditListingScreen from '@/screens/listing/EditListingScreen';
@@ -144,7 +143,6 @@ const linking = {
       MySubscription: 'my-subscription',
       FeatureHighlights: 'feature-highlights',
       MyListings: 'my-listings',
-      CreateListing: 'create-listing',
       ItemCreate: 'create-item',
       BundleBuilder: 'bundle-builder/:sellerId',
       MoreFromThisSeller: 'more-from-seller/:sellerId',
@@ -559,11 +557,6 @@ function RootNavigator() {
             <Stack.Screen
               name="MyListings"
               component={MyListingsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CreateListing"
-              component={CreateListingScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-04 V3: Photo-first listing creation */}
