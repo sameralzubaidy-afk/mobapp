@@ -20,6 +20,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
 - BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient.
+- BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -192,6 +193,25 @@ Rules:
 <TouchableOpacity testID="age-gate-dialog-ok-button" onPress={...} />
 ```
 4. Detection checklist: after a modal/alert/button change, run the element-listing tool on the simulator and confirm each intended `testID` appears; if the identifier is missing but the element renders, it's an exposure bug (add `accessible`/`accessibilityRole`), not a tooling limitation.
+
+## BP-54: Never Use Dynamic `import('react-native')` / Enumerate RN's Exports — Lazy-Getter Load Can Crash on Missing Native Modules
+
+Problem: `ResetPasswordScreen` parsed the reset-password deep link with `(await import('react-native')).Linking.getInitialURL()`. Metro compiles a dynamic `import('react-native')` into an async require whose `importAll()` interop enumerates every own property of RN's exports object (`for...in`). React Native exposes many modules as **lazy getters** to defer their load — one is `PushNotificationIOS`. Touching that getter loads `PushNotificationIOS.js`, whose module scope runs `new NativeEventEmitter(NativePushNotificationManagerIOS)`; that native module is `null` when the `React-RCTPushNotification` pod isn't linked (this app uses `expo-notifications`; the pod is NOT installed), producing a fatal `new NativeEventEmitter() requires a non-null argument.` redbox on the reset-password deep link, plus a caught `Cannot read property 'default' of undefined` inside the same TurboModule-load path. This affects Release too, not just dev — the pod absence and the `importAll` enumeration are build-wide (the LogBox overlay is dev-only; the underlying throw would still fire in production).
+
+Rules:
+1. NEVER use a dynamic `import('react-native')` / `import * as RN from 'react-native'` and then access or iterate RN's exports — the enumeration force-loads RN's lazy getters and crashes when an optional native module isn't linked.
+2. ALWAYS import the specific symbol with a static import (`import { Linking } from 'react-native'`), resolved at bundle time — it never triggers the getter enumeration. `expo-linking` (static) is the preferred alternative for deep-link parsing.
+3. Pattern:
+```ts
+// ✅ CORRECT — static import, bundle-time resolution
+import { Linking } from 'react-native';
+...
+Linking.getInitialURL().then(handleResetUrl);
+
+// ❌ WRONG — dynamic import enumerates RN's lazy getters
+const url = await (await import('react-native')).Linking.getInitialURL();
+```
+4. Detection checklist: if a deep link (or any screen) that dynamically imports `react-native` crashes with `new NativeEventEmitter() requires a non-null argument.` / `Cannot read property 'default' of undefined`, search for `import('react-native')` and replace it with a static import; then verify warm AND cold deep-link delivery on-device plus a tokenized link still parses (fake token → expected auth error, not a crash).
 
 ## Backward Compatibility for the Mobile Client
 

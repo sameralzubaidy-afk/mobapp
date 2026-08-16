@@ -10,8 +10,8 @@
 //   (b) The evidence is staged (evidence_details.submitted === false) so an
 //       admin can still review it in the Stripe Dashboard before submission.
 //   (c) The Stripe Dashboard visual spot-check is MANUAL — run the matching
-//       manual test case (see misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md
-//       Group N3, TC-N3-03) — this script covers the API layer only.
+//       manual test case (see cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md
+//       Group N3, TRD-TC-N3-03) — this script covers the API layer only.
 //
 // Usage:
 //   STRIPE_SECRET_KEY=sk_test_xxx node scripts/smoke/dispute-evidence.mjs --dispute dp_123

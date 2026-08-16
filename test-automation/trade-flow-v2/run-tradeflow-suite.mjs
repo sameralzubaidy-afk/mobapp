@@ -5,7 +5,7 @@
  *  File: test-automation/trade-flow-v2/run-tradeflow-suite.mjs
  * ----------------------------------------------------------------------------
  *  Self-contained runner that executes every test case in
- *  `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` by reading `manifest.json`
+ *  `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` by reading `manifest.json`
  *  and dispatching each case to the correct engine:
  *
  *    - MOBILE cases  -> Maestro on the iOS Simulator AND the Android Emulator
@@ -116,7 +116,7 @@ Usage: node test-automation/trade-flow-v2/run-tradeflow-suite.mjs [options]
 
 Selection:
   --group <A,M,...>       Only run these manifest groups (A..R, REG).
-  --case  <TC-A01,...>    Only run these case ids (comma separated).
+  --case  <TRD-TC-A01,...>  Only run these case ids (comma separated).
   --runner <maestro|playwright>  Only run one engine.
   --platform <ios|android|both>  Maestro target(s). Default: both.
   --status <automated,partial,...>  Filter by automation status.
@@ -138,7 +138,7 @@ Output:
   -h, --help              Show this help.
 
 Environment (optional, read from process env or a .env file alongside this script):
-  APP_ID                  Mobile bundle id. Default from manifest (com.p2pkidsmarketplace).
+  APP_ID                  Mobile bundle id. Default from manifest (com.sameralzubaidi.p2pmarketplace).
   IOS_SIMULATOR_UDID      Target a specific booted iOS simulator.
   ANDROID_EMULATOR_SERIAL Target a specific adb device serial.
   PLAYWRIGHT_ADMIN_EMAIL / PLAYWRIGHT_ADMIN_PASSWORD  Admin login for web cases.

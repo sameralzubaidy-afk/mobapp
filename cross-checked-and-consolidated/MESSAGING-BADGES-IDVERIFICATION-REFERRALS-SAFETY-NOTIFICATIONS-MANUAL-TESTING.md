@@ -12,78 +12,78 @@
 
 | Group | TC# | Description |
 |---|---|---|
-| **A — Messaging: Conversations & Chat** | TC-A01 | Conversation list (search, unread badges, empty state) |
-| | TC-A02 | Open a chat thread + trade context banner |
-| | TC-A03 | Send a text message + delivery status (sent→delivered→read) |
-| | TC-A04 | Receive a message in real time |
-| | TC-A05 | Typing indicator |
-| | TC-A06 | Send an image message + full-screen viewer |
-| | TC-A07 | Message length limit (2000 chars) |
-| | TC-A08 | Quick-reply meeting chips |
-| | TC-A09 | Safety meeting banner + Learn more |
-| | TC-A10 | Photo permission denied error |
-| **B — Badges & Achievements** | TC-B01 | My Badges grid (earned vs locked) |
-| | TC-B02 | Badge detail modal |
-| | TC-B03 | Badge showcase on profile |
-| | TC-B04 | Badge celebration modal on unlock |
-| | TC-B05 | Leaderboard ranking |
-| **C — Reviews & Ratings** | TC-C01 | Submit a post-trade review (stars + comment) |
-| | TC-C02 | Rating required validation |
-| | TC-C03 | Anonymous review |
-| | TC-C04 | Skip review |
-| | TC-C05 | Review display on seller profile + aggregate rating |
-| | TC-C06 | Report a review (reviewee only) |
-| **D — ID Badge Verification (End User)** | TC-D01 | Start ID verification + upload from library |
-| | TC-D02 | Capture ID with camera |
-| | TC-D03 | Submit creates pending request |
-| | TC-D04 | Duplicate pending request blocked |
-| | TC-D05 | No-image submit validation |
-| | TC-D06 | Pending state screen |
-| | TC-D07 | Approved → Verified badge on profile |
-| | TC-D08 | Rejected → reason shown + resubmit |
-| | TC-D09 | Submission confirmation notifications reach the user |
-| | TC-D10 | Decision notifications honor channel preferences |
-| **E — ID Badge Verification (Admin)** | TC-E01 | Review queue (stats, filters, search) |
-| | TC-E02 | Approve a request |
-| | TC-E03 | Reject with reason |
-| | TC-E04 | View completed request details |
-| | TC-E05 | Edit message templates |
-| | TC-E06 | New submission creates admin alert notification |
-| **F — Referrals** | TC-F01 | View referral code + hero |
-| | TC-F02 | Copy referral code |
-| | TC-F03 | Share referral code (native share) |
-| | TC-F04 | Active rewards display |
-| | TC-F05 | Referral history (pending vs completed) |
-| | TC-F06 | Enter referral code at signup |
-| | TC-F07 | Program paused banner + disabled share |
-| | TC-F08 | Admin configures referral rewards |
-| **G — Safety & Compliance (End User)** | TC-G01 | Listing flagged → Safety Review screen |
-| | TC-G02 | Appeal a flagged/rejected listing |
-| | TC-G03 | Resubmit a "needs edits" listing |
-| | TC-G04 | Remove a flagged listing |
-| | TC-G05 | Recall safety alert notification |
-| | TC-G06 | Appeal max-attempt limit follows admin config |
-| | TC-G07 | Appeal window follows admin config |
-| | TC-G08 | AI moderation toggle affects automated image review |
-| | TC-G09 | Recall check toggle and threshold affect recall flagging |
-| **H — Safety & Compliance (Admin)** | TC-H01 | Flagged items moderation queue |
-| | TC-H02 | Approve a flagged item |
-| | TC-H03 | Reject with reason |
-| | TC-H04 | Request edits |
-| | TC-H05 | Trade dispute: mark under review |
-| | TC-H06 | Trade dispute: resolve complete / refund |
-| **I — Notifications: Permission & Center** | TC-I01 | Enable push notifications |
-| | TC-I02 | Push error states (Expo Go / web) |
-| | TC-I03 | Notification center list + icons |
-| | TC-I04 | Tap notification → deep link + mark read |
-| | TC-I05 | Mark all as read |
-| | TC-I06 | Pagination + pull to refresh |
-| | TC-I07 | Real-time arrival |
-| **J — Notification Preferences** | TC-J01 | Category × channel toggles |
-| | TC-J02 | Default preferences |
-| | TC-J03 | Safety alerts always-on note |
-| | TC-J04 | Quiet hours (subscriber) + validation |
-| | TC-J05 | ID verification preference controls decision delivery |
+| **A — Messaging: Conversations & Chat** | MSG-TC-A01 | Conversation list (search, unread badges, empty state) |
+| | MSG-TC-A02 | Open a chat thread + trade context banner |
+| | MSG-TC-A03 | Send a text message + delivery status (sent→delivered→read) |
+| | MSG-TC-A04 | Receive a message in real time |
+| | MSG-TC-A05 | Typing indicator |
+| | MSG-TC-A06 | Send an image message + full-screen viewer |
+| | MSG-TC-A07 | Message length limit (2000 chars) |
+| | MSG-TC-A08 | Quick-reply meeting chips |
+| | MSG-TC-A09 | Safety meeting banner + Learn more |
+| | MSG-TC-A10 | Photo permission denied error |
+| **B — Badges & Achievements** | MSG-TC-B01 | My Badges grid (earned vs locked) |
+| | MSG-TC-B02 | Badge detail modal |
+| | MSG-TC-B03 | Badge showcase on profile |
+| | MSG-TC-B04 | Badge celebration modal on unlock |
+| | MSG-TC-B05 | Leaderboard ranking |
+| **C — Reviews & Ratings** | MSG-TC-C01 | Submit a post-trade review (stars + comment) |
+| | MSG-TC-C02 | Rating required validation |
+| | MSG-TC-C03 | Anonymous review |
+| | MSG-TC-C04 | Skip review |
+| | MSG-TC-C05 | Review display on seller profile + aggregate rating |
+| | MSG-TC-C06 | Report a review (reviewee only) |
+| **D — ID Badge Verification (End User)** | MSG-TC-D01 | Start ID verification + upload from library |
+| | MSG-TC-D02 | Capture ID with camera |
+| | MSG-TC-D03 | Submit creates pending request |
+| | MSG-TC-D04 | Duplicate pending request blocked |
+| | MSG-TC-D05 | No-image submit validation |
+| | MSG-TC-D06 | Pending state screen |
+| | MSG-TC-D07 | Approved → Verified badge on profile |
+| | MSG-TC-D08 | Rejected → reason shown + resubmit |
+| | MSG-TC-D09 | Submission confirmation notifications reach the user |
+| | MSG-TC-D10 | Decision notifications honor channel preferences |
+| **E — ID Badge Verification (Admin)** | MSG-TC-E01 | Review queue (stats, filters, search) |
+| | MSG-TC-E02 | Approve a request |
+| | MSG-TC-E03 | Reject with reason |
+| | MSG-TC-E04 | View completed request details |
+| | MSG-TC-E05 | Edit message templates |
+| | MSG-TC-E06 | New submission creates admin alert notification |
+| **F — Referrals** | MSG-TC-F01 | View referral code + hero |
+| | MSG-TC-F02 | Copy referral code |
+| | MSG-TC-F03 | Share referral code (native share) |
+| | MSG-TC-F04 | Active rewards display |
+| | MSG-TC-F05 | Referral history (pending vs completed) |
+| | MSG-TC-F06 | Enter referral code at signup |
+| | MSG-TC-F07 | Program paused banner + disabled share |
+| | MSG-TC-F08 | Admin configures referral rewards |
+| **G — Safety & Compliance (End User)** | MSG-TC-G01 | Listing flagged → Safety Review screen |
+| | MSG-TC-G02 | Appeal a flagged/rejected listing |
+| | MSG-TC-G03 | Resubmit a "needs edits" listing |
+| | MSG-TC-G04 | Remove a flagged listing |
+| | MSG-TC-G05 | Recall safety alert notification |
+| | MSG-TC-G06 | Appeal max-attempt limit follows admin config |
+| | MSG-TC-G07 | Appeal window follows admin config |
+| | MSG-TC-G08 | AI moderation toggle affects automated image review |
+| | MSG-TC-G09 | Recall check toggle and threshold affect recall flagging |
+| **H — Safety & Compliance (Admin)** | MSG-TC-H01 | Flagged items moderation queue |
+| | MSG-TC-H02 | Approve a flagged item |
+| | MSG-TC-H03 | Reject with reason |
+| | MSG-TC-H04 | Request edits |
+| | MSG-TC-H05 | Trade dispute: mark under review |
+| | MSG-TC-H06 | Trade dispute: resolve complete / refund |
+| **I — Notifications: Permission & Center** | MSG-TC-I01 | Enable push notifications |
+| | MSG-TC-I02 | Push error states (Expo Go / web) |
+| | MSG-TC-I03 | Notification center list + icons |
+| | MSG-TC-I04 | Tap notification → deep link + mark read |
+| | MSG-TC-I05 | Mark all as read |
+| | MSG-TC-I06 | Pagination + pull to refresh |
+| | MSG-TC-I07 | Real-time arrival |
+| **J — Notification Preferences** | MSG-TC-J01 | Category × channel toggles |
+| | MSG-TC-J02 | Default preferences |
+| | MSG-TC-J03 | Safety alerts always-on note |
+| | MSG-TC-J04 | Quiet hours (subscriber) + validation |
+| | MSG-TC-J05 | ID verification preference controls decision delivery |
 
 ---
 
@@ -116,7 +116,7 @@
 
 ## Group A — Messaging: Conversations & Chat
 
-### TC-A01 · Conversation list
+### MSG-TC-A01 · Conversation list
 
 **Actors:** test-buyer
 
@@ -132,7 +132,7 @@
 - Unread conversations show a green count badge (capped at "9+").
 - A no-result search shows "No matches found" / "Try a different search term"; a truly empty inbox shows "No messages yet" / "Start a trade and chat with other users!" with a **Browse Items** button.
 
-### TC-A02 · Open a chat thread + trade context banner
+### MSG-TC-A02 · Open a chat thread + trade context banner
 
 **Actors:** test-buyer
 
@@ -145,7 +145,7 @@
 - The header shows the partner avatar/name (with verified icon if applicable) and the listing title.
 - A trade context banner shows the item thumbnail, "[Title] • $[Price]", and a **View Trade** link that opens the listing/trade detail.
 
-### TC-A03 · Send a text message + delivery status
+### MSG-TC-A03 · Send a text message + delivery status
 
 **Actors:** test-buyer, test-seller
 
@@ -160,7 +160,7 @@
 - The message appears right-aligned in a green bubble; a single gray check (sent) shows immediately, then a double gray check (delivered) once received, then a green double check (read) after the recipient views it (~3s in-chat).
 - The send button is only visible when text is entered and is disabled while sending.
 
-### TC-A04 · Receive a message in real time
+### MSG-TC-A04 · Receive a message in real time
 
 **Actors:** test-buyer, test-seller
 
@@ -172,7 +172,7 @@
 **Expected Result:**
 - The message appears in **test-buyer**'s thread in real time (left-aligned gray bubble) without refreshing.
 
-### TC-A05 · Typing indicator
+### MSG-TC-A05 · Typing indicator
 
 **Actors:** test-buyer, test-seller
 
@@ -185,7 +185,7 @@
 **Expected Result:**
 - An animated three-dot bubble appears in **test-buyer**'s thread while the partner types and disappears ~3 seconds after they stop.
 
-### TC-A06 · Send an image message + full-screen viewer
+### MSG-TC-A06 · Send an image message + full-screen viewer
 
 **Actors:** test-buyer
 
@@ -199,7 +199,7 @@
 - A spinner shows during upload, then the image appears in the bubble; tapping it opens a full-screen viewer with swipe navigation.
 - An upload failure shows an "Error" / "Failed to upload image" alert.
 
-### TC-A07 · Message length limit
+### MSG-TC-A07 · Message length limit
 
 **Actors:** test-buyer
 
@@ -211,7 +211,7 @@
 **Expected Result:**
 - Input is capped at 2000 characters with a notice that the message was truncated to 2000 characters.
 
-### TC-A08 · Quick-reply meeting chips
+### MSG-TC-A08 · Quick-reply meeting chips
 
 **Actors:** test-buyer
 
@@ -223,7 +223,7 @@
 **Expected Result:**
 - The chip text is inserted/sent as a message; chips include: "📅 Available today", "📆 Available tomorrow", "🗓 Suggest times", "📍 Public place only", "⏰ Running late" (with a "+ More" expander).
 
-### TC-A09 · Safety meeting banner + modal
+### MSG-TC-A09 · Safety meeting banner + modal
 
 **Actors:** test-buyer
 
@@ -236,7 +236,7 @@
 **Expected Result:**
 - A banner shows "Trade Smart, Trade Safe" (shown once per listing); tapping it opens a safety modal titled "Trade Smart, Trade Safe" with a "Got it — Let's Trade Safely" button.
 
-### TC-A10 · Photo permission denied error
+### MSG-TC-A10 · Photo permission denied error
 
 **Actors:** test-buyer
 
@@ -254,7 +254,7 @@
 
 ## Group B — Badges & Achievements
 
-### TC-B01 · My Badges grid
+### MSG-TC-B01 · My Badges grid
 
 **Actors:** test-buyer
 
@@ -266,7 +266,7 @@
 **Expected Result:**
 - A 3-column grid shows badges; earned badges have a highlighted (yellow) background and locked ones appear dimmed.
 
-### TC-B02 · Badge detail modal
+### MSG-TC-B02 · Badge detail modal
 
 **Actors:** test-buyer
 
@@ -278,7 +278,7 @@
 **Expected Result:**
 - The modal shows the badge name and description; an earned badge shows "Unlocked: {date}", a locked one shows a lock icon and encouragement to keep going. **Close** dismisses it.
 
-### TC-B03 · Badge showcase on profile
+### MSG-TC-B03 · Badge showcase on profile
 
 **Actors:** test-buyer
 
@@ -290,7 +290,7 @@
 **Expected Result:**
 - A horizontal strip of earned badges is shown with a count; with zero badges it reads "No badges earned yet. Start trading to earn badges." Tapping navigates to My Badges.
 
-### TC-B04 · Badge celebration modal on unlock
+### MSG-TC-B04 · Badge celebration modal on unlock
 
 **Actors:** test-buyer
 
@@ -304,7 +304,7 @@
 **Expected Result:**
 - A celebration modal appears: "🎉 New Badge Earned! 🎉" with the badge icon, name, description, confetti animation, and an **Awesome!** button to close.
 
-### TC-B05 · Leaderboard ranking
+### MSG-TC-B05 · Leaderboard ranking
 
 **Actors:** test-buyer
 
@@ -320,7 +320,7 @@
 
 ## Group C — Reviews & Ratings
 
-### TC-C01 · Submit a post-trade review
+### MSG-TC-C01 · Submit a post-trade review
 
 > ⚠️ **Needs re-verification (2026-08-12):** The success toast copy "Your review has been submitted!" was not found as an exact string in the current source — verify the actual success message wording.
 
@@ -338,7 +338,7 @@
 **Expected Result:**
 - Stars fill gold up to the selected rating; the comment shows a live "{count}/500 characters"; on submit a "Your review has been submitted!" success appears.
 
-### TC-C02 · Rating required validation
+### MSG-TC-C02 · Rating required validation
 
 **Actors:** test-reviewer
 
@@ -350,7 +350,7 @@
 **Expected Result:**
 - "Rating Required. Please select a star rating before submitting." appears and submission is blocked.
 
-### TC-C03 · Anonymous review
+### MSG-TC-C03 · Anonymous review
 
 **Actors:** test-reviewer
 
@@ -362,7 +362,7 @@
 **Expected Result:**
 - The review submits and later displays as "Anonymous User" with no avatar/profile link.
 
-### TC-C04 · Skip review
+### MSG-TC-C04 · Skip review
 
 **Actors:** test-reviewer
 
@@ -374,7 +374,7 @@
 **Expected Result:**
 - The review flow is dismissed without submitting.
 
-### TC-C05 · Review display on seller profile
+### MSG-TC-C05 · Review display on seller profile
 
 **Actors:** test-buyer
 
@@ -386,7 +386,7 @@
 **Expected Result:**
 - The profile shows a star average, "Average Rating: {x}/5", and "Total Reviews: {n}" (or "No ratings yet"); each review card shows reviewer, stars, date, and comment.
 
-### TC-C06 · Report a review
+### MSG-TC-C06 · Report a review
 
 **Actors:** test-seller (reviewee)
 
@@ -399,11 +399,18 @@
 **Expected Result:**
 - A confirmation appears and "Thank you for reporting. We will review this content." is shown.
 
+**Locator hints:**
+- Review card ⋯ menu → `review-menu-button` · report actions → `review-report-spam` / `review-report-offensive` / `review-report-false-info` (ReviewCard report menu instrumented 2026-08-15).
+- Report confirmation is native `Alert.alert` — dialog locator: N/A — see Dependencies.
+
+**Dependencies:**
+- Native `Alert.alert` (report confirmation) — match 'Confirm' / 'Cancel' by text via Detox (`by.text('Confirm')`) / Appium; assert "Thank you for reporting. We will review this content."
+
 ---
 
 ## Group D — ID Badge Verification (End User)
 
-### TC-D01 · Start ID verification + upload from library
+### MSG-TC-D01 · Start ID verification + upload from library
 
 **Actors:** new-user
 
@@ -416,7 +423,7 @@
 **Expected Result:**
 - The initial state shows "Verify Your Identity" with the privacy disclaimer ("We will not store your ID image. It will be deleted after verification."), a **Use Camera** option, and a submit button (default "Submit for Verification") with tips about a clear, well-lit, in-focus photo. The selected image previews with a **Change Image** option.
 
-### TC-D02 · Capture ID with camera
+### MSG-TC-D02 · Capture ID with camera
 
 **Actors:** new-user
 
@@ -428,7 +435,7 @@
 **Expected Result:**
 - The captured image becomes the preview. If camera permission is denied, a "Permission Required. Please allow camera access." alert appears.
 
-### TC-D03 · Submit creates a pending request
+### MSG-TC-D03 · Submit creates a pending request
 
 **Actors:** new-user
 
@@ -440,7 +447,7 @@
 **Expected Result:**
 - A "Submitted Successfully" message confirms the request will be reviewed (within ~24 hours), and the screen moves to the pending state.
 
-### TC-D04 · Duplicate pending request blocked
+### MSG-TC-D04 · Duplicate pending request blocked
 
 **Actors:** new-user
 
@@ -452,7 +459,7 @@
 **Expected Result:**
 - "Pending Request. You already have a pending verification request. Please wait for the admin to review it." appears and no second request is created.
 
-### TC-D05 · No-image submit validation
+### MSG-TC-D05 · No-image submit validation
 
 **Actors:** new-user
 
@@ -464,7 +471,7 @@
 **Expected Result:**
 - "Please select an image" appears and nothing is submitted.
 
-### TC-D06 · Pending state screen
+### MSG-TC-D06 · Pending state screen
 
 **Actors:** new-user
 
@@ -476,33 +483,33 @@
 **Expected Result:**
 - A clock icon with "Verification Pending", "We'll review your ID within 24–48 hours", an "Under Review" pill, and a **Back to Profile** button are shown.
 
-### TC-D07 · Approved → Verified badge on profile
+### MSG-TC-D07 · Approved → Verified badge on profile
 
 **Actors:** new-user, admin
 
 **Objective:** Verify approval grants the Verified badge.
 
 **Steps:**
-1. Have the **admin** approve the request (see TC-E02).
+1. Have the **admin** approve the request (see MSG-TC-E02).
 2. As **new-user**, reopen ID Verification and view your seller/public profile.
 
 **Expected Result:**
 - The screen shows "Identity Verified" with a green "Verified ✓" pill; the public profile header shows a ShieldCheck "Verified" indicator.
 
-### TC-D08 · Rejected → reason shown + resubmit
+### MSG-TC-D08 · Rejected → reason shown + resubmit
 
 **Actors:** new-user, admin
 
 **Objective:** Verify rejection messaging and resubmission.
 
 **Steps:**
-1. Have the **admin** reject the request with a reason (see TC-E03).
+1. Have the **admin** reject the request with a reason (see MSG-TC-E03).
 2. As **new-user**, view the notification/result and resubmit a new photo.
 
 **Expected Result:**
 - The user is notified the verification was not approved with the reason (and any admin notes); the user can submit a new request.
 
-### TC-D09 · Submission confirmation notifications reach the user
+### MSG-TC-D09 · Submission confirmation notifications reach the user
 
 **Actors:** new-user
 
@@ -518,7 +525,7 @@
 - A confirmation email arrives with the review SLA messaging.
 - The notification content refers to the ID verification submission, not a generic system event.
 
-### TC-D10 · Decision notifications honor channel preferences
+### MSG-TC-D10 · Decision notifications honor channel preferences
 
 **Actors:** new-user, admin
 
@@ -538,7 +545,7 @@
 
 ## Group E — ID Badge Verification (Admin)
 
-### TC-E01 · Review queue
+### MSG-TC-E01 · Review queue
 
 **Actors:** admin
 
@@ -552,7 +559,7 @@
 - Stats cards show Pending Review, Approved, Rejected, and Avg Review Time.
 - The table lists User / Email / Phone / Node / Submitted / Status / Actions, with color-coded status badges; pending rows show **Review**, completed rows show **View**.
 
-### TC-E02 · Approve a request
+### MSG-TC-E02 · Approve a request
 
 **Actors:** admin
 
@@ -564,7 +571,7 @@
 **Expected Result:**
 - A success message shows and the admin returns to the queue; the badge is awarded and the user is notified (push + in-app + email). The stored screenshot is removed after the decision.
 
-### TC-E03 · Reject with reason
+### MSG-TC-E03 · Reject with reason
 
 **Actors:** admin
 
@@ -576,7 +583,7 @@
 **Expected Result:**
 - Submitting without a reason shows "Please select a rejection reason"; after a reason is chosen the rejection saves, the user is notified with the reason/notes, and the screenshot is deleted.
 
-### TC-E04 · View completed request details
+### MSG-TC-E04 · View completed request details
 
 **Actors:** admin
 
@@ -588,7 +595,7 @@
 **Expected Result:**
 - The details page shows user info, status, submitted/reviewed timestamps, and the decision (rejection reason + notes or approval notes), read-only.
 
-### TC-E05 · Edit message templates
+### MSG-TC-E05 · Edit message templates
 
 **Actors:** admin
 
@@ -600,7 +607,7 @@
 **Expected Result:**
 - A "Message saved" confirmation appears and the updated copy is used for users.
 
-### TC-E06 · New submission creates admin alert notification
+### MSG-TC-E06 · New submission creates admin alert notification
 
 **Actors:** admin, new-user
 
@@ -619,7 +626,7 @@
 
 ## Group F — Referrals
 
-### TC-F01 · View referral code + hero
+### MSG-TC-F01 · View referral code + hero
 
 **Actors:** test-referrer
 
@@ -631,7 +638,7 @@
 **Expected Result:**
 - A hero shows a gift icon, "Refer Friends, Earn SP", and "Share your code and get rewards when they join."; the 8-character code is shown in a code box; an SP-earned strip reads "You've earned {X} SP from referrals".
 
-### TC-F02 · Copy referral code
+### MSG-TC-F02 · Copy referral code
 
 **Actors:** test-referrer
 
@@ -643,7 +650,7 @@
 **Expected Result:**
 - A "Copied!" confirmation ("Referral code copied to clipboard") appears.
 
-### TC-F03 · Share referral code
+### MSG-TC-F03 · Share referral code
 
 **Actors:** test-referrer
 
@@ -655,7 +662,7 @@
 **Expected Result:**
 - The native share sheet opens with a message containing the code and link (and dynamic bonus text when trade/listing bonuses are enabled).
 
-### TC-F04 · Active rewards display
+### MSG-TC-F04 · Active rewards display
 
 **Actors:** test-referrer
 
@@ -667,7 +674,7 @@
 **Expected Result:**
 - It lists the friend's bonuses (e.g., "First Trade Bonus +{X} SP when they complete their first trade", "First Listing Bonus +{X} SP when their first listing is approved") and the referrer's earn amounts, shown only when at least one bonus is enabled (otherwise a "No active referral programs" card).
 
-### TC-F05 · Referral history
+### MSG-TC-F05 · Referral history
 
 **Actors:** test-referrer
 
@@ -679,7 +686,7 @@
 **Expected Result:**
 - Each row shows the referred user, join date, status, and reward; pending referrals show a grayed reward with no check, completed referrals show a green check and colored reward. With none, "No referrals yet — share your code!" is shown.
 
-### TC-F06 · Enter referral code at signup
+### MSG-TC-F06 · Enter referral code at signup
 
 **Actors:** new-user
 
@@ -691,7 +698,7 @@
 **Expected Result:**
 - A valid code is accepted and the referral is created in pending status; an invalid code prompts "Invalid Referral Code … Would you like to fix it or continue without a code?" with **Fix it** / **Continue anyway**.
 
-### TC-F07 · Program paused banner + disabled share
+### MSG-TC-F07 · Program paused banner + disabled share
 
 **Actors:** test-referrer, admin
 
@@ -705,7 +712,7 @@
 **Expected Result:**
 - A banner reads "Referral program is paused globally right now. Rewards shown below are configured but currently not being awarded." and the **Share** button is disabled.
 
-### TC-F08 · Admin configures referral rewards
+### MSG-TC-F08 · Admin configures referral rewards
 
 **Actors:** admin
 
@@ -724,7 +731,7 @@
 
 ## Group G — Safety & Compliance (End User)
 
-### TC-G01 · Listing flagged → Safety Review screen
+### MSG-TC-G01 · Listing flagged → Safety Review screen
 
 **Actors:** test-seller, admin
 
@@ -738,7 +745,7 @@
 **Expected Result:**
 - A "Safety Review" header with a red ShieldWarning icon shows a status-specific message ("This listing is currently under safety review." / "This listing was rejected by our safety team." / "This listing needs edits before it can be approved."), a read-only listing preview, and the admin note/rejection reason.
 
-### TC-G02 · Appeal a flagged/rejected listing
+### MSG-TC-G02 · Appeal a flagged/rejected listing
 
 **Actors:** test-seller
 
@@ -751,7 +758,7 @@
 **Expected Result:**
 - Empty shows "Please explain why you are appealing this decision."; under 10 chars shows the minimum-length message; a valid appeal shows "Appeal Submitted — Your listing is back under review." (appeals are limited to the configured max).
 
-### TC-G03 · Resubmit a "needs edits" listing
+### MSG-TC-G03 · Resubmit a "needs edits" listing
 
 **Actors:** test-seller
 
@@ -763,7 +770,7 @@
 **Expected Result:**
 - The listing returns to the moderation queue for re-review.
 
-### TC-G04 · Remove a flagged listing
+### MSG-TC-G04 · Remove a flagged listing
 
 **Actors:** test-seller
 
@@ -775,7 +782,7 @@
 **Expected Result:**
 - A confirmation modal appears; confirming removes the listing.
 
-### TC-G05 · Recall safety alert notification
+### MSG-TC-G05 · Recall safety alert notification
 
 > ⚠️ **Needs re-verification (2026-08-12):** The term "Recall Alert" was not found in the UI source; the notification may use different wording (e.g., "Safety Alert"). Verify the actual title.
 
@@ -791,7 +798,7 @@
 **Expected Result:**
 - A "Safety Alert" notification (red) is delivered indicating a recalled item was detected, and the listing surfaces the safety-review banner.
 
-### TC-G06 · Appeal max-attempt limit follows admin config
+### MSG-TC-G06 · Appeal max-attempt limit follows admin config
 
 **Actors:** test-admin, test-seller
 
@@ -808,7 +815,7 @@
 - The first appeal is accepted.
 - The second attempt is blocked with a limit-reached message, or the **Appeal** CTA is disabled/hidden once the configured max is exhausted.
 
-### TC-G07 · Appeal window follows admin config
+### MSG-TC-G07 · Appeal window follows admin config
 
 **Actors:** test-admin, test-seller
 
@@ -822,7 +829,7 @@
 - Older rejections no longer allow appeal and show a window-expired state (or hide the CTA entirely).
 - Fresh rejections within the configured window can still be appealed.
 
-### TC-G08 · AI moderation toggle affects automated image review
+### MSG-TC-G08 · AI moderation toggle affects automated image review
 
 **Actors:** test-admin, test-seller
 
@@ -839,7 +846,7 @@
 - With AI moderation enabled, the listing is auto-flagged or routed into safety review from image moderation.
 - With AI moderation disabled, the same image no longer triggers the automated AI moderation path; any manual/admin moderation remains separate.
 
-### TC-G09 · Recall check toggle and threshold affect recall flagging
+### MSG-TC-G09 · Recall check toggle and threshold affect recall flagging
 
 **Actors:** test-admin, test-seller
 
@@ -861,7 +868,7 @@
 
 ## Group H — Safety & Compliance (Admin)
 
-### TC-H01 · Flagged items moderation queue
+### MSG-TC-H01 · Flagged items moderation queue
 
 **Actors:** admin
 
@@ -873,7 +880,7 @@
 **Expected Result:**
 - The list shows item title, color-coded status badge, seller, flagged date, and appeal count; selecting an item shows full details (images, description, seller, rejection reason, appeal history).
 
-### TC-H02 · Approve a flagged item
+### MSG-TC-H02 · Approve a flagged item
 
 **Actors:** admin
 
@@ -885,7 +892,7 @@
 **Expected Result:**
 - The item status becomes available/public and the seller is notified.
 
-### TC-H03 · Reject with reason
+### MSG-TC-H03 · Reject with reason
 
 **Actors:** admin
 
@@ -897,7 +904,7 @@
 **Expected Result:**
 - Without a reason "Please provide a rejection reason" appears; with a reason the item is rejected and the seller is notified.
 
-### TC-H04 · Request edits
+### MSG-TC-H04 · Request edits
 
 **Actors:** admin
 
@@ -909,7 +916,7 @@
 **Expected Result:**
 - The item moves to "needs edits" and the seller is notified with the notes.
 
-### TC-H05 · Trade dispute: mark under review
+### MSG-TC-H05 · Trade dispute: mark under review
 
 **Actors:** admin
 
@@ -923,7 +930,7 @@
 **Expected Result:**
 - The trade summary shows the buyer's reported issue (reason + notes + timestamp) and the dispute status changes to under review.
 
-### TC-H06 · Trade dispute: resolve complete / refund
+### MSG-TC-H06 · Trade dispute: resolve complete / refund
 
 **Actors:** admin
 
@@ -941,7 +948,7 @@
 
 ## Group I — Notifications: Permission & Center
 
-### TC-I01 · Enable push notifications
+### MSG-TC-I01 · Enable push notifications
 
 **Actors:** new-user
 
@@ -953,7 +960,7 @@
 **Expected Result:**
 - The prompt shows "🔔 Stay Connected" with benefit bullets; while requesting it shows "Setting up notifications...", then "✅ Notifications enabled!" and a confirming local notification ("Notifications Enabled").
 
-### TC-I02 · Push error states
+### MSG-TC-I02 · Push error states
 
 **Actors:** new-user
 
@@ -965,7 +972,7 @@
 **Expected Result:**
 - A clear device-specific message appears (e.g., web: "Push notifications are not available on web"; Android: guidance to use a development build with google-services.json), with no crash.
 
-### TC-I03 · Notification center list + icons
+### MSG-TC-I03 · Notification center list + icons
 
 **Actors:** test-buyer
 
@@ -977,7 +984,7 @@
 **Expected Result:**
 - The list (titled "Notifications") shows each item with a type-specific icon/color, a title (bold if unread), body, and relative time; unread rows have a distinct background.
 
-### TC-I04 · Tap notification → deep link + mark read
+### MSG-TC-I04 · Tap notification → deep link + mark read
 
 **Actors:** test-buyer
 
@@ -989,7 +996,7 @@
 **Expected Result:**
 - Each navigates to the relevant destination (Trade detail, Chat, Subscription, Wallet, or ID Verification respectively); the tapped notification becomes read (title regular weight).
 
-### TC-I05 · Mark all as read
+### MSG-TC-I05 · Mark all as read
 
 **Actors:** test-buyer
 
@@ -1001,7 +1008,7 @@
 **Expected Result:**
 - All notifications become read and the unread count clears.
 
-### TC-I06 · Pagination + pull to refresh
+### MSG-TC-I06 · Pagination + pull to refresh
 
 **Actors:** test-buyer
 
@@ -1013,7 +1020,7 @@
 **Expected Result:**
 - More notifications load (≈20 per page) on reaching the end; pull-to-refresh reloads the list.
 
-### TC-I07 · Real-time arrival
+### MSG-TC-I07 · Real-time arrival
 
 **Actors:** test-buyer, test-seller
 
@@ -1029,7 +1036,7 @@
 
 ## Group J — Notification Preferences
 
-### TC-J01 · Category × channel toggles
+### MSG-TC-J01 · Category × channel toggles
 
 **Actors:** test-buyer
 
@@ -1041,7 +1048,7 @@
 **Expected Result:**
 - Each category card (Subscription & Membership, Trade Updates, Swap Points Events, Badges & Achievements, Safety Alerts) exposes Push ("Receive alerts on your device"), In-App ("Show badges inside the app"), and Email ("Send updates to your email") toggles that update optimistically and persist.
 
-### TC-J02 · Default preferences
+### MSG-TC-J02 · Default preferences
 
 **Actors:** new-user
 
@@ -1053,7 +1060,7 @@
 **Expected Result:**
 - Defaults match: Subscription Push/In-App/Email ON; Trades Push/In-App ON, Email OFF; Swap Points Push/In-App ON, Email OFF; Badges Push/In-App ON, Email OFF; Safety Push ON, In-App/Email OFF.
 
-### TC-J03 · Safety alerts always-on note
+### MSG-TC-J03 · Safety alerts always-on note
 
 **Actors:** test-buyer
 
@@ -1065,7 +1072,7 @@
 **Expected Result:**
 - A note reads "Critical safety alerts (product recalls) are always delivered regardless of your preferences."
 
-### TC-J04 · Quiet hours (subscriber) + validation
+### MSG-TC-J04 · Quiet hours (subscriber) + validation
 
 **Actors:** test-buyer (subscriber)
 
@@ -1077,7 +1084,7 @@
 **Expected Result:**
 - An invalid format shows "Invalid time format. Please use 24-hour format: HH:MM (example: 22:00)."; a valid value saves successfully.
 
-### TC-J05 · ID verification preference controls decision delivery
+### MSG-TC-J05 · ID verification preference controls decision delivery
 
 **Actors:** new-user, admin
 
@@ -1097,7 +1104,7 @@
 
 ## Regression checks (run after any change to these flows)
 
-### TC-R01 · Realtime messaging integrity
+### MSG-TC-R01 · Realtime messaging integrity
 
 **Objective:** Verify message send/receive, delivery status, and typing still work end to end.
 **Steps:**
@@ -1105,7 +1112,7 @@
 **Expected Result:**
 - Messages deliver in real time; status advances sent→delivered→read; typing shows/clears correctly.
 
-### TC-R02 · Notification delivery & deep links
+### MSG-TC-R02 · Notification delivery & deep links
 
 **Objective:** Verify key events still produce notifications that deep-link correctly.
 **Steps:**
@@ -1113,7 +1120,7 @@
 **Expected Result:**
 - Each notification arrives and routes to the correct screen; read state updates.
 
-### TC-R03 · Safety alerts cannot be suppressed
+### MSG-TC-R03 · Safety alerts cannot be suppressed
 
 **Objective:** Verify recall/safety push remains on regardless of preferences.
 **Steps:**
@@ -1121,7 +1128,7 @@
 **Expected Result:**
 - The critical safety push is still delivered.
 
-### TC-R04 · ID verification lifecycle
+### MSG-TC-R04 · ID verification lifecycle
 
 **Objective:** Verify submit → review → approve/reject → badge/notify still works.
 **Steps:**
@@ -1129,7 +1136,7 @@
 **Expected Result:**
 - Approval grants the Verified badge and notifies; rejection notifies with reason; screenshots are removed after decision.
 
-### TC-R05 · Moderation does not leak flagged items
+### MSG-TC-R05 · Moderation does not leak flagged items
 
 **Objective:** Verify flagged/rejected/needs-edits items are not publicly visible.
 **Steps:**
@@ -1137,7 +1144,7 @@
 **Expected Result:**
 - The item is not visible until approved.
 
-### TC-R06 · Referral reward config propagates
+### MSG-TC-R06 · Referral reward config propagates
 
 **Objective:** Verify admin reward changes reflect on the end-user screen and pause disables sharing.
 **Steps:**
@@ -1151,66 +1158,66 @@
 
 | Verification item | Test cases |
 |---|---|
-| Conversation list (search/unread/empty) | TC-A01 |
-| Chat thread + trade context | TC-A02 |
-| Send text + delivery status | TC-A03, TC-R01 |
-| Real-time receive | TC-A04, TC-R01 |
-| Typing indicator | TC-A05, TC-R01 |
-| Image message + viewer | TC-A06, TC-R01 |
-| Message length limit | TC-A07 |
-| Quick-reply chips | TC-A08 |
-| Safety meeting banner | TC-A09 |
-| Photo permission handling | TC-A10 |
-| Badge grid earned/locked | TC-B01 |
-| Badge detail modal | TC-B02 |
-| Badge showcase on profile | TC-B03 |
-| Badge unlock celebration | TC-B04 |
-| Leaderboard | TC-B05 |
-| Submit review (stars+comment) | TC-C01 |
-| Rating-required validation | TC-C02 |
-| Anonymous review | TC-C03 |
-| Skip review | TC-C04 |
-| Review display + aggregate | TC-C05 |
-| Report a review | TC-C06 |
-| ID upload (library) | TC-D01 |
-| ID capture (camera) | TC-D02 |
-| ID submit → pending | TC-D03, TC-D06 |
-| Duplicate pending blocked | TC-D04 |
-| No-image validation | TC-D05 |
-| Approved → Verified badge | TC-D07, TC-R04 |
-| Rejected → reason + resubmit | TC-D08, TC-R04 |
-| Admin queue (stats/filters/search) | TC-E01 |
-| Admin approve | TC-E02, TC-R04 |
-| Admin reject (reason required) | TC-E03, TC-R04 |
-| Admin view details | TC-E04 |
-| Admin message templates | TC-E05 |
-| Referral code + hero | TC-F01 |
-| Copy code | TC-F02 |
-| Share code | TC-F03 |
-| Active rewards display | TC-F04, TC-R06 |
-| Referral history states | TC-F05 |
-| Referral code at signup | TC-F06 |
-| Program paused banner | TC-F07, TC-R06 |
-| Admin reward config | TC-F08, TC-R06 |
-| Safety review screen | TC-G01, TC-R05 |
-| Appeal flagged/rejected | TC-G02 |
-| Resubmit needs-edits | TC-G03 |
-| Remove flagged listing | TC-G04 |
-| Recall safety alert | TC-G05, TC-R03 |
-| Admin flagged queue | TC-H01, TC-R05 |
-| Admin approve item | TC-H02 |
-| Admin reject item (reason) | TC-H03 |
-| Admin request edits | TC-H04 |
-| Dispute under review | TC-H05 |
-| Dispute resolve/refund | TC-H06 |
-| Enable push | TC-I01 |
-| Push error states | TC-I02 |
-| Notification center list | TC-I03 |
-| Deep link + mark read | TC-I04, TC-R02 |
-| Mark all read | TC-I05 |
-| Pagination + refresh | TC-I06 |
-| Real-time notification | TC-I07, TC-R02 |
-| Category × channel toggles | TC-J01 |
-| Default preferences | TC-J02 |
-| Safety always-on note | TC-J03, TC-R03 |
-| Quiet hours + validation | TC-J04 |
+| Conversation list (search/unread/empty) | MSG-TC-A01 |
+| Chat thread + trade context | MSG-TC-A02 |
+| Send text + delivery status | MSG-TC-A03, MSG-TC-R01 |
+| Real-time receive | MSG-TC-A04, MSG-TC-R01 |
+| Typing indicator | MSG-TC-A05, MSG-TC-R01 |
+| Image message + viewer | MSG-TC-A06, MSG-TC-R01 |
+| Message length limit | MSG-TC-A07 |
+| Quick-reply chips | MSG-TC-A08 |
+| Safety meeting banner | MSG-TC-A09 |
+| Photo permission handling | MSG-TC-A10 |
+| Badge grid earned/locked | MSG-TC-B01 |
+| Badge detail modal | MSG-TC-B02 |
+| Badge showcase on profile | MSG-TC-B03 |
+| Badge unlock celebration | MSG-TC-B04 |
+| Leaderboard | MSG-TC-B05 |
+| Submit review (stars+comment) | MSG-TC-C01 |
+| Rating-required validation | MSG-TC-C02 |
+| Anonymous review | MSG-TC-C03 |
+| Skip review | MSG-TC-C04 |
+| Review display + aggregate | MSG-TC-C05 |
+| Report a review | MSG-TC-C06 |
+| ID upload (library) | MSG-TC-D01 |
+| ID capture (camera) | MSG-TC-D02 |
+| ID submit → pending | MSG-TC-D03, MSG-TC-D06 |
+| Duplicate pending blocked | MSG-TC-D04 |
+| No-image validation | MSG-TC-D05 |
+| Approved → Verified badge | MSG-TC-D07, MSG-TC-R04 |
+| Rejected → reason + resubmit | MSG-TC-D08, MSG-TC-R04 |
+| Admin queue (stats/filters/search) | MSG-TC-E01 |
+| Admin approve | MSG-TC-E02, MSG-TC-R04 |
+| Admin reject (reason required) | MSG-TC-E03, MSG-TC-R04 |
+| Admin view details | MSG-TC-E04 |
+| Admin message templates | MSG-TC-E05 |
+| Referral code + hero | MSG-TC-F01 |
+| Copy code | MSG-TC-F02 |
+| Share code | MSG-TC-F03 |
+| Active rewards display | MSG-TC-F04, MSG-TC-R06 |
+| Referral history states | MSG-TC-F05 |
+| Referral code at signup | MSG-TC-F06 |
+| Program paused banner | MSG-TC-F07, MSG-TC-R06 |
+| Admin reward config | MSG-TC-F08, MSG-TC-R06 |
+| Safety review screen | MSG-TC-G01, MSG-TC-R05 |
+| Appeal flagged/rejected | MSG-TC-G02 |
+| Resubmit needs-edits | MSG-TC-G03 |
+| Remove flagged listing | MSG-TC-G04 |
+| Recall safety alert | MSG-TC-G05, MSG-TC-R03 |
+| Admin flagged queue | MSG-TC-H01, MSG-TC-R05 |
+| Admin approve item | MSG-TC-H02 |
+| Admin reject item (reason) | MSG-TC-H03 |
+| Admin request edits | MSG-TC-H04 |
+| Dispute under review | MSG-TC-H05 |
+| Dispute resolve/refund | MSG-TC-H06 |
+| Enable push | MSG-TC-I01 |
+| Push error states | MSG-TC-I02 |
+| Notification center list | MSG-TC-I03 |
+| Deep link + mark read | MSG-TC-I04, MSG-TC-R02 |
+| Mark all read | MSG-TC-I05 |
+| Pagination + refresh | MSG-TC-I06 |
+| Real-time notification | MSG-TC-I07, MSG-TC-R02 |
+| Category × channel toggles | MSG-TC-J01 |
+| Default preferences | MSG-TC-J02 |
+| Safety always-on note | MSG-TC-J03, MSG-TC-R03 |
+| Quiet hours + validation | MSG-TC-J04 |

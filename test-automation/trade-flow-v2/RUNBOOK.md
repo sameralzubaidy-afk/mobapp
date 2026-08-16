@@ -1,7 +1,7 @@
 # TradeFlowV2 QA Runbook — Autonomous Agent Edition
 
 **Module:** MODULE-15.1.2 TradeFlowV2
-**Test guide:** `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`
+**Test guide:** `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`
 **Last updated:** 2026-05-31
 
 ---
@@ -79,7 +79,7 @@ cp test-automation/trade-flow-v2/.env.example test-automation/trade-flow-v2/.env
 Open `test-automation/trade-flow-v2/.env` and fill in:
 
 ```
-APP_ID=com.p2pkidsmarketplace
+APP_ID=com.sameralzubaidi.p2pmarketplace
 PLAYWRIGHT_ADMIN_E2E=true
 PLAYWRIGHT_ADMIN_EMAIL=test-admin@kidsmarketplace.test
 PLAYWRIGHT_ADMIN_PASSWORD=<ask your team lead>
@@ -99,7 +99,7 @@ npx expo run:ios
 ```
 
 Wait for the app to appear on the simulator home screen before running any tests.
-If you see `App com.p2pkidsmarketplace is NOT installed`, run the command above again.
+If you see `App com.sameralzubaidi.p2pmarketplace is NOT installed`, run the command above again.
 
 ### 1.5 Install admin portal dependencies (once)
 
@@ -279,7 +279,7 @@ Exit code `2` always means a setup problem, not a test failure. The error messag
 
 | What you see | Likely cause | Fix |
 |---|---|---|
-| `App com.p2pkidsmarketplace is NOT installed` | Build not deployed to simulator | `cd p2p-kids-marketplace && npx expo run:ios` |
+| `App com.sameralzubaidi.p2pmarketplace is NOT installed` | Build not deployed to simulator | `cd p2p-kids-marketplace && npx expo run:ios` |
 | `maestro not found` | Maestro CLI not installed | `curl -Ls "https://get.maestro.mobile.dev" \| bash` then restart shell |
 | `No iPhone 15 simulator available` | Simulator not created | Xcode → Devices and Simulators → `+` → iPhone 15 |
 | `Admin portal did not respond within 45s` | Portal dependency error | Check `/tmp/admin-portal.log`, then `cd p2p-kids-admin && npm run dev` |
@@ -340,7 +340,7 @@ These 15 cases **cannot be automated** without additional infrastructure. Run th
 | TC-R11 | Refund/Cancel | Push notification delivery |
 | TC-R12 | Refund/Cancel | Idempotency invariant — verify via integration test |
 
-Use `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` for steps and expected results.
+Use `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` for steps and expected results.
 
 ---
 

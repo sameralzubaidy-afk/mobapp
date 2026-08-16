@@ -117,7 +117,7 @@ Set up the TradeFlowV2 test environment on this machine from scratch.
 Check all prerequisites and help me fix anything that is missing:
 1. Maestro CLI
 2. Node.js >= 18
-3. iOS Simulator with the app installed (com.p2pkidsmarketplace)
+3. iOS Simulator with the app installed (com.sameralzubaidi.p2pmarketplace)
 4. .env file at test-automation/trade-flow-v2/.env
 5. gh CLI installed and authenticated
 6. p2p-kids-admin dependencies installed

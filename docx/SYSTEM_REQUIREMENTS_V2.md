@@ -1894,7 +1894,7 @@ they just become safe to retry and leave an audit trail.
 - No double-log: `SELECT fn_log_financial_audit(...,'<key>');` twice → first `true`, second `false`, exactly 1 row for `<key>`.
 - No double-debit/credit: pre-insert a ledger row with `sp_debit_<trade>` / `sp_refund_<trade>`; calling the RPC returns `idempotent: true` and the wallet balance is unchanged.
 - Unique indexes present: `idx_trades_stripe_payment_intent_id`, `idx_trade_refunds_stripe_refund_id`.
-- Manual retry cases: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 (TC-N2-C01…C10), `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group N2 (TC-N2-A01…A08).
+- Manual retry cases: `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 (TC-N2-C01…C10), `cross-checked-and-consolidated/MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group N2 (TC-N2-A01…A08).
 - Admin UI: the **Financial Audit** screen (`/audit`, sidebar → Monetization) surfaces the journal via `admin_financial_audit_view` (text-cast, BP-45) with search/filters, category summary, before/after state, and trade links. Migration `20260810000007_admin_financial_audit_view.sql`.
 
 ---

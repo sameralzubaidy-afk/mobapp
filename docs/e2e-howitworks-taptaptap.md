@@ -559,7 +559,7 @@ The single source of truth is `test-automation/trade-flow-v2/manifest.json`.
 ```json
 {
   "module": "MODULE-15.1.2 TradeFlowV2",
-  "source": "misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md",
+  "source": "cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md",
   "statusLegend": {
     "automated": "Reliable automation asset exists. Executed by default.",
     "partial": "Asset covers the UI-observable portion only. Backend state, clock control, or second device needed.",
@@ -567,10 +567,10 @@ The single source of truth is `test-automation/trade-flow-v2/manifest.json`.
     "manual": "Cannot be reliably automated (push delivery, multi-device, time-travel)."
   },
   "cases": [
-    { "id": "TC-A01", "title": "Cash Only happy path",
+    { "id": "TRD-TC-A01", "title": "Cash Only happy path",
       "runner": "maestro", "platforms": ["ios", "android"],
       "asset": "module-15.1.2-full-trade-flow-v2.yaml", "status": "automated" },
-    { "id": "TC-A02", "title": "Accept SP: slider → seller accepts",
+    { "id": "TRD-TC-A02", "title": "Accept SP: slider → seller accepts",
       "runner": "maestro", "platforms": ["ios", "android"],
       "asset": "module-15.1.2-full-trade-flow-v2.yaml",
       "status": "partial",
@@ -582,7 +582,7 @@ The single source of truth is `test-automation/trade-flow-v2/manifest.json`.
 
 ### Mapping logic:
 
-1. Every TC in the manual doc (`misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`) is listed in `manifest.json`
+1. Every TC in the manual doc (`cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`) is listed in `manifest.json`
 2. Each TC points to an `asset` (YAML file) and `runner` (maestro/playwright)
 3. Multiple TCs can share the same asset — the orchestrator runs the script once and attributes the result to all mapped TCs
 4. If `status` is `"manual"` or `"pending"`, the orchestrator **skips** it (reports as skipped, not failure)

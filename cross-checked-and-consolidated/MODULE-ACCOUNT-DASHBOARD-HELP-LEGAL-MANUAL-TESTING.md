@@ -12,79 +12,79 @@
 
 | Group | TC# | Description |
 |---|---|---|
-| **A — Settings Hub** | TC-A01 | Settings screen sections + rows render |
-| | TC-A02 | Sign Out confirmation |
-| | TC-A03 | Test Push Notification (rate limit / quiet hours / queued) |
-| | TC-A04 | Settings → legal & help links navigate |
-| | TC-A05 | "Manage Payment Methods" row navigates |
-| **B — Edit Profile** | TC-B01 | Edit profile fields load + save (optimistic) |
-| | TC-B02 | Email change requires re-verification |
-| | TC-B03 | Phone change → OTP verification modal |
-| | TC-B04 | Avatar upload |
-| | TC-B05 | Profile screen stats, badges, reviews, status badge |
-| | TC-B06 | Form validation (phone 10-digit, email format) |
-| | TC-B07 | "No Changes" alert |
-| | TC-B08 | Waitlist prompt (unreachable from Edit Profile — flag) |
-| | TC-B09 | "Already verified" phone path |
-| | TC-B10 | Locked-field "cannot be changed" alerts |
-| **C — Linked Accounts** | TC-C01 | Linked accounts list (email readonly, password, social) |
-| | TC-C02 | Link a social provider (password re-auth gate) |
-| | TC-C03 | Unlink provider (confirmation + last-method guard) |
-| | TC-C04 | Email mismatch on link blocked |
-| **D — Notification Preferences** | TC-D01 | Five categories × three channel toggles |
-| | TC-D02 | Optimistic toggle reverts on failure |
-| | TC-D03 | Quiet hours toggle + time validation |
-| | TC-D04 | Empty state → Initialize Settings |
-| **E — Delete Account (COPPA)** | TC-E01 | Delete account consequences + password gate |
-| | TC-E02 | Wrong password blocked |
-| | TC-E03 | Two-step confirmation → deletion + logout |
-| **F — Suspended / Unsubscribe / Offline** | TC-F01 | Suspended account screen (logout only) |
-| | TC-F02 | Unsubscribe via email token (success/error) |
-| | TC-F03 | Offline screen + Try Again |
-| | TC-F04 | Suspended account — Log Out tap |
-| **G — Home Dashboard** | TC-G01 | Greeting + subscription badge + SP balance |
-| | TC-G02 | Priority banners (grace > payment fail > trial > draft) |
-| | TC-G03 | Quick action tiles route correctly |
-| | TC-G04 | ID verification CTA banner (dismissible) |
-| | TC-G05 | Recommendations + recent trade card |
-| | TC-G06 | Pull-to-refresh reloads dashboard |
-| | TC-G07 | "Show more actions" toggle |
-| | TC-G08 | Free-user "Unlock Swap Points" strip |
-| | TC-G09 | "No session found" state |
-| | TC-G10 | Empty-trade state |
-| | TC-G11 | "View Timeline" nav |
-| | TC-G12 | "See All" → Discover nav |
-| | TC-G13 | Subscription-card Upgrade button |
-| **H — Help & Support Menu** | TC-H01 | Help & Support menu (3 cards) routes |
-| | TC-H02 | FAQ list — search + category filter |
-| | TC-H03 | FAQ fallback when offline |
-| | TC-H04 | FAQ detail — helpful vote (Yes/No) |
-| | TC-H05 | Contact Support form (auth gate + validation) |
-| **I — Education & SP Calculator** | TC-I01 | Education Help screen sections (accordion + deep link) |
-| | TC-I02 | SP Calculator (free mode) sell/buy outputs |
-| | TC-I03 | SP Calculator bonus category badge |
-| | TC-I04 | SP Calculator validation (price range) |
-| | TC-I05 | Education analytics events fire |
-| **J — Legal Screens** | TC-J01 | Terms of Service view + last updated |
-| | TC-J02 | TOS acceptance flow (requireAcceptance) |
-| | TC-J03 | Privacy Policy view + acceptance |
-| | TC-J04 | Liability Disclaimer view (read-only + retry) |
-| | TC-J05 | Policy versioning — re-acceptance on new version |
-| | TC-J06 | Signup implies TOS + Privacy agreement (no mandatory dialog) |
-| | TC-J07 | Legal screen unavailable state (no published policy) |
-| | TC-J08 | Legal screen load failure — error + Retry |
-| | TC-J09 | Very long policy content renders + scrolls smoothly |
-| | TC-J10 | Legal screens render consistently on iOS and Android |
-| | TC-J11 | Legal screen loads < 2s and scrolls without lag |
-| | TC-J12 | Liability Disclaimer unavailable state |
-| **K — Privacy & Security / MFA** | TC-K01 | MFA factors list + enrollment entry points |
-| | TC-K02 | Enroll and verify an authenticator factor |
-| | TC-K03 | Protected action prompts MFA challenge + invalid code handling |
-| | TC-K04 | Recovery path and remove verified factor |
-| **L — Error Recovery & Crash Reporting** | TC-L01 | Render-time error shows fallback instead of red/white screen |
-| | TC-L02 | Try Again recovers after transient error |
-| | TC-L03 | Persistent error stays contained to fallback |
-| | TC-L04 | Error reporting is safe with and without telemetry |
+| **A — Settings Hub** | ACC-TC-A01 | Settings screen sections + rows render |
+| | ACC-TC-A02 | Sign Out confirmation |
+| | ACC-TC-A03 | Test Push Notification (rate limit / quiet hours / queued) |
+| | ACC-TC-A04 | Settings → legal & help links navigate |
+| | ACC-TC-A05 | "Manage Payment Methods" row navigates |
+| **B — Edit Profile** | ACC-TC-B01 | Edit profile fields load + save (optimistic) |
+| | ACC-TC-B02 | Email change requires re-verification |
+| | ACC-TC-B03 | Phone change → OTP verification modal |
+| | ACC-TC-B04 | Avatar upload |
+| | ACC-TC-B05 | Profile screen stats, badges, reviews, status badge |
+| | ACC-TC-B06 | Form validation (phone 10-digit, email format) |
+| | ACC-TC-B07 | "No Changes" alert |
+| | ACC-TC-B08 | Waitlist prompt (unreachable from Edit Profile — flag) |
+| | ACC-TC-B09 | "Already verified" phone path |
+| | ACC-TC-B10 | Locked-field "cannot be changed" alerts |
+| **C — Linked Accounts** | ACC-TC-C01 | Linked accounts list (email readonly, password, social) |
+| | ACC-TC-C02 | Link a social provider (password re-auth gate) |
+| | ACC-TC-C03 | Unlink provider (confirmation + last-method guard) |
+| | ACC-TC-C04 | Email mismatch on link blocked |
+| **D — Notification Preferences** | ACC-TC-D01 | Five categories × three channel toggles |
+| | ACC-TC-D02 | Optimistic toggle reverts on failure |
+| | ACC-TC-D03 | Quiet hours toggle + time validation |
+| | ACC-TC-D04 | Empty state → Initialize Settings |
+| **E — Delete Account (COPPA)** | ACC-TC-E01 | Delete account consequences + password gate |
+| | ACC-TC-E02 | Wrong password blocked |
+| | ACC-TC-E03 | Two-step confirmation → deletion + logout |
+| **F — Suspended / Unsubscribe / Offline** | ACC-TC-F01 | Suspended account screen (logout only) |
+| | ACC-TC-F02 | Unsubscribe via email token (success/error) |
+| | ACC-TC-F03 | Offline screen + Try Again |
+| | ACC-TC-F04 | Suspended account — Log Out tap |
+| **G — Home Dashboard** | ACC-TC-G01 | Greeting + subscription badge + SP balance |
+| | ACC-TC-G02 | Priority banners (grace > payment fail > trial > draft) |
+| | ACC-TC-G03 | Quick action tiles route correctly |
+| | ACC-TC-G04 | ID verification CTA banner (dismissible) |
+| | ACC-TC-G05 | Recommendations + recent trade card |
+| | ACC-TC-G06 | Pull-to-refresh reloads dashboard |
+| | ACC-TC-G07 | "Show more actions" toggle |
+| | ACC-TC-G08 | Free-user "Unlock Swap Points" strip |
+| | ACC-TC-G09 | "No session found" state |
+| | ACC-TC-G10 | Empty-trade state |
+| | ACC-TC-G11 | "View Timeline" nav |
+| | ACC-TC-G12 | "See All" → Discover nav |
+| | ACC-TC-G13 | Subscription-card Upgrade button |
+| **H — Help & Support Menu** | ACC-TC-H01 | Help & Support menu (3 cards) routes |
+| | ACC-TC-H02 | FAQ list — search + category filter |
+| | ACC-TC-H03 | FAQ fallback when offline |
+| | ACC-TC-H04 | FAQ detail — helpful vote (Yes/No) |
+| | ACC-TC-H05 | Contact Support form (auth gate + validation) |
+| **I — Education & SP Calculator** | ACC-TC-I01 | Education Help screen sections (accordion + deep link) |
+| | ACC-TC-I02 | SP Calculator (free mode) sell/buy outputs |
+| | ACC-TC-I03 | SP Calculator bonus category badge |
+| | ACC-TC-I04 | SP Calculator validation (price range) |
+| | ACC-TC-I05 | Education analytics events fire |
+| **J — Legal Screens** | ACC-TC-J01 | Terms of Service view + last updated |
+| | ACC-TC-J02 | TOS acceptance flow (requireAcceptance) |
+| | ACC-TC-J03 | Privacy Policy view + acceptance |
+| | ACC-TC-J04 | Liability Disclaimer view (read-only + retry) |
+| | ACC-TC-J05 | Policy versioning — re-acceptance on new version |
+| | ACC-TC-J06 | Signup implies TOS + Privacy agreement (no mandatory dialog) |
+| | ACC-TC-J07 | Legal screen unavailable state (no published policy) |
+| | ACC-TC-J08 | Legal screen load failure — error + Retry |
+| | ACC-TC-J09 | Very long policy content renders + scrolls smoothly |
+| | ACC-TC-J10 | Legal screens render consistently on iOS and Android |
+| | ACC-TC-J11 | Legal screen loads < 2s and scrolls without lag |
+| | ACC-TC-J12 | Liability Disclaimer unavailable state |
+| **K — Privacy & Security / MFA** | ACC-TC-K01 | MFA factors list + enrollment entry points |
+| | ACC-TC-K02 | Enroll and verify an authenticator factor |
+| | ACC-TC-K03 | Protected action prompts MFA challenge + invalid code handling |
+| | ACC-TC-K04 | Recovery path and remove verified factor |
+| **L — Error Recovery & Crash Reporting** | ACC-TC-L01 | Render-time error shows fallback instead of red/white screen |
+| | ACC-TC-L02 | Try Again recovers after transient error |
+| | ACC-TC-L03 | Persistent error stays contained to fallback |
+| | ACC-TC-L04 | Error reporting is safe with and without telemetry |
 
 ---
 
@@ -116,7 +116,7 @@
 
 ## Group A — Settings Hub
 
-### TC-A01 · Settings screen sections + rows render
+### ACC-TC-A01 · Settings screen sections + rows render
 
 **Ref:** FLOW-02 · SettingsScreen
 **Actors:** test-buyer
@@ -129,13 +129,31 @@
 **Expected Result:**
 - Header "Settings".
 - Notifications section: "Enable Push Notifications", "Notification Preferences", "Test Push Notification".
-- Account section: "Manage Payment Methods", "Linked Accounts", "Privacy & Security", "Help & Support".
+- Account section: "Manage Payment Methods", "Linked Accounts", "Privacy & Security".
 - Legal section: "Terms of Service", "Privacy Policy", "Liability Disclaimer".
 - Danger Zone: "Sign Out", "Delete Account".
 
+**Setup:**
+- Logged in as **test-buyer** (any tier). No other state required — Settings renders for all account states, so `Actors` already captures the precondition; kept brief per pilot rule.
+
+**Locator hints:**
+- Scroll container: `testID="settings-scroll"` (`src/screens/profile/SettingsScreen.tsx`).
+- Section containers: `testID="settings-section-notifications"` / `settings-section-account` / `settings-section-legal` / `settings-section-danger-zone`.
+- Rows (each `accessibilityRole="button"`): Enable Push Notifications → `settings-enable-notifications-button` · Notification Preferences → `settings-notification-preferences-button` · Test Push Notification → `settings-test-push-notification-button` · Manage Payment Methods → `settings-payment-methods-button` · Linked Accounts → `settings-linked-accounts-button` · Privacy & Security → `settings-privacy-security-button` · Terms of Service → `settings-tos-button` · Privacy Policy → `settings-privacy-policy-button` · Liability Disclaimer → `settings-liability-disclaimer-button` · Sign Out → `settings-sign-out-button` · Delete Account → `settings-delete-account-button`.
+- **"Help & Support" → NO TESTID FOUND — recommend adding; the row is also absent from the current row config (Account section has only 3 rows: Payment Methods, Linked Accounts, Privacy & Security), so listing it in Expected Result is a spec/code drift.** (`SettingsScreen.tsx`)
+- Header "Settings" is rendered by `<ScreenLayout title="Settings">` — no dedicated header testID; assert by visible text.
+
+**Assert:**
+1. 4 section headers render: "Notifications", "Account", "Legal", "Danger Zone" (via the `settings-section-*` containers).
+2. All 11 rows render with their labels (see locators); "Help & Support" is **not** present in current code.
+3. Tapping a row fires its `onPress` (navigation or alert) without error.
+
+**Dependencies:**
+- None. Pure render check — deterministic; no timers, network, or third-party calls.
+
 ---
 
-### TC-A02 · Sign Out confirmation
+### ACC-TC-A02 · Sign Out confirmation
 
 **Ref:** FLOW-02 · SettingsScreen
 **Actors:** test-buyer
@@ -148,9 +166,15 @@
 **Expected Result:**
 - An "Are you sure you want to sign out?" alert appears. Cancel keeps the session; confirm logs the user out to the login/landing screen.
 
+**Locator hints:**
+- Sign Out confirmation is a native `Alert.alert` — dialog locator: N/A — see Dependencies.
+
+**Dependencies:**
+- Native `Alert.alert` ('Sign Out' title) — match 'Cancel' / 'Sign Out' buttons by text via Detox (`by.text('Sign Out')`) / Appium; assert by title and that cancel keeps the session.
+
 ---
 
-### TC-A03 · Test Push Notification (rate limit / quiet hours / queued)
+### ACC-TC-A03 · Test Push Notification (rate limit / quiet hours / queued)
 
 **Ref:** FLOW-17 · SettingsScreen
 **Actors:** test-buyer
@@ -169,7 +193,7 @@
 
 ---
 
-### TC-A04 · Settings → legal & help links navigate
+### ACC-TC-A04 · Settings → legal & help links navigate
 
 **Ref:** FLOW-31/32/33 · SettingsScreen
 **Actors:** test-buyer
@@ -177,13 +201,15 @@
 **Objective:** Verify legal and help rows route to the right screens.
 
 **Steps:**
-1. From Settings, tap Terms of Service, Privacy Policy, Liability Disclaimer, Help & Support, Linked Accounts, Notification Preferences (back each time).
+1. From Settings, tap Terms of Service, Privacy Policy, Liability Disclaimer, Linked Accounts, Notification Preferences (back each time).
+
+> **Note (2026-08-13):** "Help & Support" was removed from this step — no such row exists in the current `SettingsScreen` row config (Legal section has only Terms of Service, Privacy Policy, Liability Disclaimer). Same spec drift documented in ACC-TC-A01's locator hints.
 
 **Expected Result:**
 - Each opens its respective screen; "Privacy & Security" is a known not-yet-implemented stub.
 - Back-navigation returns correctly for every legal/help row; signup form data is preserved after back-navigation from a legal screen.
 
-### TC-A05 · "Manage Payment Methods" row navigates
+### ACC-TC-A05 · "Manage Payment Methods" row navigates
 
 **Ref:** FLOW-02 · SettingsScreen
 **Actors:** test-buyer
@@ -195,13 +221,13 @@
 
 **Expected Result:**
 - Navigates to the **Payment Methods** screen (route `PaymentMethods` → `PaymentMethodsScreen`).
-- **Note:** the row is already listed in TC-A01's expected Account section; this case verifies the navigation itself.
+- **Note:** the row is already listed in ACC-TC-A01's expected Account section; this case verifies the navigation itself.
 
 ---
 
 ## Group B — Edit Profile
 
-### TC-B01 · Edit profile fields load + save (optimistic)
+### ACC-TC-B01 · Edit profile fields load + save (optimistic)
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
@@ -216,9 +242,32 @@
 - Display Name, Date of Birth, and Zip Code are **not editable** — the fields are locked (`editable=false`) with labels like "FULL NAME (CANNOT BE CHANGED)" / "ZIP CODE (CANNOT BE CHANGED)" and the zip helper "Zip codes are locked to your node." Only Bio, email, and phone are editable.
 - After save, the screen returns to Profile and the new values appear immediately (optimistic patch) without a flash of stale data.
 
+**Setup:**
+- Logged in as **test-buyer** with a **complete profile** (display name, DOB, zip, email, phone, bio set) so the Edit screen has prefilled values to assert against. A seeded complete profile is required.
+
+**Locator hints:**
+- "Edit basic info" entry (ProfileScreen): `testID="avatar-upload-button"` (name is misleading — this is the Edit link) (`src/screens/profile/ProfileScreen.tsx`).
+- Locked Display Name: label "FULL NAME (CANNOT BE CHANGED)" + support icon `accessibilityLabel="Contact support to change full name"` — field has **no** testID.
+- Locked DOB: label "DATE OF BIRTH (CANNOT BE CHANGED)" + support icon `accessibilityLabel="Contact support to change date of birth"` — field has **no** testID.
+- Locked Zip: label "ZIP CODE (CANNOT BE CHANGED)" + helper "Zip codes are locked to your node." — **no** testID.
+- Email field: TextInput placeholder "Enter your email" — `testID="edit-profile-email-input"` (`src/screens/profile/EditProfileScreen.tsx`).
+- Phone field: TextInput placeholder "(XXX) XXX-XXXX" — `testID="edit-profile-phone-input"`.
+- Bio field: TextInput placeholder "Tell us a bit about yourself..." — `testID="edit-profile-bio-input"`.
+- Save button: TouchableOpacity text "Save Changes" — `testID="edit-profile-save-button"` (`accessible` + `accessibilityRole="button"` + `accessibilityLabel="Save Changes"`).
+- Avatar picker (photo upload on Edit Profile): `testID="edit-profile-avatar-button"` (`accessible` + `accessibilityRole="button"` + `accessibilityLabel="Change profile photo"`).
+- ⚠️ `avatar-upload-button` naming note (2026-08-13): the pre-existing `avatar-upload-button` lives on `ProfileScreen.tsx` (the "Edit basic info" link) and `ProfileSetupScreen.tsx` (the avatar upload). It is **NOT renamed** here — it is load-bearing in `detox/tests/42-edit-profile.e2e.ts` and `ProfileSetupScreen.test.tsx`, and `EditProfileScreen.tsx` never carried it (that was the pilot's mismatch). The correctly-named identifier for the actual upload control on Edit Profile is the new `edit-profile-avatar-button` above.
+
+**Assert:**
+1. Display Name / DOB / Zip inputs render `editable=false` with the "(CANNOT BE CHANGED)" labels + the zip helper "Zip codes are locked to your node.".
+2. Email / Phone / Bio prefill the current profile values and accept new text.
+3. After Save, the screen returns to Profile and shows the updated values immediately (optimistic patch, no stale flash).
+
+**Dependencies:**
+- Network: Save calls `supabase.auth.updateUser` + profile update (no Stripe/3rd-party). Deterministic given the seeded profile; default fetch timeouts suffice (no fixed wait needed).
+
 ---
 
-### TC-B02 · Email change requires re-verification
+### ACC-TC-B02 · Email change requires re-verification
 
 > ⛔ **KNOWN NOT-IMPLEMENTED (2026-08-13, re-verified against source):** No in-app email re-verification flow exists. Saving a changed email in EditProfileScreen calls `supabase.auth.updateUser({ email })` directly and proceeds with no verification gate, prompt, or confirmation screen (email verification exists only in the ID-badge context). This test case is **blocked / not testable as written** — it is retained so it is not mistaken for a real gap or a lost test. If an email-verification gate is added later, update this case to match.
 
@@ -233,9 +282,22 @@
 **Expected Result:**
 - **Not testable as written — feature not implemented.** Current behavior: the email is changed immediately via `supabase.auth.updateUser` (relying on Supabase's built-in email-change confirmation outside the app); no in-app verification prompt or "email isn't switched until verified" gating appears.
 
+**Setup:**
+- **Blocked — feature not implemented (re-verified 2026-08-13).** No in-app email re-verification flow exists; saving a changed email calls `supabase.auth.updateUser` directly. Not agent-runnable as written; requires a product decision to add an email-verification gate first.
+
+**Locator hints:**
+- Email field: TextInput placeholder "Enter your email" — **NO TESTID FOUND** (same as ACC-TC-B01).
+- Save button: "Save Changes" — **NO TESTID FOUND** (same as ACC-TC-B01).
+
+**Assert:**
+- None — not runnable. (If run only to capture current behavior: email change succeeds immediately with no verification prompt or confirmation screen.)
+
+**Dependencies:**
+- **Not agent-runnable as-is without the feature implemented.** Same precondition-staging class as the open `B09`/`S03`–`S05`/`I08` items: the feature must exist before this case can assert anything.
+
 ---
 
-### TC-B03 · Phone change → OTP verification modal
+### ACC-TC-B03 · Phone change → OTP verification modal
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
@@ -251,7 +313,7 @@
 
 ---
 
-### TC-B04 · Avatar upload
+### ACC-TC-B04 · Avatar upload
 
 **Ref:** FLOW-05 media · EditProfileScreen
 **Actors:** test-buyer
@@ -266,7 +328,7 @@
 
 ---
 
-### TC-B05 · Profile screen stats, badges, reviews, status badge
+### ACC-TC-B05 · Profile screen stats, badges, reviews, status badge
 
 **Ref:** FLOW-02 · ProfileScreen
 **Actors:** test-buyer
@@ -283,7 +345,7 @@
 - ID verification status, referral code (if any), reviews section (with "Show All"), and badge showcase render.
 - A brief "profile saved" banner appears after returning from Edit Profile.
 
-### TC-B06 · Form validation (phone 10-digit, email format)
+### ACC-TC-B06 · Form validation (phone 10-digit, email format)
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
@@ -301,7 +363,7 @@
 - Valid values clear the errors and save proceeds.
 - **Flag:** the `Zip code must be 5 digits` validator exists but the ZIP field is locked (`editable={false}`), so that validation is unreachable from this screen.
 
-### TC-B07 · "No Changes" alert
+### ACC-TC-B07 · "No Changes" alert
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
@@ -314,7 +376,13 @@
 **Expected Result:**
 - Alert **No Changes** reads `No changes were made to your profile.`; tapping **OK** returns to Profile.
 
-### TC-B08 · Waitlist prompt (unreachable from Edit Profile — flag)
+**Locator hints:**
+- "No Changes" alert is a native `Alert.alert` — dialog locator: N/A — see Dependencies.
+
+**Dependencies:**
+- Native `Alert.alert` ('No Changes' title) — match 'OK' by text via Detox (`by.text('OK')`) / Appium; assert by title and that OK returns to Profile.
+
+### ACC-TC-B08 · Waitlist prompt (unreachable from Edit Profile — flag)
 
 **Ref:** FLOW-02 · EditProfileScreen · `updateUserProfile.needsWaitlist`
 **Actors:** test-buyer
@@ -329,7 +397,7 @@
 - Because ZIP cannot change, the `needsWaitlist` path (alert **Area Not Yet Available** / `We're not live in your area ({zip}) yet! Would you like to join the waitlist to be notified when we launch?` → **Join Waitlist** → `Added to Waitlist!` / `We'll notify you when we launch.`) never fires from this screen.
 - **Flag:** this is effectively dead code on this screen; the waitlist prompt is more likely exercised from onboarding/signup where ZIP is first entered.
 
-### TC-B09 · "Already verified" phone path
+### ACC-TC-B09 · "Already verified" phone path
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
@@ -343,7 +411,7 @@
 - Alert **Info** reads `This phone number is already verified and active on your account.`
 - No **Verify Your Phone** modal appears; the phone is saved without re-verification.
 
-### TC-B10 · Locked-field "cannot be changed" alerts
+### ACC-TC-B10 · Locked-field "cannot be changed" alerts
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
@@ -360,11 +428,17 @@
 - Full Name and Date of Birth inputs are disabled (`editable={false}`).
 - ZIP renders **ZIP CODE (CANNOT BE CHANGED)** with the helper `Zip codes are locked to your node.` (no Question icon).
 
+**Locator hints:**
+- Contact Support alerts are native `Alert.alert` — dialog locator: N/A — see Dependencies.
+
+**Dependencies:**
+- Native `Alert.alert` ('Contact Support' title) — match 'OK' by text via Detox (`by.text('OK')`) / Appium; assert by title and the support-email body.
+
 ---
 
 ## Group C — Linked Accounts
 
-### TC-C01 · Linked accounts list (email readonly, password, social)
+### ACC-TC-C01 · Linked accounts list (email readonly, password, social)
 
 **Ref:** FLOW-01 · LinkedAccountsScreen
 **Actors:** test-buyer
@@ -379,7 +453,7 @@
 
 ---
 
-### TC-C02 · Link a social provider (password re-auth gate)
+### ACC-TC-C02 · Link a social provider (password re-auth gate)
 
 **Ref:** FLOW-01 · LinkedAccountsScreen
 **Actors:** test-buyer (has password)
@@ -394,7 +468,7 @@
 
 ---
 
-### TC-C03 · Unlink provider (confirmation + last-method guard)
+### ACC-TC-C03 · Unlink provider (confirmation + last-method guard)
 
 **Ref:** FLOW-01 · LinkedAccountsScreen
 **Actors:** test-buyer
@@ -409,9 +483,15 @@
 - Unlink shows a confirmation ("…you can always link it again later"); confirming unlinks.
 - Attempting to remove the last login method is blocked: "You must keep at least one login method. Add another method first."
 
+**Locator hints:**
+- Unlink confirmation / last-method guard / success alerts are native `Alert.alert` — dialog locator: N/A — see Dependencies.
+
+**Dependencies:**
+- Native `Alert.alert` ('Unlink Account' / 'Cannot Unlink' / 'Success' titles) — match 'Cancel' / 'Unlink' by text via Detox (`by.text('Unlink')`) / Appium; assert by title and the last-method guard message.
+
 ---
 
-### TC-C04 · Email mismatch on link blocked
+### ACC-TC-C04 · Email mismatch on link blocked
 
 **Ref:** FLOW-01 · LinkedAccountsScreen
 **Actors:** test-buyer
@@ -428,7 +508,7 @@
 
 ## Group D — Notification Preferences
 
-### TC-D01 · Five categories × three channel toggles
+### ACC-TC-D01 · Five categories × three channel toggles
 
 **Ref:** FLOW-17 · NotificationPreferencesScreen
 **Actors:** test-buyer
@@ -445,7 +525,7 @@
 
 ---
 
-### TC-D02 · Optimistic toggle reverts on failure
+### ACC-TC-D02 · Optimistic toggle reverts on failure
 
 **Ref:** FLOW-17 · NotificationPreferencesScreen
 **Actors:** test-buyer
@@ -460,7 +540,7 @@
 
 ---
 
-### TC-D03 · Quiet hours toggle + time validation
+### ACC-TC-D03 · Quiet hours toggle + time validation
 
 **Ref:** FLOW-17 · NotificationPreferencesScreen
 **Actors:** test-buyer
@@ -477,7 +557,7 @@
 
 ---
 
-### TC-D04 · Empty state → Initialize Settings
+### ACC-TC-D04 · Empty state → Initialize Settings
 
 **Ref:** FLOW-17 · NotificationPreferencesScreen
 **Actors:** A user with no preferences yet
@@ -494,7 +574,7 @@
 
 ## Group E — Delete Account (COPPA)
 
-### TC-E01 · Delete account consequences + password gate
+### ACC-TC-E01 · Delete account consequences + password gate
 
 **Ref:** COPPA / FLOW-21 error recovery · DeleteAccountScreen
 **Actors:** A disposable test account
@@ -509,7 +589,7 @@
 
 ---
 
-### TC-E02 · Wrong password blocked
+### ACC-TC-E02 · Wrong password blocked
 
 **Ref:** DeleteAccountScreen
 **Actors:** A disposable test account
@@ -524,7 +604,7 @@
 
 ---
 
-### TC-E03 · Two-step confirmation → deletion + logout
+### ACC-TC-E03 · Two-step confirmation → deletion + logout
 
 **Ref:** DeleteAccountScreen
 **Actors:** A disposable test account
@@ -537,11 +617,17 @@
 **Expected Result:**
 - The account deletion RPC runs (profile marked self-deleted, SP wallet frozen, audit log written) and the user is logged out automatically.
 
+**Locator hints:**
+- Final "This cannot be undone." confirmation is a native `Alert.alert` — dialog locator: N/A — see Dependencies.
+
+**Dependencies:**
+- Native `Alert.alert` ('Delete Account' title) — match 'Cancel' / 'Delete' by text via Detox (`by.text('Delete')`) / Appium; assert by title and that deletion logs the user out.
+
 ---
 
 ## Group F — Suspended / Unsubscribe / Offline
 
-### TC-F01 · Suspended account screen (logout only)
+### ACC-TC-F01 · Suspended account screen (logout only)
 
 **Ref:** FLOW-34 / FLOW-02 · SuspendedAccountScreen
 **Actors:** test-suspended
@@ -556,7 +642,7 @@
 
 ---
 
-### TC-F02 · Unsubscribe via email token (success/error)
+### ACC-TC-F02 · Unsubscribe via email token (success/error)
 
 > ⚠️ **Needs re-verification (2026-08-12):** The unsubscribe flow uses a deep-link token as a route param rather than "email token" terminology — verify the description wording.
 
@@ -575,7 +661,7 @@
 
 ---
 
-### TC-F03 · Offline screen + Try Again
+### ACC-TC-F03 · Offline screen + Try Again
 
 **Ref:** FLOW-21 error recovery · OfflineScreen
 **Actors:** Any user
@@ -588,7 +674,7 @@
 **Expected Result:**
 - "No Internet Connection" with a WifiX icon and **[Try Again]** that retries/returns once connectivity is restored.
 
-### TC-F04 · Suspended account — Log Out tap
+### ACC-TC-F04 · Suspended account — Log Out tap
 
 **Ref:** FLOW-34 / FLOW-02 · SuspendedAccountScreen
 **Actors:** test-suspended
@@ -607,7 +693,7 @@
 
 ## Group G — Home Dashboard
 
-### TC-G01 · Greeting + subscription badge + SP balance
+### ACC-TC-G01 · Greeting + subscription badge + SP balance
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer
@@ -622,7 +708,7 @@
 
 ---
 
-### TC-G02 · Priority banners (grace > payment fail > trial > draft)
+### ACC-TC-G02 · Priority banners (grace > payment fail > trial > draft)
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-grace, test-trial, a user with a payment failure, a user with a draft
@@ -638,7 +724,7 @@
 
 ---
 
-### TC-G03 · Quick action tiles route correctly
+### ACC-TC-G03 · Quick action tiles route correctly
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer
@@ -651,9 +737,24 @@
 **Expected Result:**
 - Each routes to its screen (favorites, trade list, my listings, payout settings).
 
+**Setup:**
+- Logged in as **test-buyer** (any tier); dashboard renders. No seeded trades/listings required — the 4 tiles always render.
+
+**Locator hints:**
+- Screen: `testID="dashboard-screen"` (`src/screens/dashboard/UserDashboardScreen.tsx`).
+- Tiles (each `testID={\`action-tile-${key}\`}`): Favorites → `action-tile-favorites` · My Trades → `action-tile-myTrades` · My Listings → `action-tile-myListings` · Payouts → `action-tile-payouts`.
+- ⚠️ BP-53 resolved (2026-08-13): the tiles now set `accessible` + `accessibilityRole="button"` + `accessibilityLabel={label}` (mirror `ui/Button`), so the identifiers surface on the iOS accessibility tree. Still confirm on-device before relying on them in Maestro.
+
+**Assert:**
+1. Dashboard shows exactly 4 tiles labeled Favorites / My Trades / My Listings / Payouts (locators above visible).
+2. Tapping Favorites lands on the Favorites screen; My Trades → trade list; My Listings → My Listings; Payouts → payout settings (assert via destination route/header).
+
+**Dependencies:**
+- None. Pure navigation — deterministic.
+
 ---
 
-### TC-G04 · ID verification CTA banner (dismissible)
+### ACC-TC-G04 · ID verification CTA banner (dismissible)
 
 **Ref:** FLOW-16 / FLOW-21 · UserDashboardScreen
 **Actors:** test-free (verification = none)
@@ -668,7 +769,7 @@
 
 ---
 
-### TC-G05 · Recommendations + recent trade card
+### ACC-TC-G05 · Recommendations + recent trade card
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer
@@ -683,7 +784,7 @@
 
 ---
 
-### TC-G06 · Pull-to-refresh reloads dashboard
+### ACC-TC-G06 · Pull-to-refresh reloads dashboard
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer
@@ -696,7 +797,7 @@
 **Expected Result:**
 - Subscription, timeline, recent trade, ID verification, and drafts reload; old content stays visible during refresh.
 
-### TC-G07 · "Show more actions" toggle
+### ACC-TC-G07 · "Show more actions" toggle
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer
@@ -711,7 +812,7 @@
 - Tapping expands the Action Items list; the label changes to **Show less**.
 - Tapping **Show less** collapses back to the initial set.
 
-### TC-G08 · Free-user "Unlock Swap Points" strip
+### ACC-TC-G08 · Free-user "Unlock Swap Points" strip
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-free
@@ -727,7 +828,7 @@
 - Tapping navigates to **JoinKidsClub**.
 - (Subscribers instead see `{n} SP` with **Earn More →** → **SpWallet**.)
 
-### TC-G09 · "No session found" state
+### ACC-TC-G09 · "No session found" state
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer
@@ -740,7 +841,7 @@
 **Expected Result:**
 - Shows `No session found. Please log in.` instead of a blank or crashed screen.
 
-### TC-G10 · Empty-trade state
+### ACC-TC-G10 · Empty-trade state
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer (no active trades)
@@ -753,7 +854,7 @@
 **Expected Result:**
 - The recent-trade area shows `No active trades right now`.
 
-### TC-G11 · "View Timeline" nav
+### ACC-TC-G11 · "View Timeline" nav
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer (with a recent trade)
@@ -766,7 +867,7 @@
 **Expected Result:**
 - Navigates to **TradeTimeline** for that trade (`tradeId`).
 
-### TC-G12 · "See All" → Discover nav
+### ACC-TC-G12 · "See All" → Discover nav
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-buyer
@@ -779,7 +880,7 @@
 **Expected Result:**
 - Navigates to the **Discover** screen.
 
-### TC-G13 · Subscription-card Upgrade button
+### ACC-TC-G13 · Subscription-card Upgrade button
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-free
@@ -797,7 +898,7 @@
 
 ## Group H — Help & Support Menu
 
-### TC-H01 · Help & Support menu (3 cards) routes
+### ACC-TC-H01 · Help & Support menu (3 cards) routes
 
 **Ref:** FLOW-19 · HelpSupportMenuScreen
 **Actors:** test-buyer
@@ -812,7 +913,7 @@
 
 ---
 
-### TC-H02 · FAQ list — search + category filter
+### ACC-TC-H02 · FAQ list — search + category filter
 
 **Ref:** FLOW-19 · HelpScreen (FAQ)
 **Actors:** test-buyer
@@ -827,7 +928,7 @@
 
 ---
 
-### TC-H03 · FAQ fallback when offline
+### ACC-TC-H03 · FAQ fallback when offline
 
 **Ref:** FLOW-19 · HelpScreen (FAQ)
 **Actors:** Any user offline
@@ -842,7 +943,7 @@
 
 ---
 
-### TC-H04 · FAQ detail — helpful vote (Yes/No)
+### ACC-TC-H04 · FAQ detail — helpful vote (Yes/No)
 
 **Ref:** FLOW-19 · FAQDetailScreen
 **Actors:** test-buyer
@@ -858,7 +959,7 @@
 
 ---
 
-### TC-H05 · Contact Support form (auth gate + validation)
+### ACC-TC-H05 · Contact Support form (auth gate + validation)
 
 **Ref:** FLOW-19 · ContactSupportScreen
 **Actors:** test-buyer (logged in) + logged-out
@@ -877,7 +978,7 @@
 
 ## Group I — Education & SP Calculator
 
-### TC-I01 · Education Help screen sections (accordion + deep link)
+### ACC-TC-I01 · Education Help screen sections (accordion + deep link)
 
 **Ref:** FLOW-19 · HelpScreen (education)
 **Actors:** test-buyer
@@ -894,7 +995,7 @@
 
 ---
 
-### TC-I02 · SP Calculator (free mode) sell/buy outputs
+### ACC-TC-I02 · SP Calculator (free mode) sell/buy outputs
 
 **Ref:** FLOW-19 · SPCalculator
 **Actors:** test-buyer
@@ -909,7 +1010,7 @@
 
 ---
 
-### TC-I03 · SP Calculator bonus category badge
+### ACC-TC-I03 · SP Calculator bonus category badge
 
 **Ref:** FLOW-04C / FLOW-19 · SPCalculator
 **Actors:** test-buyer
@@ -924,7 +1025,7 @@
 
 ---
 
-### TC-I04 · SP Calculator validation (price range)
+### ACC-TC-I04 · SP Calculator validation (price range)
 
 **Ref:** FLOW-19 · SPCalculator
 **Actors:** test-buyer
@@ -939,7 +1040,7 @@
 
 ---
 
-### TC-I05 · Education analytics events fire
+### ACC-TC-I05 · Education analytics events fire
 
 **Ref:** FLOW-EDU-001 · educationAnalyticsService
 **Actors:** test-buyer
@@ -956,7 +1057,7 @@
 
 ## Group J — Legal Screens
 
-### TC-J01 · Terms of Service view + last updated
+### ACC-TC-J01 · Terms of Service view + last updated
 
 **Ref:** FLOW-31 · TermsOfServiceScreen
 **Actors:** test-buyer
@@ -971,7 +1072,7 @@
 
 ---
 
-### TC-J02 · TOS acceptance flow (requireAcceptance)
+### ACC-TC-J02 · TOS acceptance flow (requireAcceptance)
 
 **Ref:** FLOW-31 · TermsOfServiceScreen
 **Actors:** A user prompted to accept (auth flow)
@@ -987,7 +1088,7 @@
 
 ---
 
-### TC-J03 · Privacy Policy view + acceptance
+### ACC-TC-J03 · Privacy Policy view + acceptance
 
 **Ref:** FLOW-32 · PrivacyPolicyScreen
 **Actors:** test-buyer / a prompted user
@@ -1004,7 +1105,7 @@
 
 ---
 
-### TC-J04 · Liability Disclaimer view (read-only + retry)
+### ACC-TC-J04 · Liability Disclaimer view (read-only + retry)
 
 **Ref:** FLOW-33 · LiabilityDisclaimerScreen
 **Actors:** test-buyer
@@ -1019,7 +1120,7 @@
 
 ---
 
-### TC-J05 · Policy versioning — re-acceptance on new version
+### ACC-TC-J05 · Policy versioning — re-acceptance on new version
 
 **Ref:** FLOW-31/32 · admin policies
 **Actors:** test-admin + test-buyer
@@ -1036,7 +1137,7 @@
 
 ---
 
-### TC-J06 · Signup implies TOS + Privacy agreement (no mandatory dialog)
+### ACC-TC-J06 · Signup implies TOS + Privacy agreement (no mandatory dialog)
 
 **Ref:** FLOW-31/32 · SignupScreen
 **Actors:** A fresh (not logged-in) user
@@ -1052,7 +1153,7 @@
 
 ---
 
-### TC-J07 · Legal screen unavailable state (no published policy)
+### ACC-TC-J07 · Legal screen unavailable state (no published policy)
 
 **Ref:** FLOW-31/32 · TermsOfServiceScreen / PrivacyPolicyScreen
 **Actors:** test-buyer
@@ -1067,7 +1168,7 @@
 
 ---
 
-### TC-J08 · Legal screen load failure — error + Retry
+### ACC-TC-J08 · Legal screen load failure — error + Retry
 
 **Ref:** FLOW-31/32 · TermsOfServiceScreen / PrivacyPolicyScreen
 **Actors:** test-buyer
@@ -1083,7 +1184,7 @@
 
 ---
 
-### TC-J09 · Very long policy content renders + scrolls smoothly
+### ACC-TC-J09 · Very long policy content renders + scrolls smoothly
 
 **Ref:** FLOW-31 · TermsOfServiceScreen
 **Actors:** test-buyer
@@ -1099,7 +1200,7 @@
 
 ---
 
-### TC-J10 · Legal screens render consistently on iOS and Android
+### ACC-TC-J10 · Legal screens render consistently on iOS and Android
 
 **Ref:** FLOW-31/32/33
 **Actors:** test-buyer
@@ -1107,14 +1208,14 @@
 **Objective:** Verify identical legal-screen behavior on both platforms.
 
 **Steps:**
-1. Repeat TC-J01 / TC-J03 / TC-J04 on iOS Simulator, then Android Emulator.
+1. Repeat ACC-TC-J01 / ACC-TC-J03 / ACC-TC-J04 on iOS Simulator, then Android Emulator.
 
 **Expected Result:**
 - Same content, formatting, link behavior, and navigation on both platforms; no platform-specific bugs.
 
 ---
 
-### TC-J11 · Legal screen loads < 2s and scrolls without lag
+### ACC-TC-J11 · Legal screen loads < 2s and scrolls without lag
 
 **Ref:** FLOW-31/32/33
 **Actors:** test-buyer
@@ -1129,7 +1230,7 @@
 
 ---
 
-### TC-J12 · Liability Disclaimer unavailable state
+### ACC-TC-J12 · Liability Disclaimer unavailable state
 
 **Ref:** FLOW-33 · LiabilityDisclaimerScreen
 **Actors:** test-buyer
@@ -1146,7 +1247,7 @@
 
 ## Group K — Privacy & Security / MFA
 
-### TC-K01 · MFA factors list + enrollment entry points
+### ACC-TC-K01 · MFA factors list + enrollment entry points
 
 **Ref:** FLOW-24 · Settings → Privacy & Security
 **Actors:** test-buyer
@@ -1162,7 +1263,7 @@
 - Unsupported factor types are hidden or clearly marked unavailable on the current device.
 - If no factor is enrolled, the account is shown as not fully MFA-protected.
 
-### TC-K02 · Enroll and verify an authenticator factor
+### ACC-TC-K02 · Enroll and verify an authenticator factor
 
 **Ref:** FLOW-24 · MFA enrollment
 **Actors:** test-buyer
@@ -1179,7 +1280,7 @@
 - A valid code completes enrollment and marks the factor as **Verified**.
 - The screen updates to show MFA is enabled for the account.
 
-### TC-K03 · Protected action prompts MFA challenge + invalid code handling
+### ACC-TC-K03 · Protected action prompts MFA challenge + invalid code handling
 
 **Ref:** FLOW-24 · MFA assurance level
 **Actors:** test-buyer
@@ -1196,7 +1297,7 @@
 - An invalid code is rejected with a clear error and does not complete the action.
 - A valid code completes the challenge and allows the protected action to proceed.
 
-### TC-K04 · Recovery path and remove verified factor
+### ACC-TC-K04 · Recovery path and remove verified factor
 
 **Ref:** FLOW-24 · recovery and factor removal
 **Actors:** test-buyer
@@ -1215,7 +1316,7 @@
 
 ## Group L — Error Recovery & Crash Reporting
 
-### TC-L01 · Render-time error shows fallback instead of red/white screen
+### ACC-TC-L01 · Render-time error shows fallback instead of red/white screen
 
 **Ref:** FLOW-21 · ErrorBoundary
 **Actors:** test-buyer
@@ -1231,7 +1332,7 @@
 - The fallback includes a **Try Again** action.
 - The rest of the app shell remains responsive.
 
-### TC-L02 · Try Again recovers after transient error
+### ACC-TC-L02 · Try Again recovers after transient error
 
 **Ref:** FLOW-21 · ErrorBoundary reset
 **Actors:** test-buyer
@@ -1248,7 +1349,7 @@
 - The original screen loads successfully once the transient issue is gone.
 - The user does not need to kill and relaunch the app to recover.
 
-### TC-L03 · Persistent error stays contained to fallback
+### ACC-TC-L03 · Persistent error stays contained to fallback
 
 **Ref:** FLOW-21 · repeated error containment
 **Actors:** test-buyer
@@ -1263,7 +1364,7 @@
 - The fallback reappears instead of the app crashing or showing a native red/white screen.
 - The app remains contained to the failing surface and stays usable after backing out or navigating away if supported.
 
-### TC-L04 · Error reporting is safe with and without telemetry
+### ACC-TC-L04 · Error reporting is safe with and without telemetry
 
 **Ref:** FLOW-21 · crash reporting
 **Actors:** QA
@@ -1283,27 +1384,27 @@
 
 ## Regression
 
-### TC-R01 · Logout from Settings clears session
+### ACC-TC-R01 · Logout from Settings clears session
 **Objective:** Confirm sign-out fully clears the session and returns to login.
 **Steps:** 1. Sign out from Settings; relaunch the app.
 **Expected Result:** The app opens at login/landing, not an authenticated screen.
 
-### TC-R02 · Profile edits persist after relaunch
+### ACC-TC-R02 · Profile edits persist after relaunch
 **Objective:** Confirm saved profile edits persist beyond the optimistic patch.
 **Steps:** 1. Edit profile, save, relaunch the app, reopen Profile.
 **Expected Result:** The saved values persist.
 
-### TC-R03 · Notification preference respected end-to-end
+### ACC-TC-R03 · Notification preference respected end-to-end
 **Objective:** Confirm disabling a category's push stops that push.
 **Steps:** 1. Disable push for one category; trigger an event of that category.
 **Expected Result:** No push is delivered for that category (other channels per their toggles).
 
-### TC-R04 · Legal links reachable from both Settings and onboarding
+### ACC-TC-R04 · Legal links reachable from both Settings and onboarding
 **Objective:** Confirm TOS/Privacy/Liability open from Settings and signup links.
 **Steps:** 1. Open each from Settings and from the signup screen.
 **Expected Result:** Both entry points open the same current policy content.
 
-### TC-R05 · Dashboard reflects subscription state changes
+### ACC-TC-R05 · Dashboard reflects subscription state changes
 **Objective:** Confirm the dashboard badge/banner updates after a subscription state change.
 **Steps:** 1. Change subscription state (e.g., cancel/grace) and reopen the dashboard.
 **Expected Result:** The badge and banners update to the new state.
@@ -1314,47 +1415,47 @@
 
 | Verification item | Test cases |
 |---|---|
-| Settings sections + rows (FLOW-02) | TC-A01 |
-| Sign Out confirmation | TC-A02, TC-R01 |
-| Test push rate limit / quiet hours / queued (FLOW-17) | TC-A03 |
-| Settings → legal & help routing | TC-A04, TC-R04 |
-| Edit profile load + optimistic save | TC-B01, TC-R02 |
-| Email change re-verification | TC-B02 |
-| Phone change OTP modal | TC-B03 |
-| Avatar upload | TC-B04 |
-| Profile stats/badges/reviews/status | TC-B05 |
-| Linked accounts layout (FLOW-01) | TC-C01 |
-| Link provider with re-auth gate | TC-C02 |
-| Unlink confirmation + last-method guard | TC-C03 |
-| Email mismatch blocked | TC-C04 |
-| Notification categories × channels (FLOW-17) | TC-D01, TC-R03 |
-| Optimistic toggle revert | TC-D02 |
-| Quiet hours toggle + validation | TC-D03 |
-| Notification prefs empty/initialize | TC-D04 |
-| Delete account consequences + password (COPPA) | TC-E01 |
-| Delete wrong password blocked | TC-E02 |
-| Delete two-step confirm + logout | TC-E03 |
-| Suspended account gate (FLOW-34) | TC-F01 |
-| Unsubscribe email token success/error (FLOW-17) | TC-F02 |
-| Offline screen + retry | TC-F03 |
-| Dashboard greeting + badge + SP (FLOW-16) | TC-G01, TC-R05 |
-| Dashboard banner priority | TC-G02 |
-| Dashboard quick-action routing | TC-G03 |
-| Dashboard ID verification CTA | TC-G04 |
-| Dashboard recommendations + recent trade | TC-G05 |
-| Dashboard pull-to-refresh | TC-G06 |
-| Help & Support menu routing (FLOW-19) | TC-H01 |
-| FAQ search + category filter | TC-H02 |
-| FAQ offline fallback | TC-H03 |
-| FAQ detail helpful vote | TC-H04 |
-| Contact Support form + validation | TC-H05 |
-| Education sections accordion + deep link | TC-I01 |
-| SP Calculator sell/buy outputs | TC-I02 |
-| SP Calculator bonus badge | TC-I03 |
-| SP Calculator price validation | TC-I04 |
-| Education analytics events (FLOW-EDU-001) | TC-I05 |
-| TOS view + last updated (FLOW-31) | TC-J01 |
-| TOS acceptance flow | TC-J02 |
-| Privacy Policy view + acceptance (FLOW-32) | TC-J03 |
-| Liability Disclaimer read-only + retry (FLOW-33) | TC-J04 |
-| Policy versioning re-acceptance | TC-J05 |
+| Settings sections + rows (FLOW-02) | ACC-TC-A01 |
+| Sign Out confirmation | ACC-TC-A02, ACC-TC-R01 |
+| Test push rate limit / quiet hours / queued (FLOW-17) | ACC-TC-A03 |
+| Settings → legal & help routing | ACC-TC-A04, ACC-TC-R04 |
+| Edit profile load + optimistic save | ACC-TC-B01, ACC-TC-R02 |
+| Email change re-verification | ACC-TC-B02 |
+| Phone change OTP modal | ACC-TC-B03 |
+| Avatar upload | ACC-TC-B04 |
+| Profile stats/badges/reviews/status | ACC-TC-B05 |
+| Linked accounts layout (FLOW-01) | ACC-TC-C01 |
+| Link provider with re-auth gate | ACC-TC-C02 |
+| Unlink confirmation + last-method guard | ACC-TC-C03 |
+| Email mismatch blocked | ACC-TC-C04 |
+| Notification categories × channels (FLOW-17) | ACC-TC-D01, ACC-TC-R03 |
+| Optimistic toggle revert | ACC-TC-D02 |
+| Quiet hours toggle + validation | ACC-TC-D03 |
+| Notification prefs empty/initialize | ACC-TC-D04 |
+| Delete account consequences + password (COPPA) | ACC-TC-E01 |
+| Delete wrong password blocked | ACC-TC-E02 |
+| Delete two-step confirm + logout | ACC-TC-E03 |
+| Suspended account gate (FLOW-34) | ACC-TC-F01 |
+| Unsubscribe email token success/error (FLOW-17) | ACC-TC-F02 |
+| Offline screen + retry | ACC-TC-F03 |
+| Dashboard greeting + badge + SP (FLOW-16) | ACC-TC-G01, ACC-TC-R05 |
+| Dashboard banner priority | ACC-TC-G02 |
+| Dashboard quick-action routing | ACC-TC-G03 |
+| Dashboard ID verification CTA | ACC-TC-G04 |
+| Dashboard recommendations + recent trade | ACC-TC-G05 |
+| Dashboard pull-to-refresh | ACC-TC-G06 |
+| Help & Support menu routing (FLOW-19) | ACC-TC-H01 |
+| FAQ search + category filter | ACC-TC-H02 |
+| FAQ offline fallback | ACC-TC-H03 |
+| FAQ detail helpful vote | ACC-TC-H04 |
+| Contact Support form + validation | ACC-TC-H05 |
+| Education sections accordion + deep link | ACC-TC-I01 |
+| SP Calculator sell/buy outputs | ACC-TC-I02 |
+| SP Calculator bonus badge | ACC-TC-I03 |
+| SP Calculator price validation | ACC-TC-I04 |
+| Education analytics events (FLOW-EDU-001) | ACC-TC-I05 |
+| TOS view + last updated (FLOW-31) | ACC-TC-J01 |
+| TOS acceptance flow | ACC-TC-J02 |
+| Privacy Policy view + acceptance (FLOW-32) | ACC-TC-J03 |
+| Liability Disclaimer read-only + retry (FLOW-33) | ACC-TC-J04 |
+| Policy versioning re-acceptance | ACC-TC-J05 |

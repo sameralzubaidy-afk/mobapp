@@ -3,10 +3,10 @@
 **Source of truth:** `docs/flow-registry.md` (FLOW-18 Admin Controls / CPSC Recall Imports / ID Badge Verification · FLOW-20 Audit/Logging · FLOW-21 Category Management / Education CMS · FLOW-22 Sales Tax · FLOW-25 Manual Payout Admin · FLOW-28 Cron & Background Jobs · FLOW-30 SP Wallet Admin Ops · FLOW-34 Admin Auth Middleware)
 **Tasks covered:** Admin Auth & Dashboard (health strip, Action Center, KPI cards, no duplicate nav cards) · Users · Listings/Items/Flagged · Categories · Nodes/Node Settings/Waitlist + **per-node KPIs (N6 node tagging)** · Global Config (cart, trade-timing, N1 configurability — pickup/payout) · Policies · Trades · Disputes · Tax · Payouts (config + earnings) · SP Economy/Analytics/Wallet · Subscriptions · Referrals · ID Badges/Badges · Review Moderation · Education/FAQ CMS · Support · Revenue/Notification Analytics · Audit Logs · Monitoring/Cron · Sidebar Navigation (grouped & collapsible)
 **Last updated:** 2026-08-09
-**Scope:** Admin portal manual testing in a **web browser** (this is a web-based admin tool, not a mobile app). No SQL / no DB access required — **exception:** the N6 node-tagging data-layer checks (TC-E06, and the SQL reconcile step in TC-E07) run **read-only** queries in the Supabase SQL Editor on staging.
+**Scope:** Admin portal manual testing in a **web browser** (this is a web-based admin tool, not a mobile app). No SQL / no DB access required — **exception:** the N6 node-tagging data-layer checks (ADM-TC-E06, and the SQL reconcile step in ADM-TC-E07) run **read-only** queries in the Supabase SQL Editor on staging.
 **Devices:** Desktop browser (Chrome/Safari/Firefox). Admin login required.
 
-> Note: detailed **Sales Tax admin** cases (node rate config, bulk update, audit history, reporting dashboard, CSV export) live in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group P (TC-P01–TC-P08). This guide's Tax group (Group J) covers entry points and cross-references those.
+> Note: detailed **Sales Tax admin** cases (node rate config, bulk update, audit history, reporting dashboard, CSV export) live in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group P (TRD-TC-P01–TRD-TC-P08). This guide's Tax group (Group J) covers entry points and cross-references those.
 
 ---
 
@@ -14,172 +14,172 @@
 
 | Group | TC# | Description |
 |---|---|---|
-| **A — Auth & Dashboard** | TC-A01 | Admin login with admin role |
-| | TC-A02 | Non-admin login rejected (RBAC gate) |
-| | TC-A03 | Dashboard layout: intro → health strip → Action Center → KPIs (no duplicate nav) |
-| | TC-A04 | Direct protected route access without session redirects to login |
-| | TC-A05 | Expired session redirects once without a loop |
-| | TC-A06 | Dashboard KPI cards follow design-system styling |
-| **B — User Management** | TC-B01 | User list, search, status filters, pagination |
-| | TC-B02 | User detail drawer (identity, subscription, SP, trades) |
-| | TC-B03 | Suspend / ban / delete account |
-| | TC-B04 | Credit/debit SP + freeze wallet from user |
-| | TC-B05 | User analytics cards (totals, DAU/MAU) |
-| | TC-B06 | Reset Password action |
-| | TC-B07 | Unsuspend action |
-| | TC-B08 | Sort By / Sort Order |
-| **C — Listings, Items & Flagged** | TC-C01 | Listing management — search & analytics tabs |
-| | TC-C02 | Flagged items — filter tabs + statuses |
-| | TC-C03 | Approve flagged item |
-| | TC-C04 | Reject item with required reason |
-| | TC-C05 | Item detail view + appeal info |
-| | TC-C06 | Force Delete |
-| | TC-C07 | Pause |
-| | TC-C08 | Approve |
-| | TC-C09 | Request Edits |
-| | TC-C10 | Reject |
-| | TC-C11 | Select-all / selection counter (no bulk execute — flag) |
-| | TC-C12 | Individual filter controls |
-| **D — Categories** | TC-D01 | Category list, filters (incl. Bonus), search |
-| | TC-D02 | Create / edit category + SP multiplier |
-| | TC-D03 | Activate / deactivate category |
-| | TC-D04 | Category suggestions queue + count badge |
-| | TC-D05 | Icon / badge upload |
-| | TC-D06 | SP spending cap % |
-| | TC-D07 | SP redemption cap |
-| | TC-D08 | Drag-and-drop reorder |
-| | TC-D09 | Bulk actions (Activate / Deactivate / Delete / Export CSV) |
-| | TC-D10 | Delete category + guards |
-| | TC-D11 | Suggestion Approve / Merge / Reject |
-| **E — Nodes & Waitlist** | TC-E01 | Geographic nodes list + stats |
-| | TC-E02 | Add / edit node |
-| | TC-E03 | Deactivate node with members warning |
-| | TC-E04 | Node settings (radius validations) |
-| | TC-E05 | ZIP waitlist queue + status filter |
-| | TC-E06 | Node tagging completeness (N6) — every record resolves to one node |
-| | TC-E07 | Per-node KPIs (N6) — expansion-gate metrics per node |
-| | TC-E08 | Waitlist API authorization (401 without admin session) |
-| **F — Global Config & Settings** | TC-F01 | Global configuration inline edit + permission gate |
-| | TC-F02 | Cart settings (min value, max carts, expiry) |
-| | TC-F03 | Trade timing config (timing keys + nested validation) |
-| | TC-F04 | Settings single-source — cross-link + last-updated + audit |
-| | TC-F05 | N1 configurability — pickup countdown + payout buffer (new keys) |
-| | TC-F06 | R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys) |
-| | TC-F07 | Trade Pipeline visualization — see & track trades in all stages |
-| | TC-F08 | R1 tiered buyer-fee fields |
-| | TC-F09 | Buyer Fee-Tier Distribution table |
-| | TC-F10 | Legacy fee keys |
-| | TC-F11 | Reset button |
-| **G — Policy Management** | TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |
-| | TC-G02 | Create new policy version (version regex) |
-| | TC-G03 | Edit draft policy |
-| | TC-G04 | Publish policy (confirmation) |
-| **H — Trades** | TC-H01 | Trade list filters + columns |
-| | TC-H02 | Trade detail (info, monetary breakdown, audit) |
-| | TC-H03 | Trade admin actions |
-| | TC-H04 | Subscription Context section |
-| | TC-H05 | External References (Stripe PI/refund + SP ledger IDs) |
-| | TC-H06 | Sales Tax line in monetary breakdown |
-| **I — Disputes** | TC-I01 | Dispute queue + SLA highlighting |
-| | TC-I02 | Mark dispute under review |
-| | TC-I03 | Resolve dispute — Complete |
-| | TC-I04 | Resolve dispute — Refund |
-| | TC-I05 | Filter-tab click behavior (All/Reported/Under Review) |
-| **J — Tax Admin** | TC-J01 | Tax admin entry points (cross-ref TradeFlow Group P) |
-| **K — Payouts** | TC-K01 | Payout fee configuration + test breakdown |
-| | TC-K02 | Payouts management list, stats, filters |
-| | TC-K03 | Retry failed payout (confirmation) |
-| **L — SP Economy / Analytics / Wallet** | TC-L01 | SP Economy hub tabs (Health/Flow/Rules) |
-| | TC-L02 | SP Analytics dashboard + CSV export |
-| | TC-L03 | SP Wallet admin — economy metrics + search |
-| | TC-L04 | SP adjustment (credit/deduct) with reason |
-| | TC-L05 | Freeze / unfreeze / suspend wallet |
-| | TC-L06 | SP Wallet entry points — home card, summary metrics, sidebar link |
-| | TC-L07 | SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state |
-| | TC-L08 | SP Wallet warning banners (mobile) — frozen/suspended/grace |
-| **M — Subscriptions Admin** | TC-M01 | Grace period config (days + reminders) |
-| | TC-M02 | Subscriptions list, filters, metrics |
-| | TC-M03 | Extend / cancel / reactivate |
-| | TC-M04 | Reactivate button (confirm + mobile reflection) |
-| | TC-M05 | Metrics cards (MRR/churn/trial) |
-| | TC-M06 | "free" status filter |
-| **N — Referrals Admin** | TC-N01 | Referral configuration tab |
-| | TC-N02 | Referral analytics tab |
-| | TC-N03 | 5 SP fields + 3 toggles |
-| | TC-N04 | "Missing configuration" warning |
-| **O — ID Badge Verification** | TC-O01 | ID badge queue + stats + status filter |
-| | TC-O02 | Review request — approve |
-| | TC-O03 | Review request — reject with reason |
-| | TC-O04 | Request details (screenshot deleted note) |
-| | TC-O05 | Message templates edit |
-| **P — Badges & Sandbox** | TC-P01 | Badge management list + toggle |
-| | TC-P02 | Create/edit/delete badge |
-| | TC-P03 | Manual award badge |
-| | TC-P04 | Badge sandbox event simulation |
-| **Q — Review Moderation** | TC-Q01 | Reported reviews list + reason filter |
-| | TC-Q02 | Hide review (confirmation) |
-| | TC-Q03 | Approve review (unhide + delete reports) |
-| | TC-Q04 | Status filter dropdown |
-| | TC-Q05 | Sort-by dropdown |
-| | TC-Q06 | Search input |
-| **R — Education & FAQ CMS** | TC-R01 | Education sections/examples/analytics |
-| | TC-R02 | FAQ management (questions/categories/analytics) |
-| | TC-R03 | Publish FAQ / education content |
-| **S — Support Messages** | TC-S01 | Support inbox + unread filter |
-| | TC-S02 | Support detail + mark as read |
-| **T — Analytics** | TC-T01 | Revenue & Analytics dashboard |
-| | TC-T02 | Notification analytics (category/type/variant) |
-| **U — Audit Logs** | TC-U01 | Audit logs view |
-| **V — Monitoring & Cron** | TC-V01 | Monitoring run + alerts (acknowledge/note) |
-| | TC-V02 | Cron jobs status + run history + timezone |
-| **W — Sidebar Navigation** | TC-W01 | Sidebar grouped into 7 labeled sections |
-| | TC-W02 | Expand / collapse a section via label + chevron |
-| | TC-W03 | Section state persists per admin across sessions |
-| | TC-W04 | Active route auto-expands its parent section |
-| | TC-W05 | Active/inactive item styling + label typography |
-| | TC-W06 | Collapsed icon rail shows all destinations |
-| | TC-W07 | All previous nav destinations still reachable |
-| **X — Action Center** | TC-X01 | Action Center page loads aggregated cards |
-| | TC-X02 | Same-type items bundled with count |
-| | TC-X03 | Severity tags (Urgent/Routine) |
-| | TC-X04 | Expand card drills into item list |
-| | TC-X05 | Inline approve flagged item |
-| | TC-X06 | Inline mark dispute under review |
-| | TC-X07 | Inline retry failed payout (confirmation) |
-| | TC-X08 | Empty state "All caught up" |
-| | TC-X09 | Sidebar pinned nav item + live count badge |
-| | TC-X10 | Header bell opens Action Center + badge |
-| | TC-X11 | Config drift card lists out-of-range settings |
-| | TC-X12 | Dashboard embeds top-5 Action Center cards + View all link |
-| | TC-X13 | Cancellation Insights card drill |
-| | TC-X14 | /cancellation-insights full page |
-| **Y — Command Palette & Global Search** | TC-Y01 | ⌘K / Ctrl+K opens the palette from any page |
-| | TC-Y02 | Header search bar opens the palette |
-| | TC-Y03 | Parallel search across 4 entity types with grouped labels |
-| | TC-Y04 | Breadcrumb context per result row |
-| | TC-Y05 | Input debounced ~200ms |
-| | TC-Y06 | Top 5 per group + "See all N results" expansion |
-| | TC-Y07 | Footer "View all in <domain>" → prefilled list page |
-| | TC-Y08 | Selecting a result navigates directly |
-| | TC-Y09 | Keyboard navigation (↑/↓/↵/Esc) + focus trap |
-| | TC-Y10 | Non-admin rejected (permission scoping) |
-| | TC-Y11 | Secret settings values never shown |
-| | TC-Y12 | Empty + no-results states |
-| **Z — Dashboard Health Strip** | TC-Z01 | Health strip renders below title, above Action Center |
-| | TC-Z02 | Six indicators with colored dots + labels + values |
-| | TC-Z03 | Dot color reflects configurable thresholds |
-| | TC-Z04 | Clicking an indicator navigates to its detail page |
-| | TC-Z05 | Failed Payouts deep-link pre-filters to failed |
-| | TC-Z06 | Thresholds tunable via /config (health) without code change |
-| | TC-Z07 | Dashboard embeds Action Center below the strip |
-| **N2 — Idempotency & Audit (Cross-Cutting)** | TC-N2-A01 | Financial audit journal viewable per trade |
-| | TC-N2-A02 | Admin SP adjustment — double-click cannot double-credit |
-| | TC-N2-A03 | Duplicate refund attempt rejected (no double refund) |
-| | TC-N2-A04 | Payout — single row per trade, single transfer |
-| | TC-N2-A05 | Financial Audit screen accessible from sidebar + renders |
-| | TC-N2-A06 | Financial Audit — search & filters |
-| | TC-N2-A07 | Financial Audit — row details, trade link, amount formatting |
-| | TC-N2-A08 | Financial Audit — summary strip reconciles with journal |
+| **A — Auth & Dashboard** | ADM-TC-A01 | Admin login with admin role |
+| | ADM-TC-A02 | Non-admin login rejected (RBAC gate) |
+| | ADM-TC-A03 | Dashboard layout: intro → health strip → Action Center → KPIs (no duplicate nav) |
+| | ADM-TC-A04 | Direct protected route access without session redirects to login |
+| | ADM-TC-A05 | Expired session redirects once without a loop |
+| | ADM-TC-A06 | Dashboard KPI cards follow design-system styling |
+| **B — User Management** | ADM-TC-B01 | User list, search, status filters, pagination |
+| | ADM-TC-B02 | User detail drawer (identity, subscription, SP, trades) |
+| | ADM-TC-B03 | Suspend / ban / delete account |
+| | ADM-TC-B04 | Credit/debit SP + freeze wallet from user |
+| | ADM-TC-B05 | User analytics cards (totals, DAU/MAU) |
+| | ADM-TC-B06 | Reset Password action |
+| | ADM-TC-B07 | Unsuspend action |
+| | ADM-TC-B08 | Sort By / Sort Order |
+| **C — Listings, Items & Flagged** | ADM-TC-C01 | Listing management — search & analytics tabs |
+| | ADM-TC-C02 | Flagged items — filter tabs + statuses |
+| | ADM-TC-C03 | Approve flagged item |
+| | ADM-TC-C04 | Reject item with required reason |
+| | ADM-TC-C05 | Item detail view + appeal info |
+| | ADM-TC-C06 | Force Delete |
+| | ADM-TC-C07 | Pause |
+| | ADM-TC-C08 | Approve |
+| | ADM-TC-C09 | Request Edits |
+| | ADM-TC-C10 | Reject |
+| | ADM-TC-C11 | Select-all / selection counter (no bulk execute — flag) |
+| | ADM-TC-C12 | Individual filter controls |
+| **D — Categories** | ADM-TC-D01 | Category list, filters (incl. Bonus), search |
+| | ADM-TC-D02 | Create / edit category + SP multiplier |
+| | ADM-TC-D03 | Activate / deactivate category |
+| | ADM-TC-D04 | Category suggestions queue + count badge |
+| | ADM-TC-D05 | Icon / badge upload |
+| | ADM-TC-D06 | SP spending cap % |
+| | ADM-TC-D07 | SP redemption cap |
+| | ADM-TC-D08 | Drag-and-drop reorder |
+| | ADM-TC-D09 | Bulk actions (Activate / Deactivate / Delete / Export CSV) |
+| | ADM-TC-D10 | Delete category + guards |
+| | ADM-TC-D11 | Suggestion Approve / Merge / Reject |
+| **E — Nodes & Waitlist** | ADM-TC-E01 | Geographic nodes list + stats |
+| | ADM-TC-E02 | Add / edit node |
+| | ADM-TC-E03 | Deactivate node with members warning |
+| | ADM-TC-E04 | Node settings (radius validations) |
+| | ADM-TC-E05 | ZIP waitlist queue + status filter |
+| | ADM-TC-E06 | Node tagging completeness (N6) — every record resolves to one node |
+| | ADM-TC-E07 | Per-node KPIs (N6) — expansion-gate metrics per node |
+| | ADM-TC-E08 | Waitlist API authorization (401 without admin session) |
+| **F — Global Config & Settings** | ADM-TC-F01 | Global configuration inline edit + permission gate |
+| | ADM-TC-F02 | Cart settings (min value, max carts, expiry) |
+| | ADM-TC-F03 | Trade timing config (timing keys + nested validation) |
+| | ADM-TC-F04 | Settings single-source — cross-link + last-updated + audit |
+| | ADM-TC-F05 | N1 configurability — pickup countdown + payout buffer (new keys) |
+| | ADM-TC-F06 | R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys) |
+| | ADM-TC-F07 | Trade Pipeline visualization — see & track trades in all stages |
+| | ADM-TC-F08 | R1 tiered buyer-fee fields |
+| | ADM-TC-F09 | Buyer Fee-Tier Distribution table |
+| | ADM-TC-F10 | Legacy fee keys |
+| | ADM-TC-F11 | Reset button |
+| **G — Policy Management** | ADM-TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |
+| | ADM-TC-G02 | Create new policy version (version regex) |
+| | ADM-TC-G03 | Edit draft policy |
+| | ADM-TC-G04 | Publish policy (confirmation) |
+| **H — Trades** | ADM-TC-H01 | Trade list filters + columns |
+| | ADM-TC-H02 | Trade detail (info, monetary breakdown, audit) |
+| | ADM-TC-H03 | Trade admin actions |
+| | ADM-TC-H04 | Subscription Context section |
+| | ADM-TC-H05 | External References (Stripe PI/refund + SP ledger IDs) |
+| | ADM-TC-H06 | Sales Tax line in monetary breakdown |
+| **I — Disputes** | ADM-TC-I01 | Dispute queue + SLA highlighting |
+| | ADM-TC-I02 | Mark dispute under review |
+| | ADM-TC-I03 | Resolve dispute — Complete |
+| | ADM-TC-I04 | Resolve dispute — Refund |
+| | ADM-TC-I05 | Filter-tab click behavior (All/Reported/Under Review) |
+| **J — Tax Admin** | ADM-TC-J01 | Tax admin entry points (cross-ref TradeFlow Group P) |
+| **K — Payouts** | ADM-TC-K01 | Payout fee configuration + test breakdown |
+| | ADM-TC-K02 | Payouts management list, stats, filters |
+| | ADM-TC-K03 | Retry failed payout (confirmation) |
+| **L — SP Economy / Analytics / Wallet** | ADM-TC-L01 | SP Economy hub tabs (Health/Flow/Rules) |
+| | ADM-TC-L02 | SP Analytics dashboard + CSV export |
+| | ADM-TC-L03 | SP Wallet admin — economy metrics + search |
+| | ADM-TC-L04 | SP adjustment (credit/deduct) with reason |
+| | ADM-TC-L05 | Freeze / unfreeze / suspend wallet |
+| | ADM-TC-L06 | SP Wallet entry points — home card, summary metrics, sidebar link |
+| | ADM-TC-L07 | SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state |
+| | ADM-TC-L08 | SP Wallet warning banners (mobile) — frozen/suspended/grace |
+| **M — Subscriptions Admin** | ADM-TC-M01 | Grace period config (days + reminders) |
+| | ADM-TC-M02 | Subscriptions list, filters, metrics |
+| | ADM-TC-M03 | Extend / cancel / reactivate |
+| | ADM-TC-M04 | Reactivate button (confirm + mobile reflection) |
+| | ADM-TC-M05 | Metrics cards (MRR/churn/trial) |
+| | ADM-TC-M06 | "free" status filter |
+| **N — Referrals Admin** | ADM-TC-N01 | Referral configuration tab |
+| | ADM-TC-N02 | Referral analytics tab |
+| | ADM-TC-N03 | 5 SP fields + 3 toggles |
+| | ADM-TC-N04 | "Missing configuration" warning |
+| **O — ID Badge Verification** | ADM-TC-O01 | ID badge queue + stats + status filter |
+| | ADM-TC-O02 | Review request — approve |
+| | ADM-TC-O03 | Review request — reject with reason |
+| | ADM-TC-O04 | Request details (screenshot deleted note) |
+| | ADM-TC-O05 | Message templates edit |
+| **P — Badges & Sandbox** | ADM-TC-P01 | Badge management list + toggle |
+| | ADM-TC-P02 | Create/edit/delete badge |
+| | ADM-TC-P03 | Manual award badge |
+| | ADM-TC-P04 | Badge sandbox event simulation |
+| **Q — Review Moderation** | ADM-TC-Q01 | Reported reviews list + reason filter |
+| | ADM-TC-Q02 | Hide review (confirmation) |
+| | ADM-TC-Q03 | Approve review (unhide + delete reports) |
+| | ADM-TC-Q04 | Status filter dropdown |
+| | ADM-TC-Q05 | Sort-by dropdown |
+| | ADM-TC-Q06 | Search input |
+| **R — Education & FAQ CMS** | ADM-TC-R01 | Education sections/examples/analytics |
+| | ADM-TC-R02 | FAQ management (questions/categories/analytics) |
+| | ADM-TC-R03 | Publish FAQ / education content |
+| **S — Support Messages** | ADM-TC-S01 | Support inbox + unread filter |
+| | ADM-TC-S02 | Support detail + mark as read |
+| **T — Analytics** | ADM-TC-T01 | Revenue & Analytics dashboard |
+| | ADM-TC-T02 | Notification analytics (category/type/variant) |
+| **U — Audit Logs** | ADM-TC-U01 | Audit logs view |
+| **V — Monitoring & Cron** | ADM-TC-V01 | Monitoring run + alerts (acknowledge/note) |
+| | ADM-TC-V02 | Cron jobs status + run history + timezone |
+| **W — Sidebar Navigation** | ADM-TC-W01 | Sidebar grouped into 7 labeled sections |
+| | ADM-TC-W02 | Expand / collapse a section via label + chevron |
+| | ADM-TC-W03 | Section state persists per admin across sessions |
+| | ADM-TC-W04 | Active route auto-expands its parent section |
+| | ADM-TC-W05 | Active/inactive item styling + label typography |
+| | ADM-TC-W06 | Collapsed icon rail shows all destinations |
+| | ADM-TC-W07 | All previous nav destinations still reachable |
+| **X — Action Center** | ADM-TC-X01 | Action Center page loads aggregated cards |
+| | ADM-TC-X02 | Same-type items bundled with count |
+| | ADM-TC-X03 | Severity tags (Urgent/Routine) |
+| | ADM-TC-X04 | Expand card drills into item list |
+| | ADM-TC-X05 | Inline approve flagged item |
+| | ADM-TC-X06 | Inline mark dispute under review |
+| | ADM-TC-X07 | Inline retry failed payout (confirmation) |
+| | ADM-TC-X08 | Empty state "All caught up" |
+| | ADM-TC-X09 | Sidebar pinned nav item + live count badge |
+| | ADM-TC-X10 | Header bell opens Action Center + badge |
+| | ADM-TC-X11 | Config drift card lists out-of-range settings |
+| | ADM-TC-X12 | Dashboard embeds top-5 Action Center cards + View all link |
+| | ADM-TC-X13 | Cancellation Insights card drill |
+| | ADM-TC-X14 | /cancellation-insights full page |
+| **Y — Command Palette & Global Search** | ADM-TC-Y01 | ⌘K / Ctrl+K opens the palette from any page |
+| | ADM-TC-Y02 | Header search bar opens the palette |
+| | ADM-TC-Y03 | Parallel search across 4 entity types with grouped labels |
+| | ADM-TC-Y04 | Breadcrumb context per result row |
+| | ADM-TC-Y05 | Input debounced ~200ms |
+| | ADM-TC-Y06 | Top 5 per group + "See all N results" expansion |
+| | ADM-TC-Y07 | Footer "View all in <domain>" → prefilled list page |
+| | ADM-TC-Y08 | Selecting a result navigates directly |
+| | ADM-TC-Y09 | Keyboard navigation (↑/↓/↵/Esc) + focus trap |
+| | ADM-TC-Y10 | Non-admin rejected (permission scoping) |
+| | ADM-TC-Y11 | Secret settings values never shown |
+| | ADM-TC-Y12 | Empty + no-results states |
+| **Z — Dashboard Health Strip** | ADM-TC-Z01 | Health strip renders below title, above Action Center |
+| | ADM-TC-Z02 | Six indicators with colored dots + labels + values |
+| | ADM-TC-Z03 | Dot color reflects configurable thresholds |
+| | ADM-TC-Z04 | Clicking an indicator navigates to its detail page |
+| | ADM-TC-Z05 | Failed Payouts deep-link pre-filters to failed |
+| | ADM-TC-Z06 | Thresholds tunable via /config (health) without code change |
+| | ADM-TC-Z07 | Dashboard embeds Action Center below the strip |
+| **N2 — Idempotency & Audit (Cross-Cutting)** | ADM-TC-N2-A01 | Financial audit journal viewable per trade |
+| | ADM-TC-N2-A02 | Admin SP adjustment — double-click cannot double-credit |
+| | ADM-TC-N2-A03 | Duplicate refund attempt rejected (no double refund) |
+| | ADM-TC-N2-A04 | Payout — single row per trade, single transfer |
+| | ADM-TC-N2-A05 | Financial Audit screen accessible from sidebar + renders |
+| | ADM-TC-N2-A06 | Financial Audit — search & filters |
+| | ADM-TC-N2-A07 | Financial Audit — row details, trade link, amount formatting |
+| | ADM-TC-N2-A08 | Financial Audit — summary strip reconciles with journal |
 
 ---
 
@@ -203,7 +203,7 @@
 
 ## Group A — Auth & Dashboard
 
-### TC-A01 · Admin login with admin role
+### ADM-TC-A01 · Admin login with admin role
 
 **Ref:** FLOW-34 · /auth/login
 **Actors:** test-admin
@@ -220,7 +220,7 @@
 
 ---
 
-### TC-A02 · Non-admin login rejected (RBAC gate)
+### ADM-TC-A02 · Non-admin login rejected (RBAC gate)
 
 **Ref:** FLOW-34 · /auth/login
 **Actors:** test-buyer (non-admin)
@@ -235,7 +235,7 @@
 
 ---
 
-### TC-A03 · Dashboard layout: intro → health strip → Action Center → KPIs (no duplicate nav)
+### ADM-TC-A03 · Dashboard layout: intro → health strip → Action Center → KPIs (no duplicate nav)
 
 **Ref:** FLOW-18 · / (dashboard)
 **Actors:** test-admin
@@ -253,7 +253,7 @@
 
 ---
 
-### TC-A06 · Dashboard KPI cards follow design-system styling
+### ADM-TC-A06 · Dashboard KPI cards follow design-system styling
 
 **Ref:** FLOW-18 · / (dashboard) · `docx/old/design-system.md` (Card / §8.1 Level 1 shadow)
 **Actors:** test-admin
@@ -267,7 +267,7 @@
 - Each KPI card has a white background (`#FFFFFF`), a **16px** border radius (`rounded-2xl`), a **Level 1 shadow** (`0px 2px 8px rgba(0,0,0,0.08)`), and **16px** padding (`p-4`).
 - Labels are uppercase 14px; values are bold 24px with a colored accent per metric (green/blue/indigo/red).
 
-### TC-A04 · Direct protected route access without session redirects to login
+### ADM-TC-A04 · Direct protected route access without session redirects to login
 
 **Ref:** FLOW-34 · protected admin routes
 **Actors:** Logged-out browser session
@@ -282,7 +282,7 @@
 - The browser is redirected to `/auth/login` or shown an equivalent unauthorized gate.
 - The protected page data never renders briefly before redirect.
 
-### TC-A05 · Expired session redirects once without a loop
+### ADM-TC-A05 · Expired session redirects once without a loop
 
 **Ref:** FLOW-34 · session expiry / refresh failure
 **Actors:** test-admin
@@ -303,7 +303,7 @@
 
 ## Group B — User Management
 
-### TC-B01 · User list, search, status filters, pagination
+### ADM-TC-B01 · User list, search, status filters, pagination
 
 **Ref:** FLOW-18 · /users
 **Actors:** test-admin
@@ -320,7 +320,7 @@
 
 ---
 
-### TC-B02 · User detail drawer (identity, subscription, SP, trades)
+### ADM-TC-B02 · User detail drawer (identity, subscription, SP, trades)
 
 **Ref:** FLOW-18 · /users
 **Actors:** test-admin
@@ -335,7 +335,7 @@
 
 ---
 
-### TC-B03 · Suspend / unsuspend / soft-delete account
+### ADM-TC-B03 · Suspend / unsuspend / soft-delete account
 
 **Ref:** FLOW-18 · /users
 **Actors:** test-admin
@@ -350,9 +350,30 @@
 - Account status updates to suspended / active / deleted respectively; the change is reflected in the list filter and (for suspended) the user hits the Suspended screen on the mobile app.
 - Note: there is **no "ban" action** — the Admin Actions panel offers Suspend User / Unsuspend User / Reset Password / Delete User (Soft) only.
 
+**Setup:**
+- Logged in as **test-admin** on `/users`. Requires seeded non-disposable user(s) for Suspend/Unsuspend/Reset Password, and a **disposable** seed user for Delete User (Soft) — never soft-delete a real test account.
+
+**Locator hints:**
+- Now instrumented in `src/app/users/page.tsx` (2026-08-13) — the 4 Admin Actions buttons:
+  - Suspend User → `data-testid="btn-suspend-user"` (shown when account status = active).
+  - Unsuspend User → `data-testid="btn-unsuspend-user"` (shown when account status != active).
+  - Reset Password → `data-testid="btn-reset-password"`.
+  - Delete User (Soft) → `data-testid="btn-delete-user-soft"`.
+  - User Detail drawer/rows → no identifier; locate by row content (email/name).
+
+**Assert:**
+1. Suspend User → user status becomes "suspended" and the list status filter reflects it (mobile shows the Suspended screen).
+2. Unsuspend User → status returns to "active".
+3. Reset Password shows the `Send password reset email to: {email}` confirm; Delete User (Soft) (disposable user only) sets status "deleted".
+
+**Dependencies:**
+- Native dialogs: actions use `confirm()`/`prompt()`/`alert()` — Playwright **must** register `page.on('dialog')` handlers (auto-accept + capture text) or the flow hangs.
+- Network: POST `/api/admin/users/{id}/suspend|unsuspend`, reset-password, delete endpoints — require `x-admin-secret` header (BP-49).
+- State-changing on shared seed users — use dedicated/disposable users.
+
 ---
 
-### TC-B04 · Credit/debit SP + freeze wallet from user
+### ADM-TC-B04 · Credit/debit SP + freeze wallet from user
 
 **Ref:** FLOW-30 · /users
 **Actors:** test-admin
@@ -367,7 +388,7 @@
 
 ---
 
-### TC-B05 · User analytics cards (totals, DAU/MAU)
+### ADM-TC-B05 · User analytics cards (totals, DAU/MAU)
 
 **Ref:** FLOW-18 · /users
 **Actors:** test-admin
@@ -380,7 +401,7 @@
 **Expected Result:**
 - Cards for Total Users, Active, Suspended, Deleted, New This Month, and DAU/MAU render with values.
 
-### TC-B06 · Reset Password action
+### ADM-TC-B06 · Reset Password action
 
 **Ref:** /users · POST `/api/admin/users/{id}/reset-password`
 **Actors:** test-admin
@@ -395,9 +416,13 @@
 **Expected Result:**
 - A confirm appears: `Send password reset email to:\n{email}\n\nAre you sure?`
 - On confirm, a success alert shows the API message or `Password reset email sent successfully`.
-- The user receives a reset email whose link opens the mobile `Reset Password` flow (see AUTH TC-S11).
+- The user receives a reset email whose link opens the mobile `Reset Password` flow (see AUTH ADM-TC-S11).
 
-### TC-B07 · Unsuspend action
+**Locator hints:**
+- Admin /users Reset Password action → `data-testid="btn-reset-password"` (User Detail modal).
+- Mobile Reset Password screen (AUTH S11 flow): New Password → `reset-new-password-input` · Confirm Password → `reset-confirm-password-input` · Reset Password → `reset-submit-button` · Back to Login → `reset-back-to-login`.
+
+### ADM-TC-B07 · Unsuspend action
 
 **Ref:** /users · POST `/api/admin/users/{id}/unsuspend`
 **Actors:** test-admin
@@ -414,7 +439,7 @@
 - Success: `User unsuspended successfully`; the account status returns to active.
 - The user can log into the mobile app again.
 
-### TC-B08 · Sort By / Sort Order
+### ADM-TC-B08 · Sort By / Sort Order
 
 **Ref:** /users · GET `/api/admin/users?...&sort_by&sort_order`
 **Actors:** test-admin
@@ -431,7 +456,7 @@
 
 ## Group C — Listings, Items & Flagged
 
-### TC-C01 · Listing management — search & analytics tabs
+### ADM-TC-C01 · Listing management — search & analytics tabs
 
 **Ref:** FLOW-04 · /listings
 **Actors:** test-admin
@@ -446,7 +471,7 @@
 
 ---
 
-### TC-C02 · Flagged items — filter tabs + statuses
+### ADM-TC-C02 · Flagged items — filter tabs + statuses
 
 **Ref:** FLOW-18 · /items/flagged
 **Actors:** test-admin
@@ -461,7 +486,7 @@
 
 ---
 
-### TC-C03 · Approve flagged item
+### ADM-TC-C03 · Approve flagged item
 
 **Ref:** FLOW-18 · /items/flagged
 **Actors:** test-admin
@@ -476,7 +501,7 @@
 
 ---
 
-### TC-C04 · Reject item with required reason
+### ADM-TC-C04 · Reject item with required reason
 
 **Ref:** FLOW-18 · /items/flagged
 **Actors:** test-admin
@@ -491,7 +516,7 @@
 
 ---
 
-### TC-C05 · Item detail view + appeal info
+### ADM-TC-C05 · Item detail view + appeal info
 
 **Ref:** FLOW-18 · /items/[id]
 **Actors:** test-admin
@@ -504,7 +529,7 @@
 **Expected Result:**
 - Shows title, description, price, status, seller, category, created date; for appealed items, appeal count, appeal reason, and appeal date display; back/Open Listings navigation works.
 
-### TC-C06 · Force Delete
+### ADM-TC-C06 · Force Delete
 
 **Ref:** /listings · RPC `admin_force_delete_listing`
 **Actors:** test-admin
@@ -520,7 +545,11 @@
 - The confirm form shows `Reason for deletion:`; on confirm the listing is removed.
 - The listing disappears from discovery/search in the mobile app (no longer purchasable).
 
-### TC-C07 · Pause
+**Locator hints:**
+- Admin /listings (instrumented 2026-08-15): row → `listings-row-<id>` · Actions → `btn-listings-actions-<id>` · details modal → `listings-details-modal` · close → `listings-modal-close`.
+- Force Delete → `btn-force-delete-<id>` · reason → `listings-reason-input` · Confirm → `btn-confirm-action` · Cancel → `btn-cancel-action`.
+
+### ADM-TC-C07 · Pause
 
 **Ref:** /listings · RPC `admin_pause_listing`
 **Actors:** test-admin
@@ -536,7 +565,10 @@
 - The confirm form shows `Reason for pausing:`; the listing status changes to paused.
 - The mobile app reflects the paused state (item not purchasable until unpaused).
 
-### TC-C08 · Approve
+**Locator hints:**
+- Pause Listing → `btn-pause-<id>` · reason → `listings-reason-input` · Confirm → `btn-confirm-action` · Cancel → `btn-cancel-action`.
+
+### ADM-TC-C08 · Approve
 
 **Ref:** /listings · RPC `admin_approve_listing`
 **Actors:** test-admin
@@ -552,7 +584,10 @@
 - The action is only available for `pending` status; confirm form shows `Admin Notes (optional):`.
 - On confirm the listing becomes available and appears in the mobile app's discovery feed.
 
-### TC-C09 · Request Edits
+**Locator hints:**
+- Approve Listing → `btn-approve-<id>` (pending only) · notes → `listings-reason-input` · Confirm Approval → `btn-confirm-action`.
+
+### ADM-TC-C09 · Request Edits
 
 **Ref:** /listings · POST `/api/admin/items/{id}/status` `{status:'needs_edits'}`
 **Actors:** test-admin
@@ -568,7 +603,11 @@
 - Confirm form shows `Decision Note (required for Request Edits):` (required).
 - The listing moves to **Needs Edits**; the seller sees the edit request in the mobile app.
 
-### TC-C10 · Reject
+**Locator hints:**
+- Request Edits → `btn-request-edits-<id>` (pending/flagged) · reason → `listings-reason-input` · Confirm Request Edits → `btn-confirm-action`.
+- Uses browser `confirm()` — handle the native dialog by text.
+
+### ADM-TC-C10 · Reject
 
 **Ref:** /listings · POST `/api/admin/items/{id}/status` `{status:'rejected'}`
 **Actors:** test-admin
@@ -584,7 +623,11 @@
 - Confirm form shows `Decision Note (required for Reject):` (required).
 - The listing moves to **Rejected**; the mobile app reflects the rejected state.
 
-### TC-C11 · Select-all / selection counter (no bulk execute — flag)
+**Locator hints:**
+- Reject Listing → `btn-reject-<id>` (pending/flagged) · reason → `listings-reason-input` · Confirm Reject → `btn-confirm-action`.
+- Uses browser `confirm()` — handle the native dialog by text.
+
+### ADM-TC-C11 · Select-all / selection counter (no bulk execute — flag)
 
 **Ref:** /listings · `ListingSearch`
 **Actors:** test-admin
@@ -599,7 +642,10 @@
 - A `Selected on this page: N` counter and a **Clear selection** link appear; select-all (aria-label `Select all listings on this page`) toggles all rows on the page.
 - **Flag:** there is **no bulk-action dropdown/execute button** on the Listings page — bulk actions exist only on Categories. Selection currently has no downstream action.
 
-### TC-C12 · Individual filter controls
+**Locator hints:**
+- Select-all → `listings-select-all` · per-row select → `listings-row-<id>-select` · Clear selection → `btn-listings-clear-selection`.
+
+### ADM-TC-C12 · Individual filter controls
 
 **Ref:** /listings · RPC `admin_search_listings_v2`
 **Actors:** test-admin
@@ -613,11 +659,14 @@
 - Results update according to each filter (status options include All/Available/Pending/Needs Edits/Rejected/Flagged/Sold/Draft/Deleted).
 - The request passes `p_query`, `p_status`, `p_sp_eligible`, `p_category`, `p_seller_email` (with the legacy fallback signature when category/email are absent).
 
+**Locator hints:**
+- Search by Item Name → `listings-search-input` · Seller Email → `listings-seller-email-input` · Status → `listings-status-select` · Category → `listings-category-select` · SP-Eligible → `listings-sp-eligible-checkbox` · Search → `btn-listings-search` · pagination → `btn-listings-prev` / `btn-listings-next`.
+
 ---
 
 ## Group D — Categories
 
-### TC-D01 · Category list, filters (incl. Bonus), search
+### ADM-TC-D01 · Category list, filters (incl. Bonus), search
 
 **Ref:** FLOW-21 · /categories
 **Actors:** test-admin
@@ -632,7 +681,7 @@
 
 ---
 
-### TC-D02 · Create / edit category + SP multiplier
+### ADM-TC-D02 · Create / edit category + SP multiplier
 
 **Ref:** FLOW-21 / FLOW-04C · /categories
 **Actors:** test-admin
@@ -648,7 +697,7 @@
 
 ---
 
-### TC-D03 · Activate / deactivate category
+### ADM-TC-D03 · Activate / deactivate category
 
 **Ref:** FLOW-21 · /categories
 **Actors:** test-admin
@@ -663,7 +712,7 @@
 
 ---
 
-### TC-D04 · Category suggestions queue + count badge
+### ADM-TC-D04 · Category suggestions queue + count badge
 
 **Ref:** FLOW-21 · /categories (Suggestions tab)
 **Actors:** test-admin
@@ -676,7 +725,7 @@
 **Expected Result:**
 - Pending suggestions display with a count badge; the count polls/refreshes (~60s).
 
-### TC-D05 · Icon / badge upload
+### ADM-TC-D05 · Icon / badge upload
 
 **Ref:** /categories · POST `/api/admin/categories/upload-icon`
 **Actors:** test-admin
@@ -692,7 +741,7 @@
 - Fields render: `Icon (Emoji or Icon Name)`, `Custom Icon Upload` (accepts .png/.svg), `Bonus Badge Icon Upload`.
 - On save the upload is posted via `upload-icon`; the icon/badge appears on the category (and, for icons, in the mobile app category UI).
 
-### TC-D06 · SP spending cap %
+### ADM-TC-D06 · SP spending cap %
 
 **Ref:** /categories · CategoryForm SP Config
 **Actors:** test-admin
@@ -707,7 +756,7 @@
 - The slider is bounded 50%–80%; the saved cap reflects in the `Live Preview (for $50 item)`.
 - The cap is applied in the mobile checkout/offer flow for that category.
 
-### TC-D07 · SP redemption cap
+### ADM-TC-D07 · SP redemption cap
 
 **Ref:** /categories · CategoryForm SP Config
 **Actors:** test-admin
@@ -721,7 +770,7 @@
 **Expected Result:**
 - The numeric value saves; the `Live Preview` reflects it; the mobile app caps SP usage per item at the configured value.
 
-### TC-D08 · Drag-and-drop reorder
+### ADM-TC-D08 · Drag-and-drop reorder
 
 **Ref:** /categories · POST `/api/admin/categories/reorder` (or RPC `reorder_categories`)
 **Actors:** test-admin
@@ -734,7 +783,7 @@
 **Expected Result:**
 - The row reorders; the new order is saved via the reorder endpoint and persists after reload.
 
-### TC-D09 · Bulk actions (Activate / Deactivate / Delete / Export CSV)
+### ADM-TC-D09 · Bulk actions (Activate / Deactivate / Delete / Export CSV)
 
 **Ref:** /categories · `BulkActionsDropdown`
 **Actors:** test-admin
@@ -748,7 +797,7 @@
 - Menu shows **Activate**, **Deactivate** (with `(hides items)` suffix), **Delete** (disabled → `(some have items)`), and **Export CSV**.
 - Activate/Deactivate apply to all selected; Delete is blocked when any selected category has items.
 
-### TC-D10 · Delete category + guards
+### ADM-TC-D10 · Delete category + guards
 
 **Ref:** /categories · DELETE `/api/admin/categories/{id}`
 **Actors:** test-admin
@@ -763,7 +812,7 @@
 - Empty → confirm `Delete category "{name}"? This action cannot be undone.` then deletes.
 - **Other** → `Cannot delete the "Other" category — it is required by the system.`
 
-### TC-D11 · Suggestion Approve / Merge / Reject
+### ADM-TC-D11 · Suggestion Approve / Merge / Reject
 
 **Ref:** /categories · `/api/admin/category-suggestions/{id}/approve|merge|reject`
 **Actors:** test-admin
@@ -783,7 +832,7 @@
 
 ## Group E — Nodes & Waitlist
 
-### TC-E01 · Geographic nodes list + stats
+### ADM-TC-E01 · Geographic nodes list + stats
 
 **Ref:** FLOW-03 · /nodes
 **Actors:** test-admin
@@ -798,7 +847,7 @@
 
 ---
 
-### TC-E02 · Add / edit node
+### ADM-TC-E02 · Add / edit node
 
 **Ref:** FLOW-03 · /nodes
 **Actors:** test-admin
@@ -814,7 +863,7 @@
 
 ---
 
-### TC-E03 · Deactivate node with members warning
+### ADM-TC-E03 · Deactivate node with members warning
 
 **Ref:** FLOW-03 · /nodes
 **Actors:** test-admin
@@ -829,7 +878,7 @@
 
 ---
 
-### TC-E04 · Node settings (radius validations)
+### ADM-TC-E04 · Node settings (radius validations)
 
 **Ref:** FLOW-03 · /settings/nodes
 **Actors:** test-admin
@@ -841,11 +890,11 @@
 
 **Expected Result:**
 - Valid values save (1–100 radius, max assignment ≥ default, warning threshold 1–200); invalid combinations are blocked with validation messages.
-- Current mobile propagation is verified on Discover for `default_radius_miles`, `min_user_radius_miles`, and `max_user_radius_miles` (see Discovery TC-O05).
+- Current mobile propagation is verified on Discover for `default_radius_miles`, `min_user_radius_miles`, and `max_user_radius_miles` (see Discovery ADM-TC-O05).
 
 ---
 
-### TC-E05 · ZIP waitlist queue + status filter
+### ADM-TC-E05 · ZIP waitlist queue + status filter
 
 **Ref:** FLOW-03 · /waitlist
 **Actors:** test-admin
@@ -866,7 +915,7 @@
 
 ---
 
-### TC-E08 · Waitlist API authorization
+### ADM-TC-E08 · Waitlist API authorization
 
 **Ref:** FLOW-03 · /waitlist
 **Actors:** test-admin
@@ -883,7 +932,7 @@
 
 ---
 
-### TC-E06 · Node tagging completeness (N6)
+### ADM-TC-E06 · Node tagging completeness (N6)
 
 **Ref:** FLOW-03 · BRD §6.10 (BR-N6-001..005, 007) · SRS §8A (SR-N6-001..005, 007, 008) · migration `20260809000005_n6_node_tagging.sql`
 **Actors:** test-admin (SQL Editor on staging)
@@ -901,7 +950,7 @@
 
 ---
 
-### TC-E07 · Per-node KPIs (N6 expansion-gate metrics)
+### ADM-TC-E07 · Per-node KPIs (N6 expansion-gate metrics)
 
 **Ref:** FLOW-03 · BRD §6.10 (BR-N6-006) · SRS §8A (SR-N6-006) · GTM plan §13/§15.6
 **Actors:** test-admin (browser + SQL Editor on staging)
@@ -927,7 +976,7 @@
 
 ## Group F — Global Config & Settings
 
-### TC-F01 · Global configuration inline edit + permission gate
+### ADM-TC-F01 · Global configuration inline edit + permission gate
 
 **Ref:** FLOW-18 · /config
 **Actors:** test-admin
@@ -947,7 +996,7 @@
 
 ---
 
-### TC-F02 · Cart settings (min value, max carts, expiry)
+### ADM-TC-F02 · Cart settings (min value, max carts, expiry)
 
 **Ref:** FLOW-07 · /settings/cart
 **Actors:** test-admin
@@ -963,12 +1012,12 @@
 **Expected Result:**
 - Valid values save and invalid values are blocked.
 - Cross-link banner present; editing in either surface updates the same `admin_config` row and both surfaces show the same value + last-updated metadata.
-- `cart_min_value_cents` is currently verified in the app via TradeFlow TC-M11 / TC-N01.
+- `cart_min_value_cents` is currently verified in the app via TradeFlow ADM-TC-M11 / ADM-TC-N01.
 - `cart_max_saved_carts` and `cart_saved_expiry_days` still save in admin, but the runtime cart flow remains hardcoded and should not be marked end-to-end covered yet.
 
 ---
 
-### TC-F03 · Trade timing config (timing keys + nested validation) — incl. consolidated fees
+### ADM-TC-F03 · Trade timing config (timing keys + nested validation) — incl. consolidated fees
 
 **Ref:** FLOW-08 · FLOW-09 · /settings/trade-timing
 **Actors:** test-admin
@@ -983,11 +1032,11 @@
 **Expected Result:**
 - Valid values save; nested rules enforced (notif1 < timeout, notif2 < notif1 and ≥ 1, auto-complete notif < auto-complete hours, all ≥ 1, fees ≥ 0, buyer fixed ≥ 0, buyer % 0–100); invalid values are blocked.
 - The Trade Timing page is the single place to manage every fee parameter; /config → FEES stays consistent (same `admin_config` rows) and cross-links.
-- After saving distinct non-default values, rerun TradeFlow TC-B02 / TC-D01 / TC-D03 / TC-G01 / TC-G02 and Subscription TC-F06 / TC-R05 to confirm the new timing and fee values propagate.
+- After saving distinct non-default values, rerun TradeFlow ADM-TC-B02 / ADM-TC-D01 / ADM-TC-D03 / ADM-TC-G01 / ADM-TC-G02 and Subscription ADM-TC-F06 / ADM-TC-R05 to confirm the new timing and fee values propagate.
 
 ---
 
-### TC-F04 · Settings single-source — cross-link + last-updated + audit
+### ADM-TC-F04 · Settings single-source — cross-link + last-updated + audit
 
 **Ref:** FLOW-18 · /config ↔ standalone settings pages · FLOW-20 Audit/Logging
 **Actors:** test-admin
@@ -1011,7 +1060,7 @@
 
 ---
 
-### TC-F05 · N1 configurability — pickup countdown + payout buffer (new keys)
+### ADM-TC-F05 · N1 configurability — pickup countdown + payout buffer (new keys)
 
 **Ref:** FLOW-08 (Trade) · FLOW-09 (Fees) · FLOW-18 (Admin Controls) · N1 Configurability (cross-cutting)
 **Actors:** test-admin
@@ -1024,7 +1073,7 @@
 1. **Seeded + visible:** Open **/config → TRADE** and **/config → FEES**. Confirm `pickup_window_hours` and `payout_buffer_days` rows exist (values 72 and 2 respectively), with the descriptions from the migration and "LAST UPDATED · … · by" labels.
 2. **Edit on the standalone page:** Open **/settings/trade-timing**. In the **Pickup & Payout** section, set Pickup Window = 24 and Payout Buffer = 1; Save.
 3. **Cross-link banner:** On /config → TRADE and /config → FEES, confirm the Info-blue banner appears for both keys ("… also managed on the Trade Timing page") and opens **/settings/trade-timing**.
-4. **Validation:** Try Pickup Window = 0 or 200, and Payout Buffer = -1 or 31 — confirm each is blocked with its error message (window 1–168, buffer 0–30). The combined 7-day guardrail (offer + pickup must total under 168h) is covered in TC-F06.
+4. **Validation:** Try Pickup Window = 0 or 200, and Payout Buffer = -1 or 31 — confirm each is blocked with its error message (window 1–168, buffer 0–30). The combined 7-day guardrail (offer + pickup must total under 168h) is covered in ADM-TC-F06.
 5. **Single-source + audit:** Re-open /settings/trade-timing and /config — both show 24 and 1, the same last-updated timestamp/editor; then run `SELECT key, value, updated_by, updated_at FROM admin_config WHERE key IN ('pickup_window_hours','payout_buffer_days');` and `SELECT admin_id, action, entity_type, changes FROM admin_audit_log WHERE entity_type='admin_config' ORDER BY created_at DESC LIMIT 5;` — confirm the values and the `update_trade_timing_settings` audit row.
 6. **Typed read helper (no deploy):** Confirm the read RPC works: `SELECT public.fn_admin_config_int('pickup_window_hours', 72);` returns 24, and `SELECT public.fn_admin_config_int('missing_key', 7);` returns 7 (the caller decides, no crash).
 
@@ -1035,7 +1084,7 @@
 
 ---
 
-### TC-F06 · R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys)
+### ADM-TC-F06 · R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys)
 
 **Ref:** FLOW-08 (Trade) · FLOW-18 (Admin Controls) · R2 (2026-08-10)
 **Actors:** test-admin
@@ -1061,7 +1110,7 @@
 
 ---
 
-### TC-F07 · Trade Pipeline visualization — see & track trades in all stages
+### ADM-TC-F07 · Trade Pipeline visualization — see & track trades in all stages
 
 **Ref:** FLOW-08 (Trade) · FLOW-18 (Admin Controls) · R2 (2026-08-10)
 **Actors:** test-admin
@@ -1086,7 +1135,7 @@
 - Status tabs and search filter the board; the attention strip flags offers expiring ≤6h, pickup/auto-complete ≤4h, and open disputes.
 - No code deploy needed to see new trades — the board reads `admin_trades_view` directly.
 
-### TC-F08 · R1 tiered buyer-fee fields
+### ADM-TC-F08 · R1 tiered buyer-fee fields
 
 **Ref:** /settings/trade-timing · RPC `fn_get_admin_config_values` / `upsert_admin_config_setting`
 **Actors:** test-admin
@@ -1102,7 +1151,7 @@
 - Fields: `Flat Fee — Active Members`, `Flat Fee — First Trade`, `Percentage — Free users (1+ completed trades)`, `Fixed Fee — Free users (1+ completed trades)`, `Maximum Total Fee (cap)`, and `Fee Display Label` (text).
 - Saving persists each key via `upsert_admin_config_setting`; the buyer fee shown in the mobile checkout reflects the configured tier.
 
-### TC-F09 · Buyer Fee-Tier Distribution table
+### ADM-TC-F09 · Buyer Fee-Tier Distribution table
 
 **Ref:** /settings/trade-timing · GET `/api/admin/fee-tier-stats`
 **Actors:** test-admin
@@ -1116,7 +1165,7 @@
 - Table columns `Tier`, `Fee State`, `Users`; tier badges `Flat fee` / `Percentage fee`.
 - Shows `Loading…` then data, or `No fee-tier data yet.` when empty.
 
-### TC-F10 · Legacy fee keys
+### ADM-TC-F10 · Legacy fee keys
 
 **Ref:** /settings/trade-timing · `Legacy fee keys (audit only)`
 **Actors:** test-admin
@@ -1129,7 +1178,7 @@
 **Expected Result:**
 - Shows `Legacy Member Fee (cents)` (`transaction_fee_member_cents`), `Legacy Non-Member Fee (cents)` (`transaction_fee_non_member_cents`), and `Legacy Seller Discount % — Free` (`platform_fee_seller_discount_percentage_freemium`).
 
-### TC-F11 · Reset button
+### ADM-TC-F11 · Reset button
 
 **Ref:** /settings/trade-timing · `loadSettings`
 **Actors:** test-admin
@@ -1146,7 +1195,7 @@
 
 ## Group G — Policy Management
 
-### TC-G01 · Policy tabs (TOS/Privacy/Liability) + versions
+### ADM-TC-G01 · Policy tabs (TOS/Privacy/Liability) + versions
 
 **Ref:** FLOW-31/32/33 · /settings/policies
 **Actors:** test-admin
@@ -1161,7 +1210,7 @@
 
 ---
 
-### TC-G02 · Create new policy version (version regex)
+### ADM-TC-G02 · Create new policy version (version regex)
 
 **Ref:** FLOW-31/32/33 · /settings/policies/new
 **Actors:** test-admin
@@ -1176,7 +1225,7 @@
 
 ---
 
-### TC-G03 · Edit draft policy
+### ADM-TC-G03 · Edit draft policy
 
 **Ref:** FLOW-31/32/33 · /settings/policies/[id]/edit
 **Actors:** test-admin
@@ -1191,7 +1240,7 @@
 
 ---
 
-### TC-G04 · Publish policy (confirmation)
+### ADM-TC-G04 · Publish policy (confirmation)
 
 **Ref:** FLOW-31/32/33 · /settings/policies/[id]
 **Actors:** test-admin
@@ -1202,13 +1251,13 @@
 1. Open a draft → **Publish**; confirm the dialog.
 
 **Expected Result:**
-- Confirmation reads "Are you sure you want to publish this policy? It will make it the active version for all users."; confirming makes it the active version and previous active moves to archived. (App users are re-prompted to accept — see Account/Legal TC-J05.)
+- Confirmation reads "Are you sure you want to publish this policy? It will make it the active version for all users."; confirming makes it the active version and previous active moves to archived. (App users are re-prompted to accept — see Account/Legal ADM-TC-J05.)
 
 ---
 
 ## Group H — Trades
 
-### TC-H01 · Trade list filters + columns
+### ADM-TC-H01 · Trade list filters + columns
 
 **Ref:** FLOW-08 · /trades
 **Actors:** test-admin
@@ -1223,7 +1272,7 @@
 
 ---
 
-### TC-H02 · Trade detail (info, monetary breakdown, audit)
+### ADM-TC-H02 · Trade detail (info, monetary breakdown, audit)
 
 **Ref:** FLOW-08 · /trades/[id]
 **Actors:** test-admin
@@ -1238,7 +1287,7 @@
 
 ---
 
-### TC-H03 · Trade admin actions
+### ADM-TC-H03 · Trade admin actions
 
 **Ref:** FLOW-08 / FLOW-27 · /trades/[id]
 **Actors:** test-admin
@@ -1251,7 +1300,7 @@
 **Expected Result:**
 - Actions apply the expected state change, are reflected in the monetary breakdown/payout, and are recorded in the audit trail. (Refund/cancellation state machine detail is covered in the AUTH file Refund/Cancellation group.)
 
-### TC-H04 · Subscription Context section
+### ADM-TC-H04 · Subscription Context section
 
 **Ref:** /trades/[id] · `Subscription Context`
 **Actors:** test-admin
@@ -1265,7 +1314,7 @@
 - `Subscription Context` shows `Status at Initiation` (from `buyer_subscription_status`, fallback `Unknown`) and `Current Status` (from the buyer's subscription, fallback `Unknown`).
 - A `View Subscription History →` link navigates to `/subscriptions?user_id={buyer_id}`.
 
-### TC-H05 · External References (Stripe PI/refund + SP ledger IDs)
+### ADM-TC-H05 · External References (Stripe PI/refund + SP ledger IDs)
 
 **Ref:** /trades/[id] · `External References`
 **Actors:** test-admin
@@ -1278,7 +1327,7 @@
 **Expected Result:**
 - `External References` shows `Stripe PaymentIntent` (`stripe_payment_intent_id`), `Stripe Refund ID` (`stripe_refund_id`), `SP Debit Ledger` (`sp_debit_ledger_entry_id`), and `SP Credit Ledger (Refund)` (`sp_credit_ledger_entry_id`), each rendered only when non-empty.
 
-### TC-H06 · Sales Tax line in monetary breakdown
+### ADM-TC-H06 · Sales Tax line in monetary breakdown
 
 **Ref:** /trades/[id] · `Monetary Breakdown` (TAX-VISIBILITY 2026-07-30)
 **Actors:** test-admin
@@ -1295,7 +1344,7 @@
 
 ## Group I — Disputes
 
-### TC-I01 · Dispute queue + SLA highlighting
+### ADM-TC-I01 · Dispute queue + SLA highlighting
 
 **Ref:** FLOW-08 · /trades/disputes (and /disputes)
 **Actors:** test-admin
@@ -1310,7 +1359,7 @@
 
 ---
 
-### TC-I02 · Mark dispute under review
+### ADM-TC-I02 · Mark dispute under review
 
 **Ref:** FLOW-08 · /trades/disputes/[tradeId]
 **Actors:** test-admin
@@ -1325,7 +1374,7 @@
 
 ---
 
-### TC-I03 · Resolve dispute — Complete
+### ADM-TC-I03 · Resolve dispute — Complete
 
 **Ref:** FLOW-08 · /trades/disputes/[tradeId]
 **Actors:** test-admin
@@ -1336,11 +1385,11 @@
 1. On a dispute detail, click **[Resolve - Complete]** and confirm.
 
 **Expected Result:**
-- Confirmation "Are you sure you want to: {action}?"; on confirm the trade completes, SP/payout release, and a success message shows. (Mirrors TradeFlow TC-E05.)
+- Confirmation "Are you sure you want to: {action}?"; on confirm the trade completes, SP/payout release, and a success message shows. (Mirrors TradeFlow ADM-TC-E05.)
 
 ---
 
-### TC-I04 · Resolve dispute — Refund
+### ADM-TC-I04 · Resolve dispute — Refund
 
 **Ref:** FLOW-08 / FLOW-27 · /trades/disputes/[tradeId]
 **Actors:** test-admin
@@ -1351,9 +1400,9 @@
 1. On a dispute detail, click **[Resolve - Refund]** and confirm.
 
 **Expected Result:**
-- The buyer is refunded (including proportional tax), SP is restored, the payout is cancelled/withheld, and the trade reflects the refund. (Mirrors TradeFlow TC-E06 / TC-O07.)
+- The buyer is refunded (including proportional tax), SP is restored, the payout is cancelled/withheld, and the trade reflects the refund. (Mirrors TradeFlow ADM-TC-E06 / ADM-TC-O07.)
 
-### TC-I05 · Filter-tab click behavior (All/Reported/Under Review)
+### ADM-TC-I05 · Filter-tab click behavior (All/Reported/Under Review)
 
 **Ref:** /disputes · `DisputeFilters`
 **Actors:** test-admin
@@ -1372,7 +1421,7 @@
 
 ## Group J — Tax Admin
 
-### TC-J01 · Tax admin entry points (cross-ref TradeFlow Group P)
+### ADM-TC-J01 · Tax admin entry points (cross-ref TradeFlow Group P)
 
 **Ref:** FLOW-22 · /tax, /tax/nodes, /tax/reports, /tax/settings
 **Actors:** test-admin
@@ -1388,13 +1437,13 @@
 **Expected Result:**
 - Node tax rate config (view/edit, validation), bulk update, rate change history/audit, global settings toggle + warning banner, reporting dashboard (summary, date presets, jurisdiction breakdown, 7 report types), and CSV export are reachable.
 - Global settings on /tax/settings and /config→TAX edit the same `admin_config` rows; per-node / per-category data on /tax/nodes and /tax/rules stays distinct (not merged into /config) but cross-links make the relationship explicit.
-- Execute the detailed checks in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` **TC-P01 through TC-P08**.
+- Execute the detailed checks in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` **TRD-TC-P01 through TRD-TC-P08**.
 
 ---
 
 ## Group K — Payouts
 
-### TC-K01 · Payout fee configuration + test breakdown
+### ADM-TC-K01 · Payout fee configuration + test breakdown
 
 **Ref:** FLOW-25 · /payouts
 **Actors:** test-admin
@@ -1409,7 +1458,7 @@
 
 ---
 
-### TC-K02 · Payouts management list, stats, filters
+### ADM-TC-K02 · Payouts management list, stats, filters
 
 **Ref:** FLOW-22/25 · /payouts/earnings
 **Actors:** test-admin
@@ -1424,7 +1473,7 @@
 
 ---
 
-### TC-K03 · Retry failed payout (confirmation)
+### ADM-TC-K03 · Retry failed payout (confirmation)
 
 **Ref:** FLOW-25 · /payouts/earnings
 **Actors:** test-admin
@@ -1441,7 +1490,7 @@
 
 ## Group L — SP Economy / Analytics / Wallet
 
-### TC-L01 · SP Economy hub tabs (Health/Flow/Rules)
+### ADM-TC-L01 · SP Economy hub tabs (Health/Flow/Rules)
 
 **Ref:** FLOW-30 · /sp-economy
 **Actors:** test-admin
@@ -1456,7 +1505,7 @@
 
 ---
 
-### TC-L02 · SP Analytics dashboard + CSV export
+### ADM-TC-L02 · SP Analytics dashboard + CSV export
 
 **Ref:** FLOW-30 · /sp-analytics
 **Actors:** test-admin
@@ -1471,7 +1520,7 @@
 
 ---
 
-### TC-L03 · SP Wallet admin — economy metrics + search
+### ADM-TC-L03 · SP Wallet admin — economy metrics + search
 
 **Ref:** FLOW-30 · /sp-wallet
 **Actors:** test-admin
@@ -1492,7 +1541,7 @@
 
 ---
 
-### TC-L04 · SP adjustment (credit/deduct) with reason
+### ADM-TC-L04 · SP adjustment (credit/deduct) with reason
 
 **Ref:** FLOW-30 · /sp-wallet
 **Actors:** test-admin
@@ -1511,7 +1560,7 @@
 
 ---
 
-### TC-L05 · Freeze / unfreeze / suspend wallet
+### ADM-TC-L05 · Freeze / unfreeze / suspend wallet
 
 **Ref:** FLOW-30 · /sp-wallet
 **Actors:** test-admin + test user (mobile)
@@ -1531,7 +1580,7 @@
 
 ---
 
-### TC-L06 · SP Wallet entry points — home card, summary metrics, sidebar link
+### ADM-TC-L06 · SP Wallet entry points — home card, summary metrics, sidebar link
 
 **Ref:** FLOW-30 · /sp-wallet
 **Actors:** test-admin
@@ -1548,7 +1597,7 @@
 
 ---
 
-### TC-L07 · SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state
+### ADM-TC-L07 · SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state
 
 **Ref:** FLOW-30 · /sp-wallet
 **Actors:** test-admin (SQL Editor)
@@ -1565,7 +1614,7 @@
 
 ---
 
-### TC-L08 · SP Wallet warning banners (mobile)
+### ADM-TC-L08 · SP Wallet warning banners (mobile)
 
 **Ref:** FLOW-30 · /sp-wallet · WalletWarningBanner
 **Actors:** test user (mobile)
@@ -1588,7 +1637,7 @@
 
 ## Group M — Subscriptions Admin
 
-### TC-M01 · Grace period config (days + reminders)
+### ADM-TC-M01 · Grace period config (days + reminders)
 
 **Ref:** FLOW-12 · /subscriptions/manage
 **Actors:** test-admin
@@ -1603,7 +1652,7 @@
 
 ---
 
-### TC-M02 · Subscriptions list, filters, metrics
+### ADM-TC-M02 · Subscriptions list, filters, metrics
 
 **Ref:** FLOW-12 · /subscriptions, /subscriptions/manage
 **Actors:** test-admin
@@ -1618,7 +1667,7 @@
 
 ---
 
-### TC-M03 · Extend / cancel / reactivate
+### ADM-TC-M03 · Extend / cancel / reactivate
 
 **Ref:** FLOW-12 · /subscriptions/manage
 **Actors:** test-admin
@@ -1632,7 +1681,26 @@
 - Extend Trial updates the trial end; Cancel (after confirmation) sets the subscription to cancelled; Reactivate restores it.
 - Note: there is **no per-subscription "send a reminder" button**. Reminders are configured globally via the **Reminder Thresholds** field (days before expiry, default `60, 30, 7, 1`) and are sent automatically; a manual send-reminder action does not exist.
 
-### TC-M04 · Reactivate button (confirm + mobile reflection)
+**Setup:**
+- Logged in as **test-admin** on `/subscriptions/manage`. Requires seeded subscriptions in the needed statuses: a `trial` row (Extend Trial), an `active` or `trial` row (Cancel), and a `cancelled`/`grace_period`/`expired`/`paused` row (Reactivate).
+
+**Locator hints:**
+- Rich `data-testid` coverage in `src/app/subscriptions/manage/page.tsx` (patterns — `<user_id>` = the row's user id):
+  - Extend Trial → `data-testid="btn-extend-trial-<user_id>"` (trial rows only; text "Extend Trial").
+  - Cancel → `data-testid="btn-cancel-<user_id>"` (active/trial rows; text "Cancel").
+  - Reactivate → `data-testid="btn-reactivate-<user_id>"` (cancelled/grace/expired/paused rows; text "Reactivate").
+  - Supporting: `subscription-search-input`, `filter-<status>`, `subscriptions-table`, `user-id-<user_id>`, `action-success` / `action-error`.
+
+**Assert:**
+1. Extend Trial (on a trial row) updates the trial end date.
+2. Cancel (active/trial row, after confirmation) sets status to "cancelled".
+3. Reactivate (cancelled/grace/expired row) restores status to "active".
+
+**Dependencies:**
+- Confirmation dialogs for Cancel/Reactivate are in-page (not native) — assert via `action-success`/`action-error`.
+- State-changing on shared seed subscriptions — re-seed or use disposable rows between runs.
+
+### ADM-TC-M04 · Reactivate button (confirm + mobile reflection)
 
 **Ref:** /subscriptions/manage · POST `/api/admin/subscriptions/actions` `{action:'reactivate'}`
 **Actors:** test-admin
@@ -1647,9 +1715,9 @@
 **Expected Result:**
 - Confirm reads `Are you sure you want to manually reactivate subscription for {name}? This will set status to active.`
 - On confirm the status becomes `active`; the mobile Manage Kids Club+ screen reflects the active status.
-- **Note:** TC-M03 lists the Reactivate action; this case verifies its confirmation dialog and the cross-surface mobile reflection.
+- **Note:** ADM-TC-M03 lists the Reactivate action; this case verifies its confirmation dialog and the cross-surface mobile reflection.
 
-### TC-M05 · Metrics cards (MRR/churn/trial)
+### ADM-TC-M05 · Metrics cards (MRR/churn/trial)
 
 **Ref:** /subscriptions/manage · GET `/api/admin/subscriptions`
 **Actors:** test-admin
@@ -1662,7 +1730,7 @@
 **Expected Result:**
 - Five cards: `MRR`, `Active Subscribers`, `Trial Users`, `Grace Period`, `Churn Rate`.
 
-### TC-M06 · "free" status filter
+### ADM-TC-M06 · "free" status filter
 
 **Ref:** /subscriptions/manage · status filter
 **Actors:** test-admin
@@ -1680,7 +1748,7 @@
 
 ## Group N — Referrals Admin
 
-### TC-N01 · Referral configuration tab
+### ADM-TC-N01 · Referral configuration tab
 
 **Ref:** FLOW-13 · /referrals
 **Actors:** test-admin
@@ -1694,9 +1762,27 @@
 - Each field/toggle saves individually (per-key Save) and drives referral rewards in the app.
 - Note: the Configuration tab has **no** trial-extension-days, max-referrals-per-user, or expiry-days fields — those do not exist on this page; the page is exactly the 5 SP fields + 3 toggles.
 
+**Setup:**
+- Logged in as **test-admin** on `/referrals` → **Configuration** tab. No special seeded data; config values are whatever staging holds (the case asserts page structure + save behavior, not specific values).
+
+**Locator hints:**
+- Now instrumented in `src/app/referrals/configuration-tab.tsx` (2026-08-13). Because the "Referrer SP Bonus"/"Referee SP Bonus" labels are **duplicated** across the First Trade and First Approved Listing sections, the testIDs are **section-qualified** so each is uniquely addressable (visible labels unchanged):
+  - 5 SP inputs → `data-testid="ref-config-first-trade-referrer-sp"` · `ref-config-first-trade-referee-sp` · `ref-config-first-listing-referrer-sp` · `ref-config-first-listing-referee-sp` · `ref-config-starter-pack-sp`.
+  - 5 per-field Save buttons, all text "Save" → `data-testid="btn-save-first-trade-referrer-sp"` · `btn-save-first-trade-referee-sp` · `btn-save-first-listing-referrer-sp` · `btn-save-first-listing-referee-sp` · `btn-save-starter-pack-sp`.
+  - 3 toggles (custom `.ios-toggle` hidden checkbox) → `data-testid="toggle-first-trade-enabled"` · `toggle-first-listing-enabled` · `toggle-program-enabled`.
+
+**Assert:**
+1. Configuration tab renders exactly 5 SP fields + 3 toggles; no trial-extension-days / max-referrals / expiry-days fields exist.
+2. Saving each field shows a success message and the value persists on reload.
+3. Each toggle saves on change (no separate Save) and persists.
+
+**Dependencies:**
+- Network: per-key save → admin config API (requires `x-admin-secret` header, BP-49).
+- Config changes are global/live (affect referral rewards) — note and revert values after the run.
+
 ---
 
-### TC-N02 · Referral analytics tab
+### ADM-TC-N02 · Referral analytics tab
 
 **Ref:** FLOW-13 · /referrals
 **Actors:** test-admin
@@ -1709,7 +1795,7 @@
 **Expected Result:**
 - Total referrals, conversion rate, reward distribution, top referrers, and effectiveness metrics render.
 
-### TC-N03 · 5 SP fields + 3 toggles
+### ADM-TC-N03 · 5 SP fields + 3 toggles
 
 **Ref:** /referrals · `SPConfigService`
 **Actors:** test-admin
@@ -1725,9 +1811,9 @@
 - Three toggles: `🎯 First Trade Bonus Active`, `📝 First Approved Listing Bonus Active`, `🌐 Entire Referral Program Active`.
 - Each saves via `PATCH /api/admin/sp-config` and shows `Successfully updated {key}`.
 - Awarded amounts in the mobile app reflect these values.
-- **Note:** TC-N01 already enumerates the same 5 SP fields + 3 toggles; this case verifies each individually and their save behavior.
+- **Note:** ADM-TC-N01 already enumerates the same 5 SP fields + 3 toggles; this case verifies each individually and their save behavior.
 
-### TC-N04 · "Missing configuration" warning
+### ADM-TC-N04 · "Missing configuration" warning
 
 **Ref:** /referrals · `REQUIRED_KEYS`
 **Actors:** test-admin
@@ -1745,7 +1831,7 @@
 
 ## Group O — ID Badge Verification
 
-### TC-O01 · ID badge queue + stats + status filter
+### ADM-TC-O01 · ID badge queue + stats + status filter
 
 **Ref:** FLOW-18/21/29 · /id-badges
 **Actors:** test-admin
@@ -1760,7 +1846,7 @@
 
 ---
 
-### TC-O02 · Review request — approve
+### ADM-TC-O02 · Review request — approve
 
 **Ref:** FLOW-21/29 · /id-badges/[requestId]/review
 **Actors:** test-admin
@@ -1775,7 +1861,7 @@
 
 ---
 
-### TC-O03 · Review request — reject with reason
+### ADM-TC-O03 · Review request — reject with reason
 
 **Ref:** FLOW-21/29 · /id-badges/[requestId]/review
 **Actors:** test-admin
@@ -1790,7 +1876,7 @@
 
 ---
 
-### TC-O04 · Request details (screenshot deleted note)
+### ADM-TC-O04 · Request details (screenshot deleted note)
 
 **Ref:** FLOW-21/29 · /id-badges/[requestId]/details
 **Actors:** test-admin
@@ -1805,7 +1891,7 @@
 
 ---
 
-### TC-O05 · Message templates edit
+### ADM-TC-O05 · Message templates edit
 
 **Ref:** FLOW-29 · /id-badges/messages
 **Actors:** test-admin
@@ -1822,7 +1908,7 @@
 
 ## Group P — Badges & Sandbox
 
-### TC-P01 · Badge management list + toggle
+### ADM-TC-P01 · Badge management list + toggle
 
 **Ref:** FLOW-18 · /badges
 **Actors:** test-admin
@@ -1837,7 +1923,7 @@
 
 ---
 
-### TC-P02 · Edit badge / toggle status (no create or delete)
+### ADM-TC-P02 · Edit badge / toggle status (no create or delete)
 
 **Ref:** FLOW-18 · /badges
 **Actors:** test-admin
@@ -1852,9 +1938,30 @@
 - The Badge Editor ("Edit Badge") updates the badge and the list refreshes with a success message; the status pill toggles Active/Inactive.
 - Note: there is **no Create-badge or Delete-badge affordance** on this page today — the header offers only **🧪 Sandbox** and **Manual Award**, and the row Actions column has **Edit** only.
 
+**Setup:**
+- Logged in as **test-admin** on `/badges` with at least one seeded badge row. A small test icon file (e.g., PNG) is required for the upload step.
+
+**Locator hints:**
+- Now instrumented across `src/app/badges/page.tsx`, `BadgeEditor.tsx`, and `ManualAwardModal.tsx` (2026-08-13):
+  - Row Actions "Edit" button → `data-testid={\`btn-edit-badge-${badge.id}\`}`.
+  - Active/Inactive status pill → `data-testid={\`badge-toggle-${badge.id}\`}` (button text "Active"/"Inactive").
+  - Header "🧪 Sandbox" (link to `/badges/sandbox`) → `data-testid="link-badge-sandbox"`; "Manual Award" → `data-testid="btn-manual-award"`.
+  - Badge Editor modal (title "Edit Badge"): Name → `badge-editor-name` · Description → `badge-editor-description` · Threshold → `badge-editor-threshold` · Sort Order → `badge-editor-sort-order`; Cancel → `badge-editor-cancel` · Save → `badge-editor-save` · close → `badge-editor-close`.
+  - Icon upload: hidden `<input id="icon-upload">` behind a visible `<label htmlFor="icon-upload" data-testid="badge-editor-icon-upload">` ("Upload New Icon") — locate via the label.
+  - Manual Award modal: email input → `manual-award-email-input` · Search → `btn-manual-award-search` · badge select → `manual-award-badge-select` · reason → `manual-award-reason` · Cancel → `manual-award-cancel` · Award → `btn-manual-award-submit` · close → `manual-award-close`.
+
+**Assert:**
+1. Row Actions column shows only "Edit" (no Create/Delete); header shows only "🧪 Sandbox" and "Manual Award".
+2. Edit opens the "Edit Badge" modal; saving updates the badge and refreshes the list with a success message.
+3. Active/Inactive pill toggles the badge's status and the list reflects it.
+
+**Dependencies:**
+- Icon upload hits Supabase Storage + `badges-update-icon` Edge Function (network; needs a real file fixture).
+- Badge edits are live/global — revert any name/description changes after the run.
+
 ---
 
-### TC-P03 · Manual award badge
+### ADM-TC-P03 · Manual award badge
 
 **Ref:** FLOW-18 · /badges
 **Actors:** test-admin
@@ -1869,7 +1976,7 @@
 
 ---
 
-### TC-P04 · Badge sandbox event simulation
+### ADM-TC-P04 · Badge sandbox event simulation
 
 **Ref:** FLOW-18 · /badges/sandbox
 **Actors:** test-admin
@@ -1886,7 +1993,7 @@
 
 ## Group Q — Review Moderation
 
-### TC-Q01 · Reported reviews list + reason filter
+### ADM-TC-Q01 · Reported reviews list + reason filter
 
 **Ref:** FLOW-08 reviews · /reviews
 **Actors:** test-admin
@@ -1897,11 +2004,11 @@
 1. Open **/reviews**; filter by reason All / Spam / Offensive / False Information / Other; page through.
 
 **Expected Result:**
-- Per-review cards show reviewer, reviewee, rating, comment snippet, report count, report reasons, hidden status, Hide/Approve actions; reason filter and pagination work. (Mirrors TradeFlow TC-Q18.)
+- Per-review cards show reviewer, reviewee, rating, comment snippet, report count, report reasons, hidden status, Hide/Approve actions; reason filter and pagination work. (Mirrors TradeFlow ADM-TC-Q18.)
 
 ---
 
-### TC-Q02 · Hide review (confirmation)
+### ADM-TC-Q02 · Hide review (confirmation)
 
 **Ref:** FLOW-08 reviews · /reviews
 **Actors:** test-admin
@@ -1912,11 +2019,11 @@
 1. On a reported review, click **Hide** and confirm.
 
 **Expected Result:**
-- Confirmation "Are you sure you want to hide this review?"; on confirm the review is hidden from profiles. (Mirrors TradeFlow TC-Q20 deletion vs hide.)
+- Confirmation "Are you sure you want to hide this review?"; on confirm the review is hidden from profiles. (Mirrors TradeFlow ADM-TC-Q20 deletion vs hide.)
 
 ---
 
-### TC-Q03 · Approve review (unhide + delete reports)
+### ADM-TC-Q03 · Approve review (unhide + delete reports)
 
 **Ref:** FLOW-08 reviews · /reviews
 **Actors:** test-admin
@@ -1927,9 +2034,9 @@
 1. On a hidden/reported review, click **Approve** and confirm.
 
 **Expected Result:**
-- Confirmation "This will unhide the review and delete all associated reports. Continue?"; on confirm the review is visible again and its reports are cleared. (Mirrors TradeFlow TC-Q19.)
+- Confirmation "This will unhide the review and delete all associated reports. Continue?"; on confirm the review is visible again and its reports are cleared. (Mirrors TradeFlow ADM-TC-Q19.)
 
-### TC-Q04 · Status filter dropdown
+### ADM-TC-Q04 · Status filter dropdown
 
 **Ref:** /reviews · `Status:`
 **Actors:** test-admin
@@ -1942,7 +2049,7 @@
 **Expected Result:**
 - Options: `All Statuses` / `Pending Review` / `Reviewed` / `Visible` / `Hidden`; the list filters accordingly.
 
-### TC-Q05 · Sort-by dropdown
+### ADM-TC-Q05 · Sort-by dropdown
 
 **Ref:** /reviews · `Sort by:`
 **Actors:** test-admin
@@ -1955,7 +2062,7 @@
 **Expected Result:**
 - Options: `Most Reports` / `Newest Review` / `Oldest Review`; the list reorders accordingly.
 
-### TC-Q06 · Search input
+### ADM-TC-Q06 · Search input
 
 **Ref:** /reviews · `Search:`
 **Actors:** test-admin
@@ -1972,7 +2079,7 @@
 
 ## Group R — Education & FAQ CMS
 
-### TC-R01 · Education sections/examples/analytics
+### ADM-TC-R01 · Education sections/examples/analytics
 
 **Ref:** FLOW-21 / FLOW-EDU-001 · /education
 **Actors:** test-admin
@@ -1990,7 +2097,7 @@
 
 ---
 
-### TC-R02 · FAQ management (questions/categories/analytics)
+### ADM-TC-R02 · FAQ management (questions/categories/analytics)
 
 **Ref:** FLOW-19/21 · /education/faq
 **Actors:** test-admin
@@ -2005,7 +2112,7 @@
 
 ---
 
-### TC-R03 · Publish FAQ / education content
+### ADM-TC-R03 · Publish FAQ / education content
 
 **Ref:** FLOW-19/21 · /education/faq, /education
 **Actors:** test-admin
@@ -2022,7 +2129,7 @@
 
 ## Group S — Support Messages
 
-### TC-S01 · Support inbox + unread filter
+### ADM-TC-S01 · Support inbox + unread filter
 
 **Ref:** FLOW-19 · /support
 **Actors:** test-admin
@@ -2037,7 +2144,7 @@
 
 ---
 
-### TC-S02 · Support detail + mark as read
+### ADM-TC-S02 · Support detail + mark as read
 
 **Ref:** FLOW-19 · /support/[id]
 **Actors:** test-admin
@@ -2054,7 +2161,7 @@
 
 ## Group T — Analytics
 
-### TC-T01 · Revenue & Analytics dashboard
+### ADM-TC-T01 · Revenue & Analytics dashboard
 
 **Ref:** FLOW-18 · /analytics
 **Actors:** test-admin
@@ -2069,7 +2176,7 @@
 
 ---
 
-### TC-T02 · Notification analytics (category/type/variant)
+### ADM-TC-T02 · Notification analytics (category/type/variant)
 
 **Ref:** FLOW-17 · /analytics/notifications
 **Actors:** test-admin
@@ -2082,11 +2189,29 @@
 **Expected Result:**
 - By-category and by-type tables show variant, total sent, delivered, failed, opened, clicked, and delivery/open/click rates; per-channel (Email/In-App/Push) breakdown and A/B variant comparison render.
 
+**Setup:**
+- Logged in as **test-admin** on `/analytics/notifications` with seeded notification-analytics data (sent/delivered/opened/clicked events) so the tables render non-empty.
+
+**Locator hints:**
+- Good `data-testid` coverage in `src/app/analytics/notifications/page.tsx`:
+  - Date range: `data-testid="date-range-7"` / `date-range-30` / `date-range-90` (no 14/60 — matches spec).
+  - Filters: `data-testid="category-filter"`, `data-testid="notification-type-filter"`.
+  - Tables: `channel-metrics-table`, `category-metrics-table`, `type-metrics-table`.
+  - KPIs: `total-sent`, `avg-delivery-rate`, `avg-open-rate`; tooltip `info-tooltip-button`.
+
+**Assert:**
+1. Only 7/30/90 day range buttons render (14/60 absent).
+2. By-category and by-type tables show variant, total sent, delivered, failed, opened, clicked, and delivery/open/click rates.
+3. Per-channel (Email/In-App/Push) breakdown and A/B variant comparison render; changing range/filters updates the tables.
+
+**Dependencies:**
+- Read-only, no mutations. Depends on seeded analytics data — if tables are empty the case degrades to a render check; note the seed dependency.
+
 ---
 
 ## Group U — Audit Logs
 
-### TC-U01 · Audit logs view
+### ADM-TC-U01 · Audit logs view
 
 **Ref:** FLOW-20 · /audit-logs
 **Actors:** test-admin
@@ -2104,7 +2229,7 @@
 
 ## Group V — Monitoring & Cron
 
-### TC-V01 · Monitoring run + alerts (acknowledge/note)
+### ADM-TC-V01 · Monitoring run + alerts (acknowledge/note)
 
 **Ref:** FLOW-28 · /monitoring
 **Actors:** test-admin
@@ -2119,7 +2244,7 @@
 
 ---
 
-### TC-V02 · Cron jobs status + run history + timezone
+### ADM-TC-V02 · Cron jobs status + run history + timezone
 
 **Ref:** FLOW-28 · /monitoring/cron
 **Actors:** test-admin
@@ -2132,11 +2257,31 @@
 **Expected Result:**
 - "⏰ Cron Jobs Monitoring"; Jobs table (Job Name + command, Schedule, Status + last message, Last Run (Local), Active, Actions). The **Active** column is a **read-only ✓ Yes / ⊘ No display — there is no active toggle**; Actions offer **▶ Run Now** (active jobs) and **✏️ Schedule** (opens the schedule editor). Runs history (Job, Status, Start Time (Local), Message) with a status filter; timezone changes the displayed times; a failed run shows the error message.
 
+**Setup:**
+- Logged in as **test-admin** on `/monitoring/cron` with cron jobs + run history present (cron infra configured in staging).
+
+**Locator hints:**
+- Now instrumented in `src/app/monitoring/cron/page.tsx` (2026-08-13):
+  - Timezone `<select>` (label "Timezone") → `data-testid="cron-timezone-select"`.
+  - Lookback buttons: "Today" (24h) → `cron-lookback-24h` · "Last 7d" → `cron-lookback-7d` · "Last 14d" → `cron-lookback-14d` · "Last 30d" → `cron-lookback-30d` · "All" (365d) → `cron-lookback-365d`.
+  - Tabs: "Info (N)" → `cron-tab-info` · "Jobs (N)" → `cron-tab-jobs` · "Recent Runs (N)" → `cron-tab-runs`.
+  - Status filter `<select>` (label "Status", option "All Statuses") → `data-testid="cron-status-filter"`.
+  - "🔄 Refresh" → `data-testid="btn-cron-refresh"`.
+  - Actions (per active job): "▶ Run Now" → `data-testid={\`btn-cron-run-now-${job.jobid}\`}` and "✏️ Schedule" → `data-testid={\`btn-cron-schedule-${job.jobid}\`}` — **⚠️ both are real side-effecting actions** (Run Now triggers a real cron execution; Schedule writes a new cron schedule via `PUT /api/admin/cron-jobs/<id>`), flagged in source comments; automation must treat them as mutations, not reads.
+
+**Assert:**
+1. Page title "⏰ Cron Jobs Monitoring"; Jobs tab shows Job Name+command, Schedule, Status+last message, Last Run (Local), Active (**read-only ✓ Yes / ⊘ No — no toggle**), Actions.
+2. Runs tab shows history (Job, Status, Start Time (Local), Message) with a working status filter; failed runs show the error message.
+3. Changing the timezone changes displayed times; lookback buttons change the window.
+
+**Dependencies:**
+- **"▶ Run Now" executes a real cron job with real DB side effects; "✏️ Schedule" writes a new cron schedule (production-impacting).** Pilot recommendation: run only the read-only surface (timezone/lookback/tabs/status filter) and flag Run Now / Schedule as **not agent-runnable as-is without staging guardrails** — or require explicit approval + revert. Read path calls `/api/admin/cron-jobs` and `/api/admin/cron-runs`.
+
 ---
 
 ## Group W — Sidebar Navigation (Grouped & Collapsible)
 
-### TC-W01 · Sidebar grouped into 7 labeled sections
+### ADM-TC-W01 · Sidebar grouped into 7 labeled sections
 
 **Ref:** Global admin shell · left sidebar
 **Actors:** test-admin
@@ -2153,7 +2298,7 @@
 
 ---
 
-### TC-W02 · Expand / collapse a section via label + chevron
+### ADM-TC-W02 · Expand / collapse a section via label + chevron
 
 **Ref:** Global admin shell · left sidebar
 **Actors:** test-admin
@@ -2172,7 +2317,7 @@
 
 ---
 
-### TC-W03 · Section state persists per admin across sessions
+### ADM-TC-W03 · Section state persists per admin across sessions
 
 **Ref:** Global admin shell · left sidebar (localStorage `kids-admin:sidebar-sections:<email>`)
 **Actors:** test-admin
@@ -2191,7 +2336,7 @@
 
 ---
 
-### TC-W04 · Active route auto-expands its parent section
+### ADM-TC-W04 · Active route auto-expands its parent section
 
 **Ref:** Global admin shell · left sidebar
 **Actors:** test-admin
@@ -2209,7 +2354,7 @@
 
 ---
 
-### TC-W05 · Active/inactive item styling + label typography
+### ADM-TC-W05 · Active/inactive item styling + label typography
 
 **Ref:** `docx/old/design-system.md` (Label style, Neutral 900/700, Primary 500 roles)
 **Actors:** test-admin
@@ -2227,7 +2372,7 @@
 
 ---
 
-### TC-W06 · Collapsed icon rail shows all destinations
+### ADM-TC-W06 · Collapsed icon rail shows all destinations
 
 **Ref:** Global admin shell · left sidebar
 **Actors:** test-admin
@@ -2245,7 +2390,7 @@
 
 ---
 
-### TC-W07 · All previous nav destinations still reachable
+### ADM-TC-W07 · All previous nav destinations still reachable
 
 **Ref:** Global admin shell · left sidebar
 **Actors:** test-admin
@@ -2265,7 +2410,7 @@
 
 ## Group X — Action Center
 
-### TC-X01 · Action Center page loads aggregated cards
+### ADM-TC-X01 · Action Center page loads aggregated cards
 
 **Ref:** FLOW-18 · /action-center
 **Actors:** test-admin
@@ -2283,7 +2428,7 @@
 
 ---
 
-### TC-X02 · Same-type items bundled with count
+### ADM-TC-X02 · Same-type items bundled with count
 
 **Ref:** FLOW-18 · /action-center
 **Actors:** test-admin
@@ -2300,7 +2445,7 @@
 
 ---
 
-### TC-X03 · Severity tags (Urgent/Routine)
+### ADM-TC-X03 · Severity tags (Urgent/Routine)
 
 **Ref:** docx/old/design-system.md (Status Badge) · /action-center
 **Actors:** test-admin
@@ -2317,7 +2462,7 @@
 
 ---
 
-### TC-X04 · Expand card drills into item list
+### ADM-TC-X04 · Expand card drills into item list
 
 **Ref:** FLOW-18 · /action-center
 **Actors:** test-admin
@@ -2335,7 +2480,7 @@
 
 ---
 
-### TC-X05 · Inline approve flagged item
+### ADM-TC-X05 · Inline approve flagged item
 
 **Ref:** FLOW-18/FLOW-04 · /action-center
 **Actors:** test-admin
@@ -2353,7 +2498,7 @@
 
 ---
 
-### TC-X06 · Inline mark dispute under review
+### ADM-TC-X06 · Inline mark dispute under review
 
 **Ref:** FLOW-27 · /action-center
 **Actors:** test-admin
@@ -2371,7 +2516,7 @@
 
 ---
 
-### TC-X07 · Inline retry failed payout (confirmation)
+### ADM-TC-X07 · Inline retry failed payout (confirmation)
 
 **Ref:** FLOW-25 · /action-center
 **Actors:** test-admin
@@ -2389,7 +2534,7 @@
 
 ---
 
-### TC-X08 · Empty state "All caught up"
+### ADM-TC-X08 · Empty state "All caught up"
 
 **Ref:** docx/old/design-system.md (Success 500) · /action-center
 **Actors:** test-admin
@@ -2406,7 +2551,7 @@
 
 ---
 
-### TC-X09 · Sidebar pinned nav item + live count badge
+### ADM-TC-X09 · Sidebar pinned nav item + live count badge
 
 **Ref:** FLOW-18 · left sidebar /action-center
 **Actors:** test-admin
@@ -2425,7 +2570,7 @@
 
 ---
 
-### TC-X10 · Header bell opens Action Center + badge
+### ADM-TC-X10 · Header bell opens Action Center + badge
 
 **Ref:** FLOW-18 · top navbar bell
 **Actors:** test-admin
@@ -2441,7 +2586,7 @@
 
 ---
 
-### TC-X11 · Config drift card lists out-of-range settings
+### ADM-TC-X11 · Config drift card lists out-of-range settings
 
 **Ref:** FLOW-18 · /action-center
 **Actors:** test-admin
@@ -2458,7 +2603,7 @@
 
 ---
 
-### TC-X12 · Dashboard embeds top-5 Action Center cards + View all link
+### ADM-TC-X12 · Dashboard embeds top-5 Action Center cards + View all link
 
 **Ref:** FLOW-18 · / (dashboard) · /action-center
 **Actors:** test-admin
@@ -2476,7 +2621,7 @@
 - The full `/action-center` page still shows **every** source with pending work (no cap).
 - When the queue is clear, the embedded section shows the "All caught up" empty state.
 
-### TC-X13 · Cancellation Insights card drill
+### ADM-TC-X13 · Cancellation Insights card drill
 
 **Ref:** /action-center · `ActionCenterClient` → `/cancellation-insights`
 **Actors:** test-admin
@@ -2491,7 +2636,7 @@
 - The link navigates to **/cancellation-insights**.
 - With no spike, the card shows `No cancellation spikes detected.`
 
-### TC-X14 · /cancellation-insights full page
+### ADM-TC-X14 · /cancellation-insights full page
 
 **Ref:** /cancellation-insights · GET `/api/admin/cancellation-insights`
 **Actors:** test-admin
@@ -2514,9 +2659,9 @@
 ## Group Y — Command Palette & Global Search
 
 **Ref:** FLOW-18 (Admin Controls) · Global — all admin pages · `admin_global_search` RPC (`20260809000001_admin_global_search.sql`)
-**Actors:** test-admin (admin); test-non-admin (regular user, for TC-Y10)
+**Actors:** test-admin (admin); test-non-admin (regular user, for ADM-TC-Y10)
 
-### TC-Y01 · ⌘K / Ctrl+K opens the command palette from any page
+### ADM-TC-Y01 · ⌘K / Ctrl+K opens the command palette from any page
 
 **Objective:** Verify the global shortcut opens the palette from every admin page.
 
@@ -2528,7 +2673,7 @@
 - The command palette modal opens each time, focused on its search input.
 - Pressing ⌘K again (or Esc) closes it.
 
-### TC-Y02 · Clicking the header search bar opens the palette
+### ADM-TC-Y02 · Clicking the header search bar opens the palette
 
 **Objective:** Verify the top navbar search bar is the palette trigger.
 
@@ -2540,7 +2685,7 @@
 - The palette opens with the input focused.
 - The existing `topbar-global-search` input remains visible in the header.
 
-### TC-Y03 · Parallel search across four entity types with grouped labels
+### ADM-TC-Y03 · Parallel search across four entity types with grouped labels
 
 **Objective:** Verify one query returns Settings, Users, Listings, and Trades grouped results.
 
@@ -2553,7 +2698,7 @@
 - Empty groups are omitted.
 - All four groups are fetched in a single search (parallel, not sequential).
 
-### TC-Y04 · Breadcrumb context per result row
+### ADM-TC-Y04 · Breadcrumb context per result row
 
 **Objective:** Verify each row shows where the result lives.
 
@@ -2563,7 +2708,7 @@
 **Expected Result:**
 - Each row shows breadcrumb context, e.g. `Config → SMS → sms_twilio_account_sid`, `Users → Sara Ahmed`, `Listings → Blue Backpack`, `Trades → b1f6a59f…`.
 
-### TC-Y05 · Input is debounced (~200ms)
+### ADM-TC-Y05 · Input is debounced (~200ms)
 
 **Objective:** Verify typing does not fire a request per keystroke.
 
@@ -2573,7 +2718,7 @@
 **Expected Result:**
 - The RPC fires roughly once ~200ms after typing stops, not per keystroke (observable via network tab / fast typing).
 
-### TC-Y06 · Top 5 per group + "See all N results" expansion
+### ADM-TC-Y06 · Top 5 per group + "See all N results" expansion
 
 **Objective:** Verify the top-N cap and inline expansion.
 
@@ -2584,7 +2729,7 @@
 - Each group shows up to 5 rows initially.
 - A "See all N results" button appears when a group has more than 5; clicking it expands that group in place to show more (up to 25).
 
-### TC-Y07 · Footer "View all in <domain>" navigates to the prefilled list page
+### ADM-TC-Y07 · Footer "View all in <domain>" navigates to the prefilled list page
 
 **Objective:** Verify the footer deep-links to the matching list page.
 
@@ -2596,7 +2741,7 @@
 - Listings → `/listings?tab=search&q=sara` (Search tab open, query prefilled, results filtered).
 - Trades → `/trades?search=sara` (trade list filtered).
 
-### TC-Y08 · Selecting a result navigates directly
+### ADM-TC-Y08 · Selecting a result navigates directly
 
 **Objective:** Verify a row click (or Enter) navigates to the item/page.
 
@@ -2610,7 +2755,7 @@
 - Trades row → opens `/trades/<trade_id>` (trade detail page).
 - The palette closes after navigation.
 
-### TC-Y09 · Keyboard navigation (↑/↓/↵/Esc) + focus trap
+### ADM-TC-Y09 · Keyboard navigation (↑/↓/↵/Esc) + focus trap
 
 **Objective:** Verify keyboard-only use of the palette.
 
@@ -2622,7 +2767,7 @@
 - Enter opens the highlighted result and closes the palette.
 - Esc closes; Tab stays inside the modal until the modal is closed (focus trap).
 
-### TC-Y10 · Non-admin rejected (permission scoping)
+### ADM-TC-Y10 · Non-admin rejected (permission scoping)
 
 **Objective:** Verify results are scoped to admins only.
 
@@ -2633,7 +2778,7 @@
 **Expected Result:**
 - The palette shows an unavailable/forbidden message ("Only admins can use global search") and no entity results — settings/users/listings/trades are never exposed to non-admins.
 
-### TC-Y11 · Secret settings values are never shown
+### ADM-TC-Y11 · Secret settings values are never shown
 
 **Objective:** Verify `is_secret` config rows do not leak their value.
 
@@ -2643,7 +2788,7 @@
 **Expected Result:**
 - The row may appear by key/description but the secret **value** is never displayed in the palette and secret values are not matched as search terms.
 
-### TC-Y12 · Empty + no-results states
+### ADM-TC-Y12 · Empty + no-results states
 
 **Objective:** Verify the palette's initial and empty states.
 
@@ -2658,7 +2803,7 @@
 
 ## Group Z — Dashboard Health Strip
 
-### TC-Z01 · Health strip renders below title, above Action Center
+### ADM-TC-Z01 · Health strip renders below title, above Action Center
 
 **Ref:** FLOW-18 · / (dashboard)
 **Actors:** test-admin
@@ -2675,7 +2820,7 @@
 
 ---
 
-### TC-Z02 · Six indicators with colored dots + labels + values
+### ADM-TC-Z02 · Six indicators with colored dots + labels + values
 
 **Ref:** FLOW-18 · / (dashboard)
 **Actors:** test-admin
@@ -2691,7 +2836,7 @@
 
 ---
 
-### TC-Z03 · Dot color reflects configurable thresholds
+### ADM-TC-Z03 · Dot color reflects configurable thresholds
 
 **Ref:** FLOW-18 · / (dashboard) · `admin_health_summary()`
 **Actors:** test-admin
@@ -2710,7 +2855,7 @@
 
 ---
 
-### TC-Z04 · Clicking an indicator navigates to its detail page
+### ADM-TC-Z04 · Clicking an indicator navigates to its detail page
 
 **Ref:** FLOW-18 · / (dashboard)
 **Actors:** test-admin
@@ -2730,7 +2875,7 @@
 
 ---
 
-### TC-Z05 · Failed Payouts deep-link pre-filters to failed
+### ADM-TC-Z05 · Failed Payouts deep-link pre-filters to failed
 
 **Ref:** FLOW-18 · /payouts/earnings
 **Actors:** test-admin
@@ -2746,7 +2891,7 @@
 
 ---
 
-### TC-Z06 · Thresholds tunable via /config without code change
+### ADM-TC-Z06 · Thresholds tunable via /config without code change
 
 **Ref:** FLOW-18 · /config
 **Actors:** test-admin
@@ -2763,7 +2908,7 @@
 
 ---
 
-### TC-Z07 · Dashboard embeds Action Center below the strip
+### ADM-TC-Z07 · Dashboard embeds Action Center below the strip
 
 **Ref:** FLOW-18 · / (dashboard)
 **Actors:** test-admin
@@ -2784,27 +2929,27 @@
 
 ## Regression
 
-### TC-R01 · Admin session persists across pages
+### ADM-TC-R01 · Admin session persists across pages
 **Objective:** Confirm the admin session stays valid navigating between areas.
 **Steps:** 1. Log in; navigate across several areas; refresh a page.
 **Expected Result:** No re-login required; pages load with data.
 
-### TC-R02 · Confirmation required for destructive/financial actions
+### ADM-TC-R02 · Confirmation required for destructive/financial actions
 **Objective:** Confirm suspend/ban/delete, dispute refund, payout retry, SP adjust, and policy publish each show a confirmation.
 **Steps:** 1. Trigger each action and observe.
 **Expected Result:** Each prompts a confirmation before committing.
 
-### TC-R03 · Admin config changes reflect in the mobile app
+### ADM-TC-R03 · Admin config changes reflect in the mobile app
 **Objective:** Confirm config edits (cart, trade-timing, fees, referral, grace) reach the app.
 **Steps:** 1. Change a config; reload the corresponding app screen.
 **Expected Result:** The app reflects the new value.
 
-### TC-R04 · Read-only mode when write permission absent
+### ADM-TC-R04 · Read-only mode when write permission absent
 **Objective:** Confirm `can_write = false` makes config read-only.
 **Steps:** 1. Access /config (or /payouts) without write permission.
 **Expected Result:** Inputs are disabled; saves are not possible.
 
-### TC-R05 · Auditable actions logged
+### ADM-TC-R05 · Auditable actions logged
 **Objective:** Confirm key admin actions appear in audit logs.
 **Steps:** 1. Perform node deactivate / SP adjust / policy publish; check /audit-logs.
 **Expected Result:** Each appears with actor + timestamp.
@@ -2817,7 +2962,7 @@
 **Scope:** Payment / SP / fee / tax mutations are now retry-safe and audited. These cases verify the server-side guards from the admin side (audit journal, SP adjustments, refunds, payouts). No client changes.
 **Added:** 2026-08-09
 
-### TC-N2-A01 · Financial audit journal viewable per trade
+### ADM-TC-N2-A01 · Financial audit journal viewable per trade
 **Objective:** Verify the unified `financial_audit_log` journal shows every payment/SP/fee/tax transition for a given trade.
 **Steps:**
 1. Open a trade that completed with SP + tax (or run the audit query for its trade id):
@@ -2828,7 +2973,7 @@ WHERE entity_id='<trade_id>' ORDER BY created_at ASC;
 2. Walk the trade lifecycle and re-query after each transition.
 **Expected Result:** One row per transition — `offer_created`, `payment_intent_created`, `buyer_fee_charged`, `tax_quoted`, `payment_captured`, `sp_released`, `seller_fee_deducted`, `trade_completed`, `payout_*` — chronological, with actor + amount. No duplicates (idempotency keys).
 
-### TC-N2-A02 · Admin SP adjustment — double-click cannot double-credit
+### ADM-TC-N2-A02 · Admin SP adjustment — double-click cannot double-credit
 **Objective:** Verify two identical SP adjustments (same idempotency key) credit the wallet once.
 **Steps:**
 1. Adjust a wallet by +10 SP with an explicit `p_idempotency_key` (e.g. `admin_adj_dod_test`), then repeat the exact same call.
@@ -2840,7 +2985,7 @@ SELECT count(*) FROM financial_audit_log WHERE idempotency_key='admin_adj_dod_te
 ```
 **Expected Result:** Balance +10 exactly once; the second call returns `idempotent: true`; exactly one `sp_ledger` entry and one `sp_issued` audit row. A same-second double-click with no explicit key is deduped by the derived per-minute key.
 
-### TC-N2-A03 · Duplicate refund attempt rejected (no double refund)
+### ADM-TC-N2-A03 · Duplicate refund attempt rejected (no double refund)
 **Objective:** Verify a re-issued refund (or a re-delivered `charge.refunded` webhook) for an already-refunded trade cannot double-refund.
 **Steps:**
 1. Issue a full refund (force-cancel / dispute-refund / manual).
@@ -2853,7 +2998,7 @@ SELECT count(*) FROM financial_audit_log WHERE idempotency_key='refund_<refund_i
 ```
 **Expected Result:** Exactly one `trade_refunds` row per Stripe refund id (unique partial index); `refunded_cents` never exceeds `charged_cents`; a single `refund_issued` audit row — no double refund.
 
-### TC-N2-A04 · Payout — single row per trade, single transfer
+### ADM-TC-N2-A04 · Payout — single row per trade, single transfer
 **Objective:** Verify a retried payout trigger does not create a second `seller_payouts` row or a second Stripe transfer.
 **Steps:**
 1. Trigger `initiate-payout` (or the payout trigger) for the same trade twice.
@@ -2865,7 +3010,7 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 ```
 **Expected Result:** Exactly one `seller_payouts` row and one `stripe_transfer_id`; one `payout_initiated`/`payout_paid` (or `requires_action`/`failed`) audit row per transition, keyed by `payout_<trade_id>` — no duplicate payout.
 
-### TC-N2-A05 · Financial Audit screen accessible from sidebar + renders
+### ADM-TC-N2-A05 · Financial Audit screen accessible from sidebar + renders
 **Objective:** Verify the new **Financial Audit** screen (`/audit`) is reachable from the sidebar and renders the N2 journal UI.
 **Steps:**
 1. Log in to the admin portal; open the sidebar → **Monetization** → **Financial Audit** (route `/audit`).
@@ -2873,7 +3018,7 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 3. With no journal rows yet, confirm the friendly empty state appears.
 **Expected Result:** The sidebar link navigates to `/audit`; the page renders all controls; the empty state reads "No audit entries yet. The journal is written as payments, Swap Points, fees, and taxes move — run a trade to see it populate." — no crash, no 401.
 
-### TC-N2-A06 · Financial Audit — search & filters
+### ADM-TC-N2-A06 · Financial Audit — search & filters
 **Objective:** Verify the audit screen can search and filter the journal.
 **Steps:**
 1. On `/audit`, use the **Mutation type** dropdown (all 27 types listed, e.g. Payment Captured, SP Released, Refund Issued).
@@ -2883,7 +3028,7 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 5. Clear all filters and confirm the full journal returns.
 **Expected Result:** Each filter narrows the table; search by trade/entity/idempotency key works (text-cast view `admin_financial_audit_view`); combined filters (type + search + date) apply together; clearing filters restores all rows.
 
-### TC-N2-A07 · Financial Audit — row details, trade link, amount formatting
+### ADM-TC-N2-A07 · Financial Audit — row details, trade link, amount formatting
 **Objective:** Verify each journal row shows correct details and the expandable before/after state.
 **Steps:**
 1. Open a trade that has audit rows (submit an offer, complete it, refund it — or use existing rows).
@@ -2893,7 +3038,7 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 5. Confirm amount formatting: `sp_*` rows show "N SP" (no $), cash/fee/tax/payout rows show `$X.XX` from cents.
 **Expected Result:** Rows are chronological (newest first); type pills are color-coded by category; before/after JSON renders readable; the trade link navigates to the trade detail; SP amounts display as SP units and money amounts in dollars.
 
-### TC-N2-A08 · Financial Audit — summary strip reconciles with journal
+### ADM-TC-N2-A08 · Financial Audit — summary strip reconciles with journal
 **Objective:** Verify the summary counts and Cash Movement reconcile with the filtered rows.
 **Steps:**
 1. On `/audit` with no filters, note **Entries** and the per-category counts (Payments / Swap Points / Fees / Tax / Payouts / Refunds / Trade).
@@ -2907,95 +3052,95 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 
 | Verification item | Test cases |
 |---|---|
-| Admin login (FLOW-34) | TC-A01 |
-| Non-admin rejected (RBAC) | TC-A02, TC-R04 |
-| Dashboard hub + widgets | TC-A03 |
-| User list/search/filters | TC-B01 |
-| User detail drawer | TC-B02 |
-| Suspend/ban/delete | TC-B03 |
-| SP credit/debit + freeze (FLOW-30) | TC-B04 |
-| User analytics cards | TC-B05 |
-| Listing management tabs | TC-C01 |
-| Flagged items filters | TC-C02 |
-| Approve flagged item | TC-C03 |
-| Reject item with reason | TC-C04 |
-| Item detail + appeal | TC-C05 |
-| Category list/filter/search (FLOW-21) | TC-D01 |
-| Create/edit category + multiplier | TC-D02 |
-| Activate/deactivate category | TC-D03 |
-| Category suggestions queue | TC-D04 |
-| Nodes list + stats (FLOW-03) | TC-E01 |
-| Add/edit node | TC-E02 |
-| Deactivate node members warning | TC-E03 |
-| Node settings radius validation | TC-E04 |
-| ZIP waitlist queue | TC-E05 |
-| Node tagging completeness (N6) | TC-E06 |
-| Per-node KPIs (N6) | TC-E07 |
-| Global config inline edit | TC-F01, TC-R04 |
-| Cart settings + validation (FLOW-07) | TC-F02 |
-| Trade timing config (FLOW-08) | TC-F03, TC-R03 |
-| Policy tabs + versions (FLOW-31/32/33) | TC-G01 |
-| Create policy version (regex) | TC-G02 |
-| Edit draft policy | TC-G03 |
-| Publish policy confirmation | TC-G04, TC-R02 |
-| Trade list filters (FLOW-08) | TC-H01 |
-| Trade detail + breakdown | TC-H02 |
-| Trade admin actions | TC-H03 |
-| Dispute queue + SLA | TC-I01 |
-| Mark under review | TC-I02 |
-| Resolve dispute Complete | TC-I03 |
-| Resolve dispute Refund (FLOW-27) | TC-I04, TC-R02 |
-| Tax admin entry points (FLOW-22) | TC-J01 |
-| Payout fee config (FLOW-25) | TC-K01 |
-| Payouts list/stats/filters | TC-K02 |
-| Retry failed payout | TC-K03, TC-R02 |
-| SP economy hub tabs (FLOW-30) | TC-L01 |
-| SP analytics + CSV export | TC-L02 |
-| SP wallet admin metrics + search | TC-L03 |
-| SP adjustment with reason | TC-L04, TC-R02 |
-| Freeze/unfreeze/suspend wallet | TC-L05 |
-| Grace period config (FLOW-12) | TC-M01 |
-| Subscriptions list/filters/metrics | TC-M02 |
-| Extend/cancel/reminder | TC-M03 |
-| Referral configuration (FLOW-13) | TC-N01 |
-| Referral analytics | TC-N02 |
-| ID badge queue (FLOW-18/29) | TC-O01 |
-| Review request approve | TC-O02 |
-| Review request reject with reason | TC-O03 |
-| Request details + privacy note | TC-O04 |
-| Message templates edit | TC-O05 |
-| Badge management + toggle | TC-P01 |
-| Badge CRUD | TC-P02 |
-| Manual award badge | TC-P03 |
-| Badge sandbox simulation | TC-P04 |
-| Reported reviews + reason filter | TC-Q01 |
-| Hide review | TC-Q02 |
-| Approve (unhide) review | TC-Q03 |
-| Education CMS (FLOW-21/EDU-001) | TC-R01 |
-| FAQ management | TC-R02 |
-| Publish content reflects in app | TC-R03 |
-| Support inbox + unread filter | TC-S01 |
-| Support detail + mark read | TC-S02 |
-| Revenue & Analytics dashboard | TC-T01 |
-| Notification analytics (FLOW-17) | TC-T02 |
-| Audit logs view (FLOW-20) | TC-U01, TC-R05 |
-| Monitoring run + alerts (FLOW-28) | TC-V01 |
-| Cron jobs status + history | TC-V02 |
-| Sidebar grouped + collapsible | TC-W01, TC-W02 |
-| Per-admin section state persistence | TC-W03 |
-| Active-section auto-expand | TC-W04 |
-| Sidebar visual hierarchy (labels/active/inactive) | TC-W05 |
-| Collapsed icon rail | TC-W06 |
-| Nav destination coverage | TC-W07 |
-| Admin session persistence | TC-R01 |
-| Action Center aggregated cards | TC-X01 |
-| Bundled counts per source | TC-X02 |
-| Severity tags (Urgent/Routine) | TC-X03 |
-| Expand card drill-down | TC-X04 |
-| Inline approve flagged item | TC-X05 |
-| Inline mark dispute under review | TC-X06 |
-| Inline retry failed payout (confirmation) | TC-X07, TC-R02 |
-| Empty state "All caught up" | TC-X08 |
-| Sidebar pinned Action Center + live badge | TC-X09 |
-| Header bell opens Action Center + badge | TC-X10 |
-| Config drift detection | TC-X11 |
+| Admin login (FLOW-34) | ADM-TC-A01 |
+| Non-admin rejected (RBAC) | ADM-TC-A02, ADM-TC-R04 |
+| Dashboard hub + widgets | ADM-TC-A03 |
+| User list/search/filters | ADM-TC-B01 |
+| User detail drawer | ADM-TC-B02 |
+| Suspend/ban/delete | ADM-TC-B03 |
+| SP credit/debit + freeze (FLOW-30) | ADM-TC-B04 |
+| User analytics cards | ADM-TC-B05 |
+| Listing management tabs | ADM-TC-C01 |
+| Flagged items filters | ADM-TC-C02 |
+| Approve flagged item | ADM-TC-C03 |
+| Reject item with reason | ADM-TC-C04 |
+| Item detail + appeal | ADM-TC-C05 |
+| Category list/filter/search (FLOW-21) | ADM-TC-D01 |
+| Create/edit category + multiplier | ADM-TC-D02 |
+| Activate/deactivate category | ADM-TC-D03 |
+| Category suggestions queue | ADM-TC-D04 |
+| Nodes list + stats (FLOW-03) | ADM-TC-E01 |
+| Add/edit node | ADM-TC-E02 |
+| Deactivate node members warning | ADM-TC-E03 |
+| Node settings radius validation | ADM-TC-E04 |
+| ZIP waitlist queue | ADM-TC-E05 |
+| Node tagging completeness (N6) | ADM-TC-E06 |
+| Per-node KPIs (N6) | ADM-TC-E07 |
+| Global config inline edit | ADM-TC-F01, ADM-TC-R04 |
+| Cart settings + validation (FLOW-07) | ADM-TC-F02 |
+| Trade timing config (FLOW-08) | ADM-TC-F03, ADM-TC-R03 |
+| Policy tabs + versions (FLOW-31/32/33) | ADM-TC-G01 |
+| Create policy version (regex) | ADM-TC-G02 |
+| Edit draft policy | ADM-TC-G03 |
+| Publish policy confirmation | ADM-TC-G04, ADM-TC-R02 |
+| Trade list filters (FLOW-08) | ADM-TC-H01 |
+| Trade detail + breakdown | ADM-TC-H02 |
+| Trade admin actions | ADM-TC-H03 |
+| Dispute queue + SLA | ADM-TC-I01 |
+| Mark under review | ADM-TC-I02 |
+| Resolve dispute Complete | ADM-TC-I03 |
+| Resolve dispute Refund (FLOW-27) | ADM-TC-I04, ADM-TC-R02 |
+| Tax admin entry points (FLOW-22) | ADM-TC-J01 |
+| Payout fee config (FLOW-25) | ADM-TC-K01 |
+| Payouts list/stats/filters | ADM-TC-K02 |
+| Retry failed payout | ADM-TC-K03, ADM-TC-R02 |
+| SP economy hub tabs (FLOW-30) | ADM-TC-L01 |
+| SP analytics + CSV export | ADM-TC-L02 |
+| SP wallet admin metrics + search | ADM-TC-L03 |
+| SP adjustment with reason | ADM-TC-L04, ADM-TC-R02 |
+| Freeze/unfreeze/suspend wallet | ADM-TC-L05 |
+| Grace period config (FLOW-12) | ADM-TC-M01 |
+| Subscriptions list/filters/metrics | ADM-TC-M02 |
+| Extend/cancel/reminder | ADM-TC-M03 |
+| Referral configuration (FLOW-13) | ADM-TC-N01 |
+| Referral analytics | ADM-TC-N02 |
+| ID badge queue (FLOW-18/29) | ADM-TC-O01 |
+| Review request approve | ADM-TC-O02 |
+| Review request reject with reason | ADM-TC-O03 |
+| Request details + privacy note | ADM-TC-O04 |
+| Message templates edit | ADM-TC-O05 |
+| Badge management + toggle | ADM-TC-P01 |
+| Badge CRUD | ADM-TC-P02 |
+| Manual award badge | ADM-TC-P03 |
+| Badge sandbox simulation | ADM-TC-P04 |
+| Reported reviews + reason filter | ADM-TC-Q01 |
+| Hide review | ADM-TC-Q02 |
+| Approve (unhide) review | ADM-TC-Q03 |
+| Education CMS (FLOW-21/EDU-001) | ADM-TC-R01 |
+| FAQ management | ADM-TC-R02 |
+| Publish content reflects in app | ADM-TC-R03 |
+| Support inbox + unread filter | ADM-TC-S01 |
+| Support detail + mark read | ADM-TC-S02 |
+| Revenue & Analytics dashboard | ADM-TC-T01 |
+| Notification analytics (FLOW-17) | ADM-TC-T02 |
+| Audit logs view (FLOW-20) | ADM-TC-U01, ADM-TC-R05 |
+| Monitoring run + alerts (FLOW-28) | ADM-TC-V01 |
+| Cron jobs status + history | ADM-TC-V02 |
+| Sidebar grouped + collapsible | ADM-TC-W01, ADM-TC-W02 |
+| Per-admin section state persistence | ADM-TC-W03 |
+| Active-section auto-expand | ADM-TC-W04 |
+| Sidebar visual hierarchy (labels/active/inactive) | ADM-TC-W05 |
+| Collapsed icon rail | ADM-TC-W06 |
+| Nav destination coverage | ADM-TC-W07 |
+| Admin session persistence | ADM-TC-R01 |
+| Action Center aggregated cards | ADM-TC-X01 |
+| Bundled counts per source | ADM-TC-X02 |
+| Severity tags (Urgent/Routine) | ADM-TC-X03 |
+| Expand card drill-down | ADM-TC-X04 |
+| Inline approve flagged item | ADM-TC-X05 |
+| Inline mark dispute under review | ADM-TC-X06 |
+| Inline retry failed payout (confirmation) | ADM-TC-X07, ADM-TC-R02 |
+| Empty state "All caught up" | ADM-TC-X08 |
+| Sidebar pinned Action Center + live badge | ADM-TC-X09 |
+| Header bell opens Action Center + badge | ADM-TC-X10 |
+| Config drift detection | ADM-TC-X11 |

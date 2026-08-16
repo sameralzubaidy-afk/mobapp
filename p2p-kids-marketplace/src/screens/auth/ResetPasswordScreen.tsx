@@ -11,7 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet
+  StyleSheet,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -30,17 +31,24 @@ export default function ResetPasswordScreen() {
   const [hasResetSession, setHasResetSession] = useState(false);
 
   // When app opened via deep link from the email, Supabase may include tokens
-  // in the fragment (hash). Parse the initial URL to derive access_token/refresh_token
+  // in the fragment (hash). Parse the URL to derive access_token/refresh_token
   // or show an error if link contains error params (e.g., otp_expired).
+  //
+  // NOTE: must use a STATIC import of Linking. A dynamic `import('react-native')`
+  // makes Metro enumerate RN's lazy getters (e.g. PushNotificationIOS) to build the
+  // namespace, and those getters force-load native modules that are not linked in
+  // this build (React-RCTPushNotification is not installed) -> `new NativeEventEmitter()`
+  // crash on the reset-password deep link. Static imports are resolved at bundle time
+  // and never trigger that enumeration.
   useEffect(() => {
-    const handleInitialUrl = async () => {
+    let isMounted = true;
+
+    const handleResetUrl = async (url: string | null) => {
       try {
-        const url = await (await import('react-native')).Linking.getInitialURL();
         if (!url) return;
 
         // Split hash (fragment) portion after '#'
-        const parts = url.split('#');
-        const hash = parts[1] ?? '';
+        const hash = url.split('#')[1] ?? '';
 
         if (!hash) return;
 
@@ -75,14 +83,32 @@ export default function ResetPasswordScreen() {
             );
             return;
           }
-          setHasResetSession(true);
+          if (isMounted) setHasResetSession(true);
         }
       } catch (e: any) {
+        // A malformed/unsupported URL must never leave the parent stuck on a
+        // blank form — surface a friendly state instead of failing silently.
         console.error('Error parsing initial URL for reset token:', e);
+        if (isMounted) {
+          setLinkError(
+            'This reset link could not be opened. Please request a new password reset email.'
+          );
+        }
       }
     };
 
-    handleInitialUrl();
+    // Cold start: app launched via the deep link.
+    Linking.getInitialURL().then(handleResetUrl);
+
+    // Warm: deep link received while the app is already running.
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleResetUrl(url);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -288,26 +314,32 @@ export default function ResetPasswordScreen() {
             <View style={styles.requirementsCard}>
               <Text style={styles.requirementsTitle}>Password Requirements:</Text>
               <Text style={styles.requirementsText}>
-                • At least 8 characters{'\n'}
-                • Contains uppercase letter{'\n'}
-                • Contains lowercase letter{'\n'}
-                • Contains number
+                • At least 8 characters{'\n'}• Contains uppercase letter{'\n'}• Contains lowercase
+                letter{'\n'}• Contains number
               </Text>
             </View>
           )}
 
           {/* Reset Button */}
-          <Button
-            variant="primary"
-            size="large"
-            onPress={handleResetPassword}
-            disabled={loading || !password || !confirmPassword}
-            loading={loading}
-            testID="reset-submit-button"
-            style={styles.resetButton}
-          >
-            Reset Password
-          </Button>
+          {/* Design system: max one primary CTA per screen (docx/design-system-passitup.md). When
+              the Link Error card is visible the reset link is expired/invalid, so there is no valid
+              reset session and this submit button is non-functional (it would only surface the
+              "No active reset session" alert). Hide it so "Request New Reset Email" is the single
+              primary action for that recovery state. AUTH-TC-S10 (no active reset session) is
+              unaffected: that path has linkError === null, so the button remains visible. */}
+          {!linkError && (
+            <Button
+              variant="primary"
+              size="large"
+              onPress={handleResetPassword}
+              disabled={loading || !password || !confirmPassword}
+              loading={loading}
+              testID="reset-submit-button"
+              style={styles.resetButton}
+            >
+              Reset Password
+            </Button>
+          )}
 
           {/* Back to Login Link */}
           <TouchableOpacity

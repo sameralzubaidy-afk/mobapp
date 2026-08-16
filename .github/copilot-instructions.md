@@ -3,7 +3,7 @@
 ## Project overview
 
 This workspace contains two applications:
-- **`p2p-kids-marketplace/`** — React Native / Expo mobile app (iOS + Android). Bundle ID: `com.p2pkidsmarketplace`
+- **`p2p-kids-marketplace/`** — React Native / Expo mobile app (iOS + Android). Bundle ID: `com.sameralzubaidi.p2pmarketplace`
 - **`p2p-kids-admin/`** — Next.js admin portal (runs on `http://localhost:3001`)
 
 The apps share a Supabase backend. Test accounts live in the staging database.
@@ -119,7 +119,7 @@ Whenever asked to classify, triage, or fix Jest unit-test failures (e.g. the A/B
 ## Environment variables (`.env`)
 
 ```
-APP_ID=com.p2pkidsmarketplace
+APP_ID=com.sameralzubaidi.p2pmarketplace
 PLAYWRIGHT_ADMIN_E2E=true
 PLAYWRIGHT_ADMIN_EMAIL=test-admin@kidsmarketplace.test
 PLAYWRIGHT_ADMIN_PASSWORD=<ask team lead>

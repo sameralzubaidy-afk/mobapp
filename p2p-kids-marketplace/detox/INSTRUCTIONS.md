@@ -1116,7 +1116,7 @@ Fill in the **CONFIGURE THIS SECTION** at the top, then paste.
 ## TASK: TradeFlow V2 Detox Test Runner — Kids P2P Marketplace (iOS Simulator)**
 
 **Covers:** 15 Detox test files (43–57) mapped to 120+ manual TC IDs across Groups A, B, C, E, F, H, I, J, K, L, M, O, Q, R.
-**Source of truth (manual ref):** `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`
+**Source of truth (manual ref):** `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`
 
 ### ─── CONFIGURE THIS SECTION ONLY ──────────────────────────────
 
@@ -1166,7 +1166,7 @@ LOG_LEVEL=trace
 
 ## DETOX TEST FILES → MANUAL TC MAPPING
 
-Every Detox test file below automates one or more manual test cases from `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`:
+Every Detox test file below automates one or more manual test cases from `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`:
 
 | Detox file | Manual TC(s) covered | Group | Est. run time |
 |---|---|---|---|

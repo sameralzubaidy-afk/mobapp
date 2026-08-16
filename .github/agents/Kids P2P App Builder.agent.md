@@ -37,7 +37,7 @@ NON-NEGOTIABLE RULES (READ FIRST — one-line index of the hard gates detailed l
 2. Requirements Gate — read the relevant docx/*.md files before touching code; list "Requirements Confirmed" in your reply. Before planning any "new" feature (incl. R-series R1–R13), grep the codebase for an existing implementation first — many asks are already shipped under a codename (e.g., D-30 / TradeFlowV2); extend, don't rebuild.
 3. Scope Containment — touch only what's broken; touching >3 files means STOP and explain why first.
 4. No Partial Implementations — never ship placeholder logic without flagging it; nothing is "done" until testable end-to-end.
-5. Read-Before-Write — never edit a file you haven't read in the current session.
+5. Read-Before-Write — never edit a file you haven't read in the current session; when the user edits outside the session, verify on-disk content via the terminal/git diff before editing (read/replace tools can serve a stale cached copy).
 6. User-Facing Copy Standards — plain, human error/empty-state copy; branded modals only, never Alert.alert() for confirmations.
 7. Duplicate Identifier Guard — search the file, then the repo, for a symbol before creating it; never ship AuthContext2-style duplicates.
 8. Tier 0 Compile Gate — typecheck + lint must pass before you ever say "open the simulator" (canonical commands live in HP-2a — don't restate them elsewhere).
@@ -118,6 +118,7 @@ READ-BEFORE-WRITE (MANDATORY — no exceptions)
 Principle: Never write to a file you haven't read in the current session. Editing from memory causes duplicate code, overwritten fixes, and orphaned styles.
 
 Before editing ANY file, read the CURRENT content of that file using filesystem MCP. Do not rely on what you wrote in a previous turn.
+When the user (or an external tool) edits a file OUTSIDE the agent session, the built-in read/replace tools can serve a stale cached copy of the old content — verify the on-disk state via the terminal (`sed -n`/`grep -n`/`git diff`) before editing; a stale anchor makes string replacements fail and can silently overwrite the user's edits.
 If a file is longer than what can be displayed, read the specific section you are editing plus the lines immediately before and after.
 After writing, re-read the affected lines to confirm the edit landed correctly and no surrounding code was accidentally modified.
 If two files need to be changed for the same fix, read both BEFORE writing either.
@@ -237,8 +238,8 @@ Documentation Folder Standard (MANDATORY — confirmed against actual repo conte
 docx/ holds the canonical product/business/architecture specs as markdown (*.md) — BRD, system requirements, solution architecture, trade flow, payouts, etc. (see the Requirements Gate table). Despite the folder name, it is NOT a Word-file folder.
 docs/ holds engineering/testing/operational docs — manual test cases, module implementation summaries, the Flow Registry (docs/flow-registry.md), environment/CI notes, store-submission checklists, etc.
 You MUST NOT create duplicate copies of the same spec in both folders. When in doubt which folder a new doc belongs in, ask.
-Manual-testing guides (e.g., `MODULE-*.md`) are canonical in the `misc/` folder — the test automation (`test-automation/trade-flow-v2/manifest.json`, `RUNBOOK.md`, `run-tradeflow-suite.mjs`) reads them from `misc/`, and `docs/flow-registry.md` points there. NEVER create or maintain a second copy of a manual-testing guide at the workspace root.
-Before editing any manual-testing guide, run a TC-ID diff to detect duplicate or lost test cases: `grep -nE "^### .*TC-[A-Za-z0-9-]+" "misc./<guide>.md"` (and on ANY other copy of the same guide), then confirm exactly ONE canonical copy exists. If you find two diverged copies, merge them into `misc/` first (preserve every TC; re-letter colliding IDs rather than dropping either) and mark the other copy DEPRECATED — never edit both.
+Manual-testing guides (e.g., `MODULE-*.md`) are canonical in the `cross-checked-and-consolidated/` folder — the test automation (`test-automation/trade-flow-v2/manifest.json`, `RUNBOOK.md`, `run-tradeflow-suite.mjs`) reads them from `cross-checked-and-consolidated/`, and `docs/flow-registry.md` points there. NEVER create or maintain a second copy of a manual-testing guide at the workspace root.
+Before editing any manual-testing guide, run a TC-ID diff to detect duplicate or lost test cases: `grep -nE "^### .*TC-[A-Za-z0-9-]+" "cross-checked-and-consolidated/<guide>.md"` (and on ANY other copy of the same guide), then confirm exactly ONE canonical copy exists. If you find two diverged copies, merge them into `cross-checked-and-consolidated/` first (preserve every TC; re-letter colliding IDs rather than dropping either) and mark the other copy DEPRECATED — never edit both.
 File Path Normalization (MANDATORY)
 Filenames MUST NOT include leading/trailing spaces.
 If you detect a file like docx/ Solution Architecture & Implementation Plan.md (leading space), you MUST do ONE of: A) Rename it to docx/Solution Architecture & Implementation Plan.md and update all references, OR B) If renaming is not possible, STOP and ask Samer to rename it (do not implement features against a "fragile" path).
@@ -802,6 +803,12 @@ Issue: "QA automation can't find a button/modal testID on iOS (identifier never 
 ✅ Check: The control sets `accessible` + `accessibilityRole` (and `accessibilityLabel` = visible text), not just `testID` (BP-53)
 ✅ Check: The identifier was confirmed with the accessibility-tree/element-listing tool on the running simulator — unit/widget tests query the React tree, NOT the native iOS tree (BP-53)
 See also: BP-53 (a bare TouchableOpacity with only `testID` renders but its identifier is invisible to the iOS tree — mirror `ui/Button`'s `accessible`/`accessibilityRole`), BP-52 (update the widget test a deliberate UI change breaks)
+Issue: "App crashes when opening a deep link (e.g. password reset) with `new NativeEventEmitter() requires a non-null argument` / `Cannot read property 'default' of undefined`"
+
+✅ Check: Does the screen dynamically `import('react-native')` or `import * as RN` and then access/iterate its exports? That enumerates RN's lazy getters (e.g. `PushNotificationIOS`) (BP-54)
+✅ Check: Replace the dynamic import with a static `import { Linking } from 'react-native'` (or `expo-linking`) — static imports resolve at bundle time and never enumerate (BP-54)
+✅ Check: Verify warm + cold deep-link delivery and that a tokenized link still parses on-device after the change (BP-54)
+See also: BP-54 (Metro's `importAll` iterates RN's lazy getters; a missing optional native module like `PushNotificationManager` makes the getter throw)
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
 Test in Supabase Studio: Run raw SQL queries to verify data/RLS
@@ -1079,6 +1086,7 @@ After editing any .ts/.tsx file, you MUST:
 
 run Prettier on the changed file(s) OR ensure editor format-on-save is enabled
 run Prettier from INSIDE each project directory (p2p-kids-marketplace/ or p2p-kids-admin/) — invoking it from the monorepo root hangs (observed under p2p-kids-admin/)
+after running Prettier, verify with `git diff --stat` — Prettier can reformat dozens of unrelated lines in a file you only touched once; if it did, revert the file (`git checkout -- <file>`) and re-apply only the intended change to honor scope containment.
 never leave JSX in a partially edited state If Prettier would fail, STOP and fix syntax first.
 Layout safety rule (Admin Portal)
 Avoid complex inline JSX edits inside src/app/layout.tsx. If adding nav links or sidebar items:
@@ -1279,7 +1287,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-38 Fee config — absolute percentage per tier, never base+discount; confirm the calculation base with the user.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`); if the MCP bundler still cannot resolve `../_shared/*`, INLINE the helper into the function file (canonical repo pattern — see `misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`) and keep the `_shared/` source in sync.
+- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`); if the MCP bundler still cannot resolve `../_shared/*`, INLINE the helper into the function file (canonical repo pattern — see `archive/misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`) and keep the `_shared/` source in sync.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
 - BP-43 Navigation & params — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
 - BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
@@ -1292,6 +1300,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-51 Edge Function pre-deploy verification — run `git diff` / grep the function for the new symbol to confirm the intended change is in the file before deploying (edits can be lost when the working tree is reverted between turns).
 - BP-52 Intentional behavior changes — update the widget test a deliberate UI/logic change breaks; confirm other failures are pre-existing via git before classifying.
 - BP-53 QA-testID accessibility — controls shipped with a `testID` must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; verify new identifiers on-device — unit tests alone are insufficient evidence of iOS discoverability.
+- BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
 - BC-1 Backward Compatibility Gate — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (full text in the main body, "Backward Compatibility Gate" section).
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
@@ -1587,3 +1596,5 @@ Whenever implementing a state change that should notify users:
 - Example that triggered this rule (2026-08-11): an accessibility task converted the "Login Failed" / "Signup Failed" native alerts to branded modals; `LoginScreen.test.tsx` asserted `Alert.alert('Login Failed', …)` and had to be updated to assert the branded modal's `login-failed-dialog-ok-button`; the remaining `AutoCompleteBanner` failure was confirmed pre-existing via `git status`.
 
 ## BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements (set `accessible` + `accessibilityRole`, mirror `ui/Button`; confirm identifiers in the on-device accessibility tree — unit tests alone are insufficient) — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+## BP-54: Never Use Dynamic `import('react-native')` / Enumerate RN's Exports (Metro's `importAll` iterates RN's lazy getters — e.g. `PushNotificationIOS` — which can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent; use static imports only) — full text moved to `.github/instructions/mobile-client.instructions.md`.

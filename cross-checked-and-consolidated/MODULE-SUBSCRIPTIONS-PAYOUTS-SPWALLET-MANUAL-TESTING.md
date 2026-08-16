@@ -12,106 +12,106 @@
 
 | Group | TC# | Description |
 |---|---|---|
-| **A — Plans & Comparison** | TC-A01 | Subscription Plans screen — Free vs Kids Club+ cards |
-| | TC-A02 | Plan Comparison table — feature-by-feature + POPULAR badge |
-| | TC-A03 | Dynamic pricing & fees pulled from admin config |
-| | TC-A04 | Current plan reflected (button disabled / "Current Plan") |
-| | TC-A05 | Kids Club+ Overview screen by subscription status |
-| **B — Start Trial & Payment** | TC-B01 | Start free trial from Plans → payment screen |
-| | TC-B02 | Payment screen benefits + pricing + "Due today $0.00" (trial) |
-| | TC-B03 | Complete Stripe payment → Success screen |
-| | TC-B04 | Trial already used — blocked with support/subscribe options |
-| | TC-B05 | Trial disabled globally — Free tier only |
-| | TC-B06 | Continue Kids Club+ (mid-trial) urgency + benefits |
-| | TC-B07 | Referred user warned about bonus loss before choosing Free |
-| | TC-B08 | Admin changes trial-limit config → trial CTA updates |
-| | TC-B09 | Cancel Stripe payment sheet — no error, retry available |
-| | TC-B10 | Card declined — clear error + retry |
-| | TC-B11 | Re-subscribe reuses saved payment method (1-click) |
-| | TC-B12 | Network error during payment — retry succeeds |
-| | TC-B13 | Apple Pay / Google Pay payment |
-| **C — Manage & Cancel** | TC-C01 | My Subscription screen — paid member view |
-| | TC-C02 | My Subscription quick menu (Billing / Payment / Help) |
-| | TC-C03 | Manage Kids Club+ — status, next billing, days remaining |
-| | TC-C04 | Cancel flow — retention screen "Keep My Benefits" |
-| | TC-C05 | Cancel reason modal + final confirmation |
-| | TC-C06 | Cancelled subscription stays active until period end |
-| | TC-C07 | Auto-renew toggle / update payment method |
-| | TC-C08 | Manage Kids Club+ free/no-subscription state |
-| | TC-C09 | Manage Kids Club+ expired state |
-| | TC-C10 | My Subscription free-user state |
-| | TC-C11 | My Subscription "Learn More" link |
-| | TC-C12 | My Subscription "Member Since" value (latent bug) |
-| **D — Renewal, Grace & Expiry** | TC-D01 | Grace period banner + SP wallet frozen warning |
-| | TC-D02 | Re-subscribe from grace period |
-| | TC-D03 | Subscription Expired screen — benefits lost + Renew |
-| | TC-D04 | Renew (isRenewal) — payment screen "Due today" = full price |
-| | TC-D05 | Reactivate from cancelled state |
-| | TC-D06 | Subscription event notifications (trial reminders, renewal, failure) |
-| | TC-D07 | Grace reminder notifications follow configured thresholds |
-| **E — Billing History & Status** | TC-E01 | Billing History list — records, status badges, amounts |
-| | TC-E02 | Billing History empty state |
-| | TC-E03 | Failed charge shows error message |
-| | TC-E04 | Subscription Status screen — Stripe IDs + period + retries |
-| **F — Payout Dashboard & Earnings** | TC-F01 | Payout Dashboard hero (SP balance + AUD equivalent) |
-| | TC-F02 | Payout method section (add vs existing) |
-| | TC-F03 | Payout history list (completed / pending) |
-| | TC-F04 | Seller Earnings screen — totals, pending, payout breakdown |
-| | TC-F05 | Seller Earnings empty state |
-| | TC-F06 | Pending earnings release follows admin-configured delay |
-| | TC-F07 | Seller Earnings error state + Retry |
-| | TC-F08 | Seller Earnings Load More pagination |
-| **G — Payout Methods & Verification** | TC-G01 | Add Stripe Connect payout method (onboarding) |
-| | TC-G02 | Add PayPal / Venmo payout method |
-| | TC-G03 | Add Bank ACH payout method |
-| | TC-G04 | Set primary method / delete method (confirmation) |
-| | TC-G05 | Unverified method blocks payout |
-| | TC-G06 | requires_action payout → "Set Up Payout Method" |
-| | TC-G07 | Payout Settings — "Edit Details" sheet |
-| | TC-G08 | "Cannot Delete Primary/Only Method" guard |
-| | TC-G09 | "Cannot Set as Primary" (unverified) guard |
-| | TC-G10 | Payout history Load More |
-| | TC-G11 | NoMethodModal flow |
-| **H — Request & Withdraw** | TC-H01 | Request Payout — amount validation vs available |
-| | TC-H02 | Fee + net summary by method type |
-| | TC-H03 | Confirm Payout success |
-| | TC-H04 | Request blocked when no method / unverified |
-| | TC-H05 | Withdraw Now from Payout Settings hero |
-| | TC-H06 | Admin minimum withdrawal blocks smaller payouts |
-| | TC-H07 | Minimum withdrawal disabled when config = 0 |
-| **I — SP Wallet Balance & Earn** | TC-I01 | SP Wallet hero balance + lifetime stats |
-| | TC-I02 | Quick actions (Shop / Sell / History) |
-| | TC-I03 | How to Earn SP section + Learn More |
-| | TC-I04 | SP expiration info + expiring-soon alert |
-| | TC-I05 | Wallet warning banner by state (active/grace/expired) |
-| | TC-I06 | Free user SP wallet inactive state |
-| | TC-I07 | SP Wallet — "Reserved in trades" card |
-| | TC-I08 | SP Wallet — "Wallet Not Found" error |
-| | TC-I09 | SP Wallet — pending-release summary note |
-| **J — SP Transaction History** | TC-J01 | SP History tabs (All / Earned / Spent) |
-| | TC-J02 | Transaction rows — type icon, label, signed amount |
-| | TC-J03 | Empty state per tab |
-| | TC-J04 | Pull-to-refresh updates ledger |
-| **K — Transaction / Billing History (Profile)** | TC-K01 | Transaction History list + status badges |
-| | TC-K02 | Transaction History empty + error/retry |
-| **L — Webhooks & Reconciliation** | TC-L01 | Renewal webhook updates billing history and member state |
-| | TC-L02 | Payment-failed webhook moves subscription into retry / grace state |
-| | TC-L03 | Invalid webhook signature is rejected with no duplicate state change |
-| | TC-L04 | Duplicate webhook delivery is idempotent |
-| | TC-L05 | Payout-status webhook updates seller payout history |
-| **M — Payment Methods (Card on File)** | TC-M01 | Payment Methods — loading state |
-| | TC-M02 | Empty state + Add Payment Method (Stripe sheet) |
-| | TC-M03 | Saved-card display + security banner |
-| | TC-M04 | Update Payment Method |
-| | TC-M05 | Remove This Card (confirm + success) |
-| | TC-M06 | Go Back |
-| | TC-M07 | Backend contract — attach / detach / retryFailedPayment branches |
-| **N — Kids Club Join & Continue** | TC-N01 | JoinKidsClub value-prop + web CTA |
-| | TC-N02 | JoinKidsClub web redirect (passitup.com) |
-| | TC-N03 | Route-alias reachability (JoinKidsClub vs deep-link-only aliases) |
-| | TC-N04 | ContinueKidsClub active-subscription variant |
-| | TC-N05 | ContinueKidsClub loading state |
-| | TC-N06 | ContinueKidsClub trial-ending urgency badge |
+| **A — Plans & Comparison** | SUB-TC-A01 | Subscription Plans screen — Free vs Kids Club+ cards |
+| | SUB-TC-A02 | Plan Comparison table — feature-by-feature + POPULAR badge |
+| | SUB-TC-A03 | Dynamic pricing & fees pulled from admin config |
+| | SUB-TC-A04 | Current plan reflected (button disabled / "Current Plan") |
+| | SUB-TC-A05 | Kids Club+ Overview screen by subscription status |
+| **B — Start Trial & Payment** | SUB-TC-B01 | Start free trial from Plans → payment screen |
+| | SUB-TC-B02 | Payment screen benefits + pricing + "Due today $0.00" (trial) |
+| | SUB-TC-B03 | Complete Stripe payment → Success screen |
+| | SUB-TC-B04 | Trial already used — blocked with support/subscribe options |
+| | SUB-TC-B05 | Trial disabled globally — Free tier only |
+| | SUB-TC-B06 | Continue Kids Club+ (mid-trial) urgency + benefits |
+| | SUB-TC-B07 | Referred user warned about bonus loss before choosing Free |
+| | SUB-TC-B08 | Admin changes trial-limit config → trial CTA updates |
+| | SUB-TC-B09 | Cancel Stripe payment sheet — no error, retry available |
+| | SUB-TC-B10 | Card declined — clear error + retry |
+| | SUB-TC-B11 | Re-subscribe reuses saved payment method (1-click) |
+| | SUB-TC-B12 | Network error during payment — retry succeeds |
+| | SUB-TC-B13 | Apple Pay / Google Pay payment |
+| **C — Manage & Cancel** | SUB-TC-C01 | My Subscription screen — paid member view |
+| | SUB-TC-C02 | My Subscription quick menu (Billing / Payment / Help) |
+| | SUB-TC-C03 | Manage Kids Club+ — status, next billing, days remaining |
+| | SUB-TC-C04 | Cancel flow — retention screen "Keep My Benefits" |
+| | SUB-TC-C05 | Cancel reason modal + final confirmation |
+| | SUB-TC-C06 | Cancelled subscription stays active until period end |
+| | SUB-TC-C07 | Auto-renew toggle / update payment method |
+| | SUB-TC-C08 | Manage Kids Club+ free/no-subscription state |
+| | SUB-TC-C09 | Manage Kids Club+ expired state |
+| | SUB-TC-C10 | My Subscription free-user state |
+| | SUB-TC-C11 | My Subscription "Learn More" link |
+| | SUB-TC-C12 | My Subscription "Member Since" value (latent bug) |
+| **D — Renewal, Grace & Expiry** | SUB-TC-D01 | Grace period banner + SP wallet frozen warning |
+| | SUB-TC-D02 | Re-subscribe from grace period |
+| | SUB-TC-D03 | Subscription Expired screen — benefits lost + Renew |
+| | SUB-TC-D04 | Renew (isRenewal) — payment screen "Due today" = full price |
+| | SUB-TC-D05 | Reactivate from cancelled state |
+| | SUB-TC-D06 | Subscription event notifications (trial reminders, renewal, failure) |
+| | SUB-TC-D07 | Grace reminder notifications follow configured thresholds |
+| **E — Billing History & Status** | SUB-TC-E01 | Billing History list — records, status badges, amounts |
+| | SUB-TC-E02 | Billing History empty state |
+| | SUB-TC-E03 | Failed charge shows error message |
+| | SUB-TC-E04 | Subscription Status screen — Stripe IDs + period + retries |
+| **F — Payout Dashboard & Earnings** | SUB-TC-F01 | Payout Dashboard hero (SP balance + AUD equivalent) |
+| | SUB-TC-F02 | Payout method section (add vs existing) |
+| | SUB-TC-F03 | Payout history list (completed / pending) |
+| | SUB-TC-F04 | Seller Earnings screen — totals, pending, payout breakdown |
+| | SUB-TC-F05 | Seller Earnings empty state |
+| | SUB-TC-F06 | Pending earnings release follows admin-configured delay |
+| | SUB-TC-F07 | Seller Earnings error state + Retry |
+| | SUB-TC-F08 | Seller Earnings Load More pagination |
+| **G — Payout Methods & Verification** | SUB-TC-G01 | Add Stripe Connect payout method (onboarding) |
+| | SUB-TC-G02 | Add PayPal / Venmo payout method |
+| | SUB-TC-G03 | Add Bank ACH payout method |
+| | SUB-TC-G04 | Set primary method / delete method (confirmation) |
+| | SUB-TC-G05 | Unverified method blocks payout |
+| | SUB-TC-G06 | requires_action payout → "Set Up Payout Method" |
+| | SUB-TC-G07 | Payout Settings — "Edit Details" sheet |
+| | SUB-TC-G08 | "Cannot Delete Primary/Only Method" guard |
+| | SUB-TC-G09 | "Cannot Set as Primary" (unverified) guard |
+| | SUB-TC-G10 | Payout history Load More |
+| | SUB-TC-G11 | NoMethodModal flow |
+| **H — Request & Withdraw** | SUB-TC-H01 | Request Payout — amount validation vs available |
+| | SUB-TC-H02 | Fee + net summary by method type |
+| | SUB-TC-H03 | Confirm Payout success |
+| | SUB-TC-H04 | Request blocked when no method / unverified |
+| | SUB-TC-H05 | Withdraw Now from Payout Settings hero |
+| | SUB-TC-H06 | Admin minimum withdrawal blocks smaller payouts |
+| | SUB-TC-H07 | Minimum withdrawal disabled when config = 0 |
+| **I — SP Wallet Balance & Earn** | SUB-TC-I01 | SP Wallet hero balance + lifetime stats |
+| | SUB-TC-I02 | Quick actions (Shop / Sell / History) |
+| | SUB-TC-I03 | How to Earn SP section + Learn More |
+| | SUB-TC-I04 | SP expiration info + expiring-soon alert |
+| | SUB-TC-I05 | Wallet warning banner by state (active/grace/expired) |
+| | SUB-TC-I06 | Free user SP wallet inactive state |
+| | SUB-TC-I07 | SP Wallet — "Reserved in trades" card |
+| | SUB-TC-I08 | SP Wallet — "Wallet Not Found" error |
+| | SUB-TC-I09 | SP Wallet — pending-release summary note |
+| **J — SP Transaction History** | SUB-TC-J01 | SP History tabs (All / Earned / Spent) |
+| | SUB-TC-J02 | Transaction rows — type icon, label, signed amount |
+| | SUB-TC-J03 | Empty state per tab |
+| | SUB-TC-J04 | Pull-to-refresh updates ledger |
+| **K — Transaction / Billing History (Profile)** | SUB-TC-K01 | Transaction History list + status badges |
+| | SUB-TC-K02 | Transaction History empty + error/retry |
+| **L — Webhooks & Reconciliation** | SUB-TC-L01 | Renewal webhook updates billing history and member state |
+| | SUB-TC-L02 | Payment-failed webhook moves subscription into retry / grace state |
+| | SUB-TC-L03 | Invalid webhook signature is rejected with no duplicate state change |
+| | SUB-TC-L04 | Duplicate webhook delivery is idempotent |
+| | SUB-TC-L05 | Payout-status webhook updates seller payout history |
+| **M — Payment Methods (Card on File)** | SUB-TC-M01 | Payment Methods — loading state |
+| | SUB-TC-M02 | Empty state + Add Payment Method (Stripe sheet) |
+| | SUB-TC-M03 | Saved-card display + security banner |
+| | SUB-TC-M04 | Update Payment Method |
+| | SUB-TC-M05 | Remove This Card (confirm + success) |
+| | SUB-TC-M06 | Go Back |
+| | SUB-TC-M07 | Backend contract — attach / detach / retryFailedPayment branches |
+| **N — Kids Club Join & Continue** | SUB-TC-N01 | JoinKidsClub value-prop + web CTA |
+| | SUB-TC-N02 | JoinKidsClub web redirect (passitup.com) |
+| | SUB-TC-N03 | Route-alias reachability (JoinKidsClub vs deep-link-only aliases) |
+| | SUB-TC-N04 | ContinueKidsClub active-subscription variant |
+| | SUB-TC-N05 | ContinueKidsClub loading state |
+| | SUB-TC-N06 | ContinueKidsClub trial-ending urgency badge |
 
 ---
 
@@ -144,7 +144,7 @@
 
 ## Group A — Plans & Comparison
 
-### TC-A01 · Subscription Plans screen — Free vs Kids Club+ cards
+### SUB-TC-A01 · Subscription Plans screen — Free vs Kids Club+ cards
 
 **Ref:** FLOW-12 · SubscriptionPlansScreen
 **Actors:** test-free
@@ -164,7 +164,7 @@
 
 ---
 
-### TC-A02 · Plan Comparison table — feature-by-feature + POPULAR badge
+### SUB-TC-A02 · Plan Comparison table — feature-by-feature + POPULAR badge
 
 **Ref:** FLOW-12 · PlanComparisonScreen
 **Actors:** test-free
@@ -184,7 +184,7 @@
 
 ---
 
-### TC-A03 · Dynamic pricing & fees pulled from admin config
+### SUB-TC-A03 · Dynamic pricing & fees pulled from admin config
 
 **Ref:** FLOW-12 · FLOW-18 admin config
 **Actors:** test-admin + test-free
@@ -202,7 +202,7 @@
 
 ---
 
-### TC-A04 · Current plan reflected (button disabled / "Current Plan")
+### SUB-TC-A04 · Current plan reflected (button disabled / "Current Plan")
 
 **Ref:** FLOW-12 · UpgradePlanScreen / SubscriptionPlansScreen
 **Actors:** test-buyer (subscriber)
@@ -218,7 +218,7 @@
 
 ---
 
-### TC-A05 · Kids Club+ Overview screen by subscription status
+### SUB-TC-A05 · Kids Club+ Overview screen by subscription status
 
 **Ref:** FLOW-12 · KidsClubOverviewScreen
 **Actors:** test-free, test-buyer, test-grace
@@ -238,7 +238,7 @@
 
 ## Group B — Start Trial & Payment
 
-### TC-B01 · Start free trial from Plans → payment screen
+### SUB-TC-B01 · Start free trial from Plans → payment screen
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen
 **Actors:** test-free (trial available)
@@ -254,7 +254,7 @@
 
 ---
 
-### TC-B02 · Payment screen benefits + pricing + "Due today $0.00" (trial)
+### SUB-TC-B02 · Payment screen benefits + pricing + "Due today $0.00" (trial)
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen
 **Actors:** test-free
@@ -262,7 +262,7 @@
 **Objective:** Verify the payment screen content for a new trial.
 
 **Steps:**
-1. On the Payment screen (from TC-B01), review the benefits, pricing card, and totals.
+1. On the Payment screen (from SUB-TC-B01), review the benefits, pricing card, and totals.
 
 **Expected Result:**
 - "What you get:" lists four benefits: Earn & Spend Swap Points; Lower Transaction Fees (showing subscriber vs non-subscriber fee); Priority Matching; Early Access.
@@ -273,7 +273,7 @@
 
 ---
 
-### TC-B03 · Complete Stripe payment → Success screen
+### SUB-TC-B03 · Complete Stripe payment → Success screen
 
 **Ref:** FLOW-12A · SubscriptionSuccessScreen
 **Actors:** test-free
@@ -291,7 +291,7 @@
 
 ---
 
-### TC-B04 · Trial already used — blocked with support/subscribe options
+### SUB-TC-B04 · Trial already used — blocked with support/subscribe options
 
 **Ref:** FLOW-12 · trial limit
 **Actors:** test-free-2 (`can_start_trial = false`)
@@ -306,7 +306,7 @@
 
 ---
 
-### TC-B05 · Trial disabled globally — Free tier only
+### SUB-TC-B05 · Trial disabled globally — Free tier only
 
 **Ref:** FLOW-12 · admin `isTrialEnabled`
 **Actors:** test-admin + test-free
@@ -322,7 +322,7 @@
 
 ---
 
-### TC-B06 · Continue Kids Club+ (mid-trial) urgency + benefits
+### SUB-TC-B06 · Continue Kids Club+ (mid-trial) urgency + benefits
 
 > ⚠️ **Needs re-verification (2026-08-12):** The exact phrase "{N} days left in trial" was not found in the source — verify the actual days-remaining badge wording.
 
@@ -344,7 +344,7 @@
 
 ---
 
-### TC-B07 · Referred user warned about bonus loss before choosing Free
+### SUB-TC-B07 · Referred user warned about bonus loss before choosing Free
 
 **Ref:** FLOW-13 referrals × FLOW-12
 **Actors:** A referred new user during onboarding (SubscriptionChoiceScreen)
@@ -358,7 +358,7 @@
 - A "Wait! Potential Bonus Loss" alert warns about losing the sign-up bonus before the Free choice is confirmed.
 - Confirming proceeds to Free (profile_completed = true); cancelling keeps the trial choice available.
 
-### TC-B08 · Admin changes trial-limit config and the trial CTA updates
+### SUB-TC-B08 · Admin changes trial-limit config and the trial CTA updates
 
 **Ref:** FLOW-12 · `max_trial_uses`
 **Actors:** test-admin + test-free-2
@@ -367,7 +367,7 @@
 
 **Steps:**
 1. As **test-admin**, open **/config**, set `max_trial_uses` to `0`, and save.
-2. As **test-free-2** (the exhausted-trial user from TC-B04), reopen **Subscription Choice** / **Plans**.
+2. As **test-free-2** (the exhausted-trial user from SUB-TC-B04), reopen **Subscription Choice** / **Plans**.
 3. Set `max_trial_uses` back to `1` and reload the same screens.
 
 **Expected Result:**
@@ -376,7 +376,7 @@
 
 ---
 
-### TC-B09 · Cancel Stripe payment sheet — no error, retry available
+### SUB-TC-B09 · Cancel Stripe payment sheet — no error, retry available
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen
 **Actors:** test-free
@@ -392,7 +392,7 @@
 
 ---
 
-### TC-B10 · Card declined — clear error + retry
+### SUB-TC-B10 · Card declined — clear error + retry
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen
 **Actors:** test-free (declining test card `4000 0000 0000 0002`)
@@ -408,7 +408,7 @@
 
 ---
 
-### TC-B11 · Re-subscribe reuses saved payment method (1-click)
+### SUB-TC-B11 · Re-subscribe reuses saved payment method (1-click)
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen (isRenewal)
 **Actors:** test-grace (with a saved method)
@@ -425,7 +425,7 @@
 
 ---
 
-### TC-B12 · Network error during payment — retry succeeds
+### SUB-TC-B12 · Network error during payment — retry succeeds
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen
 **Actors:** test-free
@@ -441,7 +441,7 @@
 
 ---
 
-### TC-B13 · Apple Pay / Google Pay payment
+### SUB-TC-B13 · Apple Pay / Google Pay payment
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen
 **Actors:** test-free
@@ -459,7 +459,7 @@
 
 ## Group C — Manage & Cancel
 
-### TC-C01 · My Subscription screen — paid member view
+### SUB-TC-C01 · My Subscription screen — paid member view
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer (active)
@@ -476,7 +476,7 @@
 
 ---
 
-### TC-C02 · My Subscription quick menu (Billing / Payment / Help)
+### SUB-TC-C02 · My Subscription quick menu (Billing / Payment / Help)
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer
@@ -493,7 +493,7 @@
 
 ---
 
-### TC-C03 · Manage Kids Club+ — status, next billing, days remaining
+### SUB-TC-C03 · Manage Kids Club+ — status, next billing, days remaining
 
 > ⚠️ **Needs re-verification (2026-08-12):** The helper text "You'll continue to have access until the end of your current billing period." was not found verbatim — verify the actual helper copy.
 
@@ -512,7 +512,7 @@
 
 ---
 
-### TC-C04 · Cancel flow — retention screen "Keep My Benefits"
+### SUB-TC-C04 · Cancel flow — retention screen "Keep My Benefits"
 
 **Ref:** FLOW-12 · CancelSubscriptionScreen
 **Actors:** test-buyer
@@ -529,7 +529,7 @@
 
 ---
 
-### TC-C05 · Cancel reason modal + final confirmation
+### SUB-TC-C05 · Cancel reason modal + final confirmation
 
 **Ref:** FLOW-12 · ManageKidsClubScreen (reason modal) — the retention screen (CancelSubscriptionScreen) does not collect a reason.
 **Actors:** test-buyer
@@ -546,9 +546,29 @@
 - After confirming, the subscription is set to cancel at period end (a trial ends immediately) and the status updates; a "Cancellation Confirmed" message appears.
 - Note: the separate retention screen (CancelSubscriptionScreen, reached from My Subscription) has **no** reason selector — "I still want to cancel" there confirms via a "Cancel Subscription?" alert using a hardcoded reason.
 
+**Setup:**
+- Logged in as **test-buyer** who is an **active Kids Club+ subscriber** (trial or paid) so the Manage Kids Club+ cancel path is reachable. A seeded active subscriber is required; a cancelled/expired account will not render the [Cancel Kids Club+] button.
+
+**Locator hints:**
+- Now fully instrumented (`src/screens/subscription/ManageKidsClubScreen.tsx`, 2026-08-13):
+  - [Cancel Kids Club+] button → `testID="cancel-kids-club-button"` (`accessible` + `accessibilityRole="button"` + `accessibilityLabel="Cancel Kids Club+"`).
+  - Cancel-reason modal container → `testID="cancel-reason-modal"` (title "Cancel Kids Club+?").
+  - Reason options → `testID={\`cancel-reason-${reason.id}\`}` — e.g. `cancel-reason-too_expensive`, `cancel-reason-not_using`, `cancel-reason-child_lost_interest`, `cancel-reason-found_alternative`, `cancel-reason-technical_issues`, `cancel-reason-other` (`accessible` + `accessibilityRole="button"` + `accessibilityLabel={reason.label}`).
+  - Custom-reason TextInput (shown when "Other reason" selected) → `testID="cancel-reason-other-input"`.
+  - [Confirm Cancellation] (disabled until a reason is selected) → `testID="cancel-confirm-button"`.
+  - [Keep Subscription] → `testID="cancel-keep-button"`.
+
+**Assert:**
+1. Tapping [Cancel Kids Club+] opens the "Cancel Kids Club+?" modal listing predefined reasons incl. "Other reason"; selecting "Other reason" reveals the free-text input.
+2. [Confirm Cancellation] is disabled until a reason is selected; [Keep Subscription] closes the modal with the subscription unchanged.
+3. After confirming with a reason, status updates to cancel-at-period-end (trial ends immediately) and a "Cancellation Confirmed" message appears.
+
+**Dependencies:**
+- Real subscription mutation: cancel calls `cancelSubscription(reason)` → server + Stripe. Deterministic given the seeded active subscriber, but it **changes the seed account's state** — use a dedicated disposable subscriber or re-seed between runs. No timers.
+
 ---
 
-### TC-C06 · Cancelled subscription stays active until period end
+### SUB-TC-C06 · Cancelled subscription stays active until period end
 
 > ⚠️ **Needs re-verification (2026-08-12):** The "can reactivate" message was not found verbatim — verify the actual reactivation messaging.
 
@@ -558,7 +578,7 @@
 **Objective:** Verify benefits persist until the end of the billing period after cancellation.
 
 **Steps:**
-1. After cancelling (TC-C05), reopen Manage Kids Club+ / My Subscription before the period ends.
+1. After cancelling (SUB-TC-C05), reopen Manage Kids Club+ / My Subscription before the period ends.
 
 **Expected Result:**
 - Status shows cancelled but still active until the period end date.
@@ -566,7 +586,7 @@
 
 ---
 
-### TC-C07 · Auto-renew toggle / update payment method
+### SUB-TC-C07 · Auto-renew toggle / update payment method
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer
@@ -581,7 +601,7 @@
 - Auto-renew state persists across screen reloads.
 - The payment-method action opens the update flow (or the appropriate add/update entry point).
 
-### TC-C08 · Manage Kids Club+ free/no-subscription state
+### SUB-TC-C08 · Manage Kids Club+ free/no-subscription state
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-free
@@ -594,7 +614,7 @@
 **Expected Result:**
 - Card shows `You don't have an active Kids Club+ subscription.` with a **Subscribe to Kids Club+** button that navigates to **JoinKidsClub**.
 
-### TC-C09 · Manage Kids Club+ expired state
+### SUB-TC-C09 · Manage Kids Club+ expired state
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (expired)
@@ -606,9 +626,9 @@
 
 **Expected Result:**
 - Info box **Your subscription has expired** with `Re-subscribe to restore Kids Club+ access and unfreeze any remaining Swap Points.` and a **Re-subscribe to Kids Club+** button.
-- **Note:** the cancel-reason "Other reason" free-text input is already covered by the corrected TC-C05 — not duplicated here.
+- **Note:** the cancel-reason "Other reason" free-text input is already covered by the corrected SUB-TC-C05 — not duplicated here.
 
-### TC-C10 · My Subscription free-user state
+### SUB-TC-C10 · My Subscription free-user state
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-free
@@ -622,7 +642,7 @@
 - Plan card shows **Free Plan** (no `ACTIVE member` badge); footer shows **Renew Date** only (no **Member Since** row).
 - Button **Upgrade to Kids Club+** navigates to `UpgradePlan`.
 
-### TC-C11 · My Subscription "Learn More" link
+### SUB-TC-C11 · My Subscription "Learn More" link
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer
@@ -635,7 +655,7 @@
 **Expected Result:**
 - Navigates to the Help screen with the `sp_definition` section.
 
-### TC-C12 · My Subscription "Member Since" value (latent bug)
+### SUB-TC-C12 · My Subscription "Member Since" value (latent bug)
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer
@@ -653,7 +673,7 @@
 
 ## Group D — Renewal, Grace & Expiry
 
-### TC-D01 · Grace period banner + SP wallet frozen warning
+### SUB-TC-D01 · Grace period banner + SP wallet frozen warning
 
 **Ref:** FLOW-12 · FLOW-10 · ManageKidsClubScreen
 **Actors:** test-grace
@@ -669,7 +689,7 @@
 
 ---
 
-### TC-D02 · Re-subscribe from grace period
+### SUB-TC-D02 · Re-subscribe from grace period
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen (isRenewal)
 **Actors:** test-grace
@@ -685,7 +705,7 @@
 
 ---
 
-### TC-D03 · Subscription Expired screen — benefits lost + Renew
+### SUB-TC-D03 · Subscription Expired screen — benefits lost + Renew
 
 > ⚠️ **Needs re-verification (2026-08-12):** Index title says "benefits lost" but the screen uses "What you're missing out on:" — verify the intended description matches current copy.
 
@@ -704,7 +724,7 @@
 
 ---
 
-### TC-D04 · Renew (isRenewal) — payment screen "Due today" = full price
+### SUB-TC-D04 · Renew (isRenewal) — payment screen "Due today" = full price
 
 **Ref:** FLOW-12A · SubscriptionPaymentScreen
 **Actors:** Expired/cancelled user renewing
@@ -720,7 +740,7 @@
 
 ---
 
-### TC-D05 · Reactivate from cancelled state
+### SUB-TC-D05 · Reactivate from cancelled state
 
 **Ref:** FLOW-12 · ManageKidsClubScreen / KidsClubOverviewScreen
 **Actors:** A cancelled (not yet expired) user
@@ -735,7 +755,7 @@
 
 ---
 
-### TC-D06 · Subscription event notifications (trial reminders, renewal, failure)
+### SUB-TC-D06 · Subscription event notifications (trial reminders, renewal, failure)
 
 **Ref:** FLOW-17 subscription event notifications
 **Actors:** test-trial, test-buyer
@@ -753,7 +773,7 @@
 - A payment-failure notification is delivered (and is treated as critical — bypasses quiet hours) prompting payment-method update.
 - A cancellation produces a cancellation-confirmation notification.
 
-### TC-D07 · Grace reminder notifications follow configured thresholds
+### SUB-TC-D07 · Grace reminder notifications follow configured thresholds
 
 **Ref:** FLOW-17 × admin `grace_reminder_thresholds`
 **Actors:** test-admin + test-grace
@@ -773,7 +793,7 @@
 
 ## Group E — Billing History & Status
 
-### TC-E01 · Billing History list — records, status badges, amounts
+### SUB-TC-E01 · Billing History list — records, status badges, amounts
 
 **Ref:** FLOW-12 · BillingHistoryScreen
 **Actors:** test-buyer
@@ -789,7 +809,7 @@
 
 ---
 
-### TC-E02 · Billing History empty state
+### SUB-TC-E02 · Billing History empty state
 
 **Ref:** FLOW-12 · BillingHistoryScreen
 **Actors:** test-free
@@ -804,7 +824,7 @@
 
 ---
 
-### TC-E03 · Failed charge shows error message
+### SUB-TC-E03 · Failed charge shows error message
 
 **Ref:** FLOW-12 · BillingHistoryScreen
 **Actors:** A user with a failed charge record
@@ -819,7 +839,7 @@
 
 ---
 
-### TC-E04 · Subscription Status screen — Stripe IDs + period + retries
+### SUB-TC-E04 · Subscription Status screen — Stripe IDs + period + retries
 
 **Ref:** FLOW-12 · SubscriptionStatusScreen
 **Actors:** test-admin / QA
@@ -837,7 +857,7 @@
 
 ## Group F — Payout Dashboard & Earnings
 
-### TC-F01 · Payout Dashboard hero (SP balance + AUD equivalent)
+### SUB-TC-F01 · Payout Dashboard hero (SP balance + AUD equivalent)
 
 **Ref:** FLOW-22 · PayoutDashboardScreen
 **Actors:** test-seller
@@ -853,7 +873,7 @@
 
 ---
 
-### TC-F02 · Payout method section (add vs existing)
+### SUB-TC-F02 · Payout method section (add vs existing)
 
 **Ref:** FLOW-22 / FLOW-23 · PayoutDashboardScreen
 **Actors:** test-seller (with method) + a seller without a method
@@ -869,7 +889,7 @@
 
 ---
 
-### TC-F03 · Payout history list (completed / pending)
+### SUB-TC-F03 · Payout history list (completed / pending)
 
 **Ref:** FLOW-22 · PayoutDashboardScreen
 **Actors:** test-seller
@@ -886,7 +906,7 @@
 
 ---
 
-### TC-F04 · Seller Earnings screen — totals, pending, payout breakdown
+### SUB-TC-F04 · Seller Earnings screen — totals, pending, payout breakdown
 
 **Ref:** FLOW-22 · SellerEarningsScreen
 **Actors:** test-seller
@@ -903,7 +923,7 @@
 
 ---
 
-### TC-F05 · Seller Earnings empty state
+### SUB-TC-F05 · Seller Earnings empty state
 
 **Ref:** FLOW-22 · SellerEarningsScreen
 **Actors:** A seller with no payouts
@@ -916,7 +936,7 @@
 **Expected Result:**
 - "No Earnings Yet" + "Complete trades to start earning and receiving payouts".
 
-### TC-F06 · Pending earnings release follows admin-configured delay
+### SUB-TC-F06 · Pending earnings release follows admin-configured delay
 
 **Ref:** FLOW-22 × admin `pending_sp_release_days`
 **Actors:** test-admin + test-seller
@@ -933,7 +953,7 @@
 - After the configured release delay passes, the same amount moves into the available balance.
 - New trades follow the updated delay without requiring an app rebuild.
 
-### TC-F07 · Seller Earnings error state + Retry
+### SUB-TC-F07 · Seller Earnings error state + Retry
 
 **Ref:** FLOW-22 · SellerEarningsScreen
 **Actors:** test-seller
@@ -948,7 +968,7 @@
 - Shows **Failed to Load Earnings** with the error message and a **Retry** button.
 - Retry re-runs the load and shows the earnings once it succeeds.
 
-### TC-F08 · Seller Earnings Load More pagination
+### SUB-TC-F08 · Seller Earnings Load More pagination
 
 **Ref:** FLOW-22 · SellerEarningsScreen
 **Actors:** test-seller
@@ -965,7 +985,7 @@
 
 ## Group G — Payout Methods & Verification
 
-### TC-G01 · Add Stripe Connect payout method (onboarding)
+### SUB-TC-G01 · Add Stripe Connect payout method (onboarding)
 
 **Ref:** FLOW-23 · PayoutSettingsScreen / payoutMethods
 **Actors:** test-seller (no Stripe method)
@@ -981,7 +1001,7 @@
 
 ---
 
-### TC-G02 · Add PayPal / Venmo payout method
+### SUB-TC-G02 · Add PayPal / Venmo payout method
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller
@@ -996,7 +1016,7 @@
 
 ---
 
-### TC-G03 · Add Bank ACH payout method
+### SUB-TC-G03 · Add Bank ACH payout method
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller
@@ -1011,7 +1031,7 @@
 
 ---
 
-### TC-G04 · Set primary method / delete method (confirmation)
+### SUB-TC-G04 · Set primary method / delete method (confirmation)
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller (≥2 methods)
@@ -1028,7 +1048,7 @@
 
 ---
 
-### TC-G05 · Unverified method blocks payout
+### SUB-TC-G05 · Unverified method blocks payout
 
 **Ref:** FLOW-23 · RequestPayoutScreen
 **Actors:** test-seller (unverified method only)
@@ -1043,7 +1063,7 @@
 
 ---
 
-### TC-G06 · requires_action payout → "Set Up Payout Method"
+### SUB-TC-G06 · requires_action payout → "Set Up Payout Method"
 
 **Ref:** FLOW-22 · SellerEarningsScreen / PayoutSettingsScreen
 **Actors:** A seller with a requires_action payout
@@ -1056,7 +1076,7 @@
 **Expected Result:**
 - The payout shows an "ACTION REQUIRED" badge with a **[Set Up Payout Method]** button that opens the method setup flow.
 
-### TC-G07 · Payout Settings — "Edit Details" sheet
+### SUB-TC-G07 · Payout Settings — "Edit Details" sheet
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller
@@ -1069,7 +1089,7 @@
 **Expected Result:**
 - Alert **Edit Details** shows `Editing payout method details is not yet available. Contact support for changes.`
 
-### TC-G08 · "Cannot Delete Primary/Only Method" guard
+### SUB-TC-G08 · "Cannot Delete Primary/Only Method" guard
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller
@@ -1084,7 +1104,7 @@
 - Only method → **Cannot Delete Only Method** / `Add another payout method first before removing this one.`
 - Primary with others → **Cannot Delete Primary Method** / `Please set another method as primary first, then delete this one.`
 
-### TC-G09 · "Cannot Set as Primary" (unverified) guard
+### SUB-TC-G09 · "Cannot Set as Primary" (unverified) guard
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller (with an unverified method)
@@ -1098,7 +1118,7 @@
 - Alert **Cannot Set as Primary** shows: This method has status "{status_message}". Please wait until it is verified before setting it as primary.
 - The sheet's **Set as Primary** option is disabled with the subtext `Verification required before setting as primary`.
 
-### TC-G10 · Payout history Load More
+### SUB-TC-G10 · Payout history Load More
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller
@@ -1111,7 +1131,7 @@
 **Expected Result:**
 - The list grows by 5 per tap; refreshing resets the list to the first 5.
 
-### TC-G11 · NoMethodModal flow
+### SUB-TC-G11 · NoMethodModal flow
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller (no payout method)
@@ -1128,7 +1148,7 @@
 
 ## Group H — Request & Withdraw
 
-### TC-H01 · Request Payout — amount validation vs available
+### SUB-TC-H01 · Request Payout — amount validation vs available
 
 **Ref:** FLOW-22 · RequestPayoutScreen
 **Actors:** test-seller
@@ -1146,7 +1166,7 @@
 
 ---
 
-### TC-H02 · Fee + net summary by method type
+### SUB-TC-H02 · Fee + net summary by method type
 
 **Ref:** FLOW-22 · RequestPayoutScreen
 **Actors:** test-seller
@@ -1162,7 +1182,7 @@
 
 ---
 
-### TC-H03 · Confirm Payout success
+### SUB-TC-H03 · Confirm Payout success
 
 **Ref:** FLOW-22 · RequestPayoutScreen
 **Actors:** test-seller (verified method)
@@ -1177,7 +1197,7 @@
 
 ---
 
-### TC-H04 · Request blocked when no method / unverified
+### SUB-TC-H04 · Request blocked when no method / unverified
 
 **Ref:** FLOW-22 / FLOW-23 · RequestPayoutScreen
 **Actors:** test-seller (no method)
@@ -1192,7 +1212,7 @@
 
 ---
 
-### TC-H05 · Withdraw Now from Payout Settings hero
+### SUB-TC-H05 · Withdraw Now from Payout Settings hero
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller (balance > 0)
@@ -1206,7 +1226,7 @@
 - With a balance and a verified method, the withdrawal flow proceeds and shows a "Withdrawal Requested" confirmation (amount + net + status).
 - With no balance: "No Balance" alert. With no method: "Please add a verified payout method first."
 
-### TC-H06 · Admin minimum withdrawal amount blocks smaller payouts
+### SUB-TC-H06 · Admin minimum withdrawal amount blocks smaller payouts
 
 **Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents`
 **Actors:** test-admin + test-seller
@@ -1222,7 +1242,7 @@
 - Amounts below the configured minimum show a clear minimum-withdrawal validation and disable **Confirm**.
 - Amounts at or above the configured minimum proceed normally.
 
-### TC-H07 · Minimum withdrawal disabled when config = 0
+### SUB-TC-H07 · Minimum withdrawal disabled when config = 0
 
 **Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents`
 **Actors:** test-admin + test-seller
@@ -1241,7 +1261,7 @@
 
 ## Group I — SP Wallet Balance & Earn
 
-### TC-I01 · SP Wallet hero balance + lifetime stats
+### SUB-TC-I01 · SP Wallet hero balance + lifetime stats
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
@@ -1258,7 +1278,7 @@
 
 ---
 
-### TC-I02 · Quick actions (Shop / Sell / History)
+### SUB-TC-I02 · Quick actions (Shop / Sell / History)
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
@@ -1273,7 +1293,7 @@
 
 ---
 
-### TC-I03 · How to Earn SP section + Learn More
+### SUB-TC-I03 · How to Earn SP section + Learn More
 
 **Ref:** FLOW-11 · SpWalletScreen
 **Actors:** test-buyer
@@ -1289,7 +1309,7 @@
 
 ---
 
-### TC-I04 · SP expiration info + expiring-soon alert
+### SUB-TC-I04 · SP expiration info + expiring-soon alert
 
 **Ref:** FLOW-11 · SpWalletScreen
 **Actors:** test-buyer (batch expiring ≤30 days)
@@ -1305,7 +1325,7 @@
 
 ---
 
-### TC-I05 · Wallet warning banner by state (active/grace/expired)
+### SUB-TC-I05 · Wallet warning banner by state (active/grace/expired)
 
 **Ref:** FLOW-10 · WalletWarningBanner
 **Actors:** test-buyer (active), test-grace (grace), an expired user
@@ -1320,7 +1340,7 @@
 
 ---
 
-### TC-I06 · Free user SP wallet inactive state
+### SUB-TC-I06 · Free user SP wallet inactive state
 
 **Ref:** FLOW-10 / FLOW-11
 **Actors:** test-free
@@ -1333,7 +1353,7 @@
 **Expected Result:**
 - The wallet shows an inactive state (cannot earn/spend SP) with messaging directing to subscribe; balance actions are gated.
 
-### TC-I07 · SP Wallet — "Reserved in trades" card
+### SUB-TC-I07 · SP Wallet — "Reserved in trades" card
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
@@ -1347,7 +1367,7 @@
 - Card **Reserved in trades** shows `{reserved_sp} SP` and `SP used in pending offers — returned if trade is cancelled.`
 - The card is absent when `reserved_sp = 0`.
 
-### TC-I08 · SP Wallet — "Wallet Not Found" error
+### SUB-TC-I08 · SP Wallet — "Wallet Not Found" error
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
@@ -1361,7 +1381,7 @@
 - Shows `💳` **Wallet Not Found** with `Unable to load your SP wallet.`
 - **Flag:** this requires `getWallet` to return null (e.g., an RLS/read failure) — `getWallet` auto-inserts a missing wallet row, so this state is rare.
 
-### TC-I09 · SP Wallet — pending-release summary note
+### SUB-TC-I09 · SP Wallet — pending-release summary note
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
@@ -1378,7 +1398,7 @@
 
 ## Group J — SP Transaction History
 
-### TC-J01 · SP History tabs (All / Earned / Spent)
+### SUB-TC-J01 · SP History tabs (All / Earned / Spent)
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** test-buyer
@@ -1394,7 +1414,7 @@
 
 ---
 
-### TC-J02 · Transaction rows — type icon, label, signed amount
+### SUB-TC-J02 · Transaction rows — type icon, label, signed amount
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** test-buyer
@@ -1409,7 +1429,7 @@
 
 ---
 
-### TC-J03 · Empty state per tab
+### SUB-TC-J03 · Empty state per tab
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** A user with no spent entries
@@ -1424,7 +1444,7 @@
 
 ---
 
-### TC-J04 · Pull-to-refresh updates ledger
+### SUB-TC-J04 · Pull-to-refresh updates ledger
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** test-buyer
@@ -1441,7 +1461,7 @@
 
 ## Group K — Transaction / Billing History (Profile)
 
-### TC-K01 · Transaction History list + status badges
+### SUB-TC-K01 · Transaction History list + status badges
 
 **Ref:** FLOW-12 · TransactionHistoryScreen (profile)
 **Actors:** test-buyer
@@ -1457,7 +1477,7 @@
 
 ---
 
-### TC-K02 · Transaction History empty + error/retry
+### SUB-TC-K02 · Transaction History empty + error/retry
 
 **Ref:** FLOW-12 · TransactionHistoryScreen
 **Actors:** test-free / forced error
@@ -1473,7 +1493,7 @@
 
 ## Group L — Webhooks & Reconciliation
 
-### TC-L01 · Renewal webhook updates billing history and member state
+### SUB-TC-L01 · Renewal webhook updates billing history and member state
 
 **Ref:** FLOW-26 · subscription renewal webhook
 **Actors:** test-buyer
@@ -1490,7 +1510,7 @@
 - Billing History shows a single new successful renewal record.
 - The user receives the expected renewal notification if that channel is enabled.
 
-### TC-L02 · Payment-failed webhook moves subscription into retry / grace state
+### SUB-TC-L02 · Payment-failed webhook moves subscription into retry / grace state
 
 **Ref:** FLOW-26 · payment failure webhook
 **Actors:** test-grace
@@ -1506,7 +1526,7 @@
 - The subscription status screen reflects the retry or grace-period state.
 - User-facing banners and renewal reminders align with the failed-payment state.
 
-### TC-L03 · Invalid webhook signature is rejected with no duplicate state change
+### SUB-TC-L03 · Invalid webhook signature is rejected with no duplicate state change
 
 **Ref:** FLOW-26 · signature verification
 **Actors:** QA
@@ -1523,7 +1543,7 @@
 - No duplicate notification is sent.
 - Existing subscription or payout data remains unchanged.
 
-### TC-L04 · Duplicate webhook delivery is idempotent
+### SUB-TC-L04 · Duplicate webhook delivery is idempotent
 
 **Ref:** FLOW-26 · idempotent processing
 **Actors:** QA
@@ -1540,7 +1560,7 @@
 - Replaying the same event does not create a second billing row, second payout update, or duplicate notification.
 - The user-visible state is unchanged by the duplicate delivery.
 
-### TC-L05 · Payout-status webhook updates seller payout history
+### SUB-TC-L05 · Payout-status webhook updates seller payout history
 
 **Ref:** FLOW-26 · payout provider webhooks
 **Actors:** test-seller
@@ -1561,7 +1581,7 @@
 
 ## Group M — Payment Methods (Card on File)
 
-### TC-M01 · Payment Methods — loading state
+### SUB-TC-M01 · Payment Methods — loading state
 
 **Ref:** FLOW-12A · PaymentMethodsScreen
 **Actors:** test-buyer
@@ -1576,7 +1596,11 @@
 - A spinner with the text `Loading payment methods...` shows while `get-payment-method` resolves.
 - The header reads "Payment Methods".
 
-### TC-M02 · Empty state + Add Payment Method (Stripe sheet)
+**Locator hints:**
+- Screen: `src/screens/profile/PaymentMethodsScreen.tsx` (instrumented 2026-08-15).
+- Loading spinner → `pm-loading-spinner`; assert `Loading payment methods...` by text.
+
+### SUB-TC-M02 · Empty state + Add Payment Method (Stripe sheet)
 
 **Ref:** FLOW-12A · PaymentMethodsScreen · `create-payment-setup-intent` + `attach-payment-method`
 **Actors:** test-free
@@ -1595,7 +1619,12 @@
 - On success, a success alert appears (one of `Payment Method Added` / `Payment Method Saved` / `Success`) and the Saved Card view replaces the empty state.
 - The `create-payment-setup-intent` and `attach-payment-method` edge functions are invoked.
 
-### TC-M03 · Saved-card display + security banner
+**Locator hints:**
+- Empty state → `pm-empty-state` · Add Payment Method → `pm-add-button`.
+- Stripe Payment Sheet is native — not instrumentable; assert the sheet visually.
+- Success alerts are native `Alert.alert` — assert by title (Payment Method Added / Saved / Success).
+
+### SUB-TC-M03 · Saved-card display + security banner
 
 **Ref:** FLOW-12A · PaymentMethodsScreen
 **Actors:** test-buyer
@@ -1611,7 +1640,10 @@
 - Security banner shows **Secure Payments** with `Your payment information is encrypted and processed securely through Stripe. We never store your full card details on our servers.`
 - A **Go Back** link appears at the bottom.
 
-### TC-M04 · Update Payment Method
+**Locator hints:**
+- Saved card container → `pm-saved-card` · Update Payment Method → `pm-update-button` · Remove This Card → `pm-remove-button` · security banner → `pm-security-banner` · Go Back → `pm-back-button`.
+
+### SUB-TC-M04 · Update Payment Method
 
 **Ref:** FLOW-12A · PaymentMethodsScreen · `attach-payment-method`
 **Actors:** test-buyer
@@ -1626,7 +1658,11 @@
 - The button shows `Updating...` while busy.
 - After success, the card view refreshes with the new brand/last4 and a success alert appears.
 
-### TC-M05 · Remove This Card (confirm + success)
+**Locator hints:**
+- Update Payment Method → `pm-update-button` · saved card → `pm-saved-card`.
+- Stripe sheet + success alerts not instrumentable — assert by text.
+
+### SUB-TC-M05 · Remove This Card (confirm + success)
 
 **Ref:** FLOW-12A · PaymentMethodsScreen · `detach-payment-method`
 **Actors:** test-buyer
@@ -1644,7 +1680,12 @@
 - **Remove** shows **Removed** / `Your payment method has been removed.` and the empty state returns.
 - The `detach-payment-method` edge function is invoked.
 
-### TC-M06 · Go Back
+**Locator hints:**
+- Remove This Card → `pm-remove-button`.
+- Confirm alert is native `Alert.alert` (Cancel/Remove) — not instrumentable; handle by text.
+- After remove, empty state → `pm-empty-state`.
+
+### SUB-TC-M06 · Go Back
 
 **Ref:** FLOW-12A · PaymentMethodsScreen
 **Actors:** test-buyer
@@ -1657,7 +1698,10 @@
 **Expected Result:**
 - The app returns to the prior screen (Settings).
 
-### TC-M07 · Backend contract — attach / detach / retryFailedPayment branches
+**Locator hints:**
+- Go Back → `pm-back-button`.
+
+### SUB-TC-M07 · Backend contract — attach / detach / retryFailedPayment branches
 
 **Ref:** FLOW-12A · `attach-payment-method` · `detach-payment-method` · `retry-failed-payment`
 **Actors:** test-free, test-buyer
@@ -1674,11 +1718,15 @@
 - After attach, `retryFailedPayment` runs; a true success shows **Payment Method Added**; `NO_FAILED_PAYMENT` / `NO_OPEN_INVOICE` / `NOT_FOUND` show **Payment Method Saved**; other non-success falls through to **Success** (`Payment method added successfully.`).
 - Remove → `detach-payment-method`; an unauthenticated remove shows `You must be logged in to manage payment methods.`
 
+**Locator hints:**
+- Add → `pm-add-button` (or `pm-update-button` with a saved card) · Remove → `pm-remove-button`.
+- Alerts are native `Alert.alert` — assert by title (Payment Method Added / Saved / Success / Removed).
+
 ---
 
 ## Group N — Kids Club Join & Continue
 
-### TC-N01 · JoinKidsClub value-prop + web CTA
+### SUB-TC-N01 · JoinKidsClub value-prop + web CTA
 
 **Ref:** FLOW-12 · JoinKidsClubScreen · JoinKidsClubButton
 **Actors:** test-free
@@ -1696,7 +1744,7 @@
 - Footnote `No charge in the app. You'll be taken to passitup.com to complete your membership securely.`
 - No price cards and no in-app purchase UI.
 
-### TC-N02 · JoinKidsClub web redirect (passitup.com)
+### SUB-TC-N02 · JoinKidsClub web redirect (passitup.com)
 
 **Ref:** FLOW-12 · `subscriptionWeb.openJoinKidsClubWeb`
 **Actors:** test-free
@@ -1711,7 +1759,7 @@
 - The external browser opens `https://passitup.com/join?email=<user email>`.
 - No charge occurs in-app; after returning, the CTA is re-enabled.
 
-### TC-N03 · Route-alias reachability (JoinKidsClub vs deep-link-only aliases)
+### SUB-TC-N03 · Route-alias reachability (JoinKidsClub vs deep-link-only aliases)
 
 **Ref:** FLOW-12 · AppNavigator route registration
 **Actors:** test-free
@@ -1727,7 +1775,7 @@
 - `SubscriptionChoice`, `KidsClubOverview`, and `SubscriptionPlans` all render `JoinKidsClubScreen` but have no `navigate()` call sites — deep-link only.
 - **Flag:** orphan files `SubscriptionChoiceScreen.tsx`, `KidsClubOverviewScreen.tsx`, `SubscriptionPlansScreen.tsx` exist but are unregistered; the existing Group A cases target those names.
 
-### TC-N04 · ContinueKidsClub active-subscription variant
+### SUB-TC-N04 · ContinueKidsClub active-subscription variant
 
 **Ref:** FLOW-12 · ContinueKidsClubScreen
 **Actors:** test-buyer
@@ -1741,7 +1789,7 @@
 - Shows `✅ Kids Club+ Active` with `Your subscription is already active and your premium benefits are available.` and a **Go Back** button.
 - **Flag:** the `Already Subscribed` alert is unreachable (the active state early-returns before the CTA renders); the `ContinueKidsClub` route is itself effectively deep-link-only (its `navigate()` call sites live in the unregistered `SubscriptionChoiceScreen.tsx`).
 
-### TC-N05 · ContinueKidsClub loading state
+### SUB-TC-N05 · ContinueKidsClub loading state
 
 **Ref:** FLOW-12 · ContinueKidsClubScreen
 **Actors:** test-free
@@ -1754,7 +1802,7 @@
 **Expected Result:**
 - A `Loading...` spinner shows while `getTrialStatus` resolves, then the content renders.
 
-### TC-N06 · ContinueKidsClub trial-ending urgency badge
+### SUB-TC-N06 · ContinueKidsClub trial-ending urgency badge
 
 **Ref:** FLOW-12 · ContinueKidsClubScreen
 **Actors:** test-trial
@@ -1772,27 +1820,27 @@
 
 ## Regression
 
-### TC-R01 · Subscriber fee applied in trade checkout
+### SUB-TC-R01 · Subscriber fee applied in trade checkout
 **Objective:** Confirm an active subscriber is charged the subscriber transaction fee in a real trade checkout.
 **Steps:** 1. As a subscriber, start a trade checkout and view the fee line.
 **Expected Result:** The subscriber fee (config value) is shown, not the non-subscriber fee.
 
-### TC-R02 · SP balance consistent across wallet, trade, and history
+### SUB-TC-R02 · SP balance consistent across wallet, trade, and history
 **Objective:** Confirm the SP available balance matches across the wallet hero, an SP offer slider max, and the ledger sum.
 **Steps:** 1. Compare the wallet balance, the max SP usable on an Accept SP listing, and the running ledger.
 **Expected Result:** All three reconcile.
 
-### TC-R03 · Payout available balance matches earnings
+### SUB-TC-R03 · Payout available balance matches earnings
 **Objective:** Confirm the Payout Dashboard available balance equals the Seller Earnings available figure.
 **Steps:** 1. Compare Payout Dashboard hero vs My Earnings totals.
 **Expected Result:** Available balances reconcile (Lifetime − Pending − Withdrawn).
 
-### TC-R04 · Cancel then reactivate restores SP access
+### SUB-TC-R04 · Cancel then reactivate restores SP access
 **Objective:** Confirm cancel-before-period-end keeps SP usable and reactivation restores active status.
 **Steps:** 1. Cancel, confirm SP still usable, reactivate.
 **Expected Result:** SP remains usable through the period; reactivation returns Active.
 
-### TC-R05 · Config change reflects without app rebuild
+### SUB-TC-R05 · Config change reflects without app rebuild
 **Objective:** Confirm changing `subscription_price`, `trial_days`, `transaction_fee_subscriber_cents`, `transaction_fee_non_subscriber_cents`, `grace_period_days`, and `sp_expiration_days` in admin reflects in the app on next load.
 **Steps:** 1. Change one or more of those config values to distinct numbers. 2. Reload Plans, Compare Plans, Manage Kids Club+, Subscription Payment, and SP Wallet.
 **Expected Result:** The new monthly price, trial length, fee comparison, grace countdown, and SP expiration messaging all render without requiring reinstall or rebuild.
@@ -1803,65 +1851,65 @@
 
 | Verification item | Test cases |
 |---|---|
-| Plans screen — Free vs Kids Club+ (FLOW-12) | TC-A01 |
-| Plan comparison table + POPULAR badge | TC-A02 |
-| Dynamic pricing/fees from admin config | TC-A03, TC-R05 |
-| Current plan marked / disabled | TC-A04 |
-| Kids Club+ Overview by status | TC-A05 |
-| Start trial → payment screen | TC-B01 |
-| Payment benefits + Due today $0.00 (trial) | TC-B02 |
-| Stripe payment → Success screen (FLOW-12A) | TC-B03 |
-| Trial already used blocked | TC-B04 |
-| Trial disabled globally | TC-B05 |
-| Trial limit config updates eligibility | TC-B04, TC-B08 |
-| Continue Kids Club+ urgency + benefits | TC-B06 |
-| Referred user bonus-loss warning | TC-B07 |
-| My Subscription paid view | TC-C01 |
-| My Subscription quick menu routes | TC-C02 |
-| Manage Kids Club+ status + billing | TC-C03 |
-| Cancel retention "Keep My Benefits" | TC-C04 |
-| Cancel reason modal + final confirm | TC-C05 |
-| Cancelled active until period end | TC-C06, TC-R04 |
-| Auto-renew toggle / update payment | TC-C07 |
-| Grace period banner + SP freeze warning (FLOW-10/12) | TC-D01 |
-| Re-subscribe from grace unlocks SP | TC-D02 |
-| Subscription Expired screen | TC-D03 |
-| Renewal payment full charge | TC-D04 |
-| Reactivate from cancelled | TC-D05 |
-| Subscription event notifications (FLOW-17) | TC-D06 |
-| Grace reminder thresholds from admin config | TC-D07 |
-| Billing history list + badges | TC-E01 |
-| Billing history empty | TC-E02 |
-| Failed charge error message | TC-E03 |
-| Subscription Status diagnostics | TC-E04 |
-| Payout dashboard hero balance/AUD (FLOW-22) | TC-F01 |
-| Payout method section add/existing | TC-F02 |
-| Payout history list | TC-F03 |
-| Seller Earnings totals + breakdown | TC-F04, TC-R03 |
-| Seller Earnings empty | TC-F05 |
-| Pending earnings release delay from admin config | TC-F06 |
-| Add Stripe Connect method (FLOW-23) | TC-G01 |
-| Add PayPal / Venmo method | TC-G02 |
-| Add Bank ACH method | TC-G03 |
-| Set primary / delete method | TC-G04 |
-| Unverified method blocks payout | TC-G05 |
-| requires_action → setup CTA | TC-G06 |
-| Request payout amount validation | TC-H01 |
-| Fee + net summary by method | TC-H02 |
-| Confirm payout success | TC-H03 |
-| Request blocked no/unverified method | TC-H04 |
-| Withdraw Now hero path | TC-H05 |
-| Minimum withdrawal config | TC-H06, TC-H07 |
-| SP wallet hero + lifetime stats (FLOW-10) | TC-I01, TC-R02 |
-| SP wallet quick actions | TC-I02 |
-| How to Earn SP + Learn More (FLOW-11) | TC-I03 |
-| SP expiration info + expiring-soon alert | TC-I04 |
-| Wallet warning banner by state | TC-I05 |
-| Free user SP wallet inactive | TC-I06 |
-| SP history tabs All/Earned/Spent | TC-J01 |
-| SP history rows icon/label/amount | TC-J02 |
-| SP history empty per tab | TC-J03 |
-| SP history pull-to-refresh | TC-J04 |
-| Transaction history list + badges | TC-K01 |
-| Transaction history empty + error/retry | TC-K02 |
-| Subscriber fee in trade checkout | TC-R01 |
+| Plans screen — Free vs Kids Club+ (FLOW-12) | SUB-TC-A01 |
+| Plan comparison table + POPULAR badge | SUB-TC-A02 |
+| Dynamic pricing/fees from admin config | SUB-TC-A03, SUB-TC-R05 |
+| Current plan marked / disabled | SUB-TC-A04 |
+| Kids Club+ Overview by status | SUB-TC-A05 |
+| Start trial → payment screen | SUB-TC-B01 |
+| Payment benefits + Due today $0.00 (trial) | SUB-TC-B02 |
+| Stripe payment → Success screen (FLOW-12A) | SUB-TC-B03 |
+| Trial already used blocked | SUB-TC-B04 |
+| Trial disabled globally | SUB-TC-B05 |
+| Trial limit config updates eligibility | SUB-TC-B04, SUB-TC-B08 |
+| Continue Kids Club+ urgency + benefits | SUB-TC-B06 |
+| Referred user bonus-loss warning | SUB-TC-B07 |
+| My Subscription paid view | SUB-TC-C01 |
+| My Subscription quick menu routes | SUB-TC-C02 |
+| Manage Kids Club+ status + billing | SUB-TC-C03 |
+| Cancel retention "Keep My Benefits" | SUB-TC-C04 |
+| Cancel reason modal + final confirm | SUB-TC-C05 |
+| Cancelled active until period end | SUB-TC-C06, SUB-TC-R04 |
+| Auto-renew toggle / update payment | SUB-TC-C07 |
+| Grace period banner + SP freeze warning (FLOW-10/12) | SUB-TC-D01 |
+| Re-subscribe from grace unlocks SP | SUB-TC-D02 |
+| Subscription Expired screen | SUB-TC-D03 |
+| Renewal payment full charge | SUB-TC-D04 |
+| Reactivate from cancelled | SUB-TC-D05 |
+| Subscription event notifications (FLOW-17) | SUB-TC-D06 |
+| Grace reminder thresholds from admin config | SUB-TC-D07 |
+| Billing history list + badges | SUB-TC-E01 |
+| Billing history empty | SUB-TC-E02 |
+| Failed charge error message | SUB-TC-E03 |
+| Subscription Status diagnostics | SUB-TC-E04 |
+| Payout dashboard hero balance/AUD (FLOW-22) | SUB-TC-F01 |
+| Payout method section add/existing | SUB-TC-F02 |
+| Payout history list | SUB-TC-F03 |
+| Seller Earnings totals + breakdown | SUB-TC-F04, SUB-TC-R03 |
+| Seller Earnings empty | SUB-TC-F05 |
+| Pending earnings release delay from admin config | SUB-TC-F06 |
+| Add Stripe Connect method (FLOW-23) | SUB-TC-G01 |
+| Add PayPal / Venmo method | SUB-TC-G02 |
+| Add Bank ACH method | SUB-TC-G03 |
+| Set primary / delete method | SUB-TC-G04 |
+| Unverified method blocks payout | SUB-TC-G05 |
+| requires_action → setup CTA | SUB-TC-G06 |
+| Request payout amount validation | SUB-TC-H01 |
+| Fee + net summary by method | SUB-TC-H02 |
+| Confirm payout success | SUB-TC-H03 |
+| Request blocked no/unverified method | SUB-TC-H04 |
+| Withdraw Now hero path | SUB-TC-H05 |
+| Minimum withdrawal config | SUB-TC-H06, SUB-TC-H07 |
+| SP wallet hero + lifetime stats (FLOW-10) | SUB-TC-I01, SUB-TC-R02 |
+| SP wallet quick actions | SUB-TC-I02 |
+| How to Earn SP + Learn More (FLOW-11) | SUB-TC-I03 |
+| SP expiration info + expiring-soon alert | SUB-TC-I04 |
+| Wallet warning banner by state | SUB-TC-I05 |
+| Free user SP wallet inactive | SUB-TC-I06 |
+| SP history tabs All/Earned/Spent | SUB-TC-J01 |
+| SP history rows icon/label/amount | SUB-TC-J02 |
+| SP history empty per tab | SUB-TC-J03 |
+| SP history pull-to-refresh | SUB-TC-J04 |
+| Transaction history list + badges | SUB-TC-K01 |
+| Transaction history empty + error/retry | SUB-TC-K02 |
+| Subscriber fee in trade checkout | SUB-TC-R01 |

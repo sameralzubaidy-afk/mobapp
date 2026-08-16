@@ -5960,7 +5960,6 @@ Satisfied Items:
 - **Change Classification**: C (Mobile UI only — no DB/API/Edge Function changes).
 - **Impacted Flows**: FLOW-01 (nav accessibility IDs), FLOW-16 (Home header + composer), FLOW-19 (analytics events), FLOW-08 (Trades tab surfaces trade status).
 - **Backward Compatibility**: All changes additive — new route params optional (`prefilledTitle`), `InboxTab` route + `TradeList` route kept; logout still in Profile/Settings; old clients unaffected (mobile-only UI change).
-- **R-ZILLOW-TABBAR (2026-08-12 — Zillow-style tab bar restyle)**: Selected-tab highlight added to the floating nav — soft light-green rounded-rect (`colors.primary[100]` `#E8F5F0`, radius 14) rendered behind the active tab icon (static per tab, Zillow-style; no animation); active icon+label switched to darker brand green `colors.primary[600]` `#4DAA7A`; inactive label to `colors.neutral[500]`; all hardcoded tab-bar hex replaced with theme tokens; Sell FAB shadow softened (opacity 0.30, radius 10, elevation 6, `colors.accent[500]`). Zero-logic UI change — no API/DB/EF changes, no new smoke script (existing FLOW-30 manual coverage applies). testIDs (`tab-home|tab-discover|tab-sell|tab-trades|tab-trade-basket`) + `accessibilityRole`/`accessibilityState.selected` unchanged (BP-53); unit tests mock the bar to `() => null`, so no test updates required. Verification: `yarn typecheck` (PASS), ESLint on the edited file (PASS). Classification C (UI only) → Tier 0 only.
 
 ### FLOW-13: Referrals UI
 
