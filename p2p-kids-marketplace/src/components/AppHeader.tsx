@@ -21,7 +21,7 @@
  *   <ScreenLayout variant="detail" title="Settings">…</ScreenLayout>
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Bell, ChatCircleText, CaretLeft, MapPin } from 'phosphor-react-native';
@@ -31,6 +31,7 @@ import { useNotificationBadge } from '@/hooks/useNotificationBadge';
 import { useUnreadMessagesBadge } from '@/hooks/useUnreadMessagesBadge';
 import CountBadge from '@/components/ui/CountBadge';
 import Avatar from '@/components/atoms/Avatar';
+import { resolveAvatarUrl } from '@/services/profile';
 import { colors, borderRadius } from '@/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -86,6 +87,32 @@ export default function AppHeader({
     (session?.user as any)?.node?.name ||
     (session?.user as any)?.node?.city ||
     'Local Market';
+
+  // Resolve the avatar to a displayable URL. `profiles.avatar_url` can be a
+  // storage PATH (e.g. 'user-avatars/<uuid>.jpg') rather than a full URL, and
+  // <Avatar> requires a URL or it falls back to initials — so resolve it via the
+  // same helper used by Profile/EditProfile/review (keep consumers consistent).
+  // Only the main (Home) variant renders the avatar, so skip the lookup elsewhere.
+  const rawAvatarUrl = (session?.user as any)?.avatar_url;
+  const shouldResolveAvatar = variant === 'main';
+  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (!shouldResolveAvatar || !rawAvatarUrl) {
+      setResolvedAvatarUrl(null);
+      return;
+    }
+    resolveAvatarUrl(rawAvatarUrl)
+      .then((url) => {
+        if (active) setResolvedAvatarUrl(url);
+      })
+      .catch(() => {
+        if (active) setResolvedAvatarUrl(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [rawAvatarUrl, shouldResolveAvatar]);
 
   const navigateTo = (routeName: string) => {
     if (navigation && typeof navigation.navigate === 'function') {
@@ -165,7 +192,7 @@ export default function AppHeader({
             testID="header-profile-btn"
           >
             <Avatar
-              imageUrl={(session?.user as any)?.avatar_url}
+              imageUrl={resolvedAvatarUrl ?? undefined}
               size={36}
               name={displayName}
             />

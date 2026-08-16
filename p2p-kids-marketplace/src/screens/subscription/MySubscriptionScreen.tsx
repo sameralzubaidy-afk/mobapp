@@ -20,6 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Crown, CrownSimple, CheckCircle, Question, Receipt, CreditCard } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
@@ -48,6 +49,7 @@ function formatRenewalDate(dateString: string | null | undefined): string {
 export default function MySubscriptionScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { subscription, loading } = useSubscription();
+  const { user } = useAuth();
 
   if (loading) {
     return (
@@ -63,6 +65,10 @@ export default function MySubscriptionScreen() {
   const renewalDateSource =
     subscription?.next_billing_date || subscription?.subscription_expires_at || subscription?.trial_ends_at;
   const renewalDate = formatRenewalDate(renewalDateSource);
+  // "Member Since" = when the account was created (the user joined as a member),
+  // not the current billing period start (which resets monthly) and not the
+  // subscription row's created_at (which is set at signup for all users anyway).
+  const memberSince = formatRenewalDate(user?.created_at);
 
   const handleUpgrade = () => {
     navigation.navigate('UpgradePlan');
@@ -133,7 +139,7 @@ export default function MySubscriptionScreen() {
             {isPaid && (
               <View style={styles.infoRight}>
                 <Text style={styles.infoLabel}>Member Since</Text>
-                <Text style={styles.infoValue}>May 2024</Text>
+                <Text style={styles.infoValue}>{memberSince}</Text>
               </View>
             )}
           </View>
