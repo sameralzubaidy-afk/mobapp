@@ -345,6 +345,9 @@ export default function UserDashboardScreen() {
             <TouchableOpacity
               key={key}
               testID={`action-tile-${key}`}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={label}
               style={styles.actionTile}
               onPress={() => navigation.navigate(route as any)}
               activeOpacity={0.75}
@@ -464,7 +467,7 @@ export default function UserDashboardScreen() {
         <View style={styles.sectionBlock}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>Recommended for You</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Discover')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Discover')} testID="dashboard-see-all-discover" accessible accessibilityRole="button" accessibilityLabel="See All">
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -476,6 +479,10 @@ export default function UserDashboardScreen() {
           style={styles.card}
           onPress={() => navigation.navigate('MySubscription' as any)}
           activeOpacity={0.8}
+          testID="dashboard-subscription-card"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Subscription"
         >
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>Subscription</Text>
@@ -495,6 +502,10 @@ export default function UserDashboardScreen() {
             <TouchableOpacity
               style={styles.upgradeBtn}
               onPress={() => navigation.navigate('JoinKidsClub')}
+              testID="dashboard-upgrade-kids-club-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Upgrade to Kids Club+"
             >
               <Text style={styles.upgradeBtnText}>Upgrade to Kids Club+</Text>
             </TouchableOpacity>
@@ -506,7 +517,7 @@ export default function UserDashboardScreen() {
         {/* ── Latest Trade ─────────────────────────────────────────────── */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Latest Trade</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('TradeList' as any)}>
+          <TouchableOpacity onPress={() => navigation.navigate('TradeList' as any)} testID="dashboard-view-all-trades" accessible accessibilityRole="button" accessibilityLabel="View All">
             <Text style={styles.seeAll}>View All →</Text>
           </TouchableOpacity>
         </View>
@@ -535,6 +546,10 @@ export default function UserDashboardScreen() {
                 onPress={() =>
                   navigation.navigate('TradeTimeline', { tradeId: recentTrade.id })
                 }
+                testID="dashboard-view-timeline"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="View Timeline"
               >
                 <Text style={styles.viewTimelineBtnText}>View Timeline</Text>
               </TouchableOpacity>
@@ -559,7 +574,7 @@ export default function UserDashboardScreen() {
         onRequestClose={() => setSellSheetVisible(false)}
         testID="sell-options-sheet"
       >
-        <Pressable style={styles.sheetOverlay} onPress={() => setSellSheetVisible(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setSellSheetVisible(false)} testID="sell-options-backdrop" accessible accessibilityRole="button" accessibilityLabel="Close">
           <View style={styles.sheetContainer}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Sell</Text>

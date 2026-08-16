@@ -708,12 +708,14 @@ export default function TradeListScreen({ navigation }: any) {
           <TouchableOpacity 
             style={styles.tradeCardBtnSecondary}
             onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}
+            testID={`trade-row-${item.id}-view`}
           >
             <Text style={styles.tradeCardBtnSecondaryText}>View Trade</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.tradeCardBtnSecondary}
             onPress={() => navigation.navigate('Chat', { tradeId: item.id })}
+            testID={`trade-row-${item.id}-message`}
           >
             <ChatTeardropText size={18} color="#6B6B6B" weight="regular" />
             <Text style={styles.tradeCardBtnSecondaryText}>Message</Text>
@@ -755,6 +757,10 @@ export default function TradeListScreen({ navigation }: any) {
       <TouchableOpacity 
         style={styles.compactRow}
         onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}
+        testID={`trade-history-row-${item.id}`}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="View trade details"
       >
         <View style={styles.compactImageContainer}>
           {firstImage ? (
@@ -832,6 +838,10 @@ export default function TradeListScreen({ navigation }: any) {
         <Pressable
           style={styles.summaryItem}
           onPress={() => setSelectedFilter(prev => prev === 'your_offers' ? 'all' : 'your_offers')}
+          testID="trade-summary-your-offers"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Your Offers"
         >
           <Text style={[styles.summaryValue, selectedFilter === 'your_offers' && styles.summaryValueActive]}>{summary.pendingOffers}</Text>
           <Text style={styles.summaryLabel}>Your Offers</Text>
@@ -840,6 +850,10 @@ export default function TradeListScreen({ navigation }: any) {
         <Pressable
           style={styles.summaryItem}
           onPress={() => setSelectedFilter(prev => prev === 'in_progress' ? 'all' : 'in_progress')}
+          testID="trade-summary-in-progress"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="In Progress"
         >
           <Text style={[styles.summaryValue, selectedFilter === 'in_progress' && styles.summaryValueActive]}>{summary.inProgress}</Text>
           <Text style={styles.summaryLabel}>In Progress</Text>
@@ -848,6 +862,10 @@ export default function TradeListScreen({ navigation }: any) {
         <Pressable
           style={styles.summaryItem}
           onPress={() => setSelectedFilter(prev => prev === 'needs_action' ? 'all' : 'needs_action')}
+          testID="trade-summary-needs-action"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Needs Action"
         >
           <Text style={[styles.summaryValue, selectedFilter === 'needs_action' && styles.summaryValueActive]}>{summary.needsAction}</Text>
           <Text style={styles.summaryLabel}>Needs Action</Text>
@@ -856,6 +874,10 @@ export default function TradeListScreen({ navigation }: any) {
         <Pressable
           style={styles.summaryItem}
           onPress={() => setSelectedFilter(prev => prev === 'completed' ? 'all' : 'completed')}
+          testID="trade-summary-completed"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Completed"
         >
           <Text style={[styles.summaryValue, selectedFilter === 'completed' && styles.summaryValueActive]}>{summary.completed}</Text>
           <Text style={styles.summaryLabel}>Completed</Text>
@@ -915,6 +937,10 @@ export default function TradeListScreen({ navigation }: any) {
                         key={`bundle-submitted-${row.bundleId}`}
                         style={[styles.tradeCard, { paddingBottom: 12 }]}
                         onPress={() => navigation.navigate('TradeDetail', { tradeId: bundleOffers[0].id })}
+                        testID={`trade-bundle-${row.bundleId}-view`}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel="View bundle offer"
                       >
                         <View style={styles.tradeCardMain}>
                           <View style={styles.tradeCardContent}>
@@ -965,6 +991,7 @@ export default function TradeListScreen({ navigation }: any) {
                           <TouchableOpacity
                             style={[styles.tradeCardBtnSecondary, { flex: 1 }]}
                             onPress={() => navigation.navigate('TradeDetail', { tradeId: bundleOffers[0].id })}
+                            testID={`trade-bundle-${row.bundleId}-view-details`}
                           >
                             <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
                           </TouchableOpacity>
@@ -979,6 +1006,10 @@ export default function TradeListScreen({ navigation }: any) {
                       key={offer.id}
                       style={styles.tradeCard}
                       onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
+                      testID={`trade-offer-${offer.id}-view`}
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="View offer"
                     >
                       <View style={styles.tradeCardMain}>
                         <View style={styles.tradeCardImageContainer}>
@@ -1036,6 +1067,7 @@ export default function TradeListScreen({ navigation }: any) {
                                 navigation.navigate('ItemDetail', { itemId: offer.listing.id });
                               }
                             }}
+                            testID={`trade-offer-${offer.id}-view-item-again`}
                           >
                             <Text style={styles.tradeCardBtnPrimaryText}>View Item Again</Text>
                           </TouchableOpacity>
@@ -1043,6 +1075,7 @@ export default function TradeListScreen({ navigation }: any) {
                           <TouchableOpacity 
                             style={styles.tradeCardBtnSecondary}
                             onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
+                            testID={`trade-offer-${offer.id}-details`}
                           >
                             <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
                           </TouchableOpacity>
@@ -1065,7 +1098,7 @@ export default function TradeListScreen({ navigation }: any) {
                   if (row.type === 'bundle') {
                     const bundleOffers = row.offers;
                     return (
-                      <View key={`bundle-${row.bundleId}`} style={[styles.tradeCard, { paddingBottom: 12 }]}>
+                      <View key={`bundle-${row.bundleId}`} style={[styles.tradeCard, { paddingBottom: 12 }]} testID={`trade-bundle-${row.bundleId}-card`}>
                         {/* Bundle Header */}
                         <View style={styles.tradeCardMain}>
                           <View style={styles.tradeCardContent}>
@@ -1102,6 +1135,10 @@ export default function TradeListScreen({ navigation }: any) {
                             style={[styles.tradeCardBtnSecondary, { flex: 1 }, processingBundleId === row.bundleId && styles.tradeCardBtnDisabled]}
                             onPress={() => navigation.navigate('ReviewOffer', { tradeId: bundleOffers[0].id })}
                             disabled={processingBundleId === row.bundleId}
+                            testID={`trade-bundle-${row.bundleId}-review-each`}
+                            accessible
+                            accessibilityRole="button"
+                            accessibilityLabel="Review Each"
                           >
                             <Text style={[styles.tradeCardBtnSecondaryText, processingBundleId === row.bundleId && { opacity: 0.5 }]}>Review Each</Text>
                           </TouchableOpacity>
@@ -1109,6 +1146,10 @@ export default function TradeListScreen({ navigation }: any) {
                             style={[styles.tradeCardBtnPrimary, { flex: 1, backgroundColor: '#5DBB8E' }, processingBundleId === row.bundleId && styles.tradeCardBtnDisabled]}
                             onPress={() => requestAcceptBundle(row.bundleId, bundleOffers.map(o => o.id), `${bundleOffers.length} items`)}
                             disabled={processingBundleId === row.bundleId}
+                            testID={`trade-bundle-${row.bundleId}-accept-all`}
+                            accessible
+                            accessibilityRole="button"
+                            accessibilityLabel="Accept All"
                           >
                             <Text style={[styles.tradeCardBtnPrimaryText, { color: '#fff' }]}>Accept All</Text>
                           </TouchableOpacity>
@@ -1116,6 +1157,10 @@ export default function TradeListScreen({ navigation }: any) {
                             style={[styles.tradeCardBtnSecondary, { flex: 1 }, processingBundleId === row.bundleId && styles.tradeCardBtnDisabled]}
                             onPress={() => requestDeclineBundle(row.bundleId, bundleOffers.map(o => o.id), `${bundleOffers.length} items`)}
                             disabled={processingBundleId === row.bundleId}
+                            testID={`trade-bundle-${row.bundleId}-decline-all`}
+                            accessible
+                            accessibilityRole="button"
+                            accessibilityLabel="Decline All"
                           >
                             <Text style={[styles.tradeCardBtnSecondaryText, { color: '#E53E3E' }, processingBundleId === row.bundleId && { opacity: 0.5 }]}>Decline All</Text>
                           </TouchableOpacity>
@@ -1130,6 +1175,10 @@ export default function TradeListScreen({ navigation }: any) {
                       key={offer.id}
                       style={styles.tradeCard}
                       onPress={() => navigation.navigate('ReviewOffer', { tradeId: offer.id })}
+                      testID={`trade-offer-row-${offer.id}`}
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Review offer"
                     >
                       <View style={styles.tradeCardMain}>
                         <View style={styles.tradeCardImageContainer}>
@@ -1177,6 +1226,10 @@ export default function TradeListScreen({ navigation }: any) {
                         <TouchableOpacity
                           style={styles.tradeCardBtnSecondary}
                           onPress={() => navigation.navigate('ReviewOffer', { tradeId: offer.id })}
+                          testID={`trade-offer-row-${offer.id}-review`}
+                          accessible
+                          accessibilityRole="button"
+                          accessibilityLabel="Review Offer"
                         >
                           <Text style={styles.tradeCardBtnSecondaryText}>Review Offer</Text>
                         </TouchableOpacity>
@@ -1200,6 +1253,10 @@ export default function TradeListScreen({ navigation }: any) {
                     key={`bundle-${bundle.bundleId}`}
                     style={styles.tradeCard}
                     onPress={() => navigation.navigate('TradeDetail', { tradeId: bundle.trades[0].id })}
+                    testID={`trade-bundle-${bundle.bundleId}-view`}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="View in-progress bundle"
                   >
                     <View style={styles.tradeCardMain}>
                       <View style={styles.tradeCardContent}>
@@ -1266,7 +1323,7 @@ export default function TradeListScreen({ navigation }: any) {
                     <Check size={18} color="#6B6B6B" />
                     <Text style={styles.sectionTitle}>RECENTLY COMPLETED</Text>
                   </View>
-                  <TouchableOpacity onPress={() => setActiveTab('history')}>
+                  <TouchableOpacity onPress={() => setActiveTab('history')} testID="trade-see-all" accessible accessibilityRole="button" accessibilityLabel="See all">
                     <Text style={styles.seeAllText}>See all →</Text>
                   </TouchableOpacity>
                 </View>
@@ -1328,6 +1385,7 @@ export default function TradeListScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.ignModalBtnPrimary}
               onPress={executeBundleAction}
+              testID={bundleConfirmModal.action === 'accept' ? 'btn-accept-all-confirm' : 'btn-decline-all-confirm'}
             >
               <Text style={styles.ignModalBtnPrimaryText}>
                 {bundleConfirmModal.action === 'accept' ? 'Accept All' : 'Decline All'}
@@ -1336,6 +1394,7 @@ export default function TradeListScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.ignModalBtnDismiss}
               onPress={() => setBundleConfirmModal(prev => ({ ...prev, visible: false }))}
+              testID="btn-bundle-modal-cancel"
             >
               <Text style={styles.ignModalBtnDismissText}>Cancel</Text>
             </TouchableOpacity>
@@ -1367,6 +1426,7 @@ export default function TradeListScreen({ navigation }: any) {
                 }
               }}
               disabled={pausingListing}
+              testID="btn-pause-listing"
             >
               {pausingListing ? (
                 <ActivityIndicator color="#fff" />
@@ -1377,6 +1437,7 @@ export default function TradeListScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.ignModalBtnDismiss}
               onPress={() => setShowIgnoringModal(false)}
+              testID="btn-dismiss-prompt"
             >
               <Text style={styles.ignModalBtnDismissText}>Dismiss</Text>
             </TouchableOpacity>

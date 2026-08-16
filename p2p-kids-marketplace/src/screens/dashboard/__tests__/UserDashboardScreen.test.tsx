@@ -169,7 +169,7 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
     expect(mockNavigate).toHaveBeenCalledWith('SpWallet');
   });
 
-  it('navigates to SubscriptionPlans when upgrade strip is tapped', () => {
+  it('navigates to JoinKidsClub when upgrade strip is tapped', () => {
     setupMocks({ canSpendSP: false, subStatus: 'free' });
     const { getByText } = render(<UserDashboardScreen />);
     fireEvent.press(getByText('Upgrade →'));

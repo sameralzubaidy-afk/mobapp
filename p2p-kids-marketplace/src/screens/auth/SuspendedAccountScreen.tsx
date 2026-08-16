@@ -42,6 +42,7 @@ export default function SuspendedAccountScreen() {
             variant="primary"
             size="large"
             onPress={handleLogout}
+            testID="logout-button"
             style={styles.logoutButton}
           >
             Log Out

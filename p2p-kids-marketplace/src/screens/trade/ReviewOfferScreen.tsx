@@ -339,6 +339,9 @@ export default function ReviewOfferScreen() {
             <TouchableOpacity
               onPress={() => setShowBundleList((v) => !v)}
               accessibilityLabel="Toggle bundle item list"
+              testID="review-bundle-toggle"
+              accessible
+              accessibilityRole="button"
             >
               <Text style={styles.bundleBannerToggle}>
                 {showBundleList ? 'Hide items' : 'View all items'}
@@ -359,6 +362,10 @@ export default function ReviewOfferScreen() {
                       key={o.id}
                       style={styles.bundleItemRow}
                       onPress={() => navigation.navigate('ReviewOffer', { tradeId: o.id })}
+                      testID={`review-bundle-item-${o.id}`}
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel={o.listing?.title || 'Item'}
                     >
                       <Text style={styles.bundleItemTitle} numberOfLines={1}>
                         {o.listing?.title || 'Item'}
@@ -523,6 +530,7 @@ export default function ReviewOfferScreen() {
               onPress={handleAccept}
               disabled={submitting || acceptingBundle}
               accessibilityLabel="Accept trade offer"
+              testID="accept-trade-button"
             >
               {submitting ? (
                 <LoadingSpinner color="#FFFFFF" size={20} />
@@ -536,6 +544,7 @@ export default function ReviewOfferScreen() {
               onPress={handleDecline}
               disabled={submitting || acceptingBundle}
               accessibilityLabel="Decline trade offer"
+              testID="decline-trade-button"
             >
               <Text style={styles.declineButtonText}>Decline</Text>
             </TouchableOpacity>
@@ -549,6 +558,7 @@ export default function ReviewOfferScreen() {
               style={styles.expiredBackButton}
               onPress={() => navigation.goBack()}
               accessibilityLabel="Go back"
+              testID="back-to-offers-button"
             >
               <Text style={styles.expiredBackButtonText}>Back to Offers</Text>
             </TouchableOpacity>

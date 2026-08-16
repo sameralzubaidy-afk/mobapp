@@ -443,6 +443,10 @@ export default function ManageKidsClubScreen() {
         {canCancel && (
           <View style={styles.cancelSection}>
             <TouchableOpacity
+              testID="cancel-kids-club-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Cancel Kids Club+"
               style={styles.cancelButton}
               onPress={() => setShowCancelModal(true)}
               disabled={cancelling}
@@ -492,7 +496,7 @@ export default function ManageKidsClubScreen() {
         onRequestClose={() => setShowCancelModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.modalContent} testID="cancel-reason-modal">
             <Text style={styles.modalTitle}>Cancel Kids Club+?</Text>
 
             <Text style={styles.modalSubtitle}>
@@ -506,6 +510,10 @@ export default function ManageKidsClubScreen() {
               {CANCELLATION_REASONS.map((reason) => (
                 <TouchableOpacity
                   key={reason.id}
+                  testID={`cancel-reason-${reason.id}`}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={reason.label}
                   style={[
                     styles.reasonItem,
                     selectedReason === reason.id && styles.reasonItemSelected,
@@ -523,6 +531,8 @@ export default function ManageKidsClubScreen() {
             {/* Custom Reason Input */}
             {selectedReason === 'other' && (
               <TextInput
+                testID="cancel-reason-other-input"
+                accessibilityLabel="Other cancellation reason"
                 style={styles.customReasonInput}
                 placeholder="Please tell us more..."
                 value={customReason}
@@ -535,6 +545,10 @@ export default function ManageKidsClubScreen() {
             {/* Modal Buttons */}
             <View style={styles.modalButtons}>
               <TouchableOpacity
+                testID="cancel-keep-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Keep Subscription"
                 style={styles.modalCancelBtn}
                 onPress={() => {
                   setShowCancelModal(false);
@@ -546,6 +560,10 @@ export default function ManageKidsClubScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                testID="cancel-confirm-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Confirm Cancellation"
                 style={[styles.modalConfirmBtn, !selectedReason && styles.modalConfirmBtnDisabled]}
                 onPress={handleCancel}
                 disabled={!selectedReason}

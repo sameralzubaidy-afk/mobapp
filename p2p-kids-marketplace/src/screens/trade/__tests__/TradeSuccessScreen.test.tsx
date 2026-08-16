@@ -82,7 +82,7 @@ describe('TradeSuccessScreen', () => {
       expect(getByTestId('cta-primary-button')).toBeTruthy();
     });
 
-    it('should navigate to SubscriptionChoice on free buyer CTA press', () => {
+    it('should navigate to PlanComparison on free buyer CTA press', () => {
       const mockNavigate = jest.fn();
       jest.spyOn(require('@react-navigation/native'), 'useNavigation').mockReturnValue({
         navigate: mockNavigate,
@@ -160,7 +160,7 @@ describe('TradeSuccessScreen', () => {
     });
 
     // Permutation 1: Free buyer → upsell Kids Club+
-    it('P1: free buyer should see Kids Club+ upsell and navigate to SubscriptionChoice', () => {
+    it('P1: free buyer should see Kids Club+ upsell and navigate to PlanComparison', () => {
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: { success: true, role: 'buyer', subscriptionStatus: 'free', tradeId: 't1' },
       });
@@ -212,7 +212,7 @@ describe('TradeSuccessScreen', () => {
     });
 
     // Permutation 4: Free seller → upsell Kids Club+
-    it('P4: free seller should see Kids Club+ upsell and navigate to SubscriptionChoice', () => {
+    it('P4: free seller should see Kids Club+ upsell and navigate to PlanComparison', () => {
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: { success: true, role: 'seller', subscriptionStatus: 'free', tradeId: 't4' },
       });

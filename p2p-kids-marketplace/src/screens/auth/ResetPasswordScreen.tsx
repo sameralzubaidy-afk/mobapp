@@ -234,6 +234,7 @@ export default function ResetPasswordScreen() {
           {/* New Password Input */}
           <TextInput
             label="New Password"
+            testID="reset-new-password-input"
             placeholder="Enter new password"
             value={password}
             onChangeText={(text) => {
@@ -252,6 +253,7 @@ export default function ResetPasswordScreen() {
           {/* Confirm Password Input */}
           <TextInput
             label="Confirm Password"
+            testID="reset-confirm-password-input"
             placeholder="Confirm new password"
             value={confirmPassword}
             onChangeText={(text) => {
@@ -276,6 +278,7 @@ export default function ResetPasswordScreen() {
                 variant="primary"
                 size="medium"
                 onPress={() => (navigation as any).navigate('ForgotPassword')}
+                testID="reset-request-new-email-button"
                 style={styles.errorCardButton}
               >
                 Request New Reset Email
@@ -300,6 +303,7 @@ export default function ResetPasswordScreen() {
             onPress={handleResetPassword}
             disabled={loading || !password || !confirmPassword}
             loading={loading}
+            testID="reset-submit-button"
             style={styles.resetButton}
           >
             Reset Password
@@ -315,6 +319,10 @@ export default function ResetPasswordScreen() {
             }}
             disabled={loading}
             style={styles.backLinkButton}
+            testID="reset-back-to-login"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Back to Login"
           >
             <Text style={[styles.backLinkText, loading && styles.backLinkTextDisabled]}>
               Back to Login

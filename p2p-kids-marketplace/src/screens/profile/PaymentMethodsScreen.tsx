@@ -239,7 +239,7 @@ export default function PaymentMethodsScreen() {
     return (
       <ScreenLayout variant="detail" title="Payment Methods">
         <View style={styles.loadingContainer}>
-          <LoadingSpinner size={40} color="#5DBB8E" />
+          <LoadingSpinner size={40} color="#5DBB8E" testID="pm-loading-spinner" />
           <Text style={styles.loadingText}>Loading payment methods...</Text>
         </View>
       </ScreenLayout>
@@ -264,7 +264,7 @@ export default function PaymentMethodsScreen() {
 
         {/* Saved Payment Method Card */}
         {paymentMethod ? (
-          <View style={styles.card}>
+          <View style={styles.card} testID="pm-saved-card">
             <View style={styles.cardHeader}>
               <View style={styles.cardTitleRow}>
                 <CreditCard size={22} color="#1A1A1A" weight="bold" />
@@ -297,6 +297,10 @@ export default function PaymentMethodsScreen() {
               onPress={handleAddPaymentMethod}
               disabled={updating}
               activeOpacity={0.8}
+              testID="pm-update-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Update Payment Method"
             >
               {updating ? (
                 <View style={styles.primaryButtonLoadingRow}>
@@ -315,13 +319,17 @@ export default function PaymentMethodsScreen() {
               onPress={handleRemovePaymentMethod}
               disabled={updating}
               activeOpacity={0.7}
+              testID="pm-remove-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Remove This Card"
             >
               <Text style={styles.removeButtonText}>Remove This Card</Text>
             </TouchableOpacity>
           </View>
         ) : (
           /* No Payment Method - Matches screenshot empty state */
-          <View style={styles.card}>
+          <View style={styles.card} testID="pm-empty-state">
             <View style={styles.emptyState}>
               <View style={styles.emptyIconContainer}>
                 <CreditCard size={40} color="#1A1A1A" weight="regular" />
@@ -336,6 +344,10 @@ export default function PaymentMethodsScreen() {
                 onPress={handleAddPaymentMethod}
                 disabled={updating}
                 activeOpacity={0.8}
+                testID="pm-add-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Add Payment Method"
               >
                 {updating ? (
                   <View style={styles.primaryButtonLoadingRow}>
@@ -353,7 +365,7 @@ export default function PaymentMethodsScreen() {
         )}
 
         {/* Security Info Card - Matches screenshot blue banner */}
-        <View style={styles.securityBanner}>
+        <View style={styles.securityBanner} testID="pm-security-banner">
           <View style={styles.securityIconContainer}>
             <Lock size={18} color="#5DBB8E" weight="fill" />
           </View>
@@ -371,6 +383,10 @@ export default function PaymentMethodsScreen() {
           style={styles.bottomBackBtn}
           onPress={() => navigation.goBack()}
           activeOpacity={0.6}
+          testID="pm-back-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Go Back"
         >
           <Text style={styles.bottomBackBtnText}>Go Back</Text>
         </TouchableOpacity>

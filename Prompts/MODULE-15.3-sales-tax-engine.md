@@ -48,13 +48,16 @@ This section documents all sales tax design decisions made during requirements g
 
 ## 2. TAX CALCULATION MODEL
 
-### Decision: Tax on Net Item Price (After Swap Points Discount)
+### Decision: Tax on Full Item Price (Swap Points Do NOT Reduce Taxable Base)
+
+> **LOCKED RULE (2026-08-15):** Buyers pay tax on the **whole item price**. Swap Points are **payment tender**, not a coupon or discount — they reduce the cash the buyer owes but do **NOT** change the taxable base. Tax does not change as the SP slider moves. (Matches shipped code — BP-37.)
 
 **Formula:**
 ```
-Taxable Amount = Item Price - Swap Points Discount
+Taxable Amount = Item Price              ← FULL price, SP does NOT reduce this
 Sales Tax = Taxable Amount × Tax Rate
-Total Buyer Pays = Taxable Amount + Platform Fees + Sales Tax
+Total Buyer Pays = Item Price + Platform Fees + Sales Tax
+Cash Owed After SP = Total Buyer Pays - Swap Points Applied
 ```
 
 **Example Calculation:**
@@ -62,16 +65,19 @@ Total Buyer Pays = Taxable Amount + Platform Fees + Sales Tax
 Item Price: $100.00
 Swap Points Applied: -$20.00
 ─────────────────────────────
-Net Item Cost: $80.00  ← TAXABLE AMOUNT
+Net Item Cost: $80.00  ← cash portion (SP applied here)
+Taxable Amount: $100.00 ← FULL ITEM PRICE (SP does not reduce this)
 
 Buyer % Fee (2.5% of $80): +$2.00
 Flat Platform Fee: +$0.25
 ─────────────────────────────
 Subtotal (Pre-Tax): $82.25
 
-Sales Tax (6.35% of $80 ONLY): +$5.08
+Sales Tax (6.35% of $100 FULL): +$6.35  ← tax on full price, NOT on $80
 ─────────────────────────────
-TOTAL BUYER PAYS: $87.33
+TOTAL BUYER PAYS: $88.60
+Less SP tender: -$20.00
+Cash Buyer Pays: $68.60
 
 SELLER RECEIVES:
 Item Price: $100.00
@@ -81,15 +87,14 @@ Seller Payout: $96.00
 ```
 
 **Why we decided this:**
-- **Industry Standard:** Poshmark, Mercari, eBay tax net amount after promotional discounts
-- **Legal Compliance:** CT law treats swap points as promotional credit (similar to coupon codes)
-- **Fair to Buyers:** Only tax what they actually pay in cash
-- **Transparent:** Clear calculation customers can verify
+- **Product Rule:** "Buyers pay tax on the whole price; SP points are not coupons" (confirmed 2026-08-15).
+- **SP is Payment Tender:** Swap Points settle part of the buyer's cash obligation; they are not a price discount, so they do not shrink the taxable sale amount.
+- **Matches Shipped Code (BP-37):** Server Edge Function, client previews, cart checkout, and RPC all tax the full `item.price`; SP never subtracts from the taxable amount.
+- **Simple & Predictable:** Tax is stable as the SP slider moves — no recomputation or dispute surface.
 
-**Rejected Alternative:** Tax full item price before swap points. Rejected because:
-- Unfair double-taxation feel for customers
-- Swap points have no cash value (not redeemable for money)
-- Would discourage swap points usage (bad for retention)
+**Rejected Alternative:** Tax only the net cash amount after swap points (treating SP as a promotional coupon). Rejected because:
+- SP is a payment method, not a coupon — the whole item price is spent on a full-price good.
+- Taxing the full price matches the confirmed product decision and the shipped implementation.
 
 ---
 
@@ -99,7 +104,7 @@ Seller Payout: $96.00
 
 **Structure:**
 ```
-Taxable: Item price - Swap points
+Taxable: Item price (FULL — Swap Points do NOT reduce the taxable base)
 NOT Taxable: Platform fees (buyer fixed, buyer %, seller %)
 ```
 
@@ -123,32 +128,33 @@ NOT Taxable: Platform fees (buyer fixed, buyer %, seller %)
 
 ---
 
-## 4. SWAP POINTS AS TAX DISCOUNT
+## 4. SWAP POINTS AS PAYMENT TENDER (NOT A COUPON)
 
-### Decision: Swap Points Treated as Promotional Discount
+### Decision: Swap Points Treated as Payment Tender — They Do NOT Reduce Taxable Base
+
+> **LOCKED RULE (2026-08-15):** "Buyers pay tax on the whole price; SP points are not coupons." SP does **NOT** reduce the taxable base.
 
 **Tax Treatment:**
 ```
-Swap Points = Promotional discount applied BEFORE tax calculation
-Similar to: Coupon codes, referral credits, gift cards
+Swap Points = Payment tender applied to the buyer's cash obligation
+Taxable base = FULL item price (SP does NOT reduce it)
 ```
 
 **Why we decided this:**
-- **Legal Classification:** Swap points are loyalty rewards (not currency)
+- **Legal Classification:** Swap points are loyalty rewards (not currency), applied as tender
 - **No Cash Value:** Cannot be redeemed for cash or transferred between users
-- **Promotional Nature:** Earned through platform activity, used to incentivize purchases
-- **CT Law Precedent:** Discounts from loyalty programs reduce taxable amount
+- **Promotional Nature:** Earned through platform activity, used to settle part of a purchase
+- **Product Rule (2026-08-15):** SP is a payment method, not a coupon — the whole item price is taxed
 
 **Critical Design Constraint:**
 We already implemented **category-based spend caps** to prevent swap points from covering 100% of item price. This ensures:
-- Taxable amount is never $0
-- Buyers always pay some cash (tax still applies)
-- Prevents tax avoidance scenarios
+- Buyers always pay some cash
+- SP can never fully offset an item's price
+- Prevents SP-only "free" transactions
 
-**Rejected Alternative:** Tax full price, then apply swap points to reduce total. Rejected because:
-- Mathematically equivalent but less transparent
-- Creates confusion ("why am I paying tax on money I didn't spend?")
-- Inconsistent with discount treatment in retail
+**Rejected Alternative:** Treat SP as a promotional coupon that reduces the taxable amount. Rejected because:
+- SP is a payment method, not a discount on the sale price
+- Tax on the full item price is the confirmed product rule and matches shipped code (BP-37)
 
 ---
 
@@ -165,7 +171,7 @@ Buyer Fixed Fee = flat amount (not percentage-based)
 ```
 
 **Why we decided this:**
-- **Consistency:** Fees and tax both use same base amount
+- **Clarity:** Fees use the net cash portion (after SP tender); tax uses the FULL item price (BP-37) — see §2
 - **Fair to All Parties:** Everyone operates on actual transaction value
 - **Simpler Code:** Single calculation base reduces bugs
 - **Aligned Incentives:** Platform revenue tied to actual money changing hands
@@ -647,7 +653,7 @@ Create RPC function to calculate sales tax for a transaction:
 - Handles all validation and error cases
 
 #### Acceptance Criteria
-- [ ] `calculate_sales_tax()` computes correct tax based on (item price - SP discount)
+- [ ] `calculate_sales_tax()` computes correct tax on the FULL item price (SP does NOT reduce taxable base)
 - [ ] Reads tax_rate from buyer's node
 - [ ] Returns 0 if tax globally disabled or node tax disabled
 - [ ] Validates input parameters (item_price > 0, valid node_id)
@@ -661,7 +667,7 @@ Create RPC function to calculate sales tax for a transaction:
 - **Returns:** JSONB with tax calculation details
 
 #### Testing Checklist
-- [ ] $100 item, $20 SP → $80 taxable, correct tax calculated
+- [ ] $100 item, $20 SP → $100 taxable (full price), correct tax calculated
 - [ ] Tax disabled globally → $0 tax returned
 - [ ] Tax disabled for node → $0 tax returned
 - [ ] Invalid node ID → proper error returned

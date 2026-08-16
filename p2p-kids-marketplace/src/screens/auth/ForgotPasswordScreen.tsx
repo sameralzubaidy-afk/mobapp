@@ -103,6 +103,7 @@ export default function ForgotPasswordScreen() {
               setEmailSent(false);
               setEmail('');
             }}
+            testID="forgot-send-another-button"
             style={styles.resendButton}
           >
             Send Another Email
@@ -111,6 +112,10 @@ export default function ForgotPasswordScreen() {
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backLinkButton}
+            testID="forgot-back-to-login-success"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Back to Login"
           >
             <Text style={styles.backLinkText}>Back to Login</Text>
           </TouchableOpacity>
@@ -141,6 +146,7 @@ export default function ForgotPasswordScreen() {
           {/* Email Input */}
           <TextInput
             label="Email Address"
+            testID="forgot-email-input"
             placeholder="you@example.com"
             value={email}
             onChangeText={setEmail}
@@ -159,6 +165,7 @@ export default function ForgotPasswordScreen() {
             onPress={handleSendResetEmail}
             disabled={loading || !email}
             loading={loading}
+            testID="forgot-send-reset-button"
             style={styles.submitButton}
           >
             Send Reset Link
@@ -169,6 +176,10 @@ export default function ForgotPasswordScreen() {
             onPress={() => navigation.goBack()}
             disabled={loading}
             style={styles.backLinkButton}
+            testID="forgot-back-to-login"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Back to Login"
           >
             <Text style={[styles.backLinkText, loading && styles.backLinkTextDisabled]}>
               Back to Login

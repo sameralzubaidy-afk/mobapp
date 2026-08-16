@@ -27,10 +27,10 @@ This checklist verifies that MODULE 15.3 (Sales Tax Engine) has been fully imple
 
 | Decision | Rule | Where to Check |
 |---|---|---|
-| **D-01** | Tax calculated on **net item price** (item price − SP discount), NOT full price | `calculate_sales_tax` RPC, `CheckoutScreen` display |
+| **D-01** | Tax calculated on **FULL item price** — SP does NOT reduce the taxable base | `calculate_sales_tax` RPC, `CheckoutScreen` display |
 | **D-02** | Platform fees are **NOT included** in taxable amount | `calculate_sales_tax` RPC formula |
-| **D-03** | Swap points treated as **promotional discount** — reduce taxable base | `calculate_sales_tax`: `taxable = item_price - swap_points` |
-| **D-04** | All fees (buyer %, seller %, flat) calculated on **net price** (same base as tax) | `transactions-create` Edge Function / checkout logic |
+| **D-03** | Swap Points are **payment tender**, NOT a coupon — do NOT reduce taxable base | `calculate_sales_tax`: `taxable = item_price` (full) |
+| **D-04** | Fees (buyer %, seller %, flat) calculated on the **net cash portion**; TAX on **full item price** | `transactions-create` Edge Function / checkout logic |
 | **D-05** | Tax rate configured **per node** — NOT a single global rate | `nodes.tax_rate` column, `calculate_sales_tax` reads node rate |
 | **D-06** | Tax rate determined by **buyer's node** (destination-based) | `calculate_sales_tax(p_buyer_node_id)` |
 | **D-07** | Subscription fees are **non-taxable** by default (admin-toggleable) | `admin_config.subscription_fee_taxable` |
@@ -373,7 +373,7 @@ Before marking MODULE 15.3 complete, verify ALL of the following:
 - [ ] `get_node_tax_rate` helper ✓
 
 ### Critical Business Rules
-- [ ] Tax calculated on net price ONLY (D-01) — never on full price before SP discount
+- [ ] Tax calculated on FULL item price (D-01) — SP never reduces the taxable base
 - [ ] Platform fees excluded from taxable amount (D-02)
 - [ ] Destination-based tax (buyer's node) enforced (D-06)
 - [ ] Proportional automatic refunds (D-08)

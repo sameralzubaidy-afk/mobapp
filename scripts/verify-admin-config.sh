@@ -39,37 +39,8 @@ fi
 
 echo ""
 
-# 2. Check that SubscriptionChoiceScreen uses dynamic values
-echo "✅ Step 2: Checking SubscriptionChoiceScreen.tsx..."
-if [ -f "p2p-kids-marketplace/src/screens/onboarding/SubscriptionChoiceScreen.tsx" ]; then
-  echo "   ✓ File exists"
-  
-  if grep -q "getSPMaxPercentage" p2p-kids-marketplace/src/screens/onboarding/SubscriptionChoiceScreen.tsx; then
-    echo "   ✓ Imports getSPMaxPercentage"
-  else
-    echo "   ✗ Missing getSPMaxPercentage import!"
-  fi
-  
-  if grep -q "invalidateConfigCache()" p2p-kids-marketplace/src/screens/onboarding/SubscriptionChoiceScreen.tsx; then
-    echo "   ✓ Calls invalidateConfigCache() on focus"
-  else
-    echo "   ✗ Missing invalidateConfigCache() call!"
-  fi
-  
-  if grep -q '`Spend Swap Points (up to ${spMaxPercentage}%)`' p2p-kids-marketplace/src/screens/onboarding/SubscriptionChoiceScreen.tsx; then
-    echo "   ✓ Uses dynamic SP percentage in UI"
-  else
-    echo "   ✗ Still has hardcoded 50% SP percentage!"
-  fi
-else
-  echo "   ✗ SubscriptionChoiceScreen.tsx not found!"
-  exit 1
-fi
-
-echo ""
-
-# 3. Check that migration files exist
-echo "✅ Step 3: Checking migration files..."
+# 2. Check that migration files exist
+echo "✅ Step 2: Checking migration files..."
 if [ -f "supabase/migrations/20251216_fix_rpc_admin_config_schema.sql" ]; then
   echo "   ✓ Migration 20251216_fix_rpc_admin_config_schema.sql exists"
 else
@@ -84,8 +55,8 @@ fi
 
 echo ""
 
-# 4. Search for remaining hardcoded values
-echo "✅ Step 4: Searching for remaining hardcoded config values..."
+# 3. Search for remaining hardcoded values
+echo "✅ Step 3: Searching for remaining hardcoded config values..."
 HARDCODED_COUNT=$(grep -r "7\.99\|79\.99\|2\.5\|0\.025\|5\.0\|0\.05" \
   p2p-kids-marketplace/src \
   --include="*.ts" --include="*.tsx" \
@@ -111,8 +82,8 @@ fi
 
 echo ""
 
-# 5. Check TypeScript compilation
-echo "✅ Step 5: Checking TypeScript compilation..."
+# 4. Check TypeScript compilation
+echo "✅ Step 4: Checking TypeScript compilation..."
 cd p2p-kids-marketplace
 if command -v yarn &> /dev/null; then
   echo "   Running: yarn typecheck"

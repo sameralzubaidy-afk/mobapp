@@ -716,6 +716,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
       <View style={styles.avatarSection}>
         <View style={styles.avatarContainer}>
           <TouchableOpacity
+            testID="edit-profile-avatar-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo"
             style={styles.avatarButton}
             onPress={handlePickImage}
             disabled={uploadingImage}
@@ -880,6 +884,8 @@ export default function EditProfileScreen({ navigation, route }: any) {
         <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
           <EnvelopeSimple size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
           <TextInput
+            testID="edit-profile-email-input"
+            accessibilityLabel="Email address"
             style={styles.input}
             placeholder="Enter your email"
             placeholderTextColor="#999999"
@@ -899,6 +905,8 @@ export default function EditProfileScreen({ navigation, route }: any) {
         <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
           <Phone size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
           <TextInput
+            testID="edit-profile-phone-input"
+            accessibilityLabel="Phone number"
             style={styles.input}
             placeholder="(XXX) XXX-XXXX"
             placeholderTextColor="#999999"
@@ -929,6 +937,8 @@ export default function EditProfileScreen({ navigation, route }: any) {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>BIO</Text>
         <TextInput
+          testID="edit-profile-bio-input"
+          accessibilityLabel="Bio"
           style={styles.textArea}
           placeholder="Tell us a bit about yourself..."
           placeholderTextColor="#999999"
@@ -944,6 +954,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
       {/* Save Button */}
       <TouchableOpacity
+        testID="edit-profile-save-button"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Save Changes"
         style={[styles.saveButton, saving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={saving}

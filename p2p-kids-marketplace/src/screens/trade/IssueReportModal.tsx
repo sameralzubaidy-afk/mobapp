@@ -91,6 +91,10 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
                 style={[styles.option, selected === reason.id && styles.optionSelected]}
                 onPress={() => setSelected(reason.id)}
                 activeOpacity={0.7}
+                testID={`issue-reason-${reason.id}`}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={reason.label}
               >
                 <View style={[styles.radio, selected === reason.id && styles.radioSelected]}>
                   {selected === reason.id && <View style={styles.radioDot} />}
@@ -112,6 +116,7 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
                   value={description}
                   onChangeText={setDescription}
                   textAlignVertical="top"
+                  testID="issue-other-description-input"
                 />
               </View>
             )}
@@ -125,6 +130,10 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
               onPress={handleSubmit}
               disabled={!canSubmit}
               activeOpacity={0.8}
+              testID="issue-submit-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Submit Report"
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" size="small" />
@@ -133,7 +142,7 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={handleClose} testID="issue-cancel-button" accessible accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

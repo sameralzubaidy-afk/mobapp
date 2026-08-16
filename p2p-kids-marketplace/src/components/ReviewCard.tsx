@@ -110,6 +110,10 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
             onPress={() => setMenuVisible(!menuVisible)}
             style={styles.menuButton}
             disabled={isReporting}
+            testID="review-menu-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Review options"
           >
             <Ionicons name="ellipsis-horizontal" size={20} color="#6B7280" />
           </TouchableOpacity>
@@ -121,21 +125,21 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
       {/* Simple dropdown menu */}
       {menuVisible && canReport && (
         <View style={styles.menu}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('spam')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('spam')} testID="review-report-spam" accessible accessibilityRole="button" accessibilityLabel="Report as Spam">
             <Ionicons name="flag-outline" size={16} color="#6B7280" />
             <Text style={styles.menuItemText}>Report as Spam</Text>
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('offensive')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('offensive')} testID="review-report-offensive" accessible accessibilityRole="button" accessibilityLabel="Report as Offensive">
             <Ionicons name="warning-outline" size={16} color="#6B7280" />
             <Text style={styles.menuItemText}>Report as Offensive</Text>
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('false_info')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('false_info')} testID="review-report-false-info" accessible accessibilityRole="button" accessibilityLabel="Report False Information">
             <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
             <Text style={styles.menuItemText}>Report False Information</Text>
           </TouchableOpacity>
