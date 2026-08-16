@@ -2,7 +2,7 @@
 
 **Source of truth:** `Prompts/Done/MODULE-02-AUTHENTICATION.md` · `Prompts/MODULE-03-AUTH-V2.md` · `Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md` · `Prompts/MODULE-03-NODE-MANAGEMENT.md` · `Prompts/V3/MODULE-04-ITEM-LISTING-V3.md` · `Prompts/Done/MODULE-05-DISCOVERY-V2.md` · `docs/flow-registry.md`
 **Flows covered:** FLOW-01 (Signup/Login/Logout/Session Restore) · FLOW-02 (Profiles & Onboarding) · FLOW-03 (Node/ZIP Gating + Waitlist) · FLOW-04 (Listings — Create/Bulk/Pending) · FLOW-04C (Category SP Calculations & Bonus Badges) · FLOW-05 (Media Upload / Storage) · FLOW-06 (Discovery — Feed/Search/Filters/Favorites) · FLOW-30 (Global App Shell — Header, Floating Nav & Home Composer)
-**Last updated:** 2026-08-11
+**Last updated:** 2026-08-16
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -12,142 +12,144 @@
 
 | Group | TC# | Description |
 |---|---|---|
-| **A — Signup (Email/Password)** | TC-A01 | Successful signup with valid details |
-| | TC-A02 | Field validation errors (name/email/phone/password) |
-| | TC-A03 | Password mismatch + weak password |
-| | TC-A04 | Under-18 date of birth blocked |
-| | TC-A05 | Duplicate email blocked |
-| | TC-A06 | Optional referral code (valid / invalid handling) |
-| | TC-A07 | Terms of Service & Privacy Policy links |
-| **B — Login & Session Restore** | TC-B01 | Successful login routes by onboarding status |
-| | TC-B02 | Invalid credentials error |
-| | TC-B03 | Forgot Password link |
-| | TC-B04 | Session restore after app kill/relaunch |
-| | TC-B05 | App resume refreshes silently (no spinner) |
-| | TC-B06 | Cold launch does not hang on spinner |
-| | TC-B07 | Empty-field + invalid-email inline validation |
-| | TC-B08 | ACCOUNT_DELETED login branch |
-| | TC-B09 | PROFILE_NOT_FOUND login branch |
-| | TC-B10 | Back button returns to previous screen |
-| | TC-B11 | Sign Up footer link |
-| **C — Social Login** | TC-C01 | Sign in / Continue with Google |
-| | TC-C02 | Sign in / Continue with Facebook |
-| | TC-C03 | Sign in / Continue with Apple (iOS + Android) |
-| | TC-C04 | Existing-email account-link prompt |
-| | TC-C05 | Provider unavailable → email fallback banner |
-| | TC-C06 | User cancels OAuth — silent return |
-| | TC-C07 | Social-only user sets a password |
-| **D — Logout** | TC-D01 | Logout from Profile with confirmation |
-| | TC-D02 | Sign Out from Settings |
-| | TC-D03 | After logout, app returns to Landing |
-| **E — Phone Verification (Deferred Gate)** | TC-E01 | OTP screen sends + verifies 6-digit code |
-| | TC-E02 | Incomplete / invalid / expired code errors |
-| | TC-E03 | Resend cooldown (60s) |
-| | TC-E04 | OTP rate limiting message |
-| | TC-E05 | Gate blocks first listing until verified |
-| **F — Node/ZIP Gating & Waitlist (End User)** | TC-F01 | Active ZIP → assigned to node, no waitlist |
-| | TC-F02 | Inactive ZIP → "We're Coming Soon!" + Join Waitlist |
-| | TC-F03 | Waitlist confirmation + fallback node access |
-| | TC-F04 | Continue Trading without joining waitlist |
-| | TC-F05 | ZIP auto-lookup shows city/state |
-| | TC-F06 | Node-scoped content (My Node vs Show All Nodes) |
-| **G — Node Management (Admin)** | TC-G01 | Admin creates an active node (ZIP auto-lookup) |
-| | TC-G02 | Admin creates an inactive node |
-| | TC-G03 | Admin edits a node |
-| | TC-G04 | Admin deactivates a node with members (warning) |
-| | TC-G05 | Admin reactivates a node |
-| | TC-G06 | Node stats cards + validation |
-| **H — Profile Setup & Onboarding** | TC-H01 | Profile Setup: avatar + display name + ZIP |
-| | TC-H02 | Profile Setup validation errors |
-| | TC-H03 | Avatar upload failure does not block |
-| | TC-H04 | Welcome screen → Get Started |
-| | TC-H05 | Feature Highlights carousel |
-| | TC-H06 | Onboarding carousel: Next / Skip / Get Started |
-| | TC-H07 | Onboarding completion routes to Home |
-| **I — Subscription Choice (Onboarding)** | TC-I01 | Start Free Trial enrolls Kids Club+ |
-| | TC-I02 | Continue Free stays on free tier |
-| | TC-I03 | Trial limit reached hides trial CTA |
-| **J — Listing Creation (Single Item)** | TC-J01 | Photo-first gating (fields hidden until 1 photo) |
-| | TC-J02 | AI auto-fill Apply All + per-field Use |
-| | TC-J03 | Required field validation |
-| | TC-J04 | Condition / Age Group / Gender / Color options |
-| | TC-J05 | "Other" category → custom name required |
-| | TC-J06 | Payment preference — subscriber Accept SP toggle |
-| | TC-J07 | Payment preference — free user upgrade prompt |
-| | TC-J08 | SP earnings preview (subscriber) |
-| | TC-J09 | Submit for Review → pending + success modal |
-| | TC-J10 | Phone-verification gate before publish |
-| | TC-J11 | Draft auto-save + resume |
-| | TC-J12 | Listing photos — multiple upload, type and size validation |
-| | TC-J13 | Listing photos — remove, reorder, replace, and persist after resume |
-| | TC-J14 | Bonus category badge appears in picker and preview |
-| | TC-J15 | Category-specific SP earn and buyer-cap preview recalculates |
-| **K — Bulk Listing Creation** | TC-K01 | Multi-photo upload + auto-grouping |
-| | TC-K02 | Regroup / merge / move photos |
-| | TC-K03 | Step indicator: Photos → Group → Review → Publish |
-| | TC-K04 | Apply to All bar (brand/condition/age/gender) |
-| | TC-K05 | Submit N Items for Review + confirm sheet |
-| | TC-K06 | Bulk SP summary (subscriber) |
-| **L — Admin Review / Pending** | TC-L01 | New listing not visible in feed until approved |
-| | TC-L02 | Admin approves → item becomes visible |
-| | TC-L03 | Seller receives approval notification |
-| | TC-L04 | Editing an approved listing returns to pending |
-| **M — Discovery: Search & Filters** | TC-M01 | Search bar (debounced) + clear |
-| | TC-M02 | Recent searches + autocomplete |
-| | TC-M03 | Sort options |
-| | TC-M04 | Filters modal: SP toggle, Location/Category/Age, More Filters, live count |
-| | TC-M05 | "Accepts SP" quick-toggle (header ↔ sheet sync) |
-| | TC-M06 | Empty / no-results states |
-| | TC-M07 | Recent Searches chip row + Clear |
-| | TC-M08 | Trending in {State} section |
-| | TC-M09 | Result count + active filter chips (incl. gold SP chip) |
-| | TC-M10 | Discover header: bookmark → Favorites (local header) |
-| **N — Discovery: Category & Favorites** | TC-N01 | Category browse filters results |
-| | TC-N02 | Favorite heart toggle on item card |
-| | TC-N03 | Infinite scroll pagination |
-| | TC-N04 | "Accepts SP" badge on item card (gold, §6.7) |
-| **O — Discovery: Node Scoping & SP Visibility** | TC-O01 | Results scoped to user's node |
-| | TC-O02 | Location ZIP + radius filter |
-| | TC-O03 | Inactive ZIP in filter → waitlist prompt |
-| | TC-O04 | Subscriber vs free SP visibility |
-| | TC-O05 | Admin radius defaults and bounds reflect in Discover |
-| **P — Global Header, Floating Nav & Home Composer** | TC-P01 | Header node chip shows registered market (read-only) |
-| | TC-P02 | Header right cluster: bell + chat + avatar; logout removed from header |
-| | TC-P03 | Header chat icon opens Messages with unread badge |
-| | TC-P04 | Floating pill nav: order, margins, radius, shadow, safe area |
-| | TC-P05 | Inbox removed from nav; Messages via header chat only |
-| | TC-P06 | Trades tab: Active Trades (item, counterpart, status label) |
-| | TC-P07 | Trades tab: Trade History (reverse chronological) |
-| | TC-P08 | Trades badge counts active (not completed/cancelled) |
-| | TC-P09 | Basket badge + Home active state unchanged |
-| | TC-P10 | Post FAB globally visible + opens Sell sheet |
-| | TC-P11 | Composer bar: tap focuses, type, placeholder |
-| | TC-P12 | Composer "+" → New Item Photos step, Title pre-filled |
-| | TC-P13 | Composer empty submit → empty Title |
-| | TC-P14 | Composer camera → New Item straight to camera |
-| | TC-P15 | AI never overwrites composer-pre-filled Title |
-| | TC-P16 | FAB Sell sheet unchanged (parallel entry point) |
-| | TC-P17 | Logout still reachable from Profile/Settings |
-| | TC-P18 | Composer analytics (tap + submit with/without text) |
-| | TC-P19 | Accessibility identifiers (Trades tab, header chat) |
-| **Q — Trading Education (End User)** | TC-Q01 | Education Help screen — published sections only |
-| | TC-Q02 | Education Help screen — section by type |
-| | TC-Q03 | SP calculator — sell mode (no hardcoded rates) |
-| | TC-Q04 | SP calculator — buy mode (cash + fee + cap) |
-| | TC-Q05 | SP calculator — bonus categories + example SP |
-| | TC-Q06 | Education analytics — event tracking (no throw) |
-| | TC-Q07 | Education prompts — onboarding + in-app prompt state machine |
-| **S — Password Recovery** | TC-S01 | Forgot Password — success + Send Another Email |
-| | TC-S02 | Forgot Password — invalid email |
-| | TC-S03 | Forgot Password — rate-limit error |
-| | TC-S04 | Forgot Password — SMTP-config (500) error |
-| | TC-S05 | Forgot Password — 400 error |
-| | TC-S06 | Forgot Password — Back to Login |
-| | TC-S07 | Reset Password — validation + requirements card |
-| | TC-S08 | Reset Password — success → Login |
-| | TC-S09 | Reset Password — link-error (expired) → Request New Reset Email |
-| | TC-S10 | Reset Password — no active reset session |
-| | TC-S11 | Deep link `p2pkidsmarketplace://reset-password` |
+| **A — Signup (Email/Password)** | AUTH-TC-A01 | Successful signup with valid details |
+| | AUTH-TC-A02 | Field validation errors (name/email/phone/password) |
+| | AUTH-TC-A03 | Password mismatch + weak password |
+| | AUTH-TC-A04 | Under-18 date of birth blocked |
+| | AUTH-TC-A05 | Duplicate email blocked |
+| | AUTH-TC-A06 | Optional referral code (valid / invalid handling) |
+| | AUTH-TC-A07 | Terms of Service & Privacy Policy links |
+| | AUTH-TC-A08 | Landing footer legal links (Terms / Privacy Policy) |
+| **B — Login & Session Restore** | AUTH-TC-B01 | Successful login routes by onboarding status |
+| | AUTH-TC-B02 | Invalid credentials error |
+| | AUTH-TC-B03 | Forgot Password link |
+| | AUTH-TC-B04 | Session restore after app kill/relaunch |
+| | AUTH-TC-B05 | App resume refreshes silently (no spinner) |
+| | AUTH-TC-B06 | Cold launch does not hang on spinner |
+| | AUTH-TC-B07 | Empty-field + invalid-email inline validation |
+| | AUTH-TC-B08 | ACCOUNT_DELETED login branch |
+| | AUTH-TC-B09 | PROFILE_NOT_FOUND login branch |
+| | AUTH-TC-B10 | Back button returns to previous screen |
+| | AUTH-TC-B11 | Sign Up footer link |
+| | AUTH-TC-B12 | Log In footer link (Create Account) |
+| **C — Social Login** | AUTH-TC-C01 | Sign in / Continue with Google |
+| | AUTH-TC-C02 | Sign in / Continue with Facebook |
+| | AUTH-TC-C03 | Sign in / Continue with Apple (iOS + Android) |
+| | AUTH-TC-C04 | Existing-email account-link prompt |
+| | AUTH-TC-C05 | Provider unavailable → email fallback banner |
+| | AUTH-TC-C06 | User cancels OAuth — silent return |
+| | AUTH-TC-C07 | Social-only user sets a password |
+| **D — Logout** | AUTH-TC-D01 | Logout from Profile with confirmation |
+| | AUTH-TC-D02 | Sign Out from Settings |
+| | AUTH-TC-D03 | After logout, app returns to Landing |
+| **E — Phone Verification (Deferred Gate)** | AUTH-TC-E01 | OTP screen sends + verifies 6-digit code |
+| | AUTH-TC-E02 | Incomplete / invalid / expired code errors |
+| | AUTH-TC-E03 | Resend cooldown (60s) |
+| | AUTH-TC-E04 | OTP rate limiting message |
+| | AUTH-TC-E05 | Gate blocks first listing until verified |
+| **F — Node/ZIP Gating & Waitlist (End User)** | AUTH-TC-F01 | Active ZIP → assigned to node, no waitlist |
+| | AUTH-TC-F02 | Inactive ZIP → "We're Coming Soon!" + Join Waitlist |
+| | AUTH-TC-F03 | Waitlist confirmation + fallback node access |
+| | AUTH-TC-F04 | Continue Trading without joining waitlist |
+| | AUTH-TC-F05 | ZIP auto-lookup shows city/state |
+| | AUTH-TC-F06 | Node-scoped content (My Node vs Show All Nodes) |
+| **G — Node Management (Admin)** | AUTH-TC-G01 | Admin creates an active node (ZIP auto-lookup) |
+| | AUTH-TC-G02 | Admin creates an inactive node |
+| | AUTH-TC-G03 | Admin edits a node |
+| | AUTH-TC-G04 | Admin deactivates a node with members (warning) |
+| | AUTH-TC-G05 | Admin reactivates a node |
+| | AUTH-TC-G06 | Node stats cards + validation |
+| **H — Profile Setup & Onboarding** | AUTH-TC-H01 | Profile Setup: avatar + display name + ZIP |
+| | AUTH-TC-H02 | Profile Setup validation errors |
+| | AUTH-TC-H03 | Avatar upload failure does not block |
+| | AUTH-TC-H04 | Welcome screen → Get Started |
+| | AUTH-TC-H05 | Feature Highlights carousel |
+| | AUTH-TC-H06 | Onboarding carousel: Next / Skip / Get Started |
+| | AUTH-TC-H07 | Onboarding completion routes to Home |
+| **I — Subscription Choice (Onboarding)** | AUTH-TC-I01 | Start Free Trial enrolls Kids Club+ |
+| | AUTH-TC-I02 | Continue Free stays on free tier |
+| | AUTH-TC-I03 | Trial limit reached hides trial CTA |
+| **J — Listing Creation (Single Item)** | AUTH-TC-J01 | Photo-first gating (fields hidden until 1 photo) |
+| | AUTH-TC-J02 | AI auto-fill Apply All + per-field Use |
+| | AUTH-TC-J03 | Required field validation |
+| | AUTH-TC-J04 | Condition / Age Group / Gender / Color options |
+| | AUTH-TC-J05 | "Other" category → custom name required |
+| | AUTH-TC-J06 | Payment preference — subscriber Accept SP toggle |
+| | AUTH-TC-J07 | Payment preference — free user upgrade prompt |
+| | AUTH-TC-J08 | SP earnings preview (subscriber) |
+| | AUTH-TC-J09 | Submit for Review → pending + success modal |
+| | AUTH-TC-J10 | Phone-verification gate before publish |
+| | AUTH-TC-J11 | Draft auto-save + resume |
+| | AUTH-TC-J12 | Listing photos — multiple upload, type and size validation |
+| | AUTH-TC-J13 | Listing photos — remove, reorder, replace, and persist after resume |
+| | AUTH-TC-J14 | Bonus category badge appears in picker and preview |
+| | AUTH-TC-J15 | Category-specific SP earn and buyer-cap preview recalculates |
+| **K — Bulk Listing Creation** | AUTH-TC-K01 | Multi-photo upload + auto-grouping |
+| | AUTH-TC-K02 | Regroup / merge / move photos |
+| | AUTH-TC-K03 | Step indicator: Photos → Group → Review → Publish |
+| | AUTH-TC-K04 | Apply to All bar (brand/condition/age/gender) |
+| | AUTH-TC-K05 | Submit N Items for Review + confirm sheet |
+| | AUTH-TC-K06 | Bulk SP summary (subscriber) |
+| **L — Admin Review / Pending** | AUTH-TC-L01 | New listing not visible in feed until approved |
+| | AUTH-TC-L02 | Admin approves → item becomes visible |
+| | AUTH-TC-L03 | Seller receives approval notification |
+| | AUTH-TC-L04 | Editing an approved listing returns to pending |
+| **M — Discovery: Search & Filters** | AUTH-TC-M01 | Search bar (debounced) + clear |
+| | AUTH-TC-M02 | Recent searches + autocomplete |
+| | AUTH-TC-M03 | Sort options |
+| | AUTH-TC-M04 | Filters modal: SP toggle, Location/Category/Age, More Filters, live count |
+| | AUTH-TC-M05 | "Accepts SP" quick-toggle (header ↔ sheet sync) |
+| | AUTH-TC-M06 | Empty / no-results states |
+| | AUTH-TC-M07 | Recent Searches chip row + Clear |
+| | AUTH-TC-M08 | Trending in {State} section |
+| | AUTH-TC-M09 | Result count + active filter chips (incl. gold SP chip) |
+| | AUTH-TC-M10 | Discover header: bookmark → Favorites (local header) |
+| **N — Discovery: Category & Favorites** | AUTH-TC-N01 | Category browse filters results |
+| | AUTH-TC-N02 | Favorite heart toggle on item card |
+| | AUTH-TC-N03 | Infinite scroll pagination |
+| | AUTH-TC-N04 | "Accepts SP" badge on item card (gold, §6.7) |
+| **O — Discovery: Node Scoping & SP Visibility** | AUTH-TC-O01 | Results scoped to user's node |
+| | AUTH-TC-O02 | Location ZIP + radius filter |
+| | AUTH-TC-O03 | Inactive ZIP in filter → waitlist prompt |
+| | AUTH-TC-O04 | Subscriber vs free SP visibility |
+| | AUTH-TC-O05 | Admin radius defaults and bounds reflect in Discover |
+| **P — Global Header, Floating Nav & Home Composer** | AUTH-TC-P01 | Header node chip shows registered market (read-only) |
+| | AUTH-TC-P02 | Header right cluster: bell + chat + avatar; logout removed from header |
+| | AUTH-TC-P03 | Header chat icon opens Messages with unread badge |
+| | AUTH-TC-P04 | Floating pill nav: order, margins, radius, shadow, safe area |
+| | AUTH-TC-P05 | Inbox removed from nav; Messages via header chat only |
+| | AUTH-TC-P06 | Trades tab: Active Trades (item, counterpart, status label) |
+| | AUTH-TC-P07 | Trades tab: Trade History (reverse chronological) |
+| | AUTH-TC-P08 | Trades badge counts active (not completed/cancelled) |
+| | AUTH-TC-P09 | Basket badge + Home active state unchanged |
+| | AUTH-TC-P10 | Post FAB globally visible + opens Sell sheet |
+| | AUTH-TC-P11 | Composer bar: tap focuses, type, placeholder |
+| | AUTH-TC-P12 | Composer "+" → New Item Photos step, Title pre-filled |
+| | AUTH-TC-P13 | Composer empty submit → empty Title |
+| | AUTH-TC-P14 | Composer camera → New Item straight to camera |
+| | AUTH-TC-P15 | AI never overwrites composer-pre-filled Title |
+| | AUTH-TC-P16 | FAB Sell sheet unchanged (parallel entry point) |
+| | AUTH-TC-P17 | Logout still reachable from Profile/Settings |
+| | AUTH-TC-P18 | Composer analytics (tap + submit with/without text) |
+| | AUTH-TC-P19 | Accessibility identifiers (Trades tab, header chat) |
+| **Q — Trading Education (End User)** | AUTH-TC-Q01 | Education Help screen — published sections only |
+| | AUTH-TC-Q02 | Education Help screen — section by type |
+| | AUTH-TC-Q03 | SP calculator — sell mode (no hardcoded rates) |
+| | AUTH-TC-Q04 | SP calculator — buy mode (cash + fee + cap) |
+| | AUTH-TC-Q05 | SP calculator — bonus categories + example SP |
+| | AUTH-TC-Q06 | Education analytics — event tracking (no throw) |
+| | AUTH-TC-Q07 | Education prompts — onboarding + in-app prompt state machine |
+| **S — Password Recovery** | AUTH-TC-S01 | Forgot Password — success + Send Another Email |
+| | AUTH-TC-S02 | Forgot Password — invalid email |
+| | AUTH-TC-S03 | Forgot Password — rate-limit error |
+| | AUTH-TC-S04 | Forgot Password — SMTP-config (500) error |
+| | AUTH-TC-S05 | Forgot Password — 400 error |
+| | AUTH-TC-S06 | Forgot Password — Back to Login |
+| | AUTH-TC-S07 | Reset Password — validation + requirements card |
+| | AUTH-TC-S08 | Reset Password — success → Login |
+| | AUTH-TC-S09 | Reset Password — link-error (expired) → Request New Reset Email |
+| | AUTH-TC-S10 | Reset Password — no active reset session |
+| | AUTH-TC-S11 | Deep link `p2pkidsmarketplace://reset-password` |
 
 ---
 
@@ -179,7 +181,7 @@
 
 ## Group A — Signup (Email/Password)
 
-### TC-A01 · Successful signup with valid details
+### AUTH-TC-A01 · Successful signup with valid details
 
 **Actors:** new-user
 
@@ -195,7 +197,7 @@
 - No validation errors appear for valid input.
 - After submitting, the app navigates to the **Verify Your Phone** screen showing the entered phone number.
 
-### TC-A02 · Field validation errors
+### AUTH-TC-A02 · Field validation errors
 
 **Actors:** new-user
 
@@ -209,7 +211,7 @@
 - Inline red errors appear under the relevant fields, e.g., "Name must be at least 2 characters", "Please enter a valid email address", "Please enter a valid phone number (10+ digits)", and password rule errors ("at least 8 characters", "one uppercase letter", "one lowercase letter", "one number").
 - Submission is blocked until errors are resolved.
 
-### TC-A03 · Password mismatch and weak password
+### AUTH-TC-A03 · Password mismatch and weak password
 
 **Actors:** new-user
 
@@ -223,7 +225,7 @@
 - "Passwords do not match" appears when the two fields differ.
 - Password strength errors appear for weak passwords and submission is blocked.
 
-### TC-A04 · Under-18 date of birth blocked
+### AUTH-TC-A04 · Under-18 date of birth blocked
 
 **Actors:** new-user
 
@@ -236,7 +238,7 @@
 **Expected Result:**
 - An error appears: "Sorry, you must be 18 years old to register." (or equivalent), and signup is blocked.
 
-### TC-A05 · Duplicate email blocked
+### AUTH-TC-A05 · Duplicate email blocked
 
 **Actors:** new-user
 
@@ -249,7 +251,7 @@
 **Expected Result:**
 - A message appears: "This email is already registered. Please log in instead." and no new account is created.
 
-### TC-A06 · Optional referral code
+### AUTH-TC-A06 · Optional referral code
 
 **Actors:** new-user
 
@@ -263,11 +265,14 @@
 - A valid code is accepted and signup proceeds.
 - An invalid code shows a prompt like "The referral code you entered is invalid. Would you like to fix it or continue without a code?" with **Fix it** and **Continue anyway** options; choosing **Continue anyway** completes signup without a code.
 
-### TC-A07 · Terms and Privacy links
+### AUTH-TC-A07 · Terms and Privacy links
 
 **Actors:** new-user
 
 **Objective:** Verify the legal links are present and open.
+
+**Setup:**
+- App on Landing, unauthenticated. Navigate: Landing → **Create Account** (Get Started). Scroll the signup form to the bottom so the legal line is fully visible.
 
 **Steps:**
 1. On the **Create Account** screen, tap **Terms of Service**, then **Privacy Policy**.
@@ -276,11 +281,51 @@
 - Each link opens the corresponding policy content.
 - On successful signup, the current Terms and Privacy acceptances are recorded for the user.
 
+**Assert:**
+- Tapping **Terms of Service** (`signup-terms-of-service-link`) opens the Terms content (full-screen WebView) without crashing.
+- Tapping **Privacy Policy** (`signup-privacy-policy-link`) opens the Privacy content (full-screen WebView) without crashing.
+- App remains responsive; returning to the form preserves entered state.
+
+**Locator hints:**
+- Screen: `src/screens/auth/SignupScreen.tsx` (instrumented 2026-08-16).
+- Terms of Service → `signup-terms-of-service-link` · Privacy Policy → `signup-privacy-policy-link` · Create Account entry → `landing-signup-button`.
+
+**Dependencies:**
+- None (no native dialog). Link targets open a full-screen WebView — assert by visible content (screenshot); return via iOS edge-swipe back (no in-app close control exposed).
+
+---
+
+### AUTH-TC-A08 · Landing footer legal links
+
+**Actors:** new-user
+
+**Objective:** Verify the Landing footer legal links open the policy content.
+
+**Setup:**
+- App on Landing, unauthenticated.
+
+**Steps:**
+1. On the **Landing** screen, tap **Terms** in the footer line "By continuing, you agree to our Terms and Privacy Policy", return (iOS edge-swipe back), then tap **Privacy Policy**.
+
+**Expected Result:**
+- Each link opens the corresponding policy content without crashing.
+
+**Assert:**
+- Tapping **Terms** (`landing-terms-link`) opens the Terms content (full-screen WebView) without crashing.
+- Tapping **Privacy Policy** (`landing-privacy-policy-link`) opens the Privacy content (full-screen WebView) without crashing.
+
+**Locator hints:**
+- Screen: `src/screens/auth/LandingScreen.tsx` (instrumented 2026-08-16).
+- Terms → `landing-terms-link` · Privacy Policy → `landing-privacy-policy-link`.
+
+**Dependencies:**
+- None (no native dialog). Link targets open a full-screen WebView — assert by visible content (screenshot); return via iOS edge-swipe back.
+
 ---
 
 ## Group B — Login & Session Restore
 
-### TC-B01 · Successful login routes by onboarding status
+### AUTH-TC-B01 · Successful login routes by onboarding status
 
 **Actors:** test-buyer, new-user
 
@@ -294,7 +339,7 @@
 - **test-buyer** lands on the Home tabs (main app).
 - A user with onboarding incomplete lands on the onboarding stack (Welcome / carousel).
 
-### TC-B02 · Invalid credentials error
+### AUTH-TC-B02 · Invalid credentials error
 
 **Actors:** test-free
 
@@ -306,11 +351,14 @@
 **Expected Result:**
 - "Invalid email or password." appears and the user stays on the Login screen.
 
-### TC-B03 · Forgot Password link
+### AUTH-TC-B03 · Forgot Password link
 
 **Actors:** test-free
 
 **Objective:** Verify the Forgot Password entry point works.
+
+**Setup:**
+- App on Landing, unauthenticated. Navigate: Landing → **Log In**.
 
 **Steps:**
 1. On the Login screen tap **Forgot Password?**.
@@ -318,7 +366,18 @@
 **Expected Result:**
 - The password reset flow opens.
 
-### TC-B04 · Session restore after app kill/relaunch
+**Assert:**
+- Tapping **Forgot Password?** (`login-forgot-password-link`) navigates to the Forgot Password screen.
+- Do not submit a real reset request unless a documented safe path exists — verify the entry screen appears.
+
+**Locator hints:**
+- Screen: `src/screens/auth/LoginScreen.tsx` (instrumented 2026-08-16).
+- Forgot Password → `login-forgot-password-link` · Login entry → `landing-login-button`.
+
+**Dependencies:**
+- None (no native dialog). Reset-email send path intentionally not executed — verify entry screen only.
+
+### AUTH-TC-B04 · Session restore after app kill/relaunch
 
 **Actors:** test-buyer
 
@@ -332,7 +391,7 @@
 **Expected Result:**
 - The user is restored straight into the Home tabs without re-entering credentials.
 
-### TC-B05 · App resume refreshes silently
+### AUTH-TC-B05 · App resume refreshes silently
 
 **Actors:** test-buyer
 
@@ -344,7 +403,7 @@
 **Expected Result:**
 - The app returns to the same screen; no full-screen loading spinner blocks the UI during the background refresh.
 
-### TC-B06 · Cold launch does not hang on spinner
+### AUTH-TC-B06 · Cold launch does not hang on spinner
 
 **Actors:** test-buyer
 
@@ -356,7 +415,7 @@
 **Expected Result:**
 - Within roughly 12 seconds the app stops showing the full-screen spinner and renders either the authenticated app or the unauthenticated Landing screen; it never hangs indefinitely.
 
-### TC-B07 · Empty-field + invalid-email inline validation
+### AUTH-TC-B07 · Empty-field + invalid-email inline validation
 
 **Actors:** test-free
 
@@ -372,7 +431,7 @@
 - With a malformed email, `Email is invalid` shows under Email.
 - The user remains on the Login screen in both cases.
 
-### TC-B08 · ACCOUNT_DELETED login branch
+### AUTH-TC-B08 · ACCOUNT_DELETED login branch
 
 **Actors:** test-admin, test-free
 
@@ -386,7 +445,7 @@
 - The **Login Failed** modal appears with the message `Your account has been deleted. Please contact admin-support@kidsmarketplace.app.`
 - The user is not signed in and stays on the Login screen.
 
-### TC-B09 · PROFILE_NOT_FOUND login branch
+### AUTH-TC-B09 · PROFILE_NOT_FOUND login branch
 
 **Actors:** test-free
 
@@ -399,7 +458,7 @@
 - The **Login Failed** modal appears with `Profile not found. Please contact support.`
 - The user is not signed in.
 
-### TC-B10 · Back button returns to previous screen
+### AUTH-TC-B10 · Back button returns to previous screen
 
 **Actors:** test-free
 
@@ -412,11 +471,14 @@
 **Expected Result:**
 - The app returns to the Landing screen (or whichever screen opened Login); no session is created.
 
-### TC-B11 · Sign Up footer link
+### AUTH-TC-B11 · Sign Up footer link
 
 **Actors:** test-free
 
 **Objective:** Verify the footer Sign Up link opens account creation.
+
+**Setup:**
+- App on Landing, unauthenticated. Navigate: Landing → **Log In**.
 
 **Steps:**
 1. From the Login screen, tap **Sign Up** in the `Don't have an account?` footer.
@@ -424,11 +486,48 @@
 **Expected Result:**
 - The app navigates to the **Create Account** (Signup) screen.
 
+**Assert:**
+- Tapping **Sign Up** (`login-signup-link`) navigates to the Create Account screen.
+
+**Locator hints:**
+- Screen: `src/screens/auth/LoginScreen.tsx` (instrumented 2026-08-16).
+- Sign Up → `login-signup-link` · Login entry → `landing-login-button`.
+
+**Dependencies:**
+- None (no native dialog).
+
+---
+
+### AUTH-TC-B12 · Log In footer link (Create Account)
+
+**Actors:** test-free
+
+**Objective:** Verify the Create Account footer Log In link opens the Login screen.
+
+**Setup:**
+- App on Landing, unauthenticated. Navigate: Landing → **Create Account** (Get Started). Scroll to the bottom of the signup form.
+
+**Steps:**
+1. On the **Create Account** screen, tap **Log In** in the "Already have an account? " footer.
+
+**Expected Result:**
+- The app navigates to the **Login** screen.
+
+**Assert:**
+- Tapping **Log In** (`signup-login-link`) navigates to the Login screen.
+
+**Locator hints:**
+- Screen: `src/screens/auth/SignupScreen.tsx` (instrumented 2026-08-16).
+- Log In → `signup-login-link` · Create Account entry → `landing-signup-button`.
+
+**Dependencies:**
+- None (no native dialog).
+
 ---
 
 ## Group C — Social Login
 
-### TC-C01 · Sign in / Continue with Google
+### AUTH-TC-C01 · Sign in / Continue with Google
 
 **Actors:** new-user
 
@@ -442,7 +541,7 @@
 - A browser opens the Google sign-in/consent page; after success the app returns and a session is created.
 - For a first-time signup, the profile name and avatar are auto-filled from Google and email verification is skipped.
 
-### TC-C02 · Sign in / Continue with Facebook
+### AUTH-TC-C02 · Sign in / Continue with Facebook
 
 **Actors:** new-user
 
@@ -454,7 +553,7 @@
 **Expected Result:**
 - A session is created and (on first signup) the profile is auto-filled from Facebook.
 
-### TC-C03 · Sign in / Continue with Apple (iOS + Android)
+### AUTH-TC-C03 · Sign in / Continue with Apple (iOS + Android)
 
 **Actors:** new-user
 
@@ -468,7 +567,7 @@
 - The Apple button is shown on both platforms.
 - Authentication succeeds and a session is created.
 
-### TC-C04 · Existing-email account-link prompt
+### AUTH-TC-C04 · Existing-email account-link prompt
 
 **Actors:** test-free
 
@@ -481,7 +580,7 @@
 - An "Account Exists" prompt appears, e.g., "An account with {email} already exists" with an option to continue and link the provider.
 - Linking requires password re-authentication when the existing account has a password.
 
-### TC-C05 · Provider unavailable → email fallback banner
+### AUTH-TC-C05 · Provider unavailable → email fallback banner
 
 **Actors:** new-user
 
@@ -493,7 +592,7 @@
 **Expected Result:**
 - An inline banner appears: "{Provider} is temporarily unavailable. Sign up with email instead?" with a path to email signup. The app does not crash.
 
-### TC-C06 · User cancels OAuth — silent return
+### AUTH-TC-C06 · User cancels OAuth — silent return
 
 **Actors:** new-user
 
@@ -505,7 +604,7 @@
 **Expected Result:**
 - The app silently returns to the previous screen with no error toast.
 
-### TC-C07 · Social-only user sets a password
+### AUTH-TC-C07 · Social-only user sets a password
 
 **Actors:** new-user (social-only)
 
@@ -524,7 +623,7 @@
 
 ## Group D — Logout
 
-### TC-D01 · Logout from Profile with confirmation
+### AUTH-TC-D01 · Logout from Profile with confirmation
 
 **Actors:** test-buyer
 
@@ -538,7 +637,7 @@
 - A confirmation dialog appears ("Are you sure you want to logout?") with Cancel and Logout.
 - Confirming signs out and returns to the Landing screen.
 
-### TC-D02 · Sign Out from Settings
+### AUTH-TC-D02 · Sign Out from Settings
 
 **Actors:** test-buyer
 
@@ -550,7 +649,7 @@
 **Expected Result:**
 - The user is signed out and returned to the Landing screen.
 
-### TC-D03 · After logout, app returns to Landing
+### AUTH-TC-D03 · After logout, app returns to Landing
 
 **Actors:** test-buyer
 
@@ -566,7 +665,7 @@
 
 ## Group E — Phone Verification (Deferred Gate)
 
-### TC-E01 · OTP screen sends and verifies a 6-digit code
+### AUTH-TC-E01 · OTP screen sends and verifies a 6-digit code
 
 **Actors:** new-user
 
@@ -581,7 +680,7 @@
 - The screen shows "We sent a 6-digit code to {phone}" and a 6-box OTP input.
 - A valid code shows a success message and proceeds to **Complete Your Profile** (Profile Setup).
 
-### TC-E02 · Incomplete / invalid / expired code errors
+### AUTH-TC-E02 · Incomplete / invalid / expired code errors
 
 **Actors:** new-user
 
@@ -597,7 +696,7 @@
 - "Invalid code" for a wrong code (the input clears).
 - An expired-code message instructs the user to request a new code.
 
-### TC-E03 · Resend cooldown
+### AUTH-TC-E03 · Resend cooldown
 
 **Actors:** new-user
 
@@ -609,7 +708,7 @@
 **Expected Result:**
 - Resend is disabled and shows a countdown (e.g., "Resend in 59s"); it becomes enabled after 60 seconds.
 
-### TC-E04 · OTP rate limiting message
+### AUTH-TC-E04 · OTP rate limiting message
 
 **Actors:** new-user
 
@@ -621,7 +720,7 @@
 **Expected Result:**
 - A message like "Too many attempts. Try again in {N} seconds." appears and further sends are blocked until the window passes.
 
-### TC-E05 · Gate blocks first listing until verified
+### AUTH-TC-E05 · Gate blocks first listing until verified
 
 **Actors:** new-user
 
@@ -637,7 +736,7 @@
 
 ## Group F — Node/ZIP Gating & Waitlist (End User)
 
-### TC-F01 · Active ZIP → assigned to node, no waitlist
+### AUTH-TC-F01 · Active ZIP → assigned to node, no waitlist
 
 **Actors:** new-user
 
@@ -653,7 +752,7 @@
 - The ZIP field auto-displays "📍 Norwalk, CT" (city/state) below it.
 - No waitlist modal appears; a success message ("Your profile has been created!") shows and the user proceeds into the app able to browse that node's items.
 
-### TC-F02 · Inactive ZIP → "We're Coming Soon!" + Join Waitlist
+### AUTH-TC-F02 · Inactive ZIP → "We're Coming Soon!" + Join Waitlist
 
 **Actors:** new-user
 
@@ -668,7 +767,7 @@
 - A modal titled "We're Coming Soon!" explains the area isn't active yet and that the user has been connected with traders in a nearby (fallback) node.
 - The modal offers **Join Waitlist** (primary) and **Continue Trading** (secondary).
 
-### TC-F03 · Waitlist confirmation + fallback node access
+### AUTH-TC-F03 · Waitlist confirmation + fallback node access
 
 **Actors:** new-user
 
@@ -682,7 +781,7 @@
 - A "Waitlist Confirmed" modal thanks the user and states they'll be notified when the area launches, and that they can trade with users in the assigned (fallback) node meanwhile.
 - Tapping **Got it** proceeds into the app with access to the fallback node's items.
 
-### TC-F04 · Continue Trading without joining waitlist
+### AUTH-TC-F04 · Continue Trading without joining waitlist
 
 **Actors:** new-user
 
@@ -694,7 +793,7 @@
 **Expected Result:**
 - The modal closes and the user proceeds into the app on the fallback node without being added to the waitlist.
 
-### TC-F05 · ZIP auto-lookup shows city/state
+### AUTH-TC-F05 · ZIP auto-lookup shows city/state
 
 **Actors:** new-user
 
@@ -706,7 +805,7 @@
 **Expected Result:**
 - Once 5 digits are entered, "📍 {City}, {State}" appears in green beneath the field, with helper text "We'll assign you to your nearest community node".
 
-### TC-F06 · Node-scoped content (My Node vs Show All Nodes)
+### AUTH-TC-F06 · Node-scoped content (My Node vs Show All Nodes)
 
 **Actors:** test-buyer
 
@@ -724,7 +823,7 @@
 
 ## Group G — Node Management (Admin)
 
-### TC-G01 · Admin creates an active node
+### AUTH-TC-G01 · Admin creates an active node
 
 **Actors:** admin
 
@@ -739,19 +838,19 @@
 - The ZIP lookup auto-fills City/State/Lat/Lng (showing "Looking up ZIP code..." briefly).
 - On save, the modal closes, a success message shows, and the new node appears in the table with a green **Active** badge.
 
-### TC-G02 · Admin creates an inactive node
+### AUTH-TC-G02 · Admin creates an inactive node
 
 **Actors:** admin
 
 **Objective:** Verify creating a node with Active unchecked.
 
 **Steps:**
-1. Add a node as in TC-G01 but uncheck **Active (users can be assigned to this node)** before saving.
+1. Add a node as in AUTH-TC-G01 but uncheck **Active (users can be assigned to this node)** before saving.
 
 **Expected Result:**
 - The node is created with a gray **Inactive** badge and its action shows **Activate**.
 
-### TC-G03 · Admin edits a node
+### AUTH-TC-G03 · Admin edits a node
 
 **Actors:** admin
 
@@ -764,7 +863,7 @@
 **Expected Result:**
 - The modal title reads "Edit Node"; saved changes appear in the table and persist after a page refresh.
 
-### TC-G04 · Admin deactivates a node with members (warning)
+### AUTH-TC-G04 · Admin deactivates a node with members (warning)
 
 **Actors:** admin
 
@@ -779,7 +878,7 @@
 - After confirming, the badge changes to **Inactive** and the action becomes **Activate**.
 - New signups with that node's ZIP are routed to a different active node (or offered the waitlist).
 
-### TC-G05 · Admin reactivates a node
+### AUTH-TC-G05 · Admin reactivates a node
 
 **Actors:** admin
 
@@ -791,7 +890,7 @@
 **Expected Result:**
 - The badge returns to **Active** and new users with that ZIP can be assigned to it.
 
-### TC-G06 · Node stats cards + validation
+### AUTH-TC-G06 · Node stats cards + validation
 
 **Actors:** admin
 
@@ -809,7 +908,7 @@
 
 ## Group H — Profile Setup & Onboarding
 
-### TC-H01 · Profile Setup: avatar + display name + ZIP
+### AUTH-TC-H01 · Profile Setup: avatar + display name + ZIP
 
 **Actors:** new-user
 
@@ -822,7 +921,7 @@
 **Expected Result:**
 - The avatar preview updates, the ZIP resolves to city/state, and on submit the user advances (to Welcome / onboarding).
 
-### TC-H02 · Profile Setup validation errors
+### AUTH-TC-H02 · Profile Setup validation errors
 
 **Actors:** new-user
 
@@ -834,7 +933,7 @@
 **Expected Result:**
 - "Display name must be at least 2 characters" and "Zip code must be 5 digits" appear; submission is blocked.
 
-### TC-H03 · Avatar upload failure does not block
+### AUTH-TC-H03 · Avatar upload failure does not block
 
 **Actors:** new-user
 
@@ -846,7 +945,7 @@
 **Expected Result:**
 - A warning notes the profile will be created without an avatar (addable later); profile completion still succeeds.
 
-### TC-H04 · Welcome screen → Get Started
+### AUTH-TC-H04 · Welcome screen → Get Started
 
 **Actors:** new-user
 
@@ -858,7 +957,7 @@
 **Expected Result:**
 - The Welcome copy about a "safe, neighborhood marketplace" is shown; tapping **Get Started** marks onboarding progress and moves forward (eventually to Home).
 
-### TC-H05 · Feature Highlights carousel
+### AUTH-TC-H05 · Feature Highlights carousel
 
 **Actors:** new-user
 
@@ -871,7 +970,7 @@
 **Expected Result:**
 - Each slide shows a title, description, emoji, and pagination dots; the final **Get Started** advances the flow.
 
-### TC-H06 · Onboarding carousel: Next / Skip / Get Started
+### AUTH-TC-H06 · Onboarding carousel: Next / Skip / Get Started
 
 **Actors:** new-user
 
@@ -885,7 +984,7 @@
 - Progress dots track the current screen.
 - **Skip** marks onboarding skipped and goes to Home; **Get Started** on the last screen marks onboarding complete and goes to Home.
 
-### TC-H07 · Onboarding completion routes to Home
+### AUTH-TC-H07 · Onboarding completion routes to Home
 
 **Actors:** new-user
 
@@ -901,7 +1000,7 @@
 
 ## Group I — Subscription Choice (Onboarding)
 
-### TC-I01 · Start Free Trial enrolls Kids Club+
+### AUTH-TC-I01 · Start Free Trial enrolls Kids Club+
 
 **Actors:** new-user
 
@@ -915,7 +1014,7 @@
 **Expected Result:**
 - The screen shows "Try Kids Club+ Free for N days" at $0.00; after enrolling, the user proceeds to Home and gains subscriber features (e.g., SP, Accept SP toggle).
 
-### TC-I02 · Continue Free stays on free tier
+### AUTH-TC-I02 · Continue Free stays on free tier
 
 **Actors:** new-user
 
@@ -927,7 +1026,7 @@
 **Expected Result:**
 - The user proceeds to Home on the free tier with subscriber-only features locked.
 
-### TC-I03 · Trial limit reached hides trial CTA
+### AUTH-TC-I03 · Trial limit reached hides trial CTA
 
 **Actors:** new-user (who already used the max trials)
 
@@ -943,7 +1042,7 @@
 
 ## Group J — Listing Creation (Single Item)
 
-### TC-J01 · Photo-first gating
+### AUTH-TC-J01 · Photo-first gating
 
 **Actors:** test-seller
 
@@ -957,7 +1056,7 @@
 - Before a photo is added, the title/category/price fields are hidden.
 - After adding at least one photo, the rest of the form appears. Up to 10 photos are allowed; adding an 11th shows "You can add up to 10 photos."
 
-### TC-J02 · AI auto-fill Apply All + per-field Use
+### AUTH-TC-J02 · AI auto-fill Apply All + per-field Use
 
 **Actors:** test-seller
 
@@ -973,7 +1072,7 @@
 - Per-field **Use** applies a single suggestion.
 - After ~7 seconds a **Continue Without AI** option lets the seller proceed manually; a failure shows a "Retry AI" option.
 
-### TC-J03 · Required field validation
+### AUTH-TC-J03 · Required field validation
 
 **Actors:** test-seller
 
@@ -985,7 +1084,7 @@
 **Expected Result:**
 - The submit button stays disabled or shows errors like "Title must be between 3 and 100 characters", "Please select a category", "Please enter a valid price greater than $0".
 
-### TC-J04 · Condition / Age Group / Gender / Color options
+### AUTH-TC-J04 · Condition / Age Group / Gender / Color options
 
 **Actors:** test-seller
 
@@ -1000,7 +1099,7 @@
 - Gender shows Boy / Girl / Unisex / Any.
 - Color allows multi-select from the 12-color palette.
 
-### TC-J05 · "Other" category requires a custom name
+### AUTH-TC-J05 · "Other" category requires a custom name
 
 **Actors:** test-seller
 
@@ -1014,7 +1113,7 @@
 - A "Custom Category Name *" field appears with helper text that it will be sent to admin for review.
 - Submission is blocked until a custom name is provided.
 
-### TC-J06 · Payment preference — subscriber Accept SP toggle
+### AUTH-TC-J06 · Payment preference — subscriber Accept SP toggle
 
 **Actors:** test-seller (subscriber)
 
@@ -1026,7 +1125,7 @@
 **Expected Result:**
 - A "✓ SP Eligible" badge appears while the toggle is on; the hint reads "Allow buyers to pay with Swap Points".
 
-### TC-J07 · Payment preference — free user upgrade prompt
+### AUTH-TC-J07 · Payment preference — free user upgrade prompt
 
 **Actors:** test-free
 
@@ -1038,7 +1137,7 @@
 **Expected Result:**
 - A message like "🌟 Subscribe to Kids Club+ to accept Swap Points and unlock more features!" is shown with an **Upgrade Now** button that opens Subscription Choice. No Accept SP toggle is available.
 
-### TC-J08 · SP earnings preview (subscriber)
+### AUTH-TC-J08 · SP earnings preview (subscriber)
 
 **Actors:** test-seller (subscriber)
 
@@ -1050,7 +1149,7 @@
 **Expected Result:**
 - An SP earnings preview appears below the price reflecting the category and price (hidden/greyed for free users).
 
-### TC-J09 · Submit for Review → pending + success modal
+### AUTH-TC-J09 · Submit for Review → pending + success modal
 
 **Actors:** test-seller
 
@@ -1063,7 +1162,7 @@
 - A "Submitting Item For Review..." overlay shows, then a success modal: "Thanks for submitting!" explaining the item will be reviewed and the seller notified, with **Go To My Items** / **Go To Dashboard**.
 - The item is created as pending and does not appear in the public feed yet.
 
-### TC-J10 · Phone-verification gate before publish
+### AUTH-TC-J10 · Phone-verification gate before publish
 
 **Actors:** new-user (unverified phone)
 
@@ -1075,7 +1174,7 @@
 **Expected Result:**
 - A phone verification modal appears and blocks publishing until completed; afterward the publish resumes.
 
-### TC-J11 · Draft auto-save + resume
+### AUTH-TC-J11 · Draft auto-save + resume
 
 **Actors:** test-seller
 
@@ -1088,7 +1187,7 @@
 **Expected Result:**
 - A resume banner offers to continue the saved draft (drafts persist up to 7 days, up to 5 per seller).
 
-### TC-J12 · Listing photos — multiple upload, type and size validation
+### AUTH-TC-J12 · Listing photos — multiple upload, type and size validation
 
 **Actors:** test-seller
 
@@ -1105,7 +1204,7 @@
 - A file larger than 5MB is rejected with a clear size error.
 - An unsupported format is rejected with a clear type error and is not added to the listing.
 
-### TC-J13 · Listing photos — remove, reorder, replace, and persist after resume
+### AUTH-TC-J13 · Listing photos — remove, reorder, replace, and persist after resume
 
 **Actors:** test-seller
 
@@ -1122,7 +1221,7 @@
 - Replacing a photo keeps the slot but shows the new image.
 - Reopening the draft restores the same remaining photos and order.
 
-### TC-J14 · Bonus category badge appears in picker and preview
+### AUTH-TC-J14 · Bonus category badge appears in picker and preview
 
 **Actors:** test-seller (subscriber)
 
@@ -1138,7 +1237,7 @@
 - After selection, the chosen category remains identified as a bonus category on the form or SP preview area.
 - Non-bonus categories do not show the bonus indicator.
 
-### TC-J15 · Category-specific SP earn and buyer-cap preview recalculates
+### AUTH-TC-J15 · Category-specific SP earn and buyer-cap preview recalculates
 
 **Actors:** test-seller (subscriber)
 
@@ -1160,7 +1259,7 @@
 
 ## Group K — Bulk Listing Creation
 
-### TC-K01 · Multi-photo upload + auto-grouping
+### AUTH-TC-K01 · Multi-photo upload + auto-grouping
 
 **Actors:** test-seller
 
@@ -1172,7 +1271,7 @@
 **Expected Result:**
 - Photos are auto-grouped into items (up to ~15); duplicate photos are flagged via perceptual-hash detection.
 
-### TC-K02 · Regroup / merge / move photos
+### AUTH-TC-K02 · Regroup / merge / move photos
 
 **Actors:** test-seller
 
@@ -1184,7 +1283,7 @@
 **Expected Result:**
 - Grouping updates accordingly (merge, move-to-new, reorder), and the cover photo updates as expected.
 
-### TC-K03 · Step indicator
+### AUTH-TC-K03 · Step indicator
 
 **Actors:** test-seller
 
@@ -1196,7 +1295,7 @@
 **Expected Result:**
 - The step indicator highlights the current step at each stage.
 
-### TC-K04 · Apply to All bar
+### AUTH-TC-K04 · Apply to All bar
 
 **Actors:** test-seller
 
@@ -1208,7 +1307,7 @@
 **Expected Result:**
 - Each chip suggests the most common value and fills only blank fields across included items, without overwriting existing values.
 
-### TC-K05 · Submit N Items for Review + confirm sheet
+### AUTH-TC-K05 · Submit N Items for Review + confirm sheet
 
 **Actors:** test-seller
 
@@ -1222,7 +1321,7 @@
 - The publish button reads e.g. "Submit 5 Items for Review" (or "Submit 1 Item for Review") and is disabled if any included item is missing required fields.
 - The confirmation sheet summarizes the items (and SP totals for subscribers); confirming submits them as pending.
 
-### TC-K06 · Bulk SP summary (subscriber)
+### AUTH-TC-K06 · Bulk SP summary (subscriber)
 
 **Actors:** test-seller (subscriber)
 
@@ -1238,7 +1337,7 @@
 
 ## Group L — Admin Review / Pending
 
-### TC-L01 · New listing not visible until approved
+### AUTH-TC-L01 · New listing not visible until approved
 
 **Actors:** test-seller, test-buyer
 
@@ -1251,7 +1350,7 @@
 **Expected Result:**
 - The item does not appear in discovery while pending; in **My Items** the seller sees it marked as pending/under review.
 
-### TC-L02 · Admin approves → item becomes visible
+### AUTH-TC-L02 · Admin approves → item becomes visible
 
 **Actors:** admin, test-buyer
 
@@ -1264,7 +1363,7 @@
 **Expected Result:**
 - After approval the item becomes visible (status available) and appears in the buyer's node feed.
 
-### TC-L03 · Seller receives approval notification
+### AUTH-TC-L03 · Seller receives approval notification
 
 **Actors:** test-seller
 
@@ -1276,7 +1375,7 @@
 **Expected Result:**
 - The seller receives a "listing approved" notification; tapping it deep-links to the listing detail.
 
-### TC-L04 · Editing an approved listing returns to pending
+### AUTH-TC-L04 · Editing an approved listing returns to pending
 
 **Actors:** test-seller
 
@@ -1292,7 +1391,7 @@
 
 ## Group M — Discovery: Search & Filters
 
-### TC-M01 · Search bar (debounced) + clear
+### AUTH-TC-M01 · Search bar (debounced) + clear
 
 **Actors:** test-buyer
 
@@ -1305,7 +1404,7 @@
 **Expected Result:**
 - Results update shortly after typing (debounced, not on every keystroke); the X clears the query and restores the default feed.
 
-### TC-M02 · Recent searches + autocomplete
+### AUTH-TC-M02 · Recent searches + autocomplete
 
 **Actors:** test-buyer
 
@@ -1320,7 +1419,7 @@
 - Recent searches appear as tappable chips (max 8, most recent first); tapping one reuses it; **Clear** empties them.
 - Up to 5 autocomplete suggestions appear; tapping one applies the search.
 
-### TC-M03 · Sort options
+### AUTH-TC-M03 · Sort options
 
 **Actors:** test-buyer
 
@@ -1332,7 +1431,7 @@
 **Expected Result:**
 - Results reorder according to each selection.
 
-### TC-M04 · Filters modal — progressive disclosure + live count
+### AUTH-TC-M04 · Filters modal — progressive disclosure + live count
 
 **Actors:** test-buyer
 
@@ -1351,7 +1450,7 @@
 - The SP toggle sits above Location; Location/Category/Age Group always expanded; the rest hidden under the collapsible More Filters section.
 - Apply reads "Show {n} Results" with a live (debounced) count and applies the draft on tap; the Filters button shows an active-filter count badge.
 
-### TC-M05 · "Accepts SP" quick-toggle — header ↔ sheet sync
+### AUTH-TC-M05 · "Accepts SP" quick-toggle — header ↔ sheet sync
 
 **Actors:** test-buyer, test-free
 
@@ -1368,7 +1467,7 @@
 - With it ON, only SP-eligible items are shown (with the gold **Accepts SP** badge).
 - For a free user, the toggle still filters but an upgrade CTA is surfaced for SP features.
 
-### TC-M06 · Empty / no-results states
+### AUTH-TC-M06 · Empty / no-results states
 
 **Actors:** test-buyer
 
@@ -1380,7 +1479,7 @@
 **Expected Result:**
 - A "No Results Found" state appears with guidance to adjust filters and a **Clear Filters** action.
 
-### TC-M07 · Recent Searches chip row + Clear
+### AUTH-TC-M07 · Recent Searches chip row + Clear
 
 **Actors:** test-buyer
 
@@ -1394,7 +1493,7 @@
 **Expected Result:**
 - Chips are Neutral-100 pills (§6.7), most-recent first; tapping a chip re-runs that search; **Clear** empties the row and it disappears.
 
-### TC-M08 · Trending in {State} section
+### AUTH-TC-M08 · Trending in {State} section
 
 **Actors:** test-buyer
 
@@ -1409,7 +1508,7 @@
 - Tapping a chip filters results to that category.
 - If the user has no node/state, the section is hidden.
 
-### TC-M09 · Result count + active filter chips
+### AUTH-TC-M09 · Result count + active filter chips
 
 **Actors:** test-buyer
 
@@ -1425,7 +1524,7 @@
 - One chip per applied filter; standard chips use Primary-100/600 tokens, the SP chip uses SP-gold tokens.
 - Removing a chip refetches; **Clear all** resets all filters and refetches unfiltered results.
 
-### TC-M10 · Discover header: bookmark → Favorites (local header)
+### AUTH-TC-M10 · Discover header: bookmark → Favorites (local header)
 
 **Actors:** test-buyer
 
@@ -1445,7 +1544,7 @@
 
 ## Group N — Discovery: Category & Favorites
 
-### TC-N01 · Category browse filters results
+### AUTH-TC-N01 · Category browse filters results
 
 **Actors:** test-buyer
 
@@ -1457,7 +1556,7 @@
 **Expected Result:**
 - Discovery results filter to that category; categories with SP-eligible items show an SP badge.
 
-### TC-N02 · Favorite heart toggle on item card
+### AUTH-TC-N02 · Favorite heart toggle on item card
 
 **Actors:** test-buyer
 
@@ -1469,7 +1568,7 @@
 **Expected Result:**
 - The heart toggles filled/outline; the favorite state persists to the account and is reflected in the Favorites list.
 
-### TC-N03 · Infinite scroll pagination
+### AUTH-TC-N03 · Infinite scroll pagination
 
 **Actors:** test-buyer
 
@@ -1481,7 +1580,7 @@
 **Expected Result:**
 - More items load automatically (≈20 per page) in the 2-column grid without a manual "load more" tap.
 
-### TC-N04 · "Accepts SP" badge on item card
+### AUTH-TC-N04 · "Accepts SP" badge on item card
 
 **Actors:** test-buyer
 
@@ -1499,7 +1598,7 @@
 
 ## Group O — Discovery: Node Scoping & SP Visibility
 
-### TC-O01 · Results scoped to user's node
+### AUTH-TC-O01 · Results scoped to user's node
 
 **Actors:** test-buyer
 
@@ -1511,7 +1610,7 @@
 **Expected Result:**
 - Only items from the user's node (or within the configured radius) appear by default.
 
-### TC-O02 · Location ZIP + radius filter
+### AUTH-TC-O02 · Location ZIP + radius filter
 
 **Actors:** test-buyer
 
@@ -1523,7 +1622,7 @@
 **Expected Result:**
 - Results scope to nearby nodes within the chosen radius; the radius preference is remembered.
 
-### TC-O03 · Inactive ZIP in filter → waitlist prompt
+### AUTH-TC-O03 · Inactive ZIP in filter → waitlist prompt
 
 **Actors:** test-buyer
 
@@ -1535,7 +1634,7 @@
 **Expected Result:**
 - A prompt like "We are not live in ZIP {zip} yet. We can add you to the waitlist." appears with options such as **Back to Filters** / **See All Results**.
 
-### TC-O04 · Subscriber vs free SP visibility
+### AUTH-TC-O04 · Subscriber vs free SP visibility
 
 **Actors:** test-buyer (subscriber), test-free
 
@@ -1548,7 +1647,7 @@
 - Subscribers see SP-eligible items prioritized with the SP filter enabled and SP earnings context.
 - Free users still see SP-eligible items but with upgrade CTAs for SP features.
 
-### TC-O05 · Admin radius defaults and bounds reflect in Discover
+### AUTH-TC-O05 · Admin radius defaults and bounds reflect in Discover
 
 **Actors:** test-admin, test-buyer
 
@@ -1570,7 +1669,7 @@
 
 > Chrome redesign (2026-08-11): read-only node chip header, floating pill bottom nav (Home / Discover / Sell / Trades / Basket), Trades tab, and Home composer bar that pre-fills the New Item Title. See `docs/flow-registry.md` FLOW-30.
 
-### TC-P01 · Header node chip shows the registered market (read-only)
+### AUTH-TC-P01 · Header node chip shows the registered market (read-only)
 
 **Actors:** test-buyer
 
@@ -1584,7 +1683,7 @@
 - A compact pill chip shows the node/local market name selected at registration (e.g., "Ledgewood Dr").
 - Tapping the chip does nothing — no picker, modal, or navigation opens, and no caret/chevron is shown.
 
-### TC-P02 · Header right cluster: bell + chat + avatar; logout removed from header
+### AUTH-TC-P02 · Header right cluster: bell + chat + avatar; logout removed from header
 
 **Actors:** test-buyer
 
@@ -1598,7 +1697,7 @@
 - Right cluster shows (left to right): notification bell, chat/messages icon, user avatar.
 - No logout icon appears in the header.
 
-### TC-P03 · Header chat icon opens Messages with an unread badge
+### AUTH-TC-P03 · Header chat icon opens Messages with an unread badge
 
 **Actors:** test-buyer
 
@@ -1612,7 +1711,7 @@
 - A red numeric badge on the chat icon shows the unread-message count (99+ capped).
 - Tapping it opens the Messages (conversations) screen.
 
-### TC-P04 · Floating pill bottom nav: layout
+### AUTH-TC-P04 · Floating pill bottom nav: layout
 
 **Actors:** test-buyer
 
@@ -1625,7 +1724,7 @@
 - The nav is a rounded pill with horizontal margin from both screen edges, elevated with a subtle shadow, and sits above the iOS home-indicator safe area.
 - Tab order left to right: Home, Discover, Sell FAB, Trades, Basket.
 
-### TC-P05 · Inbox removed from nav; Messages via header chat only
+### AUTH-TC-P05 · Inbox removed from nav; Messages via header chat only
 
 **Actors:** test-buyer
 
@@ -1639,7 +1738,7 @@
 - No Inbox tab in the bottom nav.
 - Messages opens from the header chat icon; the Messages screen still works as before.
 
-### TC-P06 · Trades tab — Active Trades
+### AUTH-TC-P06 · Trades tab — Active Trades
 
 **Actors:** test-buyer
 
@@ -1652,7 +1751,7 @@
 **Expected Result:**
 - Active Trades lists each active trade with the item, the counterpart user, and a status label (e.g., Pending Confirmation, In Progress).
 
-### TC-P07 · Trades tab — Trade History
+### AUTH-TC-P07 · Trades tab — Trade History
 
 **Actors:** test-buyer
 
@@ -1665,7 +1764,7 @@
 **Expected Result:**
 - Completed and cancelled trades appear under Trade History, newest first.
 
-### TC-P08 · Trades badge counts active trades only
+### AUTH-TC-P08 · Trades badge counts active trades only
 
 **Actors:** test-buyer
 
@@ -1679,7 +1778,7 @@
 - The badge counts trades with status `pending`, `in_progress` (and `payment_failed`/legacy `payment_processing` if present).
 - Completed and cancelled trades do NOT count toward the badge.
 
-### TC-P09 · Basket badge + Home active state unchanged
+### AUTH-TC-P09 · Basket badge + Home active state unchanged
 
 **Actors:** test-buyer
 
@@ -1693,7 +1792,7 @@
 - Basket badge shows the item count (99+ capped).
 - Home tab shows the active green highlight when selected.
 
-### TC-P10 · Post FAB globally visible + Sell sheet
+### AUTH-TC-P10 · Post FAB globally visible + Sell sheet
 
 **Actors:** test-buyer
 
@@ -1707,7 +1806,7 @@
 - The FAB is visible on every screen (raised orange circle above the pill).
 - Tapping it opens the Sell action sheet with "List One Item" and "Bulk Upload".
 
-### TC-P11 · Composer bar: focus + type
+### AUTH-TC-P11 · Composer bar: focus + type
 
 **Actors:** test-buyer
 
@@ -1720,7 +1819,7 @@
 - The inline field focuses (keyboard appears) and the user can type freely.
 - No navigation happens on focus.
 
-### TC-P12 · Composer "+" → New Item with Title pre-filled
+### AUTH-TC-P12 · Composer "+" → New Item with Title pre-filled
 
 **Actors:** test-buyer
 
@@ -1734,7 +1833,7 @@
 - The New Item screen opens on its Photos step (no Sell sheet appears).
 - The Title field already contains "Lego Star Wars Set".
 
-### TC-P13 · Composer empty submit → empty Title
+### AUTH-TC-P13 · Composer empty submit → empty Title
 
 **Actors:** test-buyer
 
@@ -1746,7 +1845,7 @@
 **Expected Result:**
 - New Item opens on its Photos step with an empty Title field.
 
-### TC-P14 · Composer camera icon → New Item straight to camera
+### AUTH-TC-P14 · Composer camera icon → New Item straight to camera
 
 **Actors:** test-buyer
 
@@ -1759,21 +1858,21 @@
 - New Item opens on the Photos step and auto-launches the camera.
 - The typed title is still pre-filled.
 
-### TC-P15 · AI never overwrites a composer-pre-filled Title
+### AUTH-TC-P15 · AI never overwrites a composer-pre-filled Title
 
 **Actors:** test-buyer
 
 **Objective:** Verify AI analysis cannot overwrite a Title pre-filled from the composer bar.
 
 **Steps:**
-1. Pre-fill a Title via the composer (TC-P12).
+1. Pre-fill a Title via the composer (AUTH-TC-P12).
 2. Add a photo and let AI analysis complete; tap "Apply All" and per-field "Use".
 
 **Expected Result:**
 - The pre-filled Title is never replaced by the AI-suggested title.
 - If the user entered no text, AI may still populate the Title as before.
 
-### TC-P16 · FAB Sell sheet unchanged (parallel entry point)
+### AUTH-TC-P16 · FAB Sell sheet unchanged (parallel entry point)
 
 **Actors:** test-buyer
 
@@ -1785,7 +1884,7 @@
 **Expected Result:**
 - The FAB sheet is unchanged; Bulk Upload is reachable only from here (not the composer bar).
 
-### TC-P17 · Logout still reachable from Profile/Settings
+### AUTH-TC-P17 · Logout still reachable from Profile/Settings
 
 **Actors:** test-buyer
 
@@ -1798,7 +1897,7 @@
 **Expected Result:**
 - Logout works from Profile and Settings; the user returns to Landing.
 
-### TC-P18 · Composer analytics events
+### AUTH-TC-P18 · Composer analytics events
 
 **Actors:** test-admin
 
@@ -1813,7 +1912,7 @@
 - `composer_bar_tapped` recorded on focus.
 - `composer_bar_submit` recorded with `has_text=true` and `has_text=false` respectively.
 
-### TC-P19 · Accessibility identifiers (Trades tab + header chat)
+### AUTH-TC-P19 · Accessibility identifiers (Trades tab + header chat)
 
 **Actors:** test-buyer
 
@@ -1830,7 +1929,7 @@
 
 ## Group Q — Trading Education (End User)
 
-### TC-Q01 · Education Help screen — published sections only
+### AUTH-TC-Q01 · Education Help screen — published sections only
 
 **Ref:** FLOW-21 / FLOW-EDU-001 · HelpScreen
 **Actors:** test user (mobile)
@@ -1846,7 +1945,7 @@
 
 ---
 
-### TC-Q02 · Education Help screen — section by type
+### AUTH-TC-Q02 · Education Help screen — section by type
 
 **Ref:** FLOW-21 / FLOW-EDU-001 · HelpScreen
 **Actors:** test user (mobile)
@@ -1861,7 +1960,7 @@
 
 ---
 
-### TC-Q03 · SP calculator — sell mode (no hardcoded rates)
+### AUTH-TC-Q03 · SP calculator — sell mode (no hardcoded rates)
 
 **Ref:** FLOW-EDU-001 · SP calculator
 **Actors:** test user (mobile, subscriber)
@@ -1876,7 +1975,7 @@
 
 ---
 
-### TC-Q04 · SP calculator — buy mode (cash + fee + cap)
+### AUTH-TC-Q04 · SP calculator — buy mode (cash + fee + cap)
 
 **Ref:** FLOW-EDU-001 · SP calculator
 **Actors:** test user (mobile)
@@ -1891,7 +1990,7 @@
 
 ---
 
-### TC-Q05 · SP calculator — bonus categories + example SP
+### AUTH-TC-Q05 · SP calculator — bonus categories + example SP
 
 **Ref:** FLOW-EDU-001 · SP calculator
 **Actors:** test user (mobile)
@@ -1907,7 +2006,7 @@
 
 ---
 
-### TC-Q06 · Education analytics — event tracking (no throw)
+### AUTH-TC-Q06 · Education analytics — event tracking (no throw)
 
 **Ref:** FLOW-EDU-001 · analytics
 **Actors:** test user (mobile)
@@ -1922,7 +2021,7 @@
 
 ---
 
-### TC-Q07 · Education prompts — onboarding + in-app prompt state machine
+### AUTH-TC-Q07 · Education prompts — onboarding + in-app prompt state machine
 
 **Ref:** FLOW-EDU-001 · analytics
 **Actors:** test user (mobile)
@@ -1944,7 +2043,7 @@
 
 ## Group S — Password Recovery
 
-### TC-S01 · Forgot Password — success + Send Another Email
+### AUTH-TC-S01 · Forgot Password — success + Send Another Email
 
 **Actors:** test-free
 
@@ -1960,7 +2059,12 @@
 - A reset email arrives containing a `p2pkidsmarketplace://reset-password` link.
 - Tapping **Send Another Email** returns to the email form with the field cleared.
 
-### TC-S02 · Forgot Password — invalid email
+**Locator hints:**
+- Screen: `src/screens/auth/ForgotPasswordScreen.tsx` (instrumented 2026-08-15).
+- Email input → `forgot-email-input` · Send Reset Link → `forgot-send-reset-button` · Back to Login (form) → `forgot-back-to-login` · Send Another Email → `forgot-send-another-button` · Back to Login (success) → `forgot-back-to-login-success`.
+- Error alerts are native `Alert.alert` — assert by title.
+
+### AUTH-TC-S02 · Forgot Password — invalid email
 
 **Actors:** test-free
 
@@ -1974,7 +2078,11 @@
 - With the Email field empty, **Send Reset Link** is disabled.
 - With `abc`, an alert titled **Invalid Email** shows `Please enter a valid email address`; no request is sent.
 
-### TC-S03 · Forgot Password — rate-limit error
+**Locator hints:**
+- Email input → `forgot-email-input` · Send Reset Link → `forgot-send-reset-button`.
+- Invalid-email alert is native `Alert.alert` — assert by title **Invalid Email**.
+
+### AUTH-TC-S03 · Forgot Password — rate-limit error
 
 **Actors:** test-free
 
@@ -1987,7 +2095,10 @@
 - An alert titled **Reset Email Failed** shows `You have requested password reset emails too frequently. Please check your inbox (including spam) or try again in a few minutes.`
 - The alert has an **Open Supabase Docs** button and an **OK** button.
 
-### TC-S04 · Forgot Password — SMTP-config (500) error
+**Locator hints:**
+- Rate-limit alert is native `Alert.alert` — assert by title **Reset Email Failed**.
+
+### AUTH-TC-S04 · Forgot Password — SMTP-config (500) error
 
 **Actors:** test-free
 
@@ -2002,7 +2113,10 @@
   - `Check Supabase Auth > Email Settings and Email Logs.`
 - The alert has **Open Supabase Docs** and **OK** buttons.
 
-### TC-S05 · Forgot Password — 400 error
+**Locator hints:**
+- SMTP/500 alert is native `Alert.alert` — assert by title **Reset Email Failed**.
+
+### AUTH-TC-S05 · Forgot Password — 400 error
 
 **Actors:** test-free
 
@@ -2015,7 +2129,10 @@
 - An alert titled **Reset Email Failed** shows the base error message followed by `Check that the email you entered is correct and belongs to an account.`
 - The alert has **Open Supabase Docs** and **OK** buttons.
 
-### TC-S06 · Forgot Password — Back to Login
+**Locator hints:**
+- 400 alert is native `Alert.alert` — assert by title **Reset Email Failed**.
+
+### AUTH-TC-S06 · Forgot Password — Back to Login
 
 **Actors:** test-free
 
@@ -2028,7 +2145,10 @@
 **Expected Result:**
 - In both cases the app returns to the Login screen.
 
-### TC-S07 · Reset Password — validation + requirements card
+**Locator hints:**
+- Back to Login (form) → `forgot-back-to-login` · Back to Login (success state) → `forgot-back-to-login-success`.
+
+### AUTH-TC-S07 · Reset Password — validation + requirements card
 
 **Actors:** test-free
 
@@ -2048,7 +2168,12 @@
 - Mismatched confirm → inline error `Passwords do not match`.
 - The **Reset Password** button is disabled while either field is empty.
 
-### TC-S08 · Reset Password — success → Login
+**Locator hints:**
+- Screen: `src/screens/auth/ResetPasswordScreen.tsx` (instrumented 2026-08-15).
+- New Password → `reset-new-password-input` · Confirm Password → `reset-confirm-password-input` · Reset Password → `reset-submit-button` · Back to Login → `reset-back-to-login` · Link-Error "Request New Reset Email" → `reset-request-new-email-button`.
+- Requirements card is static text — assert by label; error/success alerts are native `Alert.alert`.
+
+### AUTH-TC-S08 · Reset Password — success → Login
 
 **Actors:** test-free
 
@@ -2065,7 +2190,11 @@
 - Tapping **OK** navigates to the Login screen.
 - The new password authenticates successfully.
 
-### TC-S09 · Reset Password — link-error (expired) → Request New Reset Email
+**Locator hints:**
+- New Password → `reset-new-password-input` · Confirm Password → `reset-confirm-password-input` · Reset Password → `reset-submit-button`.
+- Success alert is native `Alert.alert` — tap OK, then assert Login screen.
+
+### AUTH-TC-S09 · Reset Password — link-error (expired) → Request New Reset Email
 
 **Actors:** test-free
 
@@ -2078,7 +2207,10 @@
 - A **Link Error** card shows `This reset link has expired. Please request a new password reset email.`
 - The card's **Request New Reset Email** button navigates to the Forgot Password screen.
 
-### TC-S10 · Reset Password — no active reset session
+**Locator hints:**
+- Link-Error card button "Request New Reset Email" → `reset-request-new-email-button`.
+
+### AUTH-TC-S10 · Reset Password — no active reset session
 
 **Actors:** test-free
 
@@ -2092,7 +2224,11 @@
 - An alert titled **No active reset session** shows `This link does not provide a valid reset session. Please request a new password reset email.`
 - The password is not changed.
 
-### TC-S11 · Deep link `p2pkidsmarketplace://reset-password`
+**Locator hints:**
+- New Password → `reset-new-password-input` · Confirm Password → `reset-confirm-password-input` · Reset Password → `reset-submit-button`.
+- "No active reset session" alert is native `Alert.alert` — assert by title.
+
+### AUTH-TC-S11 · Deep link `p2pkidsmarketplace://reset-password`
 
 **Actors:** test-free
 
@@ -2108,11 +2244,14 @@
 - Case 2: the tokens establish the reset session; the user can set a new password (no "No active reset session" alert on submit).
 - Case 3: the **Link Error** card appears with the applicable message.
 
+**Locator hints:**
+- New Password → `reset-new-password-input` · Confirm Password → `reset-confirm-password-input` · Reset Password → `reset-submit-button` · Link-Error card button → `reset-request-new-email-button`.
+
 ---
 
 ## Regression checks (run after any change to these flows)
 
-### TC-R01 · Auth boundary integrity
+### AUTH-TC-R01 · Auth boundary integrity
 
 **Objective:** Verify logout always returns to the unauthenticated stack and login returns to the correct stack.
 **Steps:**
@@ -2120,7 +2259,7 @@
 **Expected Result:**
 - Logout shows Landing; a completed user lands on Home; an incomplete user lands on onboarding.
 
-### TC-R02 · Session restore does not loop
+### AUTH-TC-R02 · Session restore does not loop
 
 **Objective:** Verify cold launch does not get stuck or loop on auth refresh.
 **Steps:**
@@ -2128,7 +2267,7 @@
 **Expected Result:**
 - The app restores to Home without an infinite spinner or repeated re-subscribe loops.
 
-### TC-R03 · Node assignment consistency
+### AUTH-TC-R03 · Node assignment consistency
 
 **Objective:** Verify active vs inactive ZIP routing is consistent.
 **Steps:**
@@ -2136,7 +2275,7 @@
 **Expected Result:**
 - Active ZIP assigns directly with no waitlist; inactive ZIP offers the waitlist and a fallback node.
 
-### TC-R04 · Pending listings never leak to feed
+### AUTH-TC-R04 · Pending listings never leak to feed
 
 **Objective:** Verify a pending or edited-pending listing is never publicly visible.
 **Steps:**
@@ -2144,7 +2283,7 @@
 **Expected Result:**
 - Neither pending listing appears in discovery until (re)approved.
 
-### TC-R05 · Discovery node isolation
+### AUTH-TC-R05 · Discovery node isolation
 
 **Objective:** Verify discovery stays node-scoped by default.
 **Steps:**
@@ -2152,7 +2291,7 @@
 **Expected Result:**
 - Default results contain only the user's node items.
 
-### TC-R06 · Free vs subscriber gating holds
+### AUTH-TC-R06 · Free vs subscriber gating holds
 
 **Objective:** Verify SP/Accept-SP gating is enforced for free users across listing and discovery.
 **Steps:**
@@ -2168,7 +2307,7 @@
 > They apply to the iOS accessibility tree (Accessibility Inspector or the automation harness). Identifiers must be
 > discoverable WITHOUT screenshot/coordinate tapping. See `docs/flow-registry.md` FLOW-00/FLOW-01 (ACCESSIBILITY-IDENTIFIERS).
 
-### TC-ACC-01 · Sign Up submit button is discoverable by identifier
+### AUTH-TC-ACC-01 · Sign Up submit button is discoverable by identifier
 
 **Objective:** Verify the Create Account submit button appears as a button with a stable identifier.
 **Steps:**
@@ -2177,7 +2316,7 @@
 **Expected Result:**
 - The submit control appears as a button with identifier `signup-submit-button` and label "Create Account". No coordinate tap needed.
 
-### TC-ACC-02 · Log In submit button is discoverable by identifier
+### AUTH-TC-ACC-02 · Log In submit button is discoverable by identifier
 
 **Objective:** Verify the Log In submit button appears as a button with a stable identifier.
 **Steps:**
@@ -2186,7 +2325,7 @@
 **Expected Result:**
 - The submit control appears as a button with identifier `login-submit-button` and label "Log In". No coordinate tap needed.
 
-### TC-ACC-03 · Auth error dialog OK buttons are discoverable by identifier
+### AUTH-TC-ACC-03 · Auth error dialog OK buttons are discoverable by identifier
 
 **Objective:** Verify the blocking auth error dialogs expose an identifiable OK button.
 **Steps:**
@@ -2196,7 +2335,7 @@
 **Expected Result:**
 - Each dialog's OK button is a button in the tree with its own identifier and is activatable by identifier. User stays on the same screen after dismiss (no navigation change).
 
-### TC-ACC-04 · Bottom tab bar items are discoverable by identifier
+### AUTH-TC-ACC-04 · Bottom tab bar items are discoverable by identifier
 
 **Objective:** Verify every persistent bottom tab exposes an accessible button with a stable identifier.
 **Steps:**
@@ -2205,7 +2344,7 @@
 **Expected Result:**
 - Tabs appear as buttons: `tab-home`, `tab-discover`, `tab-sell` (Sell FAB), `tab-inbox`, `tab-trade-basket` — each with its visible label and selected state, activatable by identifier.
 
-### TC-ACC-05 · No visual/layout regression from identifiers
+### AUTH-TC-ACC-05 · No visual/layout regression from identifiers
 
 **Objective:** Confirm adding accessibility props changed no visuals.
 **Steps:**
@@ -2214,7 +2353,7 @@
 **Expected Result:**
 - Identical layout/colors/text. (Zero-logic UI change.)
 
-### TC-ACC-06 · Widget tests still pass
+### AUTH-TC-ACC-06 · Widget tests still pass
 
 **Objective:** Ensure the accessibility props did not break unit tests.
 **Steps:**
@@ -2228,73 +2367,73 @@
 
 | Verification item | Test cases |
 |---|---|
-| Accessibility identifiers: Sign Up / Log In / dialog OK / tab bar | TC-ACC-01 … TC-ACC-06 |
-| Signup happy path → phone verification | TC-A01 |
-| Signup field validation | TC-A02, TC-A03 |
-| 18+ age gate | TC-A04 |
-| Duplicate email blocked | TC-A05 |
-| Optional referral code handling | TC-A06 |
-| Terms/Privacy acceptance recorded | TC-A07 |
-| Login routes by onboarding status | TC-B01 |
-| Invalid credentials error | TC-B02 |
-| Forgot password entry | TC-B03 |
-| Session restore after relaunch | TC-B04 |
-| Silent resume refresh | TC-B05 |
-| Cold launch no hang | TC-B06, TC-R02 |
-| Social login Google/Facebook/Apple | TC-C01, TC-C02, TC-C03 |
-| Account-link prompt (email match) | TC-C04 |
-| Provider unavailable fallback | TC-C05 |
-| OAuth cancel silent return | TC-C06 |
-| Social-only set password | TC-C07 |
-| Logout from Profile / Settings | TC-D01, TC-D02 |
-| Logout returns to Landing | TC-D03, TC-R01 |
-| Phone OTP send/verify | TC-E01 |
-| OTP error states | TC-E02 |
-| Resend cooldown | TC-E03 |
-| OTP rate limiting | TC-E04 |
-| Phone gate before listing | TC-E05, TC-J10 |
-| Active ZIP node assignment | TC-F01, TC-R03 |
-| Inactive ZIP waitlist offer | TC-F02, TC-F03, TC-F04, TC-R03 |
-| ZIP auto-lookup city/state | TC-F05 |
-| Node-scoped content toggle | TC-F06, TC-O01, TC-R05 |
-| Admin create active/inactive node | TC-G01, TC-G02 |
-| Admin edit node | TC-G03 |
-| Admin deactivate/reactivate node | TC-G04, TC-G05 |
-| Node stats + form validation | TC-G06 |
-| Profile Setup capture + validation | TC-H01, TC-H02, TC-H03 |
-| Welcome / Feature Highlights | TC-H04, TC-H05 |
-| Onboarding carousel + completion | TC-H06, TC-H07 |
-| Subscription choice trial/free | TC-I01, TC-I02, TC-I03 |
-| Listing photo-first gating | TC-J01 |
-| AI auto-fill apply | TC-J02 |
-| Listing required-field validation | TC-J03 |
-| Listing enums (condition/age/gender/color) | TC-J04 |
-| Other category custom name | TC-J05 |
-| Payment preference subscriber/free | TC-J06, TC-J07, TC-R06 |
-| SP earnings preview | TC-J08, TC-K06 |
-| Submit for review → pending modal | TC-J09 |
-| Draft auto-save/resume | TC-J11 |
-| Bulk upload + grouping | TC-K01, TC-K02, TC-K03 |
-| Bulk Apply to All | TC-K04 |
-| Bulk submit + confirm | TC-K05 |
-| Pending hidden until approved | TC-L01, TC-R04 |
-| Admin approval makes visible | TC-L02 |
-| Seller approval notification | TC-L03 |
-| Edit returns to pending | TC-L04, TC-R04 |
-| Search debounce + clear | TC-M01 |
-| Recent searches + autocomplete | TC-M02 |
-| Sort options | TC-M03 |
-| Filters modal (SP toggle, More Filters, live count) | TC-M04 |
-| "Accepts SP" toggle (header ↔ sheet sync) | TC-M05, TC-O04, TC-R06 |
-| Empty/no-results states | TC-M06 |
-| Recent Searches chip row + Clear | TC-M07 |
-| Trending in state (top categories by count) | TC-M08 |
-| Result count + active filter chips (incl. gold SP chip) | TC-M09 |
-| Discover header bookmark → Favorites (local header) | TC-M10 |
-| Category browse | TC-N01 |
-| Favorites toggle | TC-N02 |
-| Infinite scroll pagination | TC-N03 |
-| Item card §6.2 layout + gold Accepts SP badge | TC-N04 |
-| Location ZIP + radius | TC-O02 |
-| Inactive ZIP in discovery filter | TC-O03 |
-| Admin radius defaults/bounds | TC-O05 |
+| Accessibility identifiers: Sign Up / Log In / dialog OK / tab bar | AUTH-TC-ACC-01 … AUTH-TC-ACC-06 |
+| Signup happy path → phone verification | AUTH-TC-A01 |
+| Signup field validation | AUTH-TC-A02, AUTH-TC-A03 |
+| 18+ age gate | AUTH-TC-A04 |
+| Duplicate email blocked | AUTH-TC-A05 |
+| Optional referral code handling | AUTH-TC-A06 |
+| Terms/Privacy acceptance recorded | AUTH-TC-A07 |
+| Login routes by onboarding status | AUTH-TC-B01 |
+| Invalid credentials error | AUTH-TC-B02 |
+| Forgot password entry | AUTH-TC-B03 |
+| Session restore after relaunch | AUTH-TC-B04 |
+| Silent resume refresh | AUTH-TC-B05 |
+| Cold launch no hang | AUTH-TC-B06, AUTH-TC-R02 |
+| Social login Google/Facebook/Apple | AUTH-TC-C01, AUTH-TC-C02, AUTH-TC-C03 |
+| Account-link prompt (email match) | AUTH-TC-C04 |
+| Provider unavailable fallback | AUTH-TC-C05 |
+| OAuth cancel silent return | AUTH-TC-C06 |
+| Social-only set password | AUTH-TC-C07 |
+| Logout from Profile / Settings | AUTH-TC-D01, AUTH-TC-D02 |
+| Logout returns to Landing | AUTH-TC-D03, AUTH-TC-R01 |
+| Phone OTP send/verify | AUTH-TC-E01 |
+| OTP error states | AUTH-TC-E02 |
+| Resend cooldown | AUTH-TC-E03 |
+| OTP rate limiting | AUTH-TC-E04 |
+| Phone gate before listing | AUTH-TC-E05, AUTH-TC-J10 |
+| Active ZIP node assignment | AUTH-TC-F01, AUTH-TC-R03 |
+| Inactive ZIP waitlist offer | AUTH-TC-F02, AUTH-TC-F03, AUTH-TC-F04, AUTH-TC-R03 |
+| ZIP auto-lookup city/state | AUTH-TC-F05 |
+| Node-scoped content toggle | AUTH-TC-F06, AUTH-TC-O01, AUTH-TC-R05 |
+| Admin create active/inactive node | AUTH-TC-G01, AUTH-TC-G02 |
+| Admin edit node | AUTH-TC-G03 |
+| Admin deactivate/reactivate node | AUTH-TC-G04, AUTH-TC-G05 |
+| Node stats + form validation | AUTH-TC-G06 |
+| Profile Setup capture + validation | AUTH-TC-H01, AUTH-TC-H02, AUTH-TC-H03 |
+| Welcome / Feature Highlights | AUTH-TC-H04, AUTH-TC-H05 |
+| Onboarding carousel + completion | AUTH-TC-H06, AUTH-TC-H07 |
+| Subscription choice trial/free | AUTH-TC-I01, AUTH-TC-I02, AUTH-TC-I03 |
+| Listing photo-first gating | AUTH-TC-J01 |
+| AI auto-fill apply | AUTH-TC-J02 |
+| Listing required-field validation | AUTH-TC-J03 |
+| Listing enums (condition/age/gender/color) | AUTH-TC-J04 |
+| Other category custom name | AUTH-TC-J05 |
+| Payment preference subscriber/free | AUTH-TC-J06, AUTH-TC-J07, AUTH-TC-R06 |
+| SP earnings preview | AUTH-TC-J08, AUTH-TC-K06 |
+| Submit for review → pending modal | AUTH-TC-J09 |
+| Draft auto-save/resume | AUTH-TC-J11 |
+| Bulk upload + grouping | AUTH-TC-K01, AUTH-TC-K02, AUTH-TC-K03 |
+| Bulk Apply to All | AUTH-TC-K04 |
+| Bulk submit + confirm | AUTH-TC-K05 |
+| Pending hidden until approved | AUTH-TC-L01, AUTH-TC-R04 |
+| Admin approval makes visible | AUTH-TC-L02 |
+| Seller approval notification | AUTH-TC-L03 |
+| Edit returns to pending | AUTH-TC-L04, AUTH-TC-R04 |
+| Search debounce + clear | AUTH-TC-M01 |
+| Recent searches + autocomplete | AUTH-TC-M02 |
+| Sort options | AUTH-TC-M03 |
+| Filters modal (SP toggle, More Filters, live count) | AUTH-TC-M04 |
+| "Accepts SP" toggle (header ↔ sheet sync) | AUTH-TC-M05, AUTH-TC-O04, AUTH-TC-R06 |
+| Empty/no-results states | AUTH-TC-M06 |
+| Recent Searches chip row + Clear | AUTH-TC-M07 |
+| Trending in state (top categories by count) | AUTH-TC-M08 |
+| Result count + active filter chips (incl. gold SP chip) | AUTH-TC-M09 |
+| Discover header bookmark → Favorites (local header) | AUTH-TC-M10 |
+| Category browse | AUTH-TC-N01 |
+| Favorites toggle | AUTH-TC-N02 |
+| Infinite scroll pagination | AUTH-TC-N03 |
+| Item card §6.2 layout + gold Accepts SP badge | AUTH-TC-N04 |
+| Location ZIP + radius | AUTH-TC-O02 |
+| Inactive ZIP in discovery filter | AUTH-TC-O03 |
+| Admin radius defaults/bounds | AUTH-TC-O05 |
