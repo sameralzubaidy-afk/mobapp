@@ -75,22 +75,30 @@ export default function LandingScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            By continuing, you agree to our{' '}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>By continuing, you agree to our </Text>
             <Text
               style={styles.footerLink}
+              accessible
+              accessibilityRole="link"
+              accessibilityLabel="Terms"
+              testID="landing-terms-link"
               onPress={() => navigation.navigate('TermsOfService' as any)}
             >
               Terms
-            </Text>{' '}
-            and{' '}
+            </Text>
+            <Text style={styles.footerText}> and </Text>
             <Text
               style={styles.footerLink}
+              accessible
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+              testID="landing-privacy-policy-link"
               onPress={() => navigation.navigate('PrivacyPolicy' as any)}
             >
               Privacy Policy
             </Text>
-          </Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -169,6 +177,12 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: theme.spacing.xxl,
     paddingBottom: theme.spacing.md,
+  },
+
+  footerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
 
   footerText: {

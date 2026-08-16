@@ -559,31 +559,43 @@ export default function SignupScreen() {
             {/* Login Link */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => (navigation as any).navigate('Login')}>
+              <TouchableOpacity
+                onPress={() => (navigation as any).navigate('Login')}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Log In"
+                testID="signup-login-link"
+              >
                 <Text style={styles.loginLink}>Log In</Text>
               </TouchableOpacity>
             </View>
 
             {/* Terms and Privacy */}
             <View style={styles.terms}>
-              <Text style={styles.termsText}>
-                By signing up, you agree to our{' '}
+              <View style={styles.termsRow}>
+                <Text style={styles.termsText}>By signing up, you agree to our </Text>
                 <Text
                   style={styles.termsLink}
-                  testID="tos-link"
+                  accessible
+                  accessibilityRole="link"
+                  accessibilityLabel="Terms of Service"
+                  testID="signup-terms-of-service-link"
                   onPress={() => (navigation as any).navigate('TermsOfService')}
                 >
                   Terms of Service
-                </Text>{' '}
-                and{' '}
+                </Text>
+                <Text style={styles.termsText}> and </Text>
                 <Text
                   style={styles.termsLink}
-                  testID="privacy-policy-link"
+                  accessible
+                  accessibilityRole="link"
+                  accessibilityLabel="Privacy Policy"
+                  testID="signup-privacy-policy-link"
                   onPress={() => (navigation as any).navigate('PrivacyPolicy')}
                 >
                   Privacy Policy
                 </Text>
-              </Text>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -724,6 +736,13 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.lg,
     borderTopWidth: 1,
     borderTopColor: theme.borderColors.divider,
+  },
+
+  termsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   termsText: {

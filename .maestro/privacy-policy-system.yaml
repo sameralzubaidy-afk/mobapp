@@ -29,7 +29,7 @@ appId: com.p2pkidsmarketplace.app
 - tapOn: "Sign Up"
 - assertVisible: "Create Account"
 - tapOn:
-    id: "privacy-policy-link"
+    id: "signup-privacy-policy-link"
 - assertVisible: "Privacy Policy"
 - waitForAnimationToEnd
 - assertVisible:

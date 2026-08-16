@@ -24,7 +24,7 @@ appId: com.p2pkidsmarketplace
 - tapOn: "Sign Up"
 - assertVisible: "Create Account"
 - tapOn:
-    id: "tos-link"
+    id: "signup-terms-of-service-link"
 - waitForAnimationToEnd
 - assertVisible:
     id: "tos-screen"

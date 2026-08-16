@@ -234,6 +234,9 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   onPress={() => navigation.navigate('Signup')}
                   testID="login-signup-link"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Sign Up"
                   disabled={loading}
                 >
                   <Text style={styles.linkText}>Sign Up</Text>
@@ -244,6 +247,10 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={styles.forgotPassword}
                 onPress={() => navigation.navigate('ForgotPassword' as any)}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Forgot Password"
+                testID="login-forgot-password-link"
                 disabled={loading}
               >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
