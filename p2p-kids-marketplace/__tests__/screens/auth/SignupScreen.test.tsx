@@ -31,6 +31,17 @@ jest.mock('@/services/referralCodeV2', () => ({
   },
 }));
 
+// SignupScreen now consumes useAuth (for post-account-link session refresh).
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    refreshSession: jest.fn(),
+    setSession: jest.fn(),
+    session: null,
+    user: null,
+    logout: jest.fn(),
+  }),
+}));
+
 jest.mock('@/components/auth/SocialLoginButtons', () => ({
   SocialLoginButtons: ({ testID }: { testID?: string }) => {
     const { View } = require('react-native');

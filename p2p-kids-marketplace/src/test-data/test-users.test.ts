@@ -1,3 +1,7 @@
+// ⚠️ DEPRECATED (2026-08-18) — tests the stale `test-data` fixture only.
+// See DEPRECATED.md in this folder. The canonical dev-autofill credential
+// source is `@/utils/testUsers` (password `TestPass123`); this fixture's
+// `Password123!` is NOT what the signup autofill uses.
 import {
   getAllTestUsers,
   getRandomTestUser,

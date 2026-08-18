@@ -206,8 +206,14 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         phone: currentUser.user_metadata?.phone || currentUser.phone,
       };
 
-      const { error, needsWaitlist, zipCode: userZip, matchType, assignedNodeId, assignedNodeName } =
-        await setupUserProfile(currentUser.id, profileData);
+      const {
+        error,
+        needsWaitlist,
+        zipCode: userZip,
+        matchType,
+        assignedNodeId,
+        assignedNodeName,
+      } = await setupUserProfile(currentUser.id, profileData);
 
       if (error) {
         throw error;
@@ -386,8 +392,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
           <View style={styles.waitlistModalCard}>
             <Text style={styles.waitlistModalTitle}>We're Coming Soon!</Text>
             <Text style={styles.waitlistModalBody}>
-              We're not quite active in {waitlistContext?.requestedZip} yet, but we're coming soon! In the
-              meantime, we've connected you with traders in {waitlistContext?.assignedNodeName || 'a nearby area'}.
+              We're not quite active in {waitlistContext?.requestedZip} yet, but we're coming soon!
+              In the meantime, we've connected you with traders in{' '}
+              {waitlistContext?.assignedNodeName || 'a nearby area'}.
             </Text>
             <Text style={styles.waitlistModalPrompt}>
               Want to be notified when we launch in your area?
@@ -395,24 +402,36 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
 
             <View style={styles.waitlistButtonRow}>
               <TouchableOpacity
-                style={[styles.waitlistSecondaryButton, isJoiningWaitlist && styles.waitlistButtonDisabled]}
+                style={[
+                  styles.waitlistSecondaryButton,
+                  isJoiningWaitlist && styles.waitlistButtonDisabled,
+                ]}
                 onPress={() => {
                   setIsWaitlistPromptVisible(false);
                   void continueToPostAuthFlow();
                 }}
                 disabled={isJoiningWaitlist}
                 testID="waitlist-continue-trading"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Continue Trading"
               >
                 <Text style={styles.waitlistSecondaryButtonText}>Continue Trading</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.waitlistPrimaryButton, isJoiningWaitlist && styles.waitlistButtonDisabled]}
+                style={[
+                  styles.waitlistPrimaryButton,
+                  isJoiningWaitlist && styles.waitlistButtonDisabled,
+                ]}
                 onPress={() => {
                   void handleJoinWaitlist();
                 }}
                 disabled={isJoiningWaitlist}
                 testID="waitlist-join-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Join Waitlist"
               >
                 {isJoiningWaitlist ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -438,11 +457,12 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
           <View style={styles.waitlistModalCard}>
             <Text style={styles.waitlistModalTitle}>Waitlist Confirmed</Text>
             <Text style={styles.waitlistModalBody}>
-              Thank you! We've added you to the waitlist for {waitlistContext?.requestedZip}. We'll notify you as
-              soon as we launch in your area.
+              Thank you! We've added you to the waitlist for {waitlistContext?.requestedZip}. We'll
+              notify you as soon as we launch in your area.
             </Text>
             <Text style={styles.waitlistModalBody}>
-              In the meantime, you can trade items with users in {waitlistContext?.assignedNodeName || 'your assigned area'}.
+              In the meantime, you can trade items with users in{' '}
+              {waitlistContext?.assignedNodeName || 'your assigned area'}.
             </Text>
 
             <TouchableOpacity
@@ -452,6 +472,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
                 void continueToPostAuthFlow();
               }}
               testID="waitlist-confirmed-got-it"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Got it"
             >
               <Text style={styles.waitlistSinglePrimaryButtonText}>Got it</Text>
             </TouchableOpacity>

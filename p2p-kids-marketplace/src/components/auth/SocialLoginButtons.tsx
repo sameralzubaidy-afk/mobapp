@@ -3,8 +3,9 @@
 // TASK: AUTH-V3-007 — Mobile UI SocialLoginButtons
 // MODULE: MODULE-03-AUTH-V3-SOCIAL-LOGIN.md
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { AppleLogo } from 'phosphor-react-native';
 import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
@@ -19,12 +20,23 @@ import { supabase } from '@/services/supabase/client';
 // Warm up the browser for faster OAuth flows
 WebBrowser.maybeCompleteAuthSession();
 
+// One-time inline hint under the social row — shown once per device, then remembered.
+const SOCIAL_HINT_SEEN_KEY = '@kids_marketplace:social_login_hint_seen_v1';
+const SOCIAL_HINT_COPY = 'Prefer to sign in with Google, Apple, or Facebook?';
+
 export interface SocialLoginButtonsProps {
   /** Display mode: 'login' shows "Sign in with", 'signup' shows "Continue with" */
   mode: 'login' | 'signup';
 
-  /** Callback when OAuth succeeds AND account exists (navigate to AccountLinkingPrompt) */
-  onAccountExists?: (email: string, provider: OAuthProvider) => void;
+  /** Callback when OAuth succeeds AND the provider email matches an existing account.
+   *  Receives the email, provider, extracted provider profile, and whether the existing
+   *  account has a password (drives AccountLinkingPrompt's re-auth mode). */
+  onAccountExists?: (
+    email: string,
+    provider: OAuthProvider,
+    profile: ProviderProfile,
+    hasPassword: boolean
+  ) => void;
 
   /** Callback when OAuth succeeds AND it's a new signup (navigate to home) */
   onSignupSuccess?: () => void;
@@ -66,7 +78,9 @@ export interface SocialLoginButtonsProps {
  * <SocialLoginButtons
  *   mode="signup"
  *   onSignupSuccess={() => navigation.navigate('Home')}
- *   onAccountExists={(email, provider) => setLinkPrompt({ email, provider })}
+ *   onAccountExists={(email, provider, profile, hasPassword) =>
+ *     setLinkPrompt({ email, provider, profile, hasPassword })
+ *   }
  *   emailInputRef={emailInputRef}
  * />
  * ```
@@ -84,8 +98,58 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
   // Loading state per provider
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
 
-  // Provider unavailable error state
-  const [unavailableProvider, setUnavailableProvider] = useState<OAuthProvider | null>(null);
+  // OAuth failure banner state — covers provider outages (ProviderUnavailableError) AND
+  // initiation failures (e.g. OAUTH_INIT_FAILED) so a dead tap is never silent to the user.
+  const [errorInfo, setErrorInfo] = useState<{ provider: OAuthProvider; message: string } | null>(
+    null
+  );
+
+  // One-time social-login hint (once per device, ever). Non-dismissible: we show it the
+  // first time Login/Signup mounts and immediately persist the "seen" flag so it never
+  // repeats. Mirrors the BulkIntroSheet once-per-device AsyncStorage pattern.
+  const [showSocialHint, setShowSocialHint] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(SOCIAL_HINT_SEEN_KEY)
+      .then((value) => {
+        if (!mounted) return;
+        if (value !== '1') {
+          setShowSocialHint(true);
+          AsyncStorage.setItem(SOCIAL_HINT_SEEN_KEY, '1').catch(() => {
+            // non-fatal — if the write fails the hint may reappear next launch
+          });
+        }
+      })
+      .catch(() => {
+        // Storage unavailable — show the hint anyway (harmless, transient).
+        if (mounted) setShowSocialHint(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Persistent OAuth-callback deep-link capture. The callback can arrive via
+  // Linking (system openURL) instead of / in addition to the openAuthSessionAsync
+  // promise — e.g. if ASWebAuthenticationSession is torn down before it can
+  // deliver the callback. A listener scoped to the pending promise is removed in
+  // `finally` and can race the delivery, so we keep a persistent one for the
+  // component's lifetime and read it as a fallback in runOAuthAttempt.
+  const pendingCallbackUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') {
+      return undefined;
+    }
+    const sub = Linking.addEventListener('url', ({ url: incomingUrl }) => {
+      if (incomingUrl.includes('oauth-callback')) {
+        console.log('📲 [persistent] OAuth callback deep link captured:', incomingUrl);
+        pendingCallbackUrlRef.current = incomingUrl;
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   /**
    * Parse OAuth callback params from URL
@@ -125,7 +189,7 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
    */
   const handleSocialLogin = async (provider: OAuthProvider) => {
     setLoadingProvider(provider);
-    setUnavailableProvider(null);
+    setErrorInfo(null);
 
     try {
       const { data: preAuthSessionData } = await supabase.auth.getSession();
@@ -133,10 +197,15 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
 
       const runOAuthAttempt = async (
         redirectUri: string
-      ): Promise<{ callbackUrl: string | null; state: string }> => {
-        // Step 1: Initiate OAuth flow (get provider URL + CSRF state)
+      ): Promise<{ callbackUrl: string | null; state: string; timedOut: boolean }> => {
+        // Step 1: Initiate OAuth flow (get provider URL + CSRF state).
+        // supabase-js >=2.x with skipBrowserRedirect:true returns the Supabase
+        // /auth/v1/authorize endpoint URL, which does NOT carry a `state` param —
+        // the state only lives in the server's 302 redirect to the provider. We must
+        // NOT gate the browser-open on `state`; CSRF state is validated on the callback
+        // instead (see handleOAuthCallback). P0 fix from Phase 18 (OAUTH_INIT_FAILED).
         const initResult = await initiateSocialLogin(provider, redirectUri);
-        if (!initResult?.state || !initResult?.url) {
+        if (!initResult?.url) {
           throw new Error('OAUTH_INIT_FAILED');
         }
         const { state, url } = initResult;
@@ -154,6 +223,7 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
         const authSessionUrl = url;
 
         let callbackUrl: string | null = null;
+        let timedOut = false;
 
         if (process.env.NODE_ENV !== 'test') {
           // Set up deep link listener as fallback if WebBrowser hangs
@@ -166,12 +236,15 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
           });
 
           try {
-            // Open OAuth session in browser
+            // Open OAuth session in browser.
+            // NOTE: preferEphemeralSession is intentionally NOT set. On recent iOS it
+            // can cause ASWebAuthenticationSession to be torn down
+            // (`_UIViewServiceHostSessionErrorDomain Code=4 "Invalidation requested"`)
+            // before the custom-scheme callback is delivered. Account selection is
+            // still forced for Google via `prompt=select_account` in oauthService,
+            // and Facebook presents its own account chooser.
             const authResult = await Promise.race([
-              WebBrowser.openAuthSessionAsync(authSessionUrl, appReturnUrl, {
-                // Helps ensure OAuth account selection is shown instead of silently reusing cookies.
-                preferEphemeralSession: true,
-              }),
+              WebBrowser.openAuthSessionAsync(authSessionUrl, appReturnUrl),
               new Promise<{ type: 'timeout' }>((resolve) => {
                 setTimeout(() => resolve({ type: 'timeout' }), 45000);
               }),
@@ -182,33 +255,57 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
             if (authResult.type === 'success' && 'url' in authResult && authResult.url) {
               callbackUrl = authResult.url;
             } else {
+              // Not a `success` result. Either:
+              //  - `timeout` (45s): the browser is still open / user still
+              //    authenticating — keep a recovery window, then surface a failure
+              //    message if nothing comes back (never a silent dead-end).
+              //  - `cancel`/`dismiss`: the user cancelled the consent browser OR the
+              //    auth session was torn down before delivering the callback. Check
+              //    the Linking captures + a SHORT session-recovery window so an
+              //    explicit cancel returns the button to idle promptly (the old
+              //    60×500ms poll made a cancel hang in "Signing you in…" ~30s).
               if (authResult.type === 'timeout') {
+                timedOut = true;
                 console.log(
                   '[SocialLoginButtons] OAuth session timed out - checking deep link/session recovery'
                 );
               }
 
-              if (linkingCallbackUrl) {
-                callbackUrl = linkingCallbackUrl;
-                console.log('[SocialLoginButtons] Using deep-link callback captured during dismiss');
-                return { callbackUrl, state };
+              const linkingFallback = linkingCallbackUrl || pendingCallbackUrlRef.current;
+              if (linkingFallback) {
+                callbackUrl = linkingFallback;
+                console.log(
+                  '[SocialLoginButtons] Using deep-link callback captured during dismiss'
+                );
+                return { callbackUrl, state, timedOut };
               }
 
               console.log(
                 '[SocialLoginButtons] OAuth flow cancelled or dismissed - checking session...'
               );
 
-              // Some providers/proxy flows return `cancel` after auth completes.
-              // Recover by polling for a newly established session.
-              for (let attempt = 0; attempt < 60; attempt += 1) {
+              // Bounded recovery (6×500ms for a cancel/dismiss; the full 60× for a
+              // timeout where the user may still be authenticating). Catches a
+              // just-delivered deep link or a session that lands as the auth session
+              // closes.
+              const recoveryAttempts = timedOut ? 60 : 6;
+              for (let attempt = 0; attempt < recoveryAttempts; attempt += 1) {
                 const { data: recoveredSessionData } = await supabase.auth.getSession();
                 const recoveredUserId = recoveredSessionData?.session?.user?.id || null;
                 const hasRecoveredSession =
                   !!recoveredUserId && (!preAuthUserId || recoveredUserId !== preAuthUserId);
 
                 if (hasRecoveredSession) {
-                  callbackUrl = state ? `${redirectUri}?state=${encodeURIComponent(state)}` : redirectUri;
+                  callbackUrl = state
+                    ? `${redirectUri}?state=${encodeURIComponent(state)}`
+                    : redirectUri;
                   console.log('[SocialLoginButtons] Recovered OAuth session after dismiss');
+                  break;
+                }
+
+                if (pendingCallbackUrlRef.current) {
+                  callbackUrl = pendingCallbackUrlRef.current;
+                  console.log('[SocialLoginButtons] Recovered via persistent deep-link capture');
                   break;
                 }
 
@@ -227,14 +324,23 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
           }
         }
 
-        return { callbackUrl, state };
+        return { callbackUrl, state, timedOut };
       };
 
       // Single attempt with the redirect URI from config (now uses auth.expo.io for Expo Go)
-      const { callbackUrl, state } = await runOAuthAttempt(getRedirectUri());
+      const { callbackUrl, state, timedOut } = await runOAuthAttempt(getRedirectUri());
 
       if (!callbackUrl) {
-        // No callback and no recovered session.
+        // No callback and no recovered session. A 45s timeout with nothing to show is a
+        // stuck/lost flow — surface it so a parent is never silently dumped back on
+        // Login (UX-1 / Fix 2). A plain cancel (user tapped Cancel; no URL, no session)
+        // stays silent (AUTH-TC-C06).
+        if (timedOut) {
+          setErrorInfo({
+            provider,
+            message: "We couldn't complete your sign-in. Please try again.",
+          });
+        }
         return;
       }
 
@@ -265,7 +371,18 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
       }
 
       if (!result.success) {
-        console.log('[SocialLoginButtons] OAuth flow failed:', result.errorCode);
+        console.log(
+          '[SocialLoginButtons] OAuth flow failed:',
+          result.errorCode,
+          result.errorMessage
+        );
+        // The consent completed but the session could not be established (e.g. a
+        // dropped/failed callback exchange) — surface it so the return to Login is
+        // never silent (UX-1 / Fix 2).
+        setErrorInfo({
+          provider,
+          message: "We couldn't complete your sign-in. Please try again.",
+        });
         return;
       }
 
@@ -280,7 +397,7 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
 
         if (accountCheck.exists && accountCheck.userId !== userId) {
           if (onAccountExists) {
-            onAccountExists(profile.email, provider);
+            onAccountExists(profile.email, provider, profile, !!accountCheck.hasPassword);
           }
           return;
         }
@@ -309,12 +426,22 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
 
       console.error(`[SocialLoginButtons] ${provider} OAuth error:`, error);
 
-      // Handle provider unavailable error
+      const displayName = getProviderDisplayName(provider);
+
       if (error instanceof ProviderUnavailableError) {
-        setUnavailableProvider(provider);
+        // Provider server-side outage or initiation timeout.
+        setErrorInfo({
+          provider,
+          message: `${displayName} is temporarily unavailable. ${
+            mode === 'signup' ? 'Sign up' : 'Sign in'
+          } with email instead?`,
+        });
       } else {
-        // Other errors: log but don't block — user can try email signup
-        console.error(`[SocialLoginButtons] Unexpected error:`, error);
+        // Initiation/other failures (incl. OAUTH_INIT_FAILED) — never a silent no-op.
+        setErrorInfo({
+          provider,
+          message: `We couldn't connect to ${displayName} right now. Please try again or use your email instead.`,
+        });
       }
     } finally {
       setLoadingProvider(null);
@@ -337,7 +464,7 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
         );
       }
     }
-    setUnavailableProvider(null);
+    setErrorInfo(null);
   };
 
   /**
@@ -345,6 +472,14 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
    */
   const getProviderDisplayName = (provider: OAuthProvider): string => {
     return provider.charAt(0).toUpperCase() + provider.slice(1);
+  };
+
+  /**
+   * Mode-aware accessibility label for the icon-only provider buttons
+   * ("Sign in with Google" on login, "Continue with Google" on signup)
+   */
+  const getProviderLabel = (provider: OAuthProvider): string => {
+    return `${mode === 'login' ? 'Sign in' : 'Continue'} with ${getProviderDisplayName(provider)}`;
   };
 
   return (
@@ -356,18 +491,17 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
         <View style={styles.dividerLine} />
       </View>
 
-      {/* Provider unavailable banner */}
-      {unavailableProvider && (
+      {/* OAuth failure banner — provider outage OR initiation failure; never a silent no-op */}
+      {errorInfo && (
         <View style={styles.errorBanner} testID="provider-unavailable-banner">
-          <Text style={styles.errorText}>
-            {getProviderDisplayName(unavailableProvider)} is temporarily unavailable.{' '}
-            {mode === 'signup' ? 'Sign up' : 'Sign in'} with email instead?
-          </Text>
+          <Text style={styles.errorText}>{errorInfo.message}</Text>
           <Pressable
             onPress={handleFocusEmailInput}
             style={styles.errorCta}
             accessible={true}
-            accessibilityLabel="Use email signup instead"
+            accessibilityLabel={
+              mode === 'signup' ? 'Use email signup instead' : 'Use email login instead'
+            }
             accessibilityRole="button"
             testID="provider-error-cta"
           >
@@ -376,38 +510,81 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
         </View>
       )}
 
-      {/* Circular icon buttons - Whisk style */}
+      {/* Circular icon buttons with labels - Whisk style (design-system §4.5) */}
       <View style={styles.buttonsContainer}>
         {/* Google */}
-        <Pressable
-          style={styles.iconButton}
-          onPress={() => handleSocialLogin('google')}
-          disabled={loadingProvider !== null}
-          testID="google-login-button"
-        >
-          <Text style={styles.iconText}>G</Text>
-        </Pressable>
+        <View style={styles.providerColumn}>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => handleSocialLogin('google')}
+            disabled={loadingProvider !== null}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={
+              loadingProvider === 'google' ? 'Signing you in…' : getProviderLabel('google')
+            }
+            testID="google-login-button"
+          >
+            {loadingProvider === 'google' ? (
+              <ActivityIndicator size="small" color="#5DBB8E" testID="google-loading-indicator" />
+            ) : (
+              <Text style={styles.iconText}>G</Text>
+            )}
+          </Pressable>
+          <Text style={styles.providerLabel}>{getProviderDisplayName('google')}</Text>
+        </View>
 
         {/* Apple */}
-        <Pressable
-          style={styles.iconButton}
-          onPress={() => handleSocialLogin('apple')}
-          disabled={loadingProvider !== null}
-          testID="apple-login-button"
-        >
-          <AppleLogo size={20} weight="bold" color="#1A1A1A" />
-        </Pressable>
+        <View style={styles.providerColumn}>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => handleSocialLogin('apple')}
+            disabled={loadingProvider !== null}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={
+              loadingProvider === 'apple' ? 'Signing you in…' : getProviderLabel('apple')
+            }
+            testID="apple-login-button"
+          >
+            {loadingProvider === 'apple' ? (
+              <ActivityIndicator size="small" color="#5DBB8E" testID="apple-loading-indicator" />
+            ) : (
+              <AppleLogo size={20} weight="bold" color="#1A1A1A" />
+            )}
+          </Pressable>
+          <Text style={styles.providerLabel}>{getProviderDisplayName('apple')}</Text>
+        </View>
 
         {/* Facebook */}
-        <Pressable
-          style={styles.iconButton}
-          onPress={() => handleSocialLogin('facebook')}
-          disabled={loadingProvider !== null}
-          testID="facebook-login-button"
-        >
-          <Text style={styles.iconText}>f</Text>
-        </Pressable>
+        <View style={styles.providerColumn}>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => handleSocialLogin('facebook')}
+            disabled={loadingProvider !== null}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={
+              loadingProvider === 'facebook' ? 'Signing you in…' : getProviderLabel('facebook')
+            }
+            testID="facebook-login-button"
+          >
+            {loadingProvider === 'facebook' ? (
+              <ActivityIndicator size="small" color="#5DBB8E" testID="facebook-loading-indicator" />
+            ) : (
+              <Text style={styles.iconText}>f</Text>
+            )}
+          </Pressable>
+          <Text style={styles.providerLabel}>{getProviderDisplayName('facebook')}</Text>
+        </View>
       </View>
+
+      {/* One-time inline hint under the social row (once per device, ever) */}
+      {showSocialHint && (
+        <Text style={styles.socialHint} testID="social-login-hint">
+          {SOCIAL_HINT_COPY}
+        </Text>
+      )}
     </View>
   );
 };
@@ -459,6 +636,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#1A1A1A',
+  },
+  providerColumn: {
+    alignItems: 'center',
+  },
+  providerLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B6B6B',
+  },
+  socialHint: {
+    marginTop: 12,
+    fontSize: 13,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   errorBanner: {
     backgroundColor: '#FFF3E0',

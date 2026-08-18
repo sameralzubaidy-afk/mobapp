@@ -693,6 +693,21 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       );
     });
 
+    test('P4: passes p_node_ids when node scope is provided (count/search parity)', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [{ total_count: 7 }],
+        error: null,
+      } as any);
+      const total = await countListings('', { nodeIds: ['node-norwalk'] });
+      expect(total).toBe(7);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'count_listings',
+        expect.objectContaining({
+          p_node_ids: ['node-norwalk'],
+        })
+      );
+    });
+
     test('should throw on RPC error', async () => {
       const error = new Error('RPC failed');
       mockSupabase.rpc.mockResolvedValueOnce({ data: null, error } as any);

@@ -17,6 +17,7 @@ import {
   SafeAreaView } from 'react-native-safe-area-context'; import { useNavigation } from '@react-navigation/native'; import { Linking
 } from 'react-native';
 import { supabase } from '@/services/supabase/client';
+import { getSimulatedForgotPasswordError } from '@/services/devTestingService';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 
@@ -42,9 +43,19 @@ export default function ForgotPasswordScreen() {
     try {
       console.log('Password reset requested:', { email });
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'p2pkidsmarketplace://reset-password',
-      });
+      // QA staging toggle (dev-only, fail-closed): simulate a GoTrue reset error
+      // so AUTH-TC-S03 (rate-limit) / AUTH-TC-S04 (SMTP-500) render their exact
+      // alert copy without genuinely exhausting the rate limit or breaking staging
+      // SMTP. Returns null in release builds → the real GoTrue call always runs.
+      // The simulated object is shaped like a supabase-js error { message, status },
+      // so it flows through the same error-branching below.
+      const simulatedError = await getSimulatedForgotPasswordError();
+      const result = simulatedError
+        ? { error: simulatedError }
+        : await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'p2pkidsmarketplace://reset-password',
+          });
+      const { error } = result;
 
       if (error) {
         console.error('Password reset error:', error);

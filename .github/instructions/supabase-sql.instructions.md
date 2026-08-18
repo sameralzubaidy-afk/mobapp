@@ -5,7 +5,7 @@ applyTo: "supabase/migrations/**/*.sql"
 
 # Supabase SQL / Migration Hardening Protocol
 
-Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48, BP-50. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 50 rules.
+Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 48 rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -37,8 +37,6 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never direct `admin_config` table writes (records the editor + lands in the shared audit trail).
-- BP-50 Migration version uniqueness — before creating a migration, list `supabase/migrations/` and confirm no existing file shares the same `YYYYMMDDHHMMSS` timestamp prefix (parallel WIP can collide, e.g. two `20260809000001` files); use the next available version.
-- SQL-8 Backward compatibility — additive schema changes (nullable/defaulted new columns + backfill) preferred; never drop/rename columns/functions/views deployed code reads; coordinate RPC signature changes with their readers.
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -128,20 +126,6 @@ Assume the user might accidentally re-run the same SQL in Supabase SQL Editor. T
 - policies/views/functions must be droppable safely
 - table creation must either be `IF NOT EXISTS` (if idempotent mode) OR clearly marked one-time
 - never include "run entire file" advice without also giving the 2-block plan above
-
-## SQL-8: Backward Compatibility (Migration Safety)
-
-Assume deployed Edge Functions, the shipped mobile app, the admin portal, AND existing rows are all already live. A migration MUST NOT break them.
-
-Rules:
-- **Additive by default.** Prefer `ADD COLUMN ... NULL` or `ADD COLUMN ... DEFAULT <value>` followed by an explicit backfill for existing rows. Only tighten to `NOT NULL` in a LATER migration, once backfill and readers are verified.
-- **Never rename/repurpose a column read by deployed code.** Rename flow (4 phases, across coordinated migrations): 1) add the new column, 2) write both columns, 3) backfill + migrate readers, 4) drop the old column only after no reader references it.
-- **Never drop** a column/table/function/view/index still referenced by deployed code or a `supabase_realtime` subscription (see BP-36).
-- **Enums:** adding values is safe; removing values breaks old writers — keep + deprecate instead.
-- **Types:** widening (int → bigint, numeric precision up) is safe; narrowing is not.
-- **RPC signature changes:** changing `RETURNS TABLE` requires DROP-then-CREATE (BP-12). Coordinate so the deployed caller and the DB change ship together — or keep the old-signature function alive during a transition window.
-- **Views:** prefer `CREATE OR REPLACE VIEW` keeping the same column names/order. If columns must change, keep the old view (or a `_v1` alias) until consumers migrate.
-- State in every SQL response: "Backward compatible: ✅ / ⚠️ breaking — needs owner approval + rollout plan (see the Backward Compatibility Gate in `Kids P2P App Builder.agent.md`)."
 
 ## HP-4: DB invariants (bugs must not reach data)
 
@@ -408,13 +392,3 @@ Rules:
 - When adding a NEW admin settings page, it must reuse these shared RPCs + audit helpers rather than writing `admin_config` directly, so it automatically inherits the single-source + editor + audit contract.
 
 Detection checklist: grep for direct `admin_config` INSERT/UPDATE outside `upsert_admin_config_setting`/`secure_upsert_admin_config`; confirm each settings page passes `p_admin_id`/`user_id`; confirm every settings-edit surface writes `admin_audit_log`; confirm audit target tables exist. Cross-ref BP-11 (read both `admin_config` and `sp_config`; don't trust `is_active` alone) and HP-5 (atomic multi-table mutations via a single RPC).
-
-## BP-50: Migration Files Must Have a Unique Version Timestamp Prefix — Check `supabase/migrations/` Before Creating a New One
-Problem: Two features built in parallel planned the SAME timestamp prefix for their migrations (e.g. `20260809000001_admin_global_search.sql` for the command palette and a planned `20260809000001_admin_health_strip.sql` for the dashboard health strip). Supabase applies migrations in filename/version order, so a shared version makes `supabase db reset` / migration-apply ordering ambiguous: a fresh build can fail, or the wrong file can be treated as canonical.
-
-Rules:
-- BEFORE creating a new migration, list `supabase/migrations/` and grep the timestamp prefix you plan to use — if ANY file already uses that `YYYYMMDDHHMMSS` prefix, do NOT reuse it. Parallel WIP (a feature shipping the same day) is the common cause.
-- On a collision, take the next available version for that date (e.g. `...000002`, `...000003`) — never duplicate a version number.
-- After creating/renaming a migration, re-check every code comment referencing the old filename (migration references in RPC/lib/route comments) and update them so the committed file and references stay in sync (mirrors BP-46's "committed file and live DB stay in sync").
-
-Detection checklist: before authoring any migration, `ls supabase/migrations/ | grep '<YYYYMMDDHHMM>'`; if more than one file matches the same full prefix, rename the new one to the next available version. On a fresh `supabase db reset` failure with no SQL error, suspect duplicate migration versions first.

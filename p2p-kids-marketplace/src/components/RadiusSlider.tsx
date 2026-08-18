@@ -19,6 +19,8 @@ import {
   Pressable,
 } from 'react-native';
 
+import { ds } from '@/theme/discoveryTokens';
+
 interface RadiusSliderProps {
   value: number;
   minRadius: number;
@@ -226,7 +228,7 @@ const styles = StyleSheet.create({
   },
   sliderTrack: {
     height: 8,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: ds.neutral[300], // #E0E0E0 — passitup border token
     borderRadius: 4,
     justifyContent: 'center',
   },

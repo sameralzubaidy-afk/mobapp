@@ -9,7 +9,12 @@ export type RootStackParamList = {
   ProfileSetup: undefined;
   Welcome: { userId?: string } | undefined;
   FeatureHighlights: { userId?: string } | undefined;
-  Onboarding: undefined;
+  /**
+   * onOnboardingFinished: called by OnboardingScreen when the user completes
+   * (Get Started) OR skips the carousel, so RootNavigator can flip its local
+   * onboarding gate and mount the PersistentTabBar immediately (no relaunch).
+   */
+  Onboarding: { onOnboardingFinished?: () => void } | undefined;
   Profile: { userId?: string } | undefined;
   SellerProfile: { userId: string; sellerVerificationStatus?: string };
   EditProfile: undefined;

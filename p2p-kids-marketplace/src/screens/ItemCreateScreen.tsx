@@ -17,6 +17,7 @@ import {
   View,
   Text,
   TextInput,
+  Image,
   ScrollView,
   StyleSheet,
   Alert,
@@ -598,6 +599,24 @@ export default function ItemCreateScreen() {
     setShowPhotoSourceModal(true);
   };
 
+  // DEV-ONLY fixture: inject a bundled placeholder photo without the native
+  // image picker so QA automation can reach the below-fold form fields (the
+  // form only renders after photos.length > 0). Gated by __DEV__ — never in
+  // release builds. Does NOT set uploadedPhotoUrls, so AI analysis stays idle.
+  const handleAddDevTestPhoto = useCallback(() => {
+    const source = Image.resolveAssetSource(require('../../assets/adaptive-icon.png'));
+    const uri = source?.uri;
+    if (!uri) {
+      console.warn('[ItemCreateScreen] Dev test photo: bundled asset unresolved');
+      return;
+    }
+    setPhotos((prev) => [
+      ...prev,
+      { id: `dev-photo-${Date.now()}`, uri, width: 1024, height: 1024, mimeType: 'image/png' },
+    ]);
+    dispatch({ type: 'PHOTOS_ADDED' });
+  }, []);
+
   useEffect(() => {
     if (hasHandledInitialPhotoSourceRef.current) {
       return;
@@ -896,6 +915,7 @@ export default function ItemCreateScreen() {
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        testID="item-create-scroll-view"
       >
         {/* Photo Upload */}
         <PhotoUploadManager
@@ -904,6 +924,22 @@ export default function ItemCreateScreen() {
           onRemovePhoto={handleRemovePhoto}
           onReorder={handleReorderPhotos}
         />
+
+        {/* DEV-ONLY: bypass the native photo picker so QA automation can reach
+            the below-fold form fields. The form renders only after at least one
+            photo is added. Never rendered in release builds (__DEV__ false). */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.devTestPhotoButton}
+            onPress={handleAddDevTestPhoto}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Add test photo (dev only)"
+            testID="dev-add-test-photo"
+          >
+            <Text style={styles.devTestPhotoButtonText}>Dev: Add Test Photo</Text>
+          </TouchableOpacity>
+        )}
 
         {/* AI Analysis Card */}
         {showAICard && aiResult && (
@@ -972,6 +1008,9 @@ export default function ItemCreateScreen() {
                 style={styles.selectButton}
                 onPress={() => setShowCategoryModal(true)}
                 disabled={isAnalyzingBlocking}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Select category"
                 testID="category-select-button"
               >
                 <Tag size={20} color="#6B6B6B" weight="regular" />
@@ -1726,6 +1765,23 @@ const styles = StyleSheet.create({
   priceAdjButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  devTestPhotoButton: {
+    backgroundColor: '#EAF7F0',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  devTestPhotoButtonText: {
+    color: '#2E7D5B',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

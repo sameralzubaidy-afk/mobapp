@@ -12,9 +12,14 @@ import * as oauthService from '@/services/oauthService';
 import * as accountService from '@/services/accountService';
 import * as profileService from '@/services/profileService';
 import { supabase } from '@/services/supabase/client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ProviderUnavailableError } from '@/types/auth-v3-errors';
 
 // Mock dependencies
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+}));
 jest.mock('@/services/oauthService');
 jest.mock('@/services/accountService');
 jest.mock('@/services/profileService');
@@ -39,7 +44,8 @@ jest.mock('../ProviderButton', () => {
   return {
     ProviderButton: ({ provider, mode, isLoading, onPress, testID }: any) => {
       const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
-      const label = mode === 'login' ? `Sign in with ${providerName}` : `Continue with ${providerName}`;
+      const label =
+        mode === 'login' ? `Sign in with ${providerName}` : `Continue with ${providerName}`;
 
       return (
         <Pressable
@@ -71,11 +77,13 @@ describe('SocialLoginButtons', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
     process.env.NODE_ENV = 'development';
 
     addEventListenerSpy = jest
       .spyOn(Linking, 'addEventListener')
-      .mockImplementation(() => ({ remove: jest.fn() } as any));
+      .mockImplementation(() => ({ remove: jest.fn() }) as any);
 
     (oauthService.initiateSocialLogin as jest.Mock).mockResolvedValue({
       url: 'https://example.com/oauth',
@@ -289,7 +297,12 @@ describe('SocialLoginButtons', () => {
       fireEvent.press(googleButton);
 
       await waitFor(() => {
-        expect(mockOnAccountExists).toHaveBeenCalledWith(mockEmail, 'google');
+        expect(mockOnAccountExists).toHaveBeenCalledWith(
+          mockEmail,
+          'google',
+          expect.objectContaining({ email: mockEmail, provider: 'google' }),
+          true // hasPassword from checkAccountExists mock
+        );
       });
     });
 
@@ -414,10 +427,10 @@ describe('SocialLoginButtons', () => {
         state: 'state-token',
       });
 
-      (oauthService.handleOAuthCallback as jest.Mock).mockResolvedValue({
-        success: false,
-        errorCode: 'USER_CANCELLED',
-      });
+      // The real handleOAuthCallback returns `null` for a user cancel (access_denied)
+      // — a `{success:false}` result is a genuine callback failure and DOES surface
+      // the failure banner (see "OAuth Callback Failure Banner" below).
+      (oauthService.handleOAuthCallback as jest.Mock).mockResolvedValue(null);
 
       const { getByTestId, queryByTestId } = render(<SocialLoginButtons mode="login" />);
 
@@ -427,6 +440,30 @@ describe('SocialLoginButtons', () => {
       await waitFor(() => {
         // No error banner should appear
         expect(queryByTestId('provider-unavailable-banner')).toBeNull();
+      });
+    });
+  });
+
+  describe('OAuth Callback Failure Banner (Fix 2 — no silent no-session return)', () => {
+    it('should show a failure banner when the OAuth callback cannot establish a session', async () => {
+      (oauthService.initiateSocialLogin as jest.Mock).mockResolvedValue({
+        url: 'https://google.com/oauth',
+        state: 'state-token',
+      });
+
+      (oauthService.handleOAuthCallback as jest.Mock).mockResolvedValue({
+        success: false,
+        errorCode: 'OAUTH_CALLBACK_FAILED',
+        errorMessage: 'Failed to exchange code',
+      });
+
+      const { getByTestId, getByText } = render(<SocialLoginButtons mode="login" />);
+
+      fireEvent.press(getByTestId('google-login-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('provider-unavailable-banner')).toBeTruthy();
+        expect(getByText(/We couldn't complete your sign-in/i)).toBeTruthy();
       });
     });
   });
@@ -475,6 +512,155 @@ describe('SocialLoginButtons', () => {
       // Android (Apple button should still render for App Store compliance)
       const { getByTestId: getByTestIdAndroid } = render(<SocialLoginButtons mode="login" />);
       expect(getByTestIdAndroid('apple-login-button')).toBeTruthy();
+    });
+  });
+
+  describe('P0 Regression - state-less authorize URL (supabase-js 2.x)', () => {
+    it('should open the browser even when signInWithOAuth returns no state param', async () => {
+      // supabase-js 2.89.0 + skipBrowserRedirect:true returns the Supabase
+      // /auth/v1/authorize endpoint URL with NO state param (the state lives in the
+      // server's 302 redirect). The old guard `!initResult?.state` threw
+      // OAUTH_INIT_FAILED here, blocking the browser. See Phase 18 P0 fix.
+      (oauthService.initiateSocialLogin as jest.Mock).mockResolvedValue({
+        url: 'https://drntwgporzabmxdqykrp.supabase.co/auth/v1/authorize?provider=google',
+        state: '',
+      });
+
+      (oauthService.handleOAuthCallback as jest.Mock).mockResolvedValue({
+        success: true,
+        userId: 'user-123',
+        session: { user: { id: 'user-123' } },
+        profile: {
+          name: 'John Doe',
+          email: 'john@example.com',
+          provider: 'google',
+          providerUserId: 'google-123',
+        },
+      });
+
+      (accountService.checkAccountExists as jest.Mock).mockResolvedValue({ exists: false });
+
+      const { getByTestId } = render(
+        <SocialLoginButtons mode="login" onLoginSuccess={mockOnLoginSuccess} />
+      );
+
+      fireEvent.press(getByTestId('google-login-button'));
+
+      await waitFor(() => {
+        expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalled();
+        expect(mockOnLoginSuccess).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('OAuth Init Failure Banner (no silent no-op)', () => {
+    it('should show a failure banner when OAuth initiation fails', async () => {
+      (oauthService.initiateSocialLogin as jest.Mock).mockRejectedValue(
+        new Error('OAUTH_INIT_FAILED')
+      );
+
+      const { getByTestId, getByText } = render(<SocialLoginButtons mode="login" />);
+
+      fireEvent.press(getByTestId('google-login-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('provider-unavailable-banner')).toBeTruthy();
+        expect(getByText(/We couldn't connect to Google right now/i)).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should expose accessible button roles and labels on all provider buttons', () => {
+      const { getByTestId } = render(<SocialLoginButtons mode="login" />);
+
+      const google = getByTestId('google-login-button');
+      const apple = getByTestId('apple-login-button');
+      const facebook = getByTestId('facebook-login-button');
+
+      expect(google.props.accessibilityRole).toBe('button');
+      expect(google.props.accessibilityLabel).toBe('Sign in with Google');
+      expect(apple.props.accessibilityLabel).toBe('Sign in with Apple');
+      expect(facebook.props.accessibilityLabel).toBe('Sign in with Facebook');
+    });
+
+    it('should use "Continue with" labels in signup mode', () => {
+      const { getByTestId } = render(<SocialLoginButtons mode="signup" />);
+
+      expect(getByTestId('google-login-button').props.accessibilityLabel).toBe(
+        'Continue with Google'
+      );
+    });
+  });
+
+  describe('Provider Labels', () => {
+    it('should render a text label under each provider icon', () => {
+      const { getByText } = render(<SocialLoginButtons mode="login" />);
+
+      expect(getByText('Google')).toBeTruthy();
+      expect(getByText('Apple')).toBeTruthy();
+      expect(getByText('Facebook')).toBeTruthy();
+    });
+  });
+
+  describe('Per-Provider Loading Indicator', () => {
+    it('should show a loading indicator on the tapped provider and hide its icon', async () => {
+      (oauthService.initiateSocialLogin as jest.Mock).mockImplementation(
+        () => new Promise(() => {})
+      );
+
+      const { getByTestId, queryByText } = render(<SocialLoginButtons mode="login" />);
+
+      fireEvent.press(getByTestId('google-login-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('google-loading-indicator')).toBeTruthy();
+      });
+      // The icon is replaced by the spinner while that provider loads.
+      expect(queryByText('G')).toBeNull();
+    });
+
+    it('should announce "Signing you in…" while the provider is loading', async () => {
+      (oauthService.initiateSocialLogin as jest.Mock).mockImplementation(
+        () => new Promise(() => {})
+      );
+
+      const { getByTestId } = render(<SocialLoginButtons mode="login" />);
+
+      fireEvent.press(getByTestId('google-login-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('google-login-button').props.accessibilityLabel).toBe('Signing you in…');
+      });
+    });
+  });
+
+  describe('Social Login Hint (once per device)', () => {
+    it('should show the inline hint on first visit and persist the seen flag', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+
+      const { findByText } = render(<SocialLoginButtons mode="login" />);
+
+      expect(await findByText('Prefer to sign in with Google, Apple, or Facebook?')).toBeTruthy();
+      await waitFor(() => {
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+          '@kids_marketplace:social_login_hint_seen_v1',
+          '1'
+        );
+      });
+    });
+
+    it('should not show the hint once it has been seen', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue('1');
+
+      const { queryByText } = render(<SocialLoginButtons mode="login" />);
+
+      await waitFor(() => {
+        expect(AsyncStorage.getItem).toHaveBeenCalledWith(
+          '@kids_marketplace:social_login_hint_seen_v1'
+        );
+      });
+      expect(queryByText('Prefer to sign in with Google, Apple, or Facebook?')).toBeNull();
     });
   });
 });

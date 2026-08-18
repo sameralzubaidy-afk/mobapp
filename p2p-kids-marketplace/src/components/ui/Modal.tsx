@@ -95,6 +95,12 @@ export const Modal: React.FC<ModalProps> = ({
                   onPress={onPrimaryPress}
                   style={styles.button}
                   testID={primaryButtonTestID}
+                  // The primary action of a branded alert must ALWAYS render
+                  // enabled/green (colors.primary[500]). Never pass `disabled`
+                  // or `loading` here — a disabled primary button renders the
+                  // gray neutral[300] style (Phase 17 QA: A05 'Signup Failed'
+                  // dialog OK button observed gray in a stale bundle).
+                  disabled={false}
                 >
                   {primaryButtonText}
                 </Button>

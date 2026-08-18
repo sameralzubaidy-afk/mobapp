@@ -25,6 +25,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { searchListings, getTopCategoriesByState, countListings } from '@/services/discovery';
+import { computeEffectiveNodeScope } from '@/utils/nodeScope';
 import {
   getRecentSearches,
   addSearchToHistory,
@@ -48,10 +49,11 @@ import { upsertZipWaitlist } from '@/services/waitlist';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getFavorites, toggleFavorite } from '@/services/favoritesService';
-import { BookmarkSimple, MagnifyingGlass, FunnelSimple, X, Coins } from 'phosphor-react-native';
+import { MagnifyingGlass, FunnelSimple, X, Coins, GlobeSimple } from 'phosphor-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DiscoverHeader from './DiscoverHeader';
 import { ds, dsRadii, dsType } from '@/theme/discoveryTokens';
+import { componentSize, spacing } from '@/theme/spacing';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
 const KEYSTROKE_DEBOUNCE_MS = 200;
@@ -173,6 +175,12 @@ export default function DiscoverScreen({ navigation }: Props) {
   const [inactiveZipMessage, setInactiveZipMessage] = useState<string | null>(null);
   const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
 
+  // P4 (2026-08-17): "Show All Nodes" opt-in toggle + waitlisted detection.
+  // Active-node users default to "My Node"; the toggle widens to all nodes.
+  // Waitlisted users keep the intentional global-browse fallback (demand signal).
+  const [showAllNodes, setShowAllNodes] = useState(false);
+  const [waitlisted, setWaitlisted] = useState(false);
+
   // Guards to prevent duplicate pagination requests and stale response races.
   const paginationRequestInFlightRef = useRef(false);
   const latestRequestIdRef = useRef(0);
@@ -191,6 +199,13 @@ export default function DiscoverScreen({ navigation }: Props) {
   // User's detected state (for "Trending in {State}") — derived from the node
   // assigned at onboarding. Null when the user has no node (waitlist).
   const userState = (session?.user as any)?.node?.state as string | undefined;
+
+  // P4 (2026-08-17): the signed-in user's node id (profile row or embedded
+  // node join). Null when the user has no node (waitlist-only) → global default.
+  const userNodeId =
+    ((session?.user as any)?.node_id as string | null) ??
+    ((session?.user as any)?.node?.id as string | null) ??
+    null;
 
   // DISCOVER-REDESIGN: active-filter chips rendered above the grid. Each entry
   // is one currently-applied filter; the SP chip uses SP-Gold tokens, all other
@@ -272,6 +287,35 @@ export default function DiscoverScreen({ navigation }: Props) {
 
     initializeLocationDefaults();
   }, [session?.user?.zip_code, userId]);
+
+  // P4 (2026-08-17): Detect waitlisted status (zip_waitlist row). Waitlisted
+  // users keep the intentional global-browse fallback — never scope them.
+  // On query failure, default to active-node (scope) so the hyperlocal fix
+  // can't silently regress; log for diagnosability.
+  useEffect(() => {
+    let cancelled = false;
+    const checkWaitlistStatus = async () => {
+      if (!userId) {
+        if (!cancelled) setWaitlisted(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('zip_waitlist')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (!cancelled) setWaitlisted(!error && !!data);
+      } catch (err) {
+        console.warn('[DiscoverScreen] waitlist check failed (non-fatal):', err);
+        if (!cancelled) setWaitlisted(false);
+      }
+    };
+    checkWaitlistStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const resolveNodeScopeByLocation = useCallback(async (zipCode: string, radius: number) => {
     if (!/^\d{5}$/.test(zipCode)) {
@@ -408,10 +452,20 @@ export default function DiscoverScreen({ navigation }: Props) {
     });
   }, []);
 
-  // Perform search when debouncedQuery, debouncedFilters or debouncedSortBy change
+  // Perform search when debouncedQuery, debouncedFilters, debouncedSortBy or
+  // the node scope (showAllNodes / waitlisted / userNodeId) change.
   useEffect(() => {
     performSearch({ resetOffset: true });
-  }, [debouncedQuery, debouncedFilters, debouncedSortBy, nodeIdsInScope, appliedZipCode]);
+  }, [
+    debouncedQuery,
+    debouncedFilters,
+    debouncedSortBy,
+    nodeIdsInScope,
+    appliedZipCode,
+    showAllNodes,
+    waitlisted,
+    userNodeId,
+  ]);
 
   /**
    * Load trending categories scoped to the user's state (DISCOVER-REDESIGN).
@@ -624,15 +678,22 @@ export default function DiscoverScreen({ navigation }: Props) {
           setLoadingMore(true);
         }
 
-        // Build filters with current query
+        // Build filters with current query + node scope (P4 hyperlocal default:
+        // active-node users see "My Node" unless they opt into Show All Nodes).
         const hasLocationFilter = /^\d{5}$/.test(appliedZipCode) && !locationFilterUnavailable;
-        const useScopedNodeIds = hasLocationFilter && nodeIdsInScope.length > 0;
+        const nodeScope = computeEffectiveNodeScope({
+          userNodeId,
+          isWaitlisted: waitlisted,
+          showAllNodes,
+          hasActiveLocationFilter: hasLocationFilter,
+          locationScopeNodeIds: nodeIdsInScope,
+        });
 
         const searchFilters: DiscoveryFilters = {
           ...filters,
           query: debouncedQuery.trim() || undefined,
           sortBy,
-          nodeIds: useScopedNodeIds ? nodeIdsInScope : undefined,
+          nodeIds: nodeScope.nodeIds ?? undefined,
           limit: RESULTS_PER_PAGE,
           offset: newOffset,
         };
@@ -702,6 +763,9 @@ export default function DiscoverScreen({ navigation }: Props) {
       nodeIdsInScope,
       appliedZipCode,
       locationFilterUnavailable,
+      showAllNodes,
+      waitlisted,
+      userNodeId,
     ]
   );
 
@@ -1080,6 +1144,11 @@ export default function DiscoverScreen({ navigation }: Props) {
     ({ item }: { item: SearchResult }) => {
       const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
 
+      // P4: "Other Node" badge — only meaningful while the user is deliberately
+      // browsing beyond their own node ("Show All Nodes" on).
+      const isOtherNode =
+        showAllNodes && !!item.node_id && !!userNodeId && item.node_id !== userNodeId;
+
       return (
         <ItemCard
           id={item.id}
@@ -1088,6 +1157,7 @@ export default function DiscoverScreen({ navigation }: Props) {
           imageUrl={mainImageUrl}
           isFavorite={favoritedIds.has(item.id)}
           acceptsSwapPoints={item.accepts_swap_points}
+          otherNode={isOtherNode}
           onPress={() => handleResultPress(item.id)}
           onFavoritePress={() => handleToggleFavorite(item.id)}
           onSharePress={() => {
@@ -1098,7 +1168,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         />
       );
     },
-    [favoritedIds, handleToggleFavorite]
+    [favoritedIds, handleToggleFavorite, showAllNodes, userNodeId]
   );
 
   /**
@@ -1109,9 +1179,11 @@ export default function DiscoverScreen({ navigation }: Props) {
     const resultCount = totalResultCount ?? results.length;
     const locationLabel = /^\d{5}$/.test(appliedZipCode)
       ? `near ${appliedZipCode}, ${radiusMiles} mi`
-      : userState
-        ? `near ${userState}`
-        : '';
+      : showAllNodes
+        ? 'all nodes'
+        : userState
+          ? `near ${userState}`
+          : '';
     // Hide Recent/Trending sections while the user is actively typing in search
     // (the autocomplete panel takes over then).
     const showDiscoverySections = !(searchFocused && query.trim().length > 0);
@@ -1172,16 +1244,7 @@ export default function DiscoverScreen({ navigation }: Props) {
             )}
           </Pressable>
 
-          {/* Favorites shortcut bookmark icon */}
-          <Pressable
-            testID="discover-favorites-button"
-            accessibilityLabel="View Favorites"
-            style={styles.filterButton}
-            onPress={() => navigation.navigate('Favorites')}
-          >
-            <BookmarkSimple size={22} color="#E85D75" weight="regular" />
-          </Pressable>
-
+          {/* Favorites lives in the header bookmark only (no duplicate next to Sort). */}
           <SortDropdown value={sortBy} onChange={handleSortChange} />
 
           <Pressable
@@ -1206,6 +1269,37 @@ export default function DiscoverScreen({ navigation }: Props) {
             </Text>
           </Pressable>
         </View>
+
+        {/* P4: "My Node" default + "Show All Nodes" opt-in (hyperlocal discovery).
+            Only rendered for signed-in active-node users; waitlisted users keep
+            their global-browse fallback and never see this toggle. */}
+        {!!userNodeId && !waitlisted && (
+          <View style={styles.showAllNodesRow}>
+            <Pressable
+              testID="discover-show-all-nodes-toggle"
+              accessibilityRole="switch"
+              accessibilityState={{ selected: showAllNodes }}
+              accessibilityLabel={`Show All Nodes ${showAllNodes ? 'on' : 'off'}`}
+              style={[styles.showAllNodesToggle, showAllNodes && styles.showAllNodesToggleActive]}
+              onPress={() => setShowAllNodes((prev) => !prev)}
+            >
+              <GlobeSimple
+                size={16}
+                color={showAllNodes ? ds.primary[600] : ds.neutral[700]}
+                weight={showAllNodes ? 'fill' : 'regular'}
+              />
+              <Text
+                style={[
+                  styles.showAllNodesToggleText,
+                  showAllNodes && styles.showAllNodesToggleTextActive,
+                ]}
+              >
+                Show All Nodes
+              </Text>
+              <Text style={styles.showAllNodesToggleHint}>{showAllNodes ? 'On' : 'Off'}</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* DISCOVER-REDESIGN: Result count + active filter chips (above the grid) */}
         {results.length > 0 && (
@@ -1414,6 +1508,21 @@ export default function DiscoverScreen({ navigation }: Props) {
             <Text style={styles.emptyTitle}>No Results Found</Text>
             <Text style={styles.emptySubtitle}>Try different keywords</Text>
           </>
+        ) : userNodeId && !showAllNodes && !waitlisted && !/^\d{5}$/.test(appliedZipCode) ? (
+          <>
+            <Text style={styles.emptyTitle}>Nothing in your area yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Items from your local community will show up here. Want to browse items from nearby
+              communities?
+            </Text>
+            <Pressable
+              testID="empty-show-all-nodes"
+              style={styles.clearFiltersButton}
+              onPress={() => setShowAllNodes(true)}
+            >
+              <Text style={styles.clearFiltersText}>Show All Nodes</Text>
+            </Pressable>
+          </>
         ) : (
           <>
             <Text style={styles.emptyTitle}>Discover Items</Text>
@@ -1608,6 +1717,38 @@ const styles = StyleSheet.create({
     color: ds.sp[500],
     fontWeight: '700',
   },
+  showAllNodesRow: {
+    marginTop: 12,
+  },
+  showAllNodesToggle: {
+    alignSelf: 'flex-start',
+    height: 36,
+    borderRadius: dsRadii.pill,
+    borderWidth: 1,
+    borderColor: ds.neutral[300],
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: ds.neutral.white,
+  },
+  showAllNodesToggleActive: {
+    backgroundColor: ds.primary[100],
+    borderColor: ds.primary[400],
+  },
+  showAllNodesToggleText: {
+    ...dsType.label,
+    color: ds.neutral[700],
+  },
+  showAllNodesToggleTextActive: {
+    color: ds.primary[600],
+    fontWeight: '700',
+  },
+  showAllNodesToggleHint: {
+    ...dsType.bodySmall,
+    color: ds.neutral[500],
+    marginLeft: 4,
+  },
   resultsSummary: {
     marginTop: 12,
     gap: 8,
@@ -1711,6 +1852,10 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    // Bottom inset for the floating tab bar: without it the last row's lower
+    // content (badge/price) renders behind the tab bar in short result sets
+    // (e.g. single-item search with Show All Nodes on). tabBarHeight + page pad.
+    paddingBottom: componentSize.tabBarHeight + spacing.md,
   },
   columnWrapper: {
     gap: 12,

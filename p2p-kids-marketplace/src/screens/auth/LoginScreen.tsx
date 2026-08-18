@@ -9,10 +9,9 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
-  TextInput as RNTextInput
+  TextInput as RNTextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -23,13 +22,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button, Modal, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
-import { OAuthProvider } from '@/types/auth-v3';
+import AccountLinkingPrompt from '@/components/auth/AccountLinkingPrompt';
+import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 // Default export for existing navigation
 export default function LoginScreen() {
-  const { setSession } = useAuth();
+  const { setSession, refreshSession } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const emailInputRef = useRef<RNTextInput>(null);
 
@@ -45,22 +45,31 @@ export default function LoginScreen() {
   const [loginFailedVisible, setLoginFailedVisible] = useState(false);
   const [loginFailedMessage, setLoginFailedMessage] = useState('');
 
+  // Account-linking prompt state — shown when a social login email matches an existing account
+  const [linkPrompt, setLinkPrompt] = useState<{
+    visible: boolean;
+    provider: OAuthProvider;
+    profile: ProviderProfile;
+    hasPassword: boolean;
+  }>({
+    visible: false,
+    provider: 'google',
+    profile: { name: '', email: '', provider: 'google', providerUserId: '' },
+    hasPassword: false,
+  });
+
   const handleSocialLoginSuccess = () => {
     // Root navigator transitions based on auth session + onboarding state.
   };
 
-  const handleAccountExists = (email: string, provider: OAuthProvider) => {
-    Alert.alert(
-      'Account Exists',
-      `An account with ${email} already exists. Link ${provider} in Linked Accounts after login.`,
-      [
-        {
-          text: 'Continue with Email',
-          style: 'default',
-          onPress: () => emailInputRef.current?.focus(),
-        },
-      ]
-    );
+  const handleAccountExists = (
+    _email: string,
+    provider: OAuthProvider,
+    profile: ProviderProfile,
+    hasPassword: boolean
+  ) => {
+    // Show the branded AccountLinkingPrompt modal (password re-auth to link the provider).
+    setLinkPrompt({ visible: true, provider, profile, hasPassword });
   };
 
   /**
@@ -272,10 +281,23 @@ export default function LoginScreen() {
         onClose={() => setLoginFailedVisible(false)}
         showCloseButton={false}
       />
+
+      {/* Account-linking prompt — shown when a social login matches an existing email account */}
+      <AccountLinkingPrompt
+        visible={linkPrompt.visible}
+        provider={linkPrompt.provider}
+        providerProfile={linkPrompt.profile}
+        hasPassword={linkPrompt.hasPassword}
+        onLink={() => {
+          setLinkPrompt((prev) => ({ ...prev, visible: false }));
+          // Refresh auth context so the newly-linked session routes to Home.
+          refreshSession(true);
+        }}
+        onDismiss={() => setLinkPrompt((prev) => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

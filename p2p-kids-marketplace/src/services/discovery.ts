@@ -592,9 +592,9 @@ export async function getTopCategoriesByState(
 
 /**
  * Count listings matching the current Discover filters (live count for the
- * Filters sheet's "Show {n} Results" button). Mirrors search_listings V4 filter
- * semantics EXACTLY (no sort/pagination). Discovery is intentionally NOT
- * node-gated, so p_node_ids is not passed.
+ * Filters sheet's "Show {n} Results" button). Mirrors search_listings V5 filter
+ * semantics EXACTLY (no sort/pagination) — including node scoping — so the
+ * count always matches the result set (P3/P4 node-scoped discovery).
  *
  * @param query - Current search query
  * @param filters - Discovery filters to count
@@ -614,6 +614,7 @@ export async function countListings(query: string, filters?: DiscoveryFilters): 
     const gender = filters?.gender ?? null;
     const brand = filters?.brand ?? null;
     const colors = filters?.colors && filters.colors.length > 0 ? filters.colors : null;
+    const nodeIds = filters?.nodeIds && filters.nodeIds.length > 0 ? filters.nodeIds : null;
 
     const { data, error } = await supabase.rpc('count_listings', {
       p_query: trimmedQuery,
@@ -626,6 +627,7 @@ export async function countListings(query: string, filters?: DiscoveryFilters): 
       p_gender: gender,
       p_brand: brand,
       p_colors: colors,
+      p_node_ids: nodeIds,
     });
 
     if (error) {

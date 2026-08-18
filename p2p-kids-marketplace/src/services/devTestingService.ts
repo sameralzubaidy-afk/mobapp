@@ -44,7 +44,9 @@ function getServiceRoleClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey) {
-    console.warn('[DevTestingService] Service role client not available - some operations may fail');
+    console.warn(
+      '[DevTestingService] Service role client not available - some operations may fail'
+    );
     return null;
   }
 
@@ -80,7 +82,7 @@ export function isTestOTPCode(code: string): boolean {
 /**
  * Bypass OTP verification for testing
  * This creates a verified phone_verification_codes record
- * 
+ *
  * @param userId - User ID to verify
  * @param phone - Phone number to verify
  * @returns Success status
@@ -95,16 +97,14 @@ export async function bypassOTPVerification(
     console.warn('🧪 [DEV] Bypassing OTP verification for:', { userId, phone });
 
     // Insert a verified code record
-    const { error: insertError } = await supabase
-      .from('phone_verification_codes')
-      .insert({
-        user_id: userId,
-        phone,
-        code: TEST_OTP_CODE,
-        verified: true,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        created_at: new Date().toISOString(),
-      });
+    const { error: insertError } = await supabase.from('phone_verification_codes').insert({
+      user_id: userId,
+      phone,
+      code: TEST_OTP_CODE,
+      verified: true,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+    });
 
     if (insertError) {
       console.error('❌ [DEV] Failed to insert verified OTP record:', insertError);
@@ -197,13 +197,11 @@ function generateTestPhone(): string {
 
 /**
  * Create a dummy user for testing
- * 
+ *
  * @param params - User parameters (all optional, will use defaults)
  * @returns Created user details
  */
-export async function createDummyUser(
-  params: DummyUserParams = {}
-): Promise<DummyUserResult> {
+export async function createDummyUser(params: DummyUserParams = {}): Promise<DummyUserResult> {
   requireDevEnvironment('createDummyUser');
 
   const {
@@ -228,7 +226,7 @@ export async function createDummyUser(
   try {
     // Try to use service role client for auto-confirmed users
     const serviceClient = getServiceRoleClient();
-    
+
     if (serviceClient && autoConfirmEmail) {
       // Create user with email already confirmed (service role only)
       const { data: authData, error: authError } = await serviceClient.auth.admin.createUser({
@@ -340,7 +338,7 @@ export async function createDummyUser(
 
 /**
  * Create multiple dummy users in bulk
- * 
+ *
  * @param count - Number of users to create
  * @param baseParams - Base parameters for all users (will be randomized)
  * @returns Array of created user details
@@ -367,7 +365,7 @@ export async function createBulkDummyUsers(
 
   for (let i = 0; i < count; i++) {
     const [firstName, lastName] = names[i % names.length];
-    
+
     try {
       const user = await createDummyUser({
         ...baseParams,
@@ -375,7 +373,7 @@ export async function createBulkDummyUsers(
         lastName,
         email: generateTestEmail(`user${i + 1}`),
       });
-      
+
       users.push(user);
       console.warn(`✅ [DEV] Created user ${i + 1}/${count}:`, user.email);
     } catch (error) {
@@ -389,7 +387,7 @@ export async function createBulkDummyUsers(
 
 /**
  * Delete a test user (cleanup)
- * 
+ *
  * @param userId - User ID to delete
  */
 export async function deleteDummyUser(userId: string): Promise<void> {
@@ -466,6 +464,165 @@ export async function cleanupAllTestUsers(): Promise<{ deleted: number; errors: 
 }
 
 // ========================================
+// QA AUTH ERROR SIMULATION (S03/S04 staging toggle — dev-only)
+// ========================================
+
+export interface SimulatedForgotPasswordError {
+  message: string;
+  status: number;
+}
+
+/**
+ * Canonical admin_config key that arms the S03/S04 simulation.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'rate_limited' | 'smtp_500'
+ */
+export const QA_RESET_ERROR_SIMULATION_KEY = 'qa_reset_error_simulation';
+
+/**
+ * QA staging toggle for AUTH-TC-S03 (rate-limit) / AUTH-TC-S04 (SMTP-500).
+ *
+ * Why this exists: ForgotPasswordScreen calls GoTrue (`resetPasswordForEmail`)
+ * directly, so a rate-limit / SMTP-500 cannot be reproduced backend-only without
+ * genuinely exhausting GoTrue's per-IP/email limit or breaking staging SMTP for
+ * all traffic. Instead, dev/test builds read an admin_config toggle and
+ * short-circuit with a FAITHFUL synthetic error object that flows through the
+ * screen's existing error-branching — so the exact alert copy the AUTH guide
+ * asserts for S03/S04 renders, on demand, with zero infra impact.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return null and
+ *    the real GoTrue call always runs. The simulation never alters server state.
+ *  - admin_config is read via `fn_get_admin_config_values` (SECURITY DEFINER,
+ *    already GRANTed to anon) because direct SELECT on admin_config is RLS-locked
+ *    to authenticated/service_role — this screen is pre-login (anon).
+ *  - Toggle unset / read error / unknown value → null (no simulation).
+ *
+ * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
+ *   supabase.rpc('upsert_admin_config_setting', {
+ *     p_key: 'qa_reset_error_simulation',
+ *     p_value: 'rate_limited' | 'smtp_500' | 'none',
+ *     p_category: 'feature_flags',
+ *     p_data_type: 'string',
+ *     p_admin_id: <admin user id>,   // records the editor (BP-48)
+ *   })
+ */
+export async function getSimulatedForgotPasswordError(): Promise<SimulatedForgotPasswordError | null> {
+  if (!isDevEnvironment()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+      p_keys: [QA_RESET_ERROR_SIMULATION_KEY],
+    });
+
+    if (error || !data) {
+      console.warn(
+        `[DevTestingService] ${QA_RESET_ERROR_SIMULATION_KEY} read failed: ${error?.message ?? 'no data'}`
+      );
+      return null;
+    }
+
+    const rows = Array.isArray(data) ? data : [data];
+    const row = rows.find(
+      (r) => (r as { out_key?: string })?.out_key === QA_RESET_ERROR_SIMULATION_KEY
+    );
+    const value = (row as { out_value?: string })?.out_value ?? 'none';
+
+    switch (value) {
+      case 'rate_limited':
+        // Faithful GoTrue 429 message (matches the observed staging message the
+        // app's `lm.includes('rate limit')` S03 branch keys on).
+        return { message: 'Request rate limit reached', status: 429 };
+      case 'smtp_500':
+        // Faithful 5xx "error sending recovery email" (matches the app's S04 branch).
+        return { message: 'Error sending recovery email', status: 500 };
+      default:
+        return null;
+    }
+  } catch (err) {
+    console.warn(
+      `[DevTestingService] ${QA_RESET_ERROR_SIMULATION_KEY} read error: ${(err as Error).message}`
+    );
+    return null;
+  }
+}
+
+// ========================================
+// QA AVATAR UPLOAD FAILURE SIMULATION (H03 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Canonical admin_config key that arms the AUTH-TC-H03 avatar-failure simulation.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'upload_failure' | 'none'
+ */
+export const QA_AVATAR_UPLOAD_FAILURE_KEY = 'qa_avatar_upload_failure';
+
+/**
+ * QA staging toggle for AUTH-TC-H03 (avatar upload fails during Profile Setup).
+ *
+ * Why this exists: `uploadProfileAvatar` is a pure real-upload path — a genuine
+ * upload failure cannot be reproduced on demand without breaking storage or
+ * network. Instead, dev/test builds read an admin_config toggle and return a
+ * FAITHFUL error object that flows through ProfileSetupScreen's existing
+ * non-blocking branch (Warning alert → profile created without avatar), so the
+ * exact behavior the AUTH guide asserts for H03 renders on demand.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return null and
+ *    the real upload always runs. The simulation never alters server state.
+ *  - Toggle unset / read error / unknown value → null (no simulation).
+ *
+ * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
+ *   supabase.rpc('upsert_admin_config_setting', {
+ *     p_key: 'qa_avatar_upload_failure',
+ *     p_value: 'upload_failure' | 'none',
+ *     p_category: 'feature_flags',
+ *     p_data_type: 'string',
+ *     p_admin_id: <admin user id>,   // records the editor (BP-48)
+ *   })
+ */
+export async function getSimulatedAvatarUploadError(): Promise<Error | null> {
+  if (!isDevEnvironment()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+      p_keys: [QA_AVATAR_UPLOAD_FAILURE_KEY],
+    });
+
+    if (error || !data) {
+      console.warn(
+        `[DevTestingService] ${QA_AVATAR_UPLOAD_FAILURE_KEY} read failed: ${error?.message ?? 'no data'}`
+      );
+      return null;
+    }
+
+    const rows = Array.isArray(data) ? data : [data];
+    const row = rows.find(
+      (r) => (r as { out_key?: string })?.out_key === QA_AVATAR_UPLOAD_FAILURE_KEY
+    );
+    const value = (row as { out_value?: string })?.out_value ?? 'none';
+
+    if (value === 'upload_failure') {
+      // Faithful storage-upload failure. Deliberately NOT an app-crash-style
+      // message — ProfileSetupScreen's H03 branch (Warning alert → continue
+      // without avatar) is what must be exercised.
+      return new Error('Simulated avatar upload failure (qa_avatar_upload_failure)');
+    }
+    return null;
+  } catch (err) {
+    console.warn(
+      `[DevTestingService] ${QA_AVATAR_UPLOAD_FAILURE_KEY} read error: ${(err as Error).message}`
+    );
+    return null;
+  }
+}
+
+// ========================================
 // UTILITY FUNCTIONS
 // ========================================
 
@@ -495,15 +652,18 @@ export default {
   // Environment
   isDevEnvironment,
   logDevTestingConfig,
-  
+
   // OTP Bypass
   getOTPBypassConfig,
   isTestOTPCode,
   bypassOTPVerification,
-  
+
   // User Creation
   createDummyUser,
   createBulkDummyUsers,
   deleteDummyUser,
   cleanupAllTestUsers,
+
+  // QA Auth Error Simulation (S03/S04)
+  getSimulatedForgotPasswordError,
 };

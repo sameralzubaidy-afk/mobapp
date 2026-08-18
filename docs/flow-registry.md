@@ -6,7 +6,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-00: Infrastructure & Environment Health
 - Purpose: App boots; Metro reachable; Supabase env present.
-- **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** New consumer web app `p2p-kids-web/` (Next.js, dev port 3002) + two new Edge Functions (`create-checkout-session`, `link-subscription-account`); `stripe-webhook-subscriptions` → v34. New env: mobile `EXPO_PUBLIC_SUBSCRIPTION_WEB_URL`; EF secrets `SUBSCRIPTION_WEB_URL`, `SUBSCRIPTION_WEB_SECRET`, `SUBSCRIPTION_BIND_TOKEN_SECRET`. Local dev also has a `SUBSCRIPTION_DEV_MODE` checkout fallback (mock success URL; never in prod). See FLOW-12.
 - Smoke: (manual)
   - App boots to login screen without redbox.
   - If network/auth calls stall, app still leaves the full-screen spinner within ~12s and renders the unauthenticated stack.
@@ -14,11 +13,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Test hygiene: `yarn test` must not require real Supabase/network by default; Supabase/network E2E tests only run when `SUPABASE_E2E_ENABLED=true` and real `SUPABASE_URL`/keys are provided; Detox E2E tests only run when `RUN_DETOX_E2E=true`.
 
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
-- **QA-LOGOUT-DEEPLINK-ONBOARDING (2026-08-11):** Fixed the QA-only `p2pkidsmarketplace://qa-logout` deep link (dev/staging) so it lands on Landing even from the onboarding stack (e.g. "Complete Your Profile"). Root cause was NOT a handler-mounting or listener issue — the handler (mounted at root) fired on every trigger, but `AuthContext.session` is null during signup so `logout()` → `setSession(null)` is a no-op and the navigator never leaves onboarding. Fix: after `logout()`, reset to `Landing` via `navigationRef` when there is no session. Extracted `navigationRef` to `src/navigation/navigationRef.ts` (re-exported from `AppNavigator`); URL scheme, production gate, and the `AuthContext.logout()` call unchanged. Verified on-device (commit `cd22eb85`): Complete Your Profile → Landing ✅, Home → Landing ✅, My Trades → Landing ✅. See `e2e-test-results/stage3/report-qa-logout-deeplink-fix.md`.
 - Smoke: (manual)
-  - **ACCESSIBILITY-IDENTIFIERS (2026-08-11):** Exposed stable iOS accessibility identifiers/roles on auth CTAs (shared `Button`), the "Login Failed" / "Signup Failed" dialog OK buttons (native `Alert.alert` → branded `ui/Modal` so the OK button is discoverable), and all `PersistentTabBar` tab items + Sell FAB. Zero business logic; UI-only. Smoke: manual `misc./AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` TC-ACC-01…06.
-    - **CHROME-REDESIGN (2026-08-11):** `PersistentTabBar` tab set changed — Inbox tab removed (testID `tab-inbox` gone), Trades tab added (testID `tab-trades`); header adds `header-chat-btn` (Messages) and `header-node-chip` (read-only View, not a button). Accessibility smoke should target `tab-trades` / `header-chat-btn`.
-  - **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** Account linking at web checkout — `create-checkout-session` resolves the user by email (`profiles.email`) and embeds `client_reference_id`/`metadata.supabase_user_id` on the Stripe Checkout Session so the webhook binds by ID; a one-time HMAC `bind_token` (over the email) is redeemed by `link-subscription-account` to cover "purchased before the app account existed". Login/session restore itself unchanged. See FLOW-12.
   - Signup -> logged in -> kill app -> relaunch -> session restores.
   - **MODULE-15.1-UI-REDESIGN-FLOW-01 (2026-05-05):** Auth screens redesigned to Whisk-inspired design system
     - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-01)
@@ -410,7 +405,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-02: Profiles & Onboarding
 - Smoke: (manual)
-  - **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** The onboarding subscription-choice surface now shows the non-purchase "Join Kids Club" prompt (`JoinKidsClubScreen`); in-app trial enrollment removed — the 30-day trial is started on the web (passitup.com). See FLOW-12.
   - New user gets profile row (or profile fetch does not crash).
   - Upload profile avatar -> profile screen re-renders with the new image (avatar URL resolves from `profiles.avatar_url` storage path).
   - Profile realtime listener does not resubscribe continuously while onboarding/profile updates.
@@ -454,12 +448,10 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-03: Node/ZIP Gating + Waitlist
 - Smoke: (manual)
   - User is assigned to a node; sees node-scoped content.
-  - **N6-NODE-TAGGING (2026-08-11):** Node tagging is now universal — every user, listing, trade, and cost/ledger record resolves to exactly one node (BRD §6.10, SRS §8A). Migration `supabase/migrations/20260809000005_n6_node_tagging.sql`: nullable `node_id` + FK → `nodes(id)` on `items`, `payments`, `trade_refunds`, `sp_wallets`, `sp_ledger`, `sp_batches`, `seller_payouts`, `seller_balance`, `cart_items`; 9 fill-only-when-NULL write triggers; NULL-only backfill; indexes. New read-only RPC `admin_node_kpis(p_node_id UUID)` returns per-node KPIs (users, listings, trades, completed, GMV, platform fees, paid payouts, SP earned/spent) for the GTM §13/§15.6 expansion gates (service-role only). Admin: `/api/admin/nodes/kpis` route + "Per-Node Marketplace KPIs" panel on `/nodes`. EF: `supabase/functions/_shared/node.ts` (`resolveUserNodeId`/`resolveSellerProfile`); `create-trade-offer` wired to it (behavior-identical). Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E06/E07. Verify: `SELECT public.admin_node_kpis(NULL);`; per-table NULL-node counts → 0 (except the documented legacy residual — actors with no node assigned).
 
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
   - Create listing -> appears in listings feed for same node.
-  - **N6-NODE-TAGGING (2026-08-11):** Listings now carry a denormalized `items.node_id` (snapshot of the seller's node at creation) set by the `trg_set_item_node_id` BEFORE INSERT trigger; legacy NULL rows backfilled (was ~1,600 rows); indexed. See FLOW-03 for the full N6 migration. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E06.
   - **ADMIN-LISTING-SEARCH-FILTERS (2026-04-29):** Admin listings page adds category filter, seller email search, and row-level selection checkboxes
     - Scope:
       - `p2p-kids-admin/src/app/components/ListingSearch.tsx`
@@ -519,7 +511,6 @@ This file is the canonical registry of end-to-end flows and their required regre
   - If seller enabled "Accept Swap Points" and is Starter Pack eligible: listing is created with `status='pending'` (not visible in public feed until approved).
   - Pending listing creates `admin_notifications` rows for all admins (notification type `listing_pending_approval`).
   - Admin approves listing -> `items.status` transitions `pending` -> `available` and listing becomes visible.
-  - **R8-MODERATION-GATE (2026-08-11):** Listing approval is now gated on Google Vision image moderation. `admin_approve_listing()` refuses to approve until every uploaded image has an `approved` `ai_moderation_logs` decision (or `moderation_ai_enabled` = false). Flagged images block approval (`MODERATION_BLOCKED_FLAGGED`); unreviewed images block approval (`MODERATION_IN_PROGRESS`). New RPC `get_listing_moderation_gate(p_listing_id)`. Admin listing detail shows the gate status. Migration: `supabase/migrations/20260811000001_r8_image_moderation_approval_gate.sql`. Admin UI: `p2p-kids-admin/src/app/components/ListingSearch.tsx`. Manual: TC-R8-01..04 (MODULE-15.1.2) + TC-R8-A01..A04 (MODULE-ADMIN-PORTAL).
   - **LISTING-APPROVAL-NOTIFICATION (2026-04-25):** Seller receives approval notification respecting `notification_preferences`
     - Migration: `supabase/migrations/20260425000001_listing_approval_notifications.sql`
   - **LISTING-V3-008 (2026-04-27):** 10 presentational components for item creation (PhotoUploadManager, AIAnalysisCard, CategorySelectModal, ConditionSelector, ConditionGuideOverlay, ColorPicker, AgeGroupSelector, GenderSelector, PriceSuggestionCard, PublishButton)
@@ -1494,9 +1485,31 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Unauthorized uploads/deletes rejected by RLS
   - Integration: Storage service (`src/services/supabase/storage.ts`) uses bucket type safety
 
-### FLOW-06: Discovery – Feed/Search/Filters/Favorites
+### now i want you to extend the scope of testing for this file to cover the reqs for cart system and tax engine from end user side and admin site. following the same format for test cases 
+you can find the reqs for these 2 addtions in 
+MODULE-15.2-cart-system.md
+MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md
+add one section on the top give summary on what this file covers from testing and also inlcude perrequsit list. : Discovery – Feed/Search/Filters/Favorites
 - Smoke: (manual)
   - Feed loads; search filters update results.
+  - **NODE-SCOPE-P1..P4 (2026-08-17):** Restore node-scoped (hyperlocal) discovery
+    - Module: Node-scope restoration (4 phases: data reconciliation → node reconciliation → RPC node filter → client default scope + Show All Nodes toggle)
+    - Purpose: Active-node users now default to "My Node" listings; waitlisted/inactive-ZIP fallback-browse (global) preserved exactly.
+    - Scope (DB):
+      - `supabase/migrations/20260817000001_node_scope_p1_item_node_id_guard_backfill.sql` — re-assert `trg_set_item_node_id` + `idx_items_node_id` + guarded NULL-only backfill from `profiles.node_id` (verified: backfillable = 0 on staging; all NULL-node items belong to node-less sellers — documented limitation).
+      - `supabase/migrations/20260817000002_node_scope_p2_radius_rpc_on_nodes.sql` — `get_nodes_within_radius` now reads canonical `nodes` (was deprecated `geographic_nodes`; fixes UUID mismatch); `geographic_nodes` marked deprecated.
+      - `supabase/migrations/20260817000003_node_scope_p3_search_rpc_node_filter.sql` — `search_listings` (V5) + `count_listings` now apply `p_node_ids` (strict: excludes NULL-node items); `search_listings` returns `node_id` per row. Backward compatible (NULL p_node_ids = global).
+    - Scope (client):
+      - `p2p-kids-marketplace/src/utils/nodeScope.ts` (NEW) — pure state machine `computeEffectiveNodeScope`.
+      - `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx` — "My Node" default, `discover-show-all-nodes-toggle`, "Other Node" badge wiring, empty-state CTA, waitlist preservation (zip_waitlist check).
+      - `p2p-kids-marketplace/src/components/molecules/ItemCard/index.tsx` — optional `otherNode` badge.
+      - `p2p-kids-marketplace/src/services/discovery.ts` — `countListings` now passes `p_node_ids` (count/search parity).
+      - `p2p-kids-marketplace/src/types/discovery.ts` — `SearchResult.node_id`, `DiscoveryFilters.showAllNodes`.
+    - Tests:
+      - Unit: `src/utils/__tests__/nodeScope.test.ts` (NEW, 8 cases); `src/services/__tests__/discovery.test.ts` (count parity); updated F06 manual guide.
+      - Validation: `yarn typecheck` PASS; `yarn lint` 0 errors on changed files; `npm run test:unit` 2881 pass / 2 pre-existing failures (AutoCompleteBanner, SignupScreen — unrelated, prior-session files).
+    - Impacted Flows: FLOW-06 (Discovery), FLOW-03 (Node/ZIP gating + waitlist fallback preserved), FLOW-00 (env).
+    - Tier: Tier 0 (passed) + Tier 2 (DB migrations/RPC applied to staging + verified); QA on-device per phase (AUTH-TC-F06) pending — see `e2e-test-results/`.
   - **MODULE-15.1-UI-REDESIGN-FLOW-06 (2025-01-XX):** Discovery & Search screens redesigned to Whisk "Pass It Up" design system
     - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-06)
     - Scope:
@@ -1568,6 +1581,14 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Manual testing required for complete flows (see MODULE-15.1-FLOW-06-MANUAL-TESTING.md)
     - Tier: Tier 0 (always - lint + typecheck); Tier 1 (UI changes - visual smoke tests)
     - Impacted Flows: FLOW-06 (Discovery), FLOW-05 (if favorites integration exists), FLOW-04 (if item detail → listing edit exists)
+  - **DISCOVER-TOKENS-PASSITUP (2026-08-17):** Discover screen + Filters sheet migrated to canonical design-system-passitup tokens
+    - Scope: UI-ONLY (color/typography tokens only — no DB/API/Edge Function/logic changes)
+    - Root cause: `src/theme/discoveryTokens.ts` was sourced from legacy `docx/design-system.md` (primary #4A7C59) instead of canonical `docx/design-system-passitup.md` (primary #5DBB8E); `SortDropdown`/`RadiusSlider` also had hardcoded legacy/system colors.
+    - Fixed by migrating the token file itself (palette reconciled to passitup — now matches `src/theme/colors.ts`) AND converting the 2 hardcoded components to import `ds` tokens — prevents recurrence.
+    - Files changed (3): `src/theme/discoveryTokens.ts` (palette reconciled; H1 32→28px per passitup type scale), `src/components/atoms/SortDropdown.tsx` (system-blue selected option → passitup tint #E8F5F0 + primary #5DBB8E; borders → #E0E0E0; text → #1A1A1A), `src/components/RadiusSlider.tsx` (track #E5E7EB → #E0E0E0).
+    - Fixes 14 QA audit items: Filters Apply button now #5DBB8E (matches its Reset button + category pills), sort dropdown selected option no longer iOS system blue, result-count/header icons/chips/drag-handle/radius-track/H1 all passitup-consistent.
+    - Regression: Tier 0 PASS (typecheck + eslint on changed files clean). Unit tests: DiscoverScreen + SearchFilterModal + ItemCard all PASS (76 tests).
+    - Impacted Flows: FLOW-06 (Discovery)
   - **DISCOVERY-V3-001 (2026-04-21):** Filter Columns & Indexes Schema Migration
     - Purpose: Add 4 nullable filter columns to items table for advanced discovery filtering
     - Migration: `supabase/migrations/20260420000001_add_item_filter_columns.sql`
@@ -1625,34 +1646,6 @@ This file is the canonical registry of end-to-end flows and their required regre
       - ✅ Column comments exist for documentation
     - Next steps: DISCOVERY-V3-002 (RPC rewrite), DISCOVERY-V3-005 (unified DiscoverScreen UI)
     - Tier: Tier 2 (DB migration - requires full regression)
-  - **DISCOVERY-V4-001 (2026-08-11):** Discover screen + Filters bottom sheet redesign
-    - Module: Discover Redesign (Pass It Up)
-    - Scope:
-      - Discover-local header composition (new `DiscoverHeader.tsx`) with Bookmark → Favorites + existing bell/chat; shared `AppHeader`/`ScreenLayout` untouched (Home/Inbox/Profile headers verified unchanged)
-      - "💰 Accepts SP" quick-toggle chip (SP-gold) — single source of truth with the Filters-sheet toggle (`filters.spEligibleOnly`)
-      - Recent Searches chip row (Neutral-100 pills, client `searchHistory`, Clear action) + Trending in {State} (Primary-100 chips, state-scoped top categories by active listing count)
-      - Result count line + removable active-filter chips above the grid (Primary tokens; SP chip uses SP-gold tokens; Clear all)
-      - ItemCard → design-system §6.2 (white/16px radius/Level-1 shadow/1:1 image/H4 title/Body Large 700 price) + new gold `AcceptsSpBadge` (§6.7) replacing inline "SP ✓"
-      - Filters sheet: SP toggle card on top (SP-gold), Location/Category/Age Group expanded, Condition/Gender/Color/Brand/Price Range under collapsed "More Filters", Apply = "Show {n} Results" with debounced live count
-    - Files Changed:
-      - NEW `p2p-kids-marketplace/src/theme/discoveryTokens.ts` (design-system.md tokens)
-      - NEW `p2p-kids-marketplace/src/components/atoms/AcceptsSpBadge.tsx`
-      - NEW `p2p-kids-marketplace/src/screens/home/DiscoverHeader.tsx`
-      - `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx` (header swap, sections, chips, state)
-      - `p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx` (redesign)
-      - `p2p-kids-marketplace/src/components/molecules/ItemCard/index.tsx` (§6.2 + AcceptsSpBadge)
-      - `p2p-kids-marketplace/src/services/discovery.ts` (+getTopCategoriesByState, +countListings)
-      - `p2p-kids-marketplace/src/types/discovery.ts` (+TrendingCategory)
-      - NEW `supabase/migrations/20260811000006_discover_trending_categories_rpc.sql` (get_top_categories_by_state)
-      - NEW `supabase/migrations/20260811000007_discover_count_listings_rpc.sql` (count_listings)
-    - Tests:
-      - Manual: `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` (root + misc/ in sync) — new TC-M07..M10, TC-N04, updated TC-M02/M04/M05, index + mapping sync
-      - Unit: `src/services/__tests__/discovery.test.ts` — extend for count/trending RPC mocks
-    - Prerequisites: `search_listings` V4 (20260603000001); categories/geographic_nodes tables
-    - Validation: `yarn typecheck`, `yarn lint`, `yarn test`; apply migrations 20260811000006/07 to staging; manual iOS walk of acceptance criteria; before/after header diff of Home/Inbox/Profile
-    - Tier: Tier 0 (lint + typecheck); Tier 1 (targeted discovery smoke, groups M/N/O); Tier 2 (DB migrations — full `supabase db reset` + smoke `--all` if the new RPCs ship to staging)
-    - Impacted Flows: FLOW-06 (Discovery), FLOW-30 (Global App Shell — nav unchanged; Discover header is local)
-    - Backward compatibility: additive — two new RPCs, no schema/column changes; ItemCard restyle applies to the shared card (CategoryBrowse etc. visually diffed); old "SP Only" toggle relabeled "Accepts SP" with the same `filters.spEligibleOnly` state
   - **DISCOVERY-V3-002 (2026-04-21):** Enhanced search_listings RPC + get_popular_brands
     - Purpose: Replace V2 3-param search_listings with 13-param version supporting 9 filters, pagination, and 4 sort modes
     - Migration: `supabase/migrations/20260420000002_update_search_listings_rpc.sql`
@@ -2117,7 +2110,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-07:  & Bundling
 - Smoke: (manual - see MODULE-15.1-FLOW-07-MANUAL-TESTING.md)
-- **N6-NODE-TAGGING (2026-08-11):** `cart_items.node_id` added + `trg_set_cart_item_node_id` trigger (resolves from the listing's node, fallback seller profile) so cart rows are node-tagged. See FLOW-03 for the full N6 migration. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E06.
 - **SELLER-GROUP-001..007 (2026-07-13):** Seller Masking, Bundle Discovery, and Same-Seller Cart Enforcement
   - Module: SELLER-GROUP (cross-cutting — touches FLOW-06 ItemDetail, FLOW-07 Cart, FLOW-08 Trade)
   - Scope:
@@ -2254,17 +2246,6 @@ This file is the canonical registry of end-to-end flows and their required regre
     - `npm run test:maestro:ios -- .maestro/cart-flow.yaml` (all 13 states pass)
 
 ### FLOW-08: Trade Flow – Checkout + Transaction State Machine
-- **R11+R6-CHECKOUT-ENFORCEMENT (2026-08-10):** `create-trade-offer` now runs a server-side SP check before every offer (single + bundle): (a) R6 entitlement via `fn_get_sp_entitlement` — grace-period buyers can spend existing SP; free/expired/frozen cannot (`SP_NOT_ENTITLED`); (b) R11 category cap via `fn_item_effective_sp_cap` — over-cap SP rejected (`SP_CAP_EXCEEDED`). The `fn_reserve_sp_on_offer` DB trigger is the HP-4 invariant (rejects over-cap, blocks non-spendable wallets). R13 confirmed: grace-period buyers pay the free-user fee (R1 fee engine — no code change). Migration `20260810000010_r11_r6_sp_caps_and_entitlement.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Z (TC-Z01–Z12).
-- **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** The buyer fee at offer time resolves from the web-purchased subscription status via `fn_get_buyer_fee_for_checkout` (status IN trial/active → flat $1.49 member fee). No state-machine change. SP-gated UI entry points (listing detail "Use SP 🔒", item create "Accept SP", dashboard SP strip, trade offer) now route to the non-purchase `JoinKidsClub` screen instead of an in-app purchase flow. See FLOW-12.
-- **R1-TIERED-BUYER-FEE (2026-08-09):** `create-trade-offer` now snapshots `buyer_fee_state` on the trade and resolves the fee server-side via `fn_get_buyer_fee_for_checkout` — the SAME RPC the mobile order summary uses, so the preview and the charge always agree (client-supplied fee is ignored). The first-trade flat fee is consumed only when the trade completes (never at offer time); a full refund restores first-trade eligibility. Bundle path charges one fee per bundle when `charge_one_fee_per_bundle` is on. Migration `20260810000009_tiered_buyer_fee_engine.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Y (TC-Y01–Y11) + Group Y2 (TC-Y2-01–06).
-- **N6-NODE-TAGGING (2026-08-11):** Trade node resolution consolidated — `create-trade-offer` now resolves the seller node via the shared `supabase/functions/_shared/node.ts` `resolveSellerProfile` helper (behavior-identical: same query/semantics as the inline lookup it replaced); `trades.node_id` legacy NULLs backfilled. The N6 migration also adds `node_id` to `seller_payouts`/`seller_balance` (payout pipeline) — see FLOW-03 for the full N6 migration. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E06.
-- **N2-IDEMPOTENCY-AUDIT (2026-08-09):** Offer/capture/cancel paths made retry-safe (idempotent) and audited. `create-trade-offer` now passes deterministic Stripe idempotency keys (`pi_offer_<buyer>_<item>_<hash>` single, `pi_bundle_<bundle>_<item>_<hash>` bundle) so a double-tap/retry dedupes to one PaymentIntent; a concurrent duplicate trade insert (23505) replays the winner instead of erroring. `trade-payment` no longer flips the trade to `in_progress` before capture — it stays `pending` until capture actually succeeds (fixes a stale-idempotency bug where a retry returned success with no charge); PI key `pi_trade_<id>`. Every payment transition writes a `financial_audit_log` row (`offer_created`, `payment_intent_created`, `payment_captured`, `payment_capture_failed`, `payment_cancelled`, `trade_completed`, `trade_cancelled`, `tax_*`) via `_shared/audit.ts` + `fn_log_financial_audit()` (idempotent — no double-log). New unique guard `idx_trades_stripe_payment_intent_id`. Migration `20260810000006_n2_idempotency_audit.sql`. EFs: create-trade-offer, trade-payment, complete-trade, cancel-trade, transactions-update, resolve-dispute, stripe-webhook, process-auto-complete. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 (TC-N2-C01/C03/C05/C07/C10). Tier 0 (`deno check --no-lock`) PASS; live DoD checks PASS (no double-log, no double-debit/credit).
-- **N1-PICKUP-COUNTDOWN-CONFIG (2026-08-09):** The pickup countdown window is now an admin-tunable config key (`admin_config.pickup_window_hours`, seeded 72h, editable on `/settings/trade-timing` + `/config`) instead of a hardcoded value. Tunable now; the actual pickup-deadline enforcement wiring lands with the pickup R-requirement (which reads this key via `fn_admin_config_int`). Config-only — no state-machine change in this entry. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F05.
-- **R2-AUTH-CAPTURE-COUNTDOWN (2026-08-10, extended 2026-08-11):** Enforced the pickup countdown + 7-day Stripe guardrail. (1) The post-acceptance deadline is now sourced from `pickup_window_hours` (fallback `auto_complete_hours`, then 72h) in `fn_set_auto_complete_at`, `transactions-update`, and `transactions-accept-bundle`; auto-complete behavior at the deadline is retained (owner decision). (2) `fn_validate_trade_timing_config` now HARD-BLOCKS `offer_timeout_hours + pickup_window_hours > 167h` (7-day Stripe authorization limit); the admin UI validates the same rule; the runtime `check-authorization-expiry` cron remains the backstop. (3) NEW pickup-window reminders (buyer-only, in-app + push): config keys `pickup_notif_1/2_hours_before` (24/2), trades columns `pickup_reminder_1/2_sent_at`, `rpc_send_pickup_reminders`, EF `send-pickup-reminders`, cron every 5m. (4) Cleanup: retired the legacy no-capture SQL auto-complete cron (`auto_complete_trades_every_12h`) + `scheduled_auto_complete_trades()` and the dormant `auto-complete-trades` EF; consolidated auto-complete reminder keys to `auto_complete_notif_1/2_hours_before`. (5) Auto-complete reminders now read config: `rpc_send_auto_complete_reminders` reads `auto_complete_notif_1/2_hours_before` (was hardcoded 24h/2h) and `send-trade-notifications` renders `hours_remaining`. (6) Admin Trade Pipeline: new `/trades/pipeline` kanban board (`TradePipelineBoard` + Sidebar nav) tracking trades by stage (pending offer → in progress/pickup → completed/cancelled) with live countdowns + attention strip; `admin_trades_view` extended with `offer_expires_at`, `auto_complete_at`, `authorization_expires_at`, `dispute_status`, `dispute_resolution`. Migrations `20260810000001_r2_auth_capture_countdown.sql`, `20260810000002_r2_cleanup.sql`, `20260810000003_admin_trades_view_pipeline.sql`, `20260810000004_r2_auto_complete_reminder_config.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group R2 (TC-D06, TC-G05); `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F06 (guardrail) + TC-F07 (Trade Pipeline).
-- **R4-DIRECT-CHARGES-DISPUTE-LOSS (2026-08-09):** Stripe Connect configured as **Direct charges** (seller = merchant of record; Stripe debits the seller FIRST on a dispute — non-code Stripe Dashboard config, additive; checkout/Transfers unchanged pending Phase B sign-off). New dispute-loss accounting: `dispute_costs` ledger + `rpc_record_dispute_event` (idempotent, keyed on Stripe dispute id) + `rpc_apply_seller_recovery`; dispute cost = `dispute_fee_cents` (admin_config, default 1500) + round(AOV × (1 − `dispute_recovery_rate`)) (admin_config, default 0.50); AOV = per-trade charged amount (Stripe `dispute.amount`). Won/withdrawn disputes realize NO loss; lost disputes record outstanding = negative-balance equivalent recovered from future payouts. `stripe-webhook` handles `charge.dispute.created/updated/closed/funds_withdrawn/funds_reinstated`; `charge.refunded` skips auto-cancel for dispute-driven refunds; `resolve-dispute` guards against double-refund after a lost dispute. Admin finance surface: Disputes → **Dispute Cost Ledger** (`admin_dispute_costs_view`). Migration `20260810000005_r4_dispute_cost_accounting.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group R3 (TC-R4-01..08); `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group AA (TC-AA01..06). **Requires legal/finance sign-off** for the $15 fee / 0.50 recovery-rate defaults and the merchant-of-record config (see SYSTEM_REQUIREMENTS_V2 §7.12).
-- **N3-DISPUTE-EVIDENCE (2026-08-10, re-applied 2026-08-11):** On `charge.dispute.created`, the `stripe-webhook` Edge Function automatically packages dispute evidence and **stages** it (`submit=false` — locked 2026-08-10, no auto-submit during the Westport pilot) via `POST /v1/disputes/{DISPUTE_ID}`. Packages: buyer/seller messaging history (uploaded as a Stripe File for `evidence.customer_communication` via the Files API), trade completion timestamp (`evidence.service_date` from `trades.completed_at` / `seller_marked_completed_at`), pickup location (`evidence.shipping_address` resolved to the node's city/state/zip — masked per NFR-PRIV-002), and a plain-text trade summary (`evidence.uncategorized_text`). Verification model = direct Stripe API call, NOT a UI. Idempotent + audited: `dispute_costs` gains nullable `evidence_*` columns + idempotent `rpc_record_dispute_evidence` (webhook replays never double-upload/double-stage; a late failure can't regress `staged`); `financial_audit_log` gains `dispute_evidence_staged`. Failure is recorded as `failed` then the webhook returns non-2xx so Stripe retries (self-healing). Migration `20260810000011_n3_dispute_evidence.sql`. Automated DoD check: `scripts/smoke/dispute-evidence.mjs` (GET /v1/disputes/{id} asserts the four evidence fields + `evidence_details.submitted === false`; `--self-test`). Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N3 (TC-N3-01..07). **Admin step that remains:** final glance-and-submit in the Stripe Dashboard (staged evidence is never sent to the bank automatically).
-- **R3-DELAYED-PAYOUT-BUFFER (2026-08-10):** Enforced the payout buffer (`admin_config.payout_buffer_days`, default 2, admin-tunable 0–30 at `/settings/trade-timing` → Pickup & Payout). On completion, `create_seller_payout_on_trade_completion` stores `payout_release_at = trades.completed_at + payout_buffer_days` (ACTUAL completion timestamp, never the expected window) on `seller_payouts` + `trades`; the completion trigger `fn_queue_payout_on_complete` no longer dispatches `initiate-payout` before the release date; buffered proceeds sit in `seller_balance.pending_balance_cents`; a new hourly cron `release-due-payouts` → EF → `rpc_release_due_payouts` dispatches due payouts and moves pending → available; `initiate-payout` gained a defense-in-depth release gate. Buffer 0 = immediate (backward compatible; existing completed payouts backfilled to release now). `get_admin_payouts` + `admin_trades_view` expose `payout_release_at`; mobile Earnings / Payout Dashboard / Request Payout, the admin payouts list, and the Trade Pipeline surface the release date; manual withdrawal is gated until release. Migration `20260810000008_r3_delayed_payout_buffer.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group R3 (TC-R3-01..07); `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group R3 (TC-R3-01..04).
-- **R15-TRADE-EXTENSION-REAUTH (2026-08-10):** One-time extra-time extension during the **pickup window only** (`in_progress`) — never the offer window. Either party requests via `rpc_request_trade_extension`; the counterparty must accept within `extension_response_window_hours` (default 4h); no response = auto-deny. Mutual acceptance (`rpc_apply_trade_extension`) voids the existing Stripe hold and places a **fresh authorization** (new PaymentIntent `pi_ext_<trade>`, `capture_method='manual'`, fresh 7-day window + new pickup deadline `now + extension_window_hours`, default 72h), audited as a distinct N2 `trade_extension_reauth` event (idempotency key `extension_reauth_<trade>`). Deny / 4h timeout (`rpc_process_extension_timeouts` cron, every 5m) / re-auth-failure auto-cancel through the **shared** `rpc_auto_cancel_trade` path (`status='cancelled'` + `rpc_void_tax_for_trade`; SP restore + notifications fire via existing `fn_release_sp_on_cancel` / `send_trade_status_notification` triggers — no FLOW-11 code change, and never `credit_sp_for_cancelled_trade` to avoid double-credit). Exactly one extension per trade — any prior outcome blocks (`EXTENSION_ALREADY_USED`). Auto-complete (`rpc_process_auto_complete` + `process-auto-complete` EF) and pickup reminders (`rpc_send_pickup_reminders`) skip pending-request trades; `send_trade_status_notification` gates the generic `trade_cancelled` for extension-cancel reasons. Notifications (FLOW-17) reuse R2's system — `send-trade-notifications` gained 5 event types (`extension_requested`, `extension_accepted`, `extension_denied`, `extension_auto_denied`, `extension_reauth_failed`). R1 fee-state / R5 SP pending-release trigger on the completion event (no pause/resume needed during the consent wait); R3 `payout_release_at` + R4 dispute basis use the ACTUAL `completed_at` (no special-case code). Config keys admin-tunable; `fn_validate_trade_timing_config` HARD-BLOCKS `extension_window_hours > 167h` and `extension_max_per_trade ≠ 1`. Migration `20260811000005_r15_trade_extension.sql`; EFs `trade-extension`, `process-extension-timeouts`; mobile `tradeServiceV2` (`requestTradeExtension`, `respondToExtension`) + `TradeTimelineScreen` (request / accept / decline / granted cards). Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group R15 (TC-R15-01..12); `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group R15 (TC-R15-A01..A04).
 - **MODULE-15.1-UI-REDESIGN-FLOW-08 (2025-01-20):** Trade flow screens redesigned to Whisk-inspired design system
   - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-08)
   - Scope:
@@ -2472,25 +2453,13 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Admin page location: `http://localhost:3001/settings/trade-timing` → **Offer Limits** section → **Max Offers Per Seller**.
 
 ### FLOW-09: Fees & Pricing Engine
-- **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** The R1 tiered buyer fee reads `subscriptions.status IN ('trial','active')` → flat $1.49 member fee. A web-first subscription sets that status, so the $1.49 fee activates automatically — no fee-engine code change. TC-K01 in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` corrected to $1.49. See FLOW-12.
-- **R1-TIERED-BUYER-FEE (2026-08-09):** Tiered buyer-fee resolution at checkout. Three fee states via `fn_get_buyer_fee_for_checkout` (SECURITY DEFINER): active member (trial/paid) → flat `buyer_fee_active_member_cents`; free + 0 completed trades → flat `buyer_fee_first_trade_cents` (first-trade protection); free + 1+ completed trades → % of the cash portion (`buyer_fee_subsequent_percentage`) + fixed (`buyer_fee_subsequent_fixed_cents`), capped at `buyer_fee_subsequent_max_cents`. First-trade eligibility is a state (`profiles.fee_state` + `completed_trade_count`), consumed only on trade completion (`trades.consumed_first_trade_eligibility`) and restored on full refund. All amounts are dynamic from admin_config (fees) — never hardcoded; missing config fails loud (BP-28). The % tier applies to the cash portion (order total − SP); tax stays on the full item price (BP-37). Migration `20260810000009_tiered_buyer_fee_engine.sql`. Manual: mobile `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Y (TC-Y01–Y11) + Group Y2 (TC-Y2-01–06); admin `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group FE (TC-FE-01–08) + FE2 (TC-FE2-01–04).
-- **N6-NODE-TAGGING (2026-08-11):** `payments.node_id` added + `trg_set_payment_node_id` trigger (resolves from the trade's node, fallback seller profile) so platform fees are countable per node (fed into `admin_node_kpis.platform_fee_cents`). See FLOW-03 for the full N6 migration. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E06/E07.
-- **FEES-CONSOLIDATE (2026-08-09):** Fee parameters consolidated onto a single admin surface — /settings/trade-timing → Transaction Fees is now the PRIMARY place to manage fees. The buyer platform fee (fixed cents + %) and the charge-once-per-bundle toggle moved from /config → FEES into the Trade Timing page; /config → FEES still shows them with a cross-link banner to Trade Timing (single source stays `admin_config`). Seller fees (free/KCP %) were already there. `platform_fee_seller_discount_percentage_freemium` remains a legacy/unused key on /config (the active free-tier key is `platform_fee_seller_percentage`, already on Trade Timing).
-  - Scope: Admin UI only (no DB/API/Edge Function changes)
-  - Files: `p2p-kids-admin/src/app/settings/trade-timing/page.tsx` (2 buyer-fee numFields + bundle toggle boolField in Transaction Fees), `p2p-kids-admin/src/types/config.ts`, `p2p-kids-admin/src/app/settings/trade-timing/__tests__/trade-timing-settings.test.ts` (3 new tests → 26), `p2p-kids-admin/src/app/config/page.tsx` (cross-link banners + descriptions for the 3 keys)
-  - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F03
-  - Tier: Tier 0 (typecheck + lint + unit 26/26 + build) PASS
-- **N2-FEE-AUDIT (2026-08-09):** Fee charges are now audited on the financial journal. Buyer platform fee → `financial_audit_log` `buyer_fee_charged` at offer creation; seller fee → `seller_fee_deducted` at completion/payout. Idempotent via `fee_<trade_id>` / `seller_fee_<trade_id>` keys (retry can't double-log). Migration `20260810000006_n2_idempotency_audit.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 TC-N2-C07.
 - Smoke: (manual)
   - Subscriber fee vs non-subscriber fee matches configuration.
   - Changing admin fee config updates new trade fee snapshots without mobile code changes.
 
 ### FLOW-10: Swap Points Wallet – Read + Ledger Integrity
-- **R6-WALLET-STATE-RPC (2026-08-10):** New `rpc_set_sp_wallet_state(user, state)` — first-party freeze/unfreeze/grace primitive replacing the external `SP_SUBSCRIPTION_UNFREEZE_URL` dependency. Grace wallets are now spendable (`grace_period`), not `frozen`; 956 legacy grace users backfilled `frozen` → `grace_period`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Z (TC-Z06/Z08/Z09).
-- **N2-SP-LEDGER-IDEMPOTENCY (2026-08-09):** SP ledger writes made idempotent. `debit_sp_for_trade` (key `sp_debit_<trade>`) and `credit_sp_for_cancelled_trade` (key `sp_refund_<trade>`) set `sp_ledger.idempotency_key` and short-circuit on an existing entry — a retried call returns `{ idempotent: true }` with the prior `ledger_entry_id` and never double-mutates the wallet. `sp_reserved`/`sp_restored` audit rows written with the same keys (no double-log). Migration `20260810000006_n2_idempotency_audit.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 TC-N2-C01/C05.
 - Smoke: (manual)
   - Wallet shows available/pending; ledger entries append-only.
-- **N6-NODE-TAGGING (2026-08-11):** `sp_wallets.node_id` added + `trg_set_wallet_node_id` trigger (resolves from the user's profile; also fires on UPDATE so wallets created before node assignment get tagged). See FLOW-03 for the full N6 migration. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E06.
 - **MODULE-15.1-UI-REDESIGN-FLOW-10/11 (2026-05-10):** SP Wallet & Transaction History screens redesigned to Whisk-inspired premium design
     - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-10/11)
     - Scope:
@@ -2530,16 +2499,11 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Transaction icon mapping relies on transaction_type string matching (sale, trade, redeem, etc.)
 
 ### FLOW-11: Swap Points – Earn/Spend/Cap + Pending→Release
-- **R11-CATEGORY-SP-CAPS (2026-08-10):** Category spend-cap % is now ENFORCED server-side — `fn_item_effective_sp_cap` = FLOOR(price × `sp_spending_cap_percent`/100), bounded by `sp_redemption_cap` (or `sp_redemption_cap_global`); category % OVERRIDES the global 50%; new categories default to 50%. `fn_reserve_sp_on_offer` rejects over-cap offers. R6 earn gating: `fn_transfer_sp_on_accept` + `fn_release_all_sp_on_complete` grant the platform bonus ((m−1)×S) only to active/trial sellers — grace/expired sellers get buyer SP only, no net-new SP. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Z (TC-Z01–Z05, TC-Z07, TC-Z12).
-- **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** SP earn/spend gating reads `subscriptions.status IN ('trial','active')` (unchanged logic). The web-first webhook now sets that status — web trial → `trial`, paid → `active` (Stripe `trialing` no longer maps to `active`). Renewal failure → grace_period + SP freeze → expired (unchanged). See FLOW-12.
-- **R1-TIERED-BUYER-FEE (2026-08-09, cross-ref):** The "free users with 1+ completed trades" buyer fee is a % of the cash portion (order total − SP) — SP stays a payment method, not a price discount, and tax remains on the full item price (BP-37). No SP-ledger change.
-- **N2-SP-RELEASE-IDEMPOTENCY (2026-08-09):** SP release is re-run safe. Re-invoking the pending-SP release processor (`rpc_release_pending_sp`) cannot double-credit the seller's pending balance; `sp_released` / `sp_issued` audit rows are keyed (no double-log). Migration `20260810000006_n2_idempotency_audit.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 TC-N2-C04.
 - Smoke: (manual)
   - 50% cap enforced; buyer fee always cash.
   - First eligible listing approval awards Starter Pack SP once (wallet + ledger updated).
-  - **N6-NODE-TAGGING (2026-08-11):** `sp_ledger.node_id` + `sp_batches.node_id` added with triggers (`trg_set_sp_ledger_node_id` resolves from the related trade, fallback user; `trg_set_sp_batch_node_id` from user) so SP earned/spent are countable per node (fed into `admin_node_kpis.sp_earned`/`sp_spent`). See FLOW-03 for the full N6 migration. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E06/E07.
 
-### FLOW-13: Referrals – Code Generation, Apply On Signup + Action-Gated SP Rewards
+### FLOW-13: Referrals – Code Generation + Apply On Signup
  - Smoke: scripts/smoke/referrals.mjs
   - User A: signup -> Profile shows referral code; DB: `profiles.referral_code` matches `referral_codes.code`.
   - User B: signup with User A code -> `referrals` row created with `status='pending'`.
@@ -2549,14 +2513,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Must validate: user-entered signup referral code is persisted (e.g., `profiles.referred_by_code`) and the relationship is applied (`profiles.referred_by` + `referrals` row)
   - Fail-safe: If auth.users signup trigger was missing, a profiles AFTER INSERT trigger applies referral from auth metadata.
   - Back-compat: apply can resolve codes from `referral_codes.code` OR legacy `profiles.referral_code`.
-- **R12 ACTION-GATED SP REWARDS (2026-08-11):**
-  - Referral SP is **action-gated**: applying a code creates a `pending` referral and awards **0 SP** on signup (anti-bounce — no referral-SP farming from signups). Rewards unlock only on the referred user's **first approved listing** or **first completed trade** (buyer side).
-  - Both referrer and referee are credited via the idempotent award engine (`award_referral_sp` / `award_listing_referral_sp`); **subscription-gated** (both must be trial/active via `is_active_subscriber`); **once per bonus** (a second trade / later listings grant nothing).
-  - Trade and listing bonuses are **independent** — each pays once; tracked per-bonus via `referrals.trade_bonus_awarded_at` / `referrals.listing_bonus_awarded_at` (+ `status='completed'`, `captured_sp_referrer_amount` / `captured_sp_referee_amount`).
-  - Config (category `referral`, `sp_config`): `referral_program_enabled`, `referral_first_trade_enabled`, `referral_first_listing_enabled`, `referral_reward_referrer_sp`, `referral_reward_referee_sp`, `referral_reward_referrer_listing_sp`, `referral_reward_referee_listing_sp`. All amounts/toggles dynamic; a missing key fails loudly (`SP_CONFIG_MISSING`) — no hardcoded fallback anywhere (DB, mobile, admin).
-  - Notifications: reward-granted pushes fire **per bonus** with configured amounts (`notify_referral_rewards_granted`; hardcoded 25/10 fallbacks removed).
-  - Migration: `supabase/migrations/20260811000003_referral_action_gating_and_notifications.sql` (Mode B). Spec: `docx/SYSTEM_REQUIREMENTS_V2.md` §8C (R12).
-  - Tests: E2E `p2p-kids-marketplace/src/__tests__/e2e/referral-rewards-v2.e2e.ts` (fresh-referee isolation; first-trade reward to both parties; second-trade no double-pay — 7/7 PASS on staging). Admin manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group N TC-N01–N07.
 - **MODULE-15.1 UI Redesign (2026-05-14):**
   - Screen: `src/screens/referrals/ReferralsScreen.tsx` redesigned per MODULE-15.1-UI-redesign.md specs
   - Visual Design:
@@ -2574,18 +2530,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Verification: MODULE-15.1-VERIFICATION.md deliverable D-027
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Tier Configuration
-- **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** Subscription purchase moved to the WEB (passitup.com) — the iOS/Android app contains NO purchase button, price-selection UI, or App Store/Play Store billing trigger (App Store 3.1.3). In-app, users see a non-purchase "Join Kids Club" prompt (`JoinKidsClubScreen` + `JoinKidsClubButton`) that opens the external browser (`Linking.openURL`, never a webview) to `/join`.
-  - Web checkout: `p2p-kids-web/` `/join` → `/api/checkout` → new EF `create-checkout-session` → Stripe hosted Checkout (card / Apple Pay / Google Pay, 30-day trial via `trial_period_days`, PCI SAQ-A).
-  - Backend confirmation: `stripe-webhook-subscriptions` (v34) handles `checkout.session.completed`, `customer.subscription.created`, `invoice.payment_succeeded`; Stripe `trialing` → internal `trial` (was `active`). Writes via atomic RPC `rpc_upsert_web_subscription` (owner or service-role only) + `subscription_events` audit row. Migration `20260810000010_web_first_subscription.sql`.
-  - Account linking: email match → `client_reference_id`/`metadata.supabase_user_id`; one-time HMAC `bind_token` redeemed by `link-subscription-account` (covers "purchased before app account created").
-  - Status sync (Step 6): the app refetches subscription status on app-foreground (`useSubscription` AppState listener) and screen focus — no manual refresh. R1 fee + R6 SP gating unlock automatically (both read status IN trial/active).
-  - Renewal: `invoice.payment_succeeded` resets retry count, writes `billing_history` (succeeded), restores active if previously in grace; `invoice.payment_failed` ×3 → grace_period + SP freeze (R6) → expired via `grace-period-cron`.
-  - Removed in-app subscription purchase code: `SubscribeButton`, `trialToPaidConversion`, `SubscriptionPaymentScreen` purchase CTA, `ContinueKidsClubScreen` payment sheet (now web redirect). Stripe SDK (`usePaymentSheet`) retained for ITEM/TRADE payments.
-  - Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Z1 (TC-Z1-01..06 incl. 7-step E2E + renewal success/failure); `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group Z (TC-Z-01..04).
-  - Setup (not code): set `subscription_tiers.stripe_price_id`; EF secrets; Stripe webhook events + wallet buttons. Tier 0 PASS (typecheck/lint/deno check/build); Tier 1 unit 282 passed (1 pre-existing failure); Tier 2 NOT RUN.
-- **R6-ENTITLEMENT-GATING (2026-08-10):** SP earn/spend gated by subscription state: trial/paid earn+spend; grace spends existing SP (no new earn) + pays the free fee (R13); post-grace SP is FROZEN (not deleted — `grace-period-cron` now calls `rpc_set_sp_wallet_state('frozen')`); resubscribe restores via `rpc_set_sp_wallet_state('active')` from `renew-subscription` / `create-subscription-from-payment-method`. `get_subscription_summary` returns `can_earn_sp` (trial/active only) + `can_spend_sp` (incl. grace); `fn_get_sp_entitlement` + `can_user_spend_sp` updated; `downgrade_trial_to_grace` sets wallet `grace_period`. Migration `20260810000010_r11_r6_sp_caps_and_entitlement.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Z (TC-Z06–Z11).
 - Smoke: scripts/smoke/subscriptions.mjs (TODO: implement)
-- **R1-TIERED-BUYER-FEE (2026-08-09, cross-ref):** The "active member" buyer-fee tier maps to subscription status `IN ('trial','active')`. Four subscription marketing screens (PlanComparison, KidsClubOverview, ManageKidsClub, SubscriptionPayment) updated to reflect the flat active-member fee via `getActiveMemberFeeCents` (dynamic from admin_config). Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group Y2.
 - **FLOW-12 TC-03 UI Fix (2026-05-13):**
   - `UpgradePlan` -> `SubscriptionPayment` trial CTA keeps existing Stripe logic but now renders the modern checkout presentation (Phosphor icons, checkout summary row, payment method row, due-today row).
   - Legacy task-id header copy removed from the payment route title (`Subscription Payment` instead of `Subscription Payment - SUB-015`).
@@ -2597,7 +2542,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-17: Subscription Event Notifications – Renewal, Cancellation, Payment Failure, Trial Reminders
 - Purpose: Notify users of subscription lifecycle events (MODULE-14 TASK NOTIF-V2-002)
-- **R7-WEB-FIRST-SUBSCRIPTION (2026-08-09):** New "Welcome to Kids Club+" notification on `checkout.session.completed` (`sendSubscriptionWelcomeNotification`); renewal / cancellation / payment-failure notifications now also cover web-originated subscriptions via the new `invoice.payment_succeeded` handler. See FLOW-12.
 - Covers:
   - **NOTIF-REALTIME-CRASH-HOTFIX (2026-04-16):** prevent Android crash `cannot add postgres_changes callbacks ... after subscribe()` from notification badge and notification center subscriptions.
     - Root cause: `subscribeToNotifications()` reused a fixed realtime topic (`notifications:<userId>`) and only called `unsubscribe()`, allowing stale subscribed channels to be reused during rapid remounts.
@@ -2732,7 +2676,6 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Safe images pass moderation (decision='approved', confidence <0.5)
   - Flagged images create safety flag and update item status to 'flagged'
   - All moderation results logged with confidence scores and details
-  - **R8-MODERATION-GATE (2026-08-11):** image moderation upgraded from post-hoc flagging to a hard pre-approval gate — `admin_approve_listing()` blocks approval until every image has an `approved` decision (or `moderation_ai_enabled` = false). Moderation still runs fire-and-forget after upload (non-blocking at creation). Migration: `20260811000001_r8_image_moderation_approval_gate.sql`.
   - Multiple images moderated sequentially
   - Moderation failures do not crash app or block listing
 - Manual Verification:
@@ -2772,10 +2715,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management + Category Management
 - Purpose: Admin can configure platform settings, view revenue metrics, analytics, manage users, and manage categories
-  - **R11-CATEGORY-SP-ADMIN (2026-08-10):** Category admin form now edits SP Earning Multiplier (m), SP Spending Cap % (new default 50), and the new absolute SP Redemption Cap (`sp_redemption_cap`, 0–1000 or empty) — wired through `categoryService`, the `/api/admin/categories` routes, and `types/errors` validation. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group FE3 (TC-FE3-01–06).
-  - **R1-FEE-CONFIG-AND-STATS (2026-08-09):** Six new `buyer_fee_*` keys editable on Settings → Trade Timing → Transaction Fees (active-member flat, first-trade flat, subsequent %, fixed, cap, label). New **Buyer Fee-Tier Distribution** panel on Trade Timing and a `FeeTierDistributionCard` on `/analytics`, backed by `fn_admin_get_fee_tier_stats` + `/api/admin/fee-tier-stats` (verifyAdminAuth + `x-admin-secret`, BP-49). Fee-key single-source: all fee keys (incl. `charge_one_fee_per_bundle`) moved to Trade Timing; `/config` shows cross-link banners with no editable duplicates. Legacy keys (`transaction_fee_member_cents`, `transaction_fee_non_member_cents`, `platform_fee_seller_discount_percentage_freemium`) surfaced on Trade Timing as audit-only (not read by current checkout). Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group FE (TC-FE-01–08) + FE2 (TC-FE2-01–05). Tier: Tier 0 (admin typecheck + lint) PASS; browser-verified.
-  - **N6-NODE-TAGGING (2026-08-11):** New per-node KPI surface. DB: read-only RPC `admin_node_kpis(p_node_id UUID DEFAULT NULL)` (service-role only). API: `p2p-kids-admin/src/app/api/admin/nodes/kpis/route.ts` (verifyAdminAuth + service-role RPC; BP-49 `x-admin-secret`). UI: "Per-Node Marketplace KPIs" panel on `/nodes` (Node/Users/Listings/Trades/Completed/GMV/Platform Fees/Paid Payouts/SP Earned/SP Spent + Refresh). Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-E07. Tier: Tier 0 (typecheck + lint) PASS; UI verified in the running dev server.
-  - **R3-PAYOUT-BUFFER-ENFORCED (2026-08-10):** `admin_config.payout_buffer_days` (N1 domain, seeded 2, 0–30 at `/settings/trade-timing` → Pickup & Payout) is now ENFORCED by R3 — new completions store `payout_release_at = completed_at + buffer` read live via `fn_admin_config_int` (no deploy to change it); admin surfaces (Payouts list, Trade Pipeline) show the release date. See FLOW-08 R3-DELAYED-PAYOUT-BUFFER; manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group R3 (TC-R3-02).
   - **ADMIN-NAV-GROUPED (2026-08-08):** Left sidebar grouped into collapsible sections
     - Scope: UI-ONLY (no DB/API/Edge Function changes)
     - Files:
@@ -2798,7 +2737,6 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Behavior: TRUE duplicates (Tax Settings ↔ Config→Tax, Cart Settings ↔ Config→Feature Flags, Trade Timing ↔ Config, Node Settings ↔ Config) already shared `admin_config` rows; now every surface records `updated_at`/`updated_by` and writes `admin_audit_log`. Tax Nodes (`nodes` table) and Tax Rules (`tax_categories`/`tax_rules`) remain distinct data (not merged into /config) but are cross-linked so admins understand the relationship.
     - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F01, TC-F02, TC-F04, TC-J01
     - Tier: Tier 0 (typecheck + lint + build + affected settings unit tests) PASS
-  - **N2-ADMIN-AUDIT (2026-08-09):** (1) `admin_adjust_sp_wallet` made idempotent — accepts optional `p_idempotency_key`; when omitted it derives `admin_adj_<wallet>_<amount>_<actor>_<minute>` so a same-second double-click can't double-credit; writes `sp_issued`/`sp_deducted` to the new financial audit journal. (2) NEW **Financial Audit** screen (`/audit`, sidebar → Monetization) — read-only view of the N2 journal (`financial_audit_log`) via text-cast `admin_financial_audit_view` (BP-45) with search (entity/trade/idempotency key), mutation-type/entity/date filters, category summary strip, expandable before/after JSON, and trade links. Files: `p2p-kids-admin/src/app/audit/page.tsx`, `p2p-kids-admin/src/app/api/admin/audit/route.ts`, `p2p-kids-admin/src/components/layout/Sidebar.tsx`; migrations `20260810000006_n2_idempotency_audit.sql` + `20260810000007_admin_financial_audit_view.sql`. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group N2 TC-N2-A02/A05–A08. Tier 0 (tsc + next lint) PASS.
   - **ADMIN-ACTION-CENTER (2026-08-08):** New "Action Center" — a single feed aggregating every pending admin action (Flagged Items, Disputes, ID Badge requests, Cancel Insights spike, Failed Payouts, Config Drift) into bundled count-cards with severity tags + inline actions; pinned sidebar nav item with live count badge; header bell wired to open it.
     - Scope: DB (1 migration, read-only RPCs) + Admin UI (page, sidebar, topbar)
     - Files:
@@ -2811,60 +2749,6 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Behavior: same-type items bundle into one card with a count; clicking a card expands/drills into the list; inline actions call the existing per-domain admin endpoints (item status approve, dispute-action mark-under-review, id-badge decide approve, payout retry) and deep-link for review-only sources (cancel insights, config drift). Empty queue shows "All caught up" with a Success 500 checkmark.
     - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group X (TC-X01–TC-X09)
     - Tier: Tier 0 (typecheck + lint + build) PASS
-  - **ADMIN-HEALTH-STRIP (2026-08-09):** New dashboard health/status strip — a thin, always-visible row of 6 indicators (Payments failed-rate, Email Delivery %, Nodes Active, Failed Payouts, Uptime, GMV 7d) below the dashboard title and above an embedded Action Center section. Every indicator has configurable warn/crit thresholds (admin_config category 'health'; the enum label is added by `20260809000002_add_health_config_category.sql` because a new enum value cannot be used in the same transaction that adds it, SQLSTATE 55P04) so dot colors (green/yellow/red = Success/Warning/Error 500) tune without a code change. Uptime is a config-driven input (BRD NFR-AVAIL-001 default 99.9); "Email Delivery" replaces "SMS Delivery" because `email_logs` is the only delivery-status table (SMS has no outcome telemetry).
-    - Scope: DB (2 migrations: 1 enum-only + 1 read-only RPC + config seeds) + Admin UI (dashboard, strip component, health API, payouts deep-link)
-    - Files:
-      - `supabase/migrations/20260809000002_add_health_config_category.sql` — adds the 'health' label to `admin_config_category` in its own transaction (a new enum value cannot be used in the same transaction that adds it — SQLSTATE 55P04)
-      - `supabase/migrations/20260809000003_admin_health_strip.sql` — seeds 13 `admin_config` keys (category 'health') via the shared `upsert_admin_config_setting` RPC (BP-48) + `admin_health_summary()` SECURITY DEFINER read-only RPC returning 6 indicator `{id, value, display, thresholds{warn,crit}}`; service-role only
-      - `p2p-kids-admin/src/app/api/admin/health/route.ts` — GET summary (verifyAdminAuth, service-role RPC)
-      - `p2p-kids-admin/src/lib/healthStatus.ts` + `src/lib/__tests__/healthStatus.test.ts` — pure `deriveHealthStatus(value, thresholds, direction)` (unit-tested) + the 6-indicator registry (label/direction/href)
-      - `p2p-kids-admin/src/components/health/HealthStatusStrip.tsx` — the strip UI (design-system: Neutral 100 bg, 12px radius, 16px padding, 8px semantic dots, 12px Neutral-700 labels)
-      - `p2p-kids-admin/src/app/page.tsx` — renders `HealthStatusStrip` + embedded `ActionCenterClient variant="embedded"`
-      - `p2p-kids-admin/src/app/action-center/ActionCenterClient.tsx` — new `embedded` variant (compact header + "View all →" link, no refresh)
-      - `p2p-kids-admin/src/app/payouts/earnings/page.tsx` — reads `?status=` query param so the Failed Payouts indicator deep-links to a pre-filtered list
-    - Behavior: strip always visible on the dashboard; clicking an indicator navigates (Payments→/payments?status=failed, Email Delivery→/monitoring, Nodes Active→/nodes, Failed Payouts→/payouts/earnings?status=failed, Uptime→/monitoring, GMV→/analytics). Thresholds tuned via /config without a code change. Action Center embedded below the strip (Option A).
-    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group Z (TC-Z01–TC-Z07)
-    - Tier: Tier 0 (typecheck + lint + unit test + build) PASS
-  - **ADMIN-COMMAND-PALETTE (2026-08-09):** New global command palette (⌘K / Ctrl+K and header search bar) searching Settings, Users, Listings, and Trades in parallel — grouped results with section labels, breadcrumb context per row, ~200ms debounce, top-5 per group with a "See all N results" inline expansion, and a footer "View all in <domain>" link to the prefilled list page. Results are admin-scoped server-side.
-    - Scope: DB (1 migration, read-only RPC) + Admin UI (palette component, shell, topbar, deep-link prefills)
-    - Files:
-      - `supabase/migrations/20260809000001_admin_global_search.sql` — `admin_global_search(p_query, p_limit)` SECURITY DEFINER RPC returning grouped JSONB `{ settings, users, listings, trades }` with per-group `total` + capped `items`; ILIKE substring across `admin_config`/`sp_config`, `profiles`, `items`(+category/seller), `trades`(+buyer/seller); rejects non-admins via `admin_has_role(auth.uid())`; never matches/returns `admin_config` secrets
-      - `p2p-kids-admin/src/lib/globalSearch.ts` — RPC types + fetch + single-source navigation helpers
-      - `p2p-kids-admin/src/components/command-palette/CommandPalette.tsx` — the palette UI (design-system: centered modal, white, 20px radius, Level-2 shadow, rgba(0,0,0,0.4) backdrop; pill search input 48px/24px/Neutral 100; group labels 12px/500/uppercase/Neutral 700); ⌘K/Esc/↑/↓/↵ + Tab focus trap
-      - `p2p-kids-admin/src/components/layout/AdminShell.tsx` — mounts the palette, owns open state, wires header search
-      - `p2p-kids-admin/src/components/layout/TopNavbar.tsx` — header search bar now opens the palette (replaces dead dropdown + `console.log`); keeps `topbar-global-search` testid + controlled input
-      - `p2p-kids-admin/src/app/users/page.tsx` + `src/app/listings/page.tsx` + `src/app/components/ListingSearch.tsx` — read `?search=` / `?tab=` / `?q=` deep-link params to prefill + filter
-      - `p2p-kids-admin/src/styles/theme.ts` + `src/app/globals.css` — added `--neutral-100/500/700` + `--shadow-level-2` tokens
-    - Behavior: ⌘K (or clicking the header search) opens the palette from any page; one query returns all four entity groups (Settings/Users/Listings/Trades) in parallel; each row shows breadcrumb context (e.g. `Config → SMS → sms_key`, `Trades → b1f6a59f…`); "See all N results" expands a group inline (re-fetch at limit 25); footer "View all in users/listings/trades" navigates to the prefilled list page; row select navigates directly (`/trades/<id>`, `/config?tab=`, `/users?search=`, `/listings?tab=search&q=`); non-admins are rejected by the RPC.
-    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group Y (TC-Y01–TC-Y12)
-    - Tests: `src/__tests__/components/command-palette/CommandPalette.test.tsx` (6 tests — hint state, grouped render, row navigation, see-all expansion, keyboard nav, error/forbidden state)
-    - Tier: Tier 0 (typecheck + lint + build + full admin unit suite) PASS · Tier 2 (DB): migration `20260809000001_admin_global_search.sql` applied to staging (project `drntwgporzabmxdqykrp`), function exists in `pg_proc`, and the admin gate verified (invoking without an admin JWT raises `P0001 Forbidden: admin role required`). Positive-path (real results) pending an admin-session browser smoke.
-  - **ADMIN-DASHBOARD-REDESIGN (2026-08-09):** Dashboard homepage redesigned — the legacy duplicate card grid (Revenue & Analytics, SP Economy, Trades, Subscriptions, ID Badges, Payouts, Referrals, Config, Nodes, Users, Monitoring, Audit Logs, Reviews, Cron — all already sidebar destinations) was removed. The page now composes top-to-bottom: intro line → health strip → embedded Action Center (top 5 items + "View all →") → KPI stat cards, with 24px (lg) spacing between major sections and KPI cards restyled to the design-system card spec (white, 16px radius, Level 1 shadow, 16px padding).
-    - Scope: Admin UI ONLY (no DB/API/Edge Function changes)
-    - Files:
-      - `p2p-kids-admin/src/app/page.tsx` — removed the duplicate card grid; page is now intro → `HealthStatusStrip` → `ActionCenterClient variant="embedded" maxCards={5}` → `TradeAnalytics` → `SPEconomySummary`; `space-y-6` (24px) between major sections
-      - `p2p-kids-admin/src/app/action-center/ActionCenterClient.tsx` — new optional `maxCards` prop (dashboard embeds the top 5 source cards; the standalone /action-center page passes no cap and shows every source)
-      - `p2p-kids-admin/src/app/components/TradeAnalytics.tsx` + `SPEconomySummary.tsx` — KPI cards restyled to `rounded-2xl` (16px) + Level 1 shadow `0px 2px 8px rgba(0,0,0,0.08)` + `p-4` (16px); removed `mb-8` so the page's 24px spacing governs sections
-    - Behavior: no homepage card duplicates sidebar navigation; the embedded Action Center shows the top 5 pending sources with "View all →" to /action-center; KPI cards (Total Trades, Fee Revenue, Avg SP Usage, Completed Rate · SP Circulation, Total Earned, Total Spent, Active Wallets) sit below the Action Center.
-    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-A03, TC-A06, TC-X12, TC-Z01, TC-Z07
-    - Tier: Tier 0 (typecheck + lint + build) PASS
-  - **N1-CONFIGURABILITY (2026-08-09):** Cross-cutting admin config layer (N1). Gap-fills the two missing tunable domains — `pickup_window_hours` (pickup countdown) and `payout_buffer_days` (payout buffer) — on the existing `admin_config` table (no new config store), and adds the canonical typed read helper `fn_admin_config_int(p_key, p_default)` that the R1–R13 requirements read instead of hardcoding. All six N1 domains (offer/pickup countdowns, grace period, payout buffer, SP caps/multipliers, node/category tax, buyer/seller fees) now have an admin surface.
-    - Scope: DB (1 migration) + Admin UI (trade-timing settings page, /config hub cross-links + descriptions, types, unit tests) + docs (SYSTEM_REQUIREMENTS §1.6, BRD §6.8/§6.9, manual-testing TC-F05, flow-registry)
-    - Files:
-      - `supabase/migrations/20260809000004_n1_configurability.sql` — seeds `pickup_window_hours` (trade, 72) + `payout_buffer_days` (fees, 2) via the shared write path; adds `fn_admin_config_int` (SECURITY DEFINER read helper, reuses `fn_admin_config_safe_int`); ON CONFLICT DO NOTHING so admin edits survive replays
-      - `p2p-kids-admin/src/app/settings/trade-timing/page.tsx` — new "Pickup & Payout" section (Pickup Window 1–168h, Payout Buffer 0–30d), per-key `CONFIG_CATEGORIES` map so the new keys save under `trade`/`fees` (existing keys keep legacy `feature_flags` bucket — behavior-preserving), validation, subtitle
-      - `p2p-kids-admin/src/types/config.ts` — `TradeTimingConfig` gains `pickup_window_hours` + `payout_buffer_days`
-      - `p2p-kids-admin/src/app/settings/trade-timing/__tests__/trade-timing-settings.test.ts` — 6 new N1 validation tests (23 total)
-      - `p2p-kids-admin/src/app/config/page.tsx` — cross-link banners for both keys → `/settings/trade-timing`; descriptions in the hub
-    - Behavior: an admin changes either value on /settings/trade-timing (or /config) and it persists via `upsert_admin_config_setting` with editor + audit; immediately readable via `fn_admin_config_int`. Both keys are tunable now; enforcement wiring lands with the pickup/payout R-requirements (flagged in the migration + docs).
-    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F05
-    - Tier: Tier 0 (typecheck + lint + unit test 23/23 + build) PASS
-  - **FIX-42804-ADMIN-CONFIG-META (2026-08-09):** Fixed Postgres 42804 drift that silently dropped the "Last updated · <ts> · by <email>" editor labels on every admin settings surface. `fn_get_admin_config_meta` / `fn_resolve_admin_emails` returned `auth.users.email` (varchar(255)) into declared `TEXT` columns without a cast → runtime 42804 → PostgREST 400 → `settingsAudit` swallowed it. Added explicit `au.email::text` casts (same pattern as `174_admin_referral_analytics.sql` / tax RPCs); signatures unchanged (no DROP).
-    - Scope: DB (1 migration)
-    - Files: `supabase/migrations/20260809000006_fix_admin_config_meta_42804.sql` (renamed from `...0005` because `20260809000005_n6_node_tagging.sql` already existed — parallel WIP; BP-50)
-    - Behavior: both RPCs return editor emails with no 42804; verified on staging (`drntwgporzabmxdqykrp`) via direct SELECTs (`out_updated_by_email = 'samer@samer.com'`) and in the browser — `/config → TRADE` Pickup Window Hours now shows "Last updated · 8/9/2026 · by samer@samer.com".
-    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F01, TC-F04
-    - Tier: Tier 0 (DB-only — no app code changed) PASS · Tier 2 (DB): applied to staging + verified
 - Smoke: (manual)
   - Admin can navigate to `/analytics` dashboard
   - Revenue metrics display: MRR, ARR, transaction fees, ARPU
@@ -3062,7 +2946,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 - **SUB-003 Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-003.unit.test.ts
 
 ### FLOW-12A: Subscription Payment Collection (Stripe Payment Sheet) — SUB-015
-- **DEPRECATED (2026-08-09, R7):** In-app Stripe subscription purchase UI removed (web-first). `SubscribeButton`, `trialToPaidConversion`, and the SubscriptionPayment purchase CTA are gone; `SubscriptionPaymentScreen`/`ContinueKidsClubScreen` now redirect to the web. `usePaymentSheet` + `create-payment-setup-intent` REMAIN for ITEM/TRADE payments and saved-card management. See FLOW-12.
 - Purpose: Collect payment method securely via Stripe Payment Sheet for new subscriptions and renewals
 - Covers:
   - SetupIntent creation for payment method collection
@@ -3964,8 +3847,6 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Approving a pending listing succeeds and creates an audit row in `admin_activity_log`.
   - Config persistence: update `referral_bonus` in Admin Config UI -> refresh -> value stays updated.
   - DB reflects change: `admin_config.key='referral_bonus'` and `sp_config.config_key='referral_bonus'` match.
-  - **R8-MODERATION-GATE + N4-AGE-GATE (2026-08-11):** New `min_registration_age` admin config (default 18) drives the N4 18+ signup gate. `moderation_ai_enabled` now ENFORCES the R8 approval gate (when false the gate is bypassed; when true `admin_approve_listing` blocks until images pass). Admin listing detail (`ListingSearch.tsx`) surfaces an "AI Image Moderation" status row (✅ Approved / ⛔ Flagged / ⏳ Reviewing / 🚫 Disabled) and maps `MODERATION_BLOCKED_FLAGGED` / `MODERATION_IN_PROGRESS` to clear copy. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group R8 & N4 (TC-R8-A01..A04, TC-N4-A01).
-  - **R4-DISPUTE-COST-ACCOUNTING (2026-08-09):** Admin **Dispute Cost Ledger** — read-only finance surface on Disputes (`/trades/disputes`, `DisputeCostLedger.tsx`) querying `admin_dispute_costs_view` with per-dispute cost ($15 fee + AOV × (1 − recovery_rate)), recovery status (pending / partial / recovered / written_off), and summary totals (total cost / outstanding / recovered / lost count). New admin_config keys `dispute_fee_cents` (default 1500) + `dispute_recovery_rate` (default 0.50), editable via the shared settings RPC (BP-48). Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group AA (TC-AA01..06). Cross-ref: FLOW-08 R4-DIRECT-CHARGES-DISPUTE-LOSS.
   - **ADMIN-V3-006 (2026-04-29):** SP Analytics Dashboard
     - Purpose: Track per-category Swap Points velocity, gap percentage, and average cash flow metrics with anomaly detection
     - Route: `/admin/sp-analytics` accessible from sidebar navigation under "Settings"
@@ -4104,12 +3985,9 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Tier: Tier 0 (typecheck/lint always), Tier 1 (unit tests for any FAQ/contact form logic changes), Maestro (UI flows for visual regression)
 
 ### FLOW-19: Analytics Events
-- **GLOBAL-CHROME (2026-08-11):** New app-shell events — nav: `tab_home_tapped`, `tab_discover_tapped`, `sell_fab_tapped`, `tab_trades_tapped`, `tab_basket_tapped`; header: `header_notifications_tapped`, `header_chat_tapped`, `header_avatar_tapped`; Home composer: `composer_bar_tapped`, `composer_bar_submit` (param `has_text`). Sources: `src/constants/analytics-events.ts` (NAV_EVENTS / HEADER_EVENTS / COMPOSER_EVENTS), wired in `PersistentTabBar`, `AppHeader`, `ComposerBar`. Note: the nav/header previously fired no analytics.
 - Smoke: (manual)
 
 ### FLOW-20: Audit/Logging
-- **N2-FINANCIAL-AUDIT-JOURNAL (2026-08-09):** New unified financial/SP/fee/tax audit journal — `financial_audit_log` table + `fn_log_financial_audit()` (idempotent writer, `ON CONFLICT (idempotency_key) DO NOTHING` → no double-log) + `trg_fill_financial_audit_node_id` (N6 node tagging). EF helper `supabase/functions/_shared/audit.ts`. Wired into every payment/SP/fee/tax mutation path (create-trade-offer, trade-payment, complete-trade, cancel-trade, transactions-update, resolve-dispute, trade-refund, stripe-webhook, process-auto-complete, initiate-payout). RLS: service-role + admin read; insert-only. Admin read surface: `/audit` (Financial Audit) over `admin_financial_audit_view`. Migrations `20260810000006_n2_idempotency_audit.sql` + `20260810000007_admin_financial_audit_view.sql`. Manual: Group N2 in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (TC-N2-C01…C10) and `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` (TC-N2-A01…A08).
-  - **N4-AGE-GATE (2026-08-11):** Blocked under-18 signup attempts are audit-logged to `debug_logs` (`BLOCKED_UNDER_MIN_AGE` — email, age, min_age, attempted_at) by `enforce_min_age_on_signup()` before the `auth.users` insert is aborted.
 - Smoke: (manual)
 - Cron Observability Addendum:
   - Use `public.get_cron_jobs_with_last_run(false, '<TZ>')` to guarantee one status row per job.
@@ -4233,8 +4111,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Smoke: `scripts/smoke/payouts-withdrawals.mjs`
 - Tier: 2 (payments + DB changes)
 - Quick checks: verify `seller_payout_methods` (is_verified), withdrawal status transitions (`requires_action` → `processing` → `completed`/`failed`), and audit entries in `seller_payouts`.
-- **N2-PAYOUT-AUDIT (2026-08-09):** `initiate-payout` writes `payout_initiated` / `payout_paid` / `payout_requires_action` / `payout_failed` to the new financial audit journal, keyed by `payout_<trade_id>` (idempotent — a retried trigger can't double-log). Existing payout idempotency (`payout_idempotency_key`, `seller_payouts.idempotency_key`) unchanged. Migration `20260810000006_n2_idempotency_audit.sql`. Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 TC-N2-C02; `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-N2-A04.
-- **N6-NODE-TAGGING (2026-08-11):** `seller_payouts.node_id` + `seller_balance.node_id` added with triggers (resolve from the trade's node, fallback user profile) so payouts are countable per node (fed into `admin_node_kpis.paid_payouts_cents`). Manual/admin payout surfaces (FLOW-25) inherit the per-node tagging. See FLOW-03 for the full N6 migration.
 
 ### FLOW-23: Payout Method Verification — Bank / PayPal / Plaid verification flow
 - Purpose: Verify a seller's payout method before it can be used for withdrawals; handle micro-deposits, provider callbacks, marking `payout_method.is_verified`, and rollback on failure.
@@ -4253,7 +4129,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Smoke: `scripts/smoke/admin-manual-payouts.mjs`
 - Tier: 2
 - Quick checks: create a manual payout, mark processed by admin, verify audit log and payout status change.
-- **R3-DELAYED-PAYOUT (2026-08-10):** Manual withdrawal is gated until `payout_release_at` (delayed payout + buffer); the admin Payouts list + Trade Pipeline surface "Releases [date]" via `get_admin_payouts.payout_release_at` / `admin_trades_view.payout_release_at`; pending payouts are dispatched by the `release-due-payouts` cron when due (idempotent — one row per trade). See FLOW-08 R3-DELAYED-PAYOUT-BUFFER; manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group R3 (TC-R3-01..04).
 
 ### FLOW-26: Webhook Processing & Verification — External provider webhooks
 - Purpose: Reliable webhook ingestion (Stripe, PayPal, Plaid), verify signatures, idempotent processing, reconcile external events with internal state, and audit webhook receipts.
@@ -4272,7 +4147,6 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Smoke: `scripts/smoke/cron-jobs.mjs`
 - Tier: 1 (Tier 2 if adding DB migrations or changing cron-critical logic)
 - Quick checks: run scheduled job locally or via runner, confirm SP pending→released transition and deletion of temporary screenshots.
-- **R2-TRADE-CRON (2026-08-11):** Trade-countdown cron set — `process-expired-offers` (every 2m) + `process-auto-complete` (every 15m) remain canonical; NEW `send-pickup-reminders` (every 5m) added for pickup-window reminders; the legacy no-capture `auto_complete_trades_every_12h` cron + `scheduled_auto_complete_trades()` were retired (`20260810000002_r2_cleanup.sql`). See FLOW-08 R2-AUTH-CAPTURE-COUNTDOWN.
 
 ### FLOW-29: ID Badge Submission & Decision Notifications (BADGE-011)
 
@@ -5767,11 +5641,11 @@ Satisfied Items:
 
 #### Features Implemented:
 
-- **Header Row (redesigned 2026-08-11 — global chrome, see FLOW-30)**:
-  - Read-only node/market chip on the left (`MapPin` + node name) — display-only, no tap handler, no chevron
-  - Right cluster (left→right): Bell (shared `CountBadge`) · Chat (shared `CountBadge`, unread messages → Messages) · Avatar → Profile
-  - No logout icon in the header (logout lives in Profile/Settings)
-  - Home composer bar directly below the header ("What are you selling today?") → New Item Title pre-fill
+- **Header Row**:
+  - Avatar (40px circle) with tap navigation to Profile
+  - Time-based greeting: "Good morning/afternoon/evening, [FirstName]"
+  - Bell icon (24px, Phosphor `Bell`) with red unread badge dot (`#E85D75`)
+  - Notification badge conditionally rendered when `unreadCount > 0`
 
 - **SP Balance Strip** (Subscriber-only):
   - Green background (`#5DBB8E`)
@@ -5906,7 +5780,7 @@ Satisfied Items:
 
 - **Phosphor icons ONLY**: No Ionicons imports allowed (verified in unit tests)
 - **Subscriber-only SP strip**: `can_spend_sp` gate enforced (hidden for free users)
-- **Time-based greeting removed from the header (2026-08-11)**: replaced by the read-only node chip; the display name + avatar live in the right cluster (Avatar → Profile)
+- **Time-based greeting**: Dynamically updates based on hour (5-12 AM morning, 12-5 PM afternoon, 5+ PM evening)
 - **Name extraction**: First name from `user_metadata.full_name` with fallback to "Friend"
 - **Notification badge visibility**: Conditionally rendered only when `unreadCount > 0`
 - **Style naming uniqueness**: No duplicate StyleSheet identifiers (bug fixed: `actionLabel` → `walletActionLabel`)
@@ -5950,24 +5824,6 @@ Satisfied Items:
 - [x] ESLint passes with no new errors
 
 ---
-
-### FLOW-30: Global App Shell — Header, Floating Nav & Home Composer (UI Redesign)
-
-- **Purpose**: Redesign the persistent app chrome — the global header, the bottom navigation (floating pill), and a new Home composer bar that pre-fills the New Item Title. Mobile app only; no backend/schema changes (trade statuses already modeled).
-- **Module**: GLOBAL-CHROME-REDESIGN (2026-08-11)
-- **Scope**:
-  - **Header** (`src/components/AppHeader.tsx`, `src/components/ScreenLayout.tsx`): Home header left = read-only node/market chip (`session.user.node.name`, display-only, no tap handler); right cluster = Bell + Chat + Avatar; logout icon removed from header (still in Profile/Settings). Chat icon added to tab/detail headers too (same asset + shared `CountBadge`).
-  - **Bottom nav** (`src/components/organisms/PersistentTabBar/index.tsx`): floating pill (margins, `borderRadius.extraLarge`, shadow, safe-area inset). Order Home | Discover | Sell FAB | Trades | Basket. Inbox tab removed (Messages reached via header chat icon → `InboxTab`). Trades tab reuses `TradeListScreen` (Active/History).
-  - **Badges**: single shared `CountBadge` (`src/components/ui/CountBadge.tsx`) fed by 4 sources — notifications (`useNotificationBadge`), unread messages (`useUnreadMessagesBadge`, extracted from the old Inbox badge), active trades (`useTradesBadge` → `getActiveTradeCount`, counts any status NOT completed/cancelled), basket (`useCartContext`).
-  - **Home composer** (`src/components/home/ComposerBar.tsx`, mounted in `UserDashboardScreen` between header and SP strip): tap focuses inline field; "+" / keyboard return → `ItemCreate` with `prefilledTitle`; camera icon → `ItemCreate` with `prefilledTitle` + `initialPhotoSource:'camera'`. Bulk Upload stays reachable only via the FAB Sell sheet.
-  - **New Item** (`src/screens/ItemCreateScreen.tsx`): reads `prefilledTitle` param; AI analysis NEVER overwrites a composer-pre-filled Title (guarded in Apply All + per-field Use).
-- **Tests**:
-  - Unit: `src/components/__tests__/AppHeader.test.tsx`, `src/components/home/__tests__/ComposerBar.test.tsx`, `src/components/ui/__tests__/CountBadge.test.tsx`, `src/services/__tests__/tradeBadge.test.ts`, plus updated `UserDashboardScreen.test.tsx` / `ItemCreateScreen.test.tsx`.
-  - Manual: `misc./AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` Group P (TC-P01…P19).
-- **Validation**: `cd p2p-kids-marketplace && npm run typecheck && npm run lint && npm test` (full suite; known pre-existing `AutoCompleteBanner` failure unrelated).
-- **Change Classification**: C (Mobile UI only — no DB/API/Edge Function changes).
-- **Impacted Flows**: FLOW-01 (nav accessibility IDs), FLOW-16 (Home header + composer), FLOW-19 (analytics events), FLOW-08 (Trades tab surfaces trade status).
-- **Backward Compatibility**: All changes additive — new route params optional (`prefilledTitle`), `InboxTab` route + `TradeList` route kept; logout still in Profile/Settings; old clients unaffected (mobile-only UI change).
 
 ### FLOW-13: Referrals UI
 
@@ -6187,10 +6043,8 @@ Satisfied Items:
   - `NSPrivacyTracking` MUST stay `false` unless we actually add ATT-tracked SDKs.
   - All `NS*UsageDescription` copy MUST be kid-friendly and brand-aligned ("Pass It Up").
 
-### FLOW-23: COPPA Server-Side Enforcement (PROD-P005) — replaced by N4 18+ Age Gate (2026-08-11)
-- **DEPRECATED 2026-06-20:** The original PROD-P005 13+ parental-consent enforcement (`is_coppa_compliant`, `enforce_coppa`, item/trade triggers) was REMOVED by `supabase/migrations/20260620000001_drop_coppa_enforcement.sql` (product decision — platform accepted all ages).
-- **REPLACED 2026-08-11 (N4):** Hard 18+ REGISTRATION gate (reverses the deprecation). `public.is_signup_age_allowed(p_dob, p_min_age=18)` + `on_auth_user_min_age` BEFORE INSERT trigger on `auth.users` (raises `AGE_MINIMUM_REQUIRED`, aborting the insert so no account data is persisted) + `min_registration_age` admin config (default 18). Client-side DOB gate on the live SignupScreen + `AGE_BLOCKED` backstop in `services/auth.ts`. Migration: `supabase/migrations/20260811000002_n4_min_age_18_registration_gate.sql`. Manual: TC-N4-01..04 (MODULE-15.1.2) + TC-N4-A01 (MODULE-ADMIN-PORTAL).
-- **Covers**: `public.is_signup_age_allowed(date, int)`, `public.enforce_min_age_on_signup()` BEFORE INSERT trigger on `auth.users`, `min_registration_age` config. No user under 18 may register; blocked attempts leave no `auth.users`/`profiles`/`subscriptions` rows.
+### FLOW-23: COPPA Server-Side Enforcement (PROD-P005)
+- **Covers**: `public.is_coppa_compliant(uuid)`, `public.enforce_coppa(uuid, text)`, `trigger_coppa_check_item_insert` on `items`, `trigger_coppa_check_trade_insert` on `trades`. Blocks listing creation and trade initiation for users under 13 without `parental_consent_verified = TRUE`. Fails closed when DOB/profile missing.
 - **Manual TCs**: `docs/PROD-P001-P005-MANUAL-TC.md` (TC-P005-01..08)
 - **Tier**: Tier 2 ALWAYS when this trigger/function set changes (it gates writes on two core tables). Tier 1 for any change to consent/DOB columns or related profile flows.
 - **Hard rules**:

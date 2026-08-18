@@ -6,12 +6,21 @@ import { render, waitFor } from '@testing-library/react-native';
 import OnboardingScreen from '../OnboardingScreen';
 import * as educationAnalyticsService from '../../../services/educationAnalyticsService';
 import { AuthContext } from '../../../contexts/AuthContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 // Mock dependencies
 jest.mock('../../../services/educationAnalyticsService');
 jest.mock('@react-navigation/native');
-jest.mock('../../../components/onboarding/OnboardingCarousel', () => 'OnboardingCarousel');
+
+// MODULE-18 EDU-004 FIX: capture the carousel's props so tests can invoke the
+// real onComplete/onSkip handlers (previously these were placeholder tests).
+let mockCarouselProps: { onComplete: () => void; onSkip: () => void } | undefined;
+jest.mock('../../../components/onboarding/OnboardingCarousel', () => {
+  return function MockOnboardingCarousel(props: any) {
+    mockCarouselProps = props;
+    return null;
+  };
+});
 
 const mockMarkOnboardingComplete =
   educationAnalyticsService.markOnboardingComplete as jest.MockedFunction<
@@ -21,15 +30,22 @@ const mockMarkOnboardingSkipped =
   educationAnalyticsService.markOnboardingSkipped as jest.MockedFunction<
     typeof educationAnalyticsService.markOnboardingSkipped
   >;
-const mockTrackEducationEvent = educationAnalyticsService.trackEducationEvent as jest.MockedFunction<
-  typeof educationAnalyticsService.trackEducationEvent
->;
+const mockTrackEducationEvent =
+  educationAnalyticsService.trackEducationEvent as jest.MockedFunction<
+    typeof educationAnalyticsService.trackEducationEvent
+  >;
 
 const mockNavigate = jest.fn();
 const mockReset = jest.fn();
+const mockReplace = jest.fn();
+const mockOnOnboardingFinished = jest.fn();
 (useNavigation as jest.Mock).mockReturnValue({
   navigate: mockNavigate,
   reset: mockReset,
+  replace: mockReplace,
+});
+(useRoute as jest.Mock).mockReturnValue({
+  params: { onOnboardingFinished: mockOnOnboardingFinished },
 });
 
 describe('OnboardingScreen', () => {
@@ -51,6 +67,7 @@ describe('OnboardingScreen', () => {
     mockMarkOnboardingComplete.mockResolvedValue(true);
     mockMarkOnboardingSkipped.mockResolvedValue(true);
     mockTrackEducationEvent.mockResolvedValue();
+    mockCarouselProps = undefined;
   });
 
   const renderWithContext = (contextValue = mockAuthContext) => {
@@ -100,40 +117,82 @@ describe('OnboardingScreen', () => {
   });
 
   describe('Completion Flow', () => {
-    it('should mark onboarding as complete and navigate to Home on completion', async () => {
-      const { getByTestID: _getByTestID } = renderWithContext();
-
-      // Simulate "Get Started" button press (would come from OnboardingCarousel)
-      // Since we mocked the carousel, we'll test the handler directly
-      // This is integration-tested in E2E
+    it('should mark complete, navigate to Home, and flip the onboarding gate (tab bar) on completion', async () => {
+      renderWithContext();
 
       await waitFor(() => {
-        expect(mockTrackEducationEvent).toHaveBeenCalledWith('onboarding_start');
+        expect(mockCarouselProps).toBeDefined();
       });
+
+      // Trigger the real "Get Started" handler from the carousel
+      await mockCarouselProps!.onComplete();
+
+      expect(mockMarkOnboardingComplete).toHaveBeenCalledWith('test-user-123');
+      expect(mockTrackEducationEvent).toHaveBeenCalledWith('onboarding_complete');
+      expect(mockReplace).toHaveBeenCalledWith('Home');
+      // MODULE-18 EDU-004 FIX: gate flip must fire so PersistentTabBar mounts immediately
+      expect(mockOnOnboardingFinished).toHaveBeenCalledTimes(1);
     });
 
-    it('should navigate to Home even if markOnboardingComplete fails', async () => {
+    it('should navigate to Home and flip the gate even if markOnboardingComplete fails', async () => {
       mockMarkOnboardingComplete.mockRejectedValue(new Error('Database error'));
+      renderWithContext();
 
-      // Test would require triggering completion handler
-      // Covered in integration tests
-      expect(true).toBe(true); // Placeholder
+      await waitFor(() => {
+        expect(mockCarouselProps).toBeDefined();
+      });
+
+      await mockCarouselProps!.onComplete();
+
+      expect(mockReplace).toHaveBeenCalledWith('Home');
+      expect(mockOnOnboardingFinished).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Skip Flow', () => {
-    it('should mark onboarding as skipped and navigate to Home on skip', async () => {
-      // Test would require triggering skip handler from carousel
-      // Covered in integration tests
-      expect(true).toBe(true); // Placeholder
+    it('should mark skipped, navigate to Home, and flip the onboarding gate (tab bar) on skip', async () => {
+      renderWithContext();
+
+      await waitFor(() => {
+        expect(mockCarouselProps).toBeDefined();
+      });
+
+      // Trigger the real "Skip" handler from the carousel
+      await mockCarouselProps!.onSkip();
+
+      expect(mockMarkOnboardingSkipped).toHaveBeenCalledWith('test-user-123');
+      expect(mockTrackEducationEvent).toHaveBeenCalledWith('onboarding_skip');
+      expect(mockReplace).toHaveBeenCalledWith('Home');
+      // MODULE-18 EDU-004 FIX: gate flip must fire on Skip too — this is the bug fix
+      expect(mockOnOnboardingFinished).toHaveBeenCalledTimes(1);
     });
 
-    it('should navigate to Home even if markOnboardingSkipped fails', async () => {
+    it('should navigate to Home and flip the gate even if markOnboardingSkipped fails', async () => {
       mockMarkOnboardingSkipped.mockRejectedValue(new Error('Database error'));
+      renderWithContext();
 
-      // Test would require triggering skip handler
-      // Covered in integration tests
-      expect(true).toBe(true); // Placeholder
+      await waitFor(() => {
+        expect(mockCarouselProps).toBeDefined();
+      });
+
+      await mockCarouselProps!.onSkip();
+
+      expect(mockReplace).toHaveBeenCalledWith('Home');
+      expect(mockOnOnboardingFinished).toHaveBeenCalledTimes(1);
+    });
+
+    it('should navigate to Home without crashing when no onOnboardingFinished callback is provided', async () => {
+      (useRoute as jest.Mock).mockReturnValue({ params: undefined });
+      renderWithContext();
+
+      await waitFor(() => {
+        expect(mockCarouselProps).toBeDefined();
+      });
+
+      await mockCarouselProps!.onSkip();
+
+      expect(mockReplace).toHaveBeenCalledWith('Home');
+      expect(mockOnOnboardingFinished).not.toHaveBeenCalled();
     });
   });
 });

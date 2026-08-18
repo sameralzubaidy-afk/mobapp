@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SortOption } from '@/types/discovery';
+import { ds } from '@/theme/discoveryTokens';
 
 type SortDropdownProps = {
   value: SortOption;
@@ -75,21 +76,21 @@ const styles = StyleSheet.create({
   },
   sortButton: {
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderColor: '#d0d0d0',
+    backgroundColor: ds.neutral.white,
+    borderColor: ds.neutral[300],
     borderRadius: 8,
     borderWidth: 1,
     height: 40,
     justifyContent: 'center',
   },
   sortButtonText: {
-    color: '#333',
+    color: ds.neutral[900],
     fontSize: 14,
     fontWeight: '600',
   },
   dropdown: {
-    backgroundColor: '#fff',
-    borderColor: '#e5e7eb',
+    backgroundColor: ds.neutral.white,
+    borderColor: ds.neutral[300],
     borderRadius: 8,
     borderWidth: 1,
     elevation: 4,
@@ -104,14 +105,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   optionButtonSelected: {
-    backgroundColor: '#eef6ff',
+    backgroundColor: ds.primary[100], // passitup tint — no system blue on this screen
   },
   optionText: {
-    color: '#1f2937',
+    color: ds.neutral[900],
     fontSize: 14,
   },
   optionTextSelected: {
-    color: '#007AFF',
+    color: ds.primary[500],
     fontWeight: '600',
   },
 });

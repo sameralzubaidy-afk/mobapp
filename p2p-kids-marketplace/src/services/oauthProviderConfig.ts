@@ -5,7 +5,7 @@
 
 import { OAuthProvider } from '@/types/auth-v3';
 import * as AuthSession from 'expo-auth-session';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 /**
  * OAuth scopes required for each provider
@@ -26,8 +26,11 @@ export const OAUTH_SCOPES: Record<OAuthProvider, string> = {
  * For dev builds/standalone, use native app scheme.
  */
 export const getRedirectUri = (): string => {
-  const appOwnership = Constants?.appOwnership;
-  const isExpoGo = appOwnership === 'expo';
+  // Detect Expo Go via the modern, reliable executionEnvironment API (NOT the
+  // deprecated appOwnership, which is ambiguous on development builds). On a
+  // dev build / standalone the value is `standalone`, so we correctly take the
+  // native-scheme path below.
+  const isExpoGo = Constants?.executionEnvironment === ExecutionEnvironment.StoreClient;
 
   if (isExpoGo) {
     // Expo Go: prefer auth.expo.io proxy for iOS Simulator reliability.
@@ -58,7 +61,7 @@ export const getRedirectUri = (): string => {
         return proxyUrl;
       }
     }
-    
+
     // Fallback: direct exp:// callback if owner/slug unavailable
     try {
       const directCallback = AuthSession.makeRedirectUri({
@@ -72,16 +75,16 @@ export const getRedirectUri = (): string => {
     }
   }
 
-  try {
-    return AuthSession.makeRedirectUri({
-      scheme: 'p2pkidsmarketplace',
-      path: 'oauth-callback',
-    });
-  } catch {
-    // Jest and some non-Expo runtimes can miss manifest metadata.
-    // Use a deterministic fallback URI for tests and non-app execution.
-    return 'p2pkidsmarketplace://oauth-callback';
-  }
+  // Dev builds / standalone: return the deterministic native-scheme callback URL.
+  // Do NOT use AuthSession.makeRedirectUri() here — on a dev build it embeds the
+  // Metro dev host (`p2pkidsmarketplace:///127.0.0.1:8081/oauth-callback`), a
+  // triple-slash + host URL that breaks ASWebAuthenticationSession's custom-scheme
+  // callback capture (session invalidated with `Code=4 "Invalidation requested"`,
+  // callback never delivered → app returns to Login with no session) and never
+  // matches the registered redirect. The `p2pkidsmarketplace` scheme IS registered
+  // in Info.plist (CFBundleURLTypes), so the clean form is sufficient and stable
+  // across dev/prod.
+  return 'p2pkidsmarketplace://oauth-callback';
 };
 
 /**

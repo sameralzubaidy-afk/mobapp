@@ -13,6 +13,7 @@ import { assignNodeByZipCode, incrementNodeMemberCount } from './location';
 import { getImageUrl } from '@/utils/imageUrl';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode as decodeBase64ArrayBuffer } from 'base64-arraybuffer';
+import { getSimulatedAvatarUploadError } from './devTestingService';
 
 const AVATAR_BUCKET = 'user-avatars';
 
@@ -438,6 +439,18 @@ export const uploadProfileAvatar = async (
   maxRetries: number = 3
 ): Promise<UploadAvatarResult> => {
   let lastError: Error | null = null;
+
+  // AUTH-TC-H03 (dev-only): allow QA to force an avatar-upload failure via the
+  // `qa_avatar_upload_failure` admin_config toggle (mirrors the S03/S04
+  // `qa_reset_error_simulation` pattern). Fail-closed — release builds and
+  // unset/unknown toggles always run the real upload. A simulated error flows
+  // through ProfileSetupScreen's existing non-blocking branch (Warning alert →
+  // profile created without avatar).
+  const simulatedUploadError = await getSimulatedAvatarUploadError();
+  if (simulatedUploadError) {
+    console.warn('[profile] QA avatar-upload failure simulation active');
+    return { url: null, path: null, error: simulatedUploadError };
+  }
 
   // Normalize the picked image into a small JPEG and upload as ArrayBuffer.
   // This avoids Android-specific failures when trying to `fetch()` a local `file://` or `content://` URI.

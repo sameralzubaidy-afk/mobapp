@@ -684,6 +684,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
+    // Clear the floating pill bottom nav (PersistentTabBar) so bottom-anchored
+    // content (Logout) scrolls fully above it — matches the app-wide 100px
+    // clearance used by Home/Cart/Trades/Favorites etc.
+    paddingBottom: 100,
   },
   savedBanner: {
     backgroundColor: '#ECFDF5',

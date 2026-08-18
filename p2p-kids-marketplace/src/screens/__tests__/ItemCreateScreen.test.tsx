@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Image } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import ItemCreateScreen from '../ItemCreateScreen';
 import * as ImagePicker from 'expo-image-picker';
@@ -45,6 +45,12 @@ jest.mock('@/hooks/useUnreadMessagesBadge', () => ({
   useUnreadMessagesBadge: () => ({ unreadCount: 0, refresh: jest.fn() }),
 }));
 jest.mock('expo-image-picker');
+// Bundled assets aren't loaded by Jest, so resolve the dev photo fixture's
+// bundled image to a stable file URI. (jest-expo's Image mock exposes
+// resolveAssetSource as a real function, hence the spyOn.)
+const resolveAssetSourceSpy = jest
+  .spyOn(Image, 'resolveAssetSource')
+  .mockReturnValue({ uri: 'file:///dev/placeholder.png', scale: 1, width: 1, height: 1 } as any);
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
   useRoute: () => mockRoute,
@@ -151,6 +157,32 @@ describe('ItemCreateScreen', () => {
     mockRoute.params = route.params || {};
     return render(<ItemCreateScreen navigation={mockNavigation as any} route={route as any} />);
   };
+
+  describe('Dev Photo Fixture (__DEV__ only)', () => {
+    it('injecting a dev test photo renders the below-fold form fields', async () => {
+      const { getByTestId, queryByTestId } = renderScreen();
+
+      // Photo-first flow: form is hidden before any photo exists.
+      expect(queryByTestId('title-input')).toBeNull();
+      expect(queryByTestId('publish-button')).toBeNull();
+
+      // The dev button must be exposed for automation to reach it.
+      expect(getByTestId('dev-add-test-photo')).toBeTruthy();
+
+      fireEvent.press(getByTestId('dev-add-test-photo'));
+
+      // The fixture resolves the bundled asset and injects it as a photo.
+      expect(resolveAssetSourceSpy).toHaveBeenCalled();
+
+      // Once a photo exists, the form fields render and become reachable.
+      await waitFor(() => {
+        expect(getByTestId('title-input')).toBeTruthy();
+        expect(getByTestId('category-select-button')).toBeTruthy();
+        expect(getByTestId('manual-price-input')).toBeTruthy();
+        expect(getByTestId('publish-button')).toBeTruthy();
+      });
+    });
+  });
 
   describe('State Machine: IDLE → ADDING_PHOTOS', () => {
     it('should show photo upload section on mount', () => {

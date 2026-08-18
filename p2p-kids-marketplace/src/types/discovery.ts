@@ -30,6 +30,8 @@ export interface SearchResult {
   color: string[] | null;
   created_at: string;
   updated_at: string;
+  /** P3 (2026-08-17): seller's node (nullable — untagged items). Used for the "Other Node" badge. */
+  node_id: string | null;
   /** Relevance score from full-text search (0-1) */
   relevance: number;
   /** Seller information for trust signals */
@@ -99,6 +101,8 @@ export type SortOption = 'relevance' | 'newest' | 'price_asc' | 'price_desc';
 export interface DiscoveryFilters {
   /** Node IDs to scope distance */
   nodeIds?: string[];
+  /** P4 (2026-08-17): when true, ignore nodeIds (global browse). Active-node users default to nodeIds ("My Node"); toggling this widens to all nodes. */
+  showAllNodes?: boolean;
   /** Full-text search query */
   query?: string;
   /** Category IDs (multi-select) */

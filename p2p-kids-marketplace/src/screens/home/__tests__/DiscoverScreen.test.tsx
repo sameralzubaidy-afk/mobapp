@@ -22,12 +22,7 @@ import { getCategories } from '@/services/items';
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
-  useNavigation: jest.fn(() => ({
-    navigate: jest.fn(),
-    setOptions: jest.fn(),
-    goBack: jest.fn(),
-    canGoBack: jest.fn(() => true),
-  })),
+  useNavigation: jest.fn(() => mockNavigation),
   useRoute: jest.fn(() => ({
     params: {},
   })),
@@ -143,16 +138,16 @@ describe('DiscoverScreen', () => {
       });
     });
 
-    it('renders favorites heart button and navigates to Favorites on press', async () => {
+    it('renders header bookmark and navigates to Favorites on press', async () => {
       const { getByTestId } = render(
         <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
       );
 
       await waitFor(() => {
-        expect(getByTestId('discover-favorites-button')).toBeTruthy();
+        expect(getByTestId('discover-header-bookmark')).toBeTruthy();
       });
 
-      fireEvent.press(getByTestId('discover-favorites-button'));
+      fireEvent.press(getByTestId('discover-header-bookmark'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Favorites');
     });
 

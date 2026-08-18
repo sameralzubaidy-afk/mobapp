@@ -2,11 +2,9 @@
 // MODULE-18 V1 EDU-004: Onboarding screen container + gating logic
 
 import React, { useContext, useEffect, useRef } from 'react';
-import {
-  StyleSheet
-} from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import OnboardingCarousel from '../../components/onboarding/OnboardingCarousel';
 import {
   markOnboardingComplete,
@@ -33,12 +31,21 @@ import { AuthContext } from '../../contexts/AuthContext';
  */
 export default function OnboardingScreen(): React.JSX.Element {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const { session } = useContext(AuthContext);
   const userId = session?.user?.id;
 
   const navigateToHome = () => {
     // Replace avoids cross-stack reset warnings and prevents returning to onboarding.
     navigation.replace('Home');
+
+    // MODULE-18 EDU-004 FIX: Flip the root-level onboarding gate so the
+    // PersistentTabBar (gated on !showOnboardingCarousel in RootNavigator)
+    // mounts immediately — no relaunch required. This must run on BOTH the
+    // Skip and Get Started paths; previously the gate was only flipped by the
+    // [currentUserId] effect on a fresh mount, so Skip left the tab bar hidden
+    // until the app was force-quit and relaunched.
+    route?.params?.onOnboardingFinished?.();
   };
 
   // Track onboarding_start exactly once per mount

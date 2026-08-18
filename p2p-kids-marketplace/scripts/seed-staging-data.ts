@@ -104,6 +104,23 @@ export const TEST_USERS = {
     name: 'Test Buyer 3',
     phone: '5551234007',
   },
+  // QA auth fixtures (AUTH-TC-B08 / B09) — see seedQaAuthFixtures() below.
+  // B08: standing soft-deleted account (login → ACCOUNT_DELETED).
+  deletedUser: {
+    id: 'a1234567-0000-0000-0000-00000000000a', // Fixed UUID for B08 soft-deleted account
+    email: 'qa-deleted@kidsmarketplace.test',
+    password: 'TestDeleted123!',
+    name: 'QA Deleted User',
+    phone: '5551234008',
+  },
+  // B09: standing auth-user-without-profile (login → PROFILE_NOT_FOUND).
+  noProfileUser: {
+    id: 'a1234567-0000-0000-0000-00000000000b', // Fixed UUID for B09 no-profile account
+    email: 'qa-no-profile@kidsmarketplace.test',
+    password: 'TestNoProfile123!',
+    name: 'QA No Profile User',
+    phone: '5551234009',
+  },
 };
 
 const TEST_CATEGORIES = [
@@ -245,6 +262,48 @@ async function seedCategories(): Promise<{ [key: string]: string }> {
   return categoryMap;
 }
 
+// ─── Node assignment for standard test personas ─────────────────────────────
+// The P3/P4 node-scoped discovery build reads `profiles.node_id` to scope
+// search/browse results, so seeded test users MUST have a node assigned or
+// node-scoped discovery (AUTH-TC-F06) falls back to global browse for them.
+// Resolve the active node for the seeded ZIP (06850 = Norwalk, CT) exactly like
+// the app's `resolve_active_node_for_signup` RPC: exact ZIP match first, then
+// any active node. Returns null (no active nodes) without failing the seed.
+let cachedSeedNodeId: string | null | undefined;
+async function resolveSeedNodeId(): Promise<string | null> {
+  if (cachedSeedNodeId !== undefined) return cachedSeedNodeId;
+
+  const { data: exact } = await adminSupabase
+    .from('nodes')
+    .select('id')
+    .eq('zip_code', '06850')
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+
+  if (exact?.id) {
+    cachedSeedNodeId = exact.id;
+    return exact.id;
+  }
+
+  const { data: anyActive } = await adminSupabase
+    .from('nodes')
+    .select('id')
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+
+  cachedSeedNodeId = anyActive?.id ?? null;
+  if (!cachedSeedNodeId) {
+    console.warn('⚠️ No active nodes found — test personas will be seeded without node_id.');
+  } else {
+    console.log(`   ✓ Seed node resolved: ${cachedSeedNodeId} (for ZIP 06850)`);
+  }
+  // `?? null` narrows the captured module-level `let` (string | null | undefined)
+  // to the declared return type (string | null).
+  return cachedSeedNodeId ?? null;
+}
+
 async function signupTestUser(
   userData: typeof TEST_USERS.buyer,
   role: string = 'user'
@@ -262,6 +321,27 @@ async function signupTestUser(
 
   if (existingProfile) {
     console.log(`   ✓ User already exists: ${existingProfile.id}`);
+
+    // P4 node-scope fix (AUTH-TC-F06): re-assign node_id (+ zip) for standard
+    // personas EVEN on re-seed of existing users — the early-return used to
+    // leave `node_id` NULL on staging, which broke node-scoped discovery for
+    // these accounts. This is an idempotent UPDATE, not a destructive change.
+    const seedNodeId = await resolveSeedNodeId();
+    const { error: reAssignError } = await adminSupabase
+      .from('profiles')
+      .update({
+        node_id: seedNodeId,
+        zip_code: '06850',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existingProfile.id);
+
+    if (reAssignError) {
+      console.warn(`   ⚠️ Could not re-assign node for existing user: ${reAssignError.message}`);
+    } else {
+      console.log(`   ✓ Re-assigned node_id=${seedNodeId ?? 'null'} for existing user`);
+    }
+
     return existingProfile.id;
   }
 
@@ -323,6 +403,7 @@ async function signupTestUser(
   if (!userId) return null;
 
   // Create/update profile
+  const seedNodeId = await resolveSeedNodeId();
   const { error: profileError } = await adminSupabase.from('profiles').upsert(
     {
       user_id: userId,
@@ -334,6 +415,7 @@ async function signupTestUser(
       onboarding_completed: true,
       onboarding_completed_at: new Date().toISOString(),
       zip_code: '06850',
+      node_id: seedNodeId, // P4 node-scope fix: standard personas get a node assigned
       dob: '2000-01-01', // 24+ years old
       role: role,
       created_at: new Date().toISOString(),
@@ -349,6 +431,103 @@ async function signupTestUser(
   }
 
   return userId;
+}
+
+/**
+ * QA AUTH FIXTURES — standing staging personas for the QA Test Agent
+ * (AUTH-TC-B08 soft-deleted account, AUTH-TC-B09 auth-user-without-profile).
+ *
+ * An execution-only QA agent cannot construct these itself (no SQL writes; admin
+ * portal out of scope), so they are provisioned here and recreated on every
+ * `npm run seed:staging` (idempotent).
+ *
+ * B08 — soft-deleted account: a normal full profile, then soft-deleted exactly like
+ *       the admin portal's "Delete User (Soft)" (`deleted_at` + `deletion_type='admin'`).
+ *       Login finds the profile with `deleted_at` set → ACCOUNT_DELETED error path
+ *       ("Your account has been deleted. Please contact admin-support@...").
+ *       NOTE: the app keys B08 off `profiles.deleted_at`, NOT `account_status`
+ *       (the enum has no 'deleted' value — the guide's "account_status = deleted"
+ *       phrasing is doc drift).
+ *
+ * B09 — auth-user-without-profile: the auth user exists (GoTrue login succeeds) but
+ *       the `profiles` row is hard-deleted → login hits PROFILE_NOT_FOUND
+ *       ("Profile not found. Please contact support."). The `on_auth_user_created`
+ *       trigger auto-creates a profile on first create, so we create the auth user
+ *       then delete the profile row. For a fresh user no FK depends on the profile
+ *       (messages/trades/referral_relationships are empty), so the delete is safe.
+ */
+async function seedQaAuthFixtures(): Promise<void> {
+  console.log('\n' + '═'.repeat(50));
+  console.log('🧪 QA AUTH FIXTURES (B08 soft-deleted, B09 no-profile)');
+  console.log('═'.repeat(50));
+
+  // ── B08: soft-deleted account ─────────────────────────────────────────────
+  await signupTestUser(TEST_USERS.deletedUser, 'user');
+  const { error: softDeleteError } = await adminSupabase
+    .from('profiles')
+    .update({
+      deleted_at: new Date().toISOString(),
+      deletion_type: 'admin',
+      deletion_reason: 'QA fixture: AUTH-TC-B08 soft-deleted account (do not restore)',
+    })
+    .eq('user_id', TEST_USERS.deletedUser.id);
+
+  if (softDeleteError) {
+    console.warn(`   ⚠️ B08 soft-delete failed: ${softDeleteError.message}`);
+  } else {
+    console.log(`   ✓ B08 soft-deleted (login → ACCOUNT_DELETED): ${TEST_USERS.deletedUser.email}`);
+  }
+
+  // ── B09: auth user WITHOUT profile ────────────────────────────────────────
+  const np = TEST_USERS.noProfileUser;
+
+  // 1. Ensure the auth user exists (create via admin API only if missing).
+  const { data: existingAuth } = await adminSupabase.auth.admin.getUserById(np.id);
+  if (existingAuth?.user) {
+    console.log(`   ✓ B09 auth user exists: ${np.email}`);
+  } else {
+    const { data: createdUser, error: createError } =
+      await adminSupabase.auth.admin.createUser({
+        email: np.email,
+        password: np.password,
+        email_confirm: true,
+        user_metadata: { name: np.name, phone: np.phone },
+        // @ts-ignore - admin API supports id parameter (matches signupTestUser)
+        id: np.id,
+      });
+    if (createError) {
+      console.error(`   ❌ B09 create auth user failed: ${createError.message}`);
+      return;
+    }
+    console.log(`   ✓ B09 auth user created: ${np.email} (trigger auto-created a profile — deleting next)`);
+  }
+
+  // 2. Remove the profile row (idempotent) so login hits PROFILE_NOT_FOUND.
+  const { error: profileDeleteError } = await adminSupabase
+    .from('profiles')
+    .delete()
+    .eq('user_id', np.id);
+
+  if (profileDeleteError) {
+    console.warn(`   ⚠️ B09 profile delete failed: ${profileDeleteError.message}`);
+  } else {
+    console.log(`   ✓ B09 profile removed (login → PROFILE_NOT_FOUND): ${np.email}`);
+  }
+
+  // 3. Verify end-state: auth user present, profile absent.
+  const { data: leftoverProfile } = await adminSupabase
+    .from('profiles')
+    .select('user_id')
+    .eq('user_id', np.id)
+    .maybeSingle();
+  const { data: verifyAuth } = await adminSupabase.auth.admin.getUserById(np.id);
+  if (leftoverProfile) {
+    console.warn(`   ⚠️ B09 VERIFY FAIL: profile still present for ${np.email}`);
+  } else if (!verifyAuth?.user) {
+    console.warn(`   ⚠️ B09 VERIFY FAIL: auth user missing for ${np.email}`);
+  } else {
+    console.log(`   ✓ B09 VERIFY OK: auth user present, profile absent (${np.email})`);
+  }
 }
 
 async function seedListings(
@@ -1044,6 +1223,9 @@ async function main(): Promise<void> {
       console.error('\n❌ Failed to create test users. Aborting.');
       process.exit(1);
     }
+
+    // 2b. QA auth fixtures (AUTH-TC-B08 soft-deleted, AUTH-TC-B09 no-profile)
+    await seedQaAuthFixtures();
 
     // Get fresh sessions for both users
     const { data: buyerSession } = await supabase.auth.signInWithPassword({

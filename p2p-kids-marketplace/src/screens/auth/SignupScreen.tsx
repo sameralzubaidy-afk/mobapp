@@ -10,7 +10,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   StyleSheet,
   TextInput as RNTextInput,
 } from 'react-native';
@@ -21,21 +20,37 @@ import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { isAtLeastAge } from '@/utils/age';
 import { DateOfBirthPicker } from '@/components/DateOfBirthPicker';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
-import { OAuthProvider } from '@/types/auth-v3';
+import AccountLinkingPrompt from '@/components/auth/AccountLinkingPrompt';
+import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
 import { Button, Modal, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
+import { useAuth } from '@/hooks/useAuth';
 import { getAllTestUsers, TestUser } from '@/utils/testUsers';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 // TODO: Integrate Sentry
 // import * as Sentry from '@sentry/react-native';
 
+// DEV-only: generate a unique email + phone so each autofill tap creates a genuinely fresh,
+// non-colliding account (removes the QA long-press → Select All → retype override step).
+// Email stays valid for the signup regex; phone keeps the test area/prefix (+1202555) and appends
+// a unique 7-digit suffix so it stays within the valid 10–15 digit range.
+const buildUniqueContact = (base: TestUser) => {
+  const emailSuffix = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
+  const phoneSuffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(-7);
+  return {
+    email: `qa.${base.firstName.toLowerCase()}.${emailSuffix}@kidsmarketplace.test`,
+    phone: `+1202555${phoneSuffix}`,
+  };
+};
+
 export default function SignupScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const emailInputRef = useRef<RNTextInput>(null);
   const { showAlert } = useGlobalAlert();
+  const { refreshSession } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -51,6 +66,19 @@ export default function SignupScreen() {
   // "Signup Failed" dialog (branded modal so its OK button carries a stable accessibility identifier)
   const [signupFailedVisible, setSignupFailedVisible] = useState(false);
   const [signupFailedMessage, setSignupFailedMessage] = useState('');
+
+  // Account-linking prompt state — shown when a social signup email matches an existing account
+  const [linkPrompt, setLinkPrompt] = useState<{
+    visible: boolean;
+    provider: OAuthProvider;
+    profile: ProviderProfile;
+    hasPassword: boolean;
+  }>({
+    visible: false,
+    provider: 'google',
+    profile: { name: '', email: '', provider: 'google', providerUserId: '' },
+    hasPassword: false,
+  });
 
   useEffect(() => {
     const params = (route as any).params as { prefillTestUserId?: string } | undefined;
@@ -341,11 +369,15 @@ export default function SignupScreen() {
     // Root navigator transitions based on auth session + onboarding state.
   };
 
-  const applyTestUser = (user: TestUser) => {
+  const applyTestUser = (user: TestUser, options?: { uniqueContact?: boolean }) => {
+    // uniqueContact (dev autofill buttons only): generate a fresh email/phone per tap so QA can
+    // create a new account without overriding the two contact fields. The route-param prefill path
+    // omits this option and keeps fixed values (existing behavior).
+    const contact = options?.uniqueContact ? buildUniqueContact(user) : null;
     setFormData({
       name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      phone: user.phone,
+      email: contact?.email ?? user.email,
+      phone: contact?.phone ?? user.phone,
       dob: user.dob,
       password: user.password,
       confirmPassword: user.password,
@@ -354,28 +386,33 @@ export default function SignupScreen() {
     setErrors({});
   };
 
-  const handleAccountExists = (email: string, provider: OAuthProvider) => {
-    Alert.alert(
-      'Account Exists',
-      `An account with ${email} already exists. Continue to Login and link ${provider}.`,
-      [
-        {
-          text: 'Go to Login',
-          onPress: () => (navigation as any).navigate('Login'),
-        },
-      ]
-    );
+  const handleAccountExists = (
+    _email: string,
+    provider: OAuthProvider,
+    profile: ProviderProfile,
+    hasPassword: boolean
+  ) => {
+    // Show the branded AccountLinkingPrompt modal (password re-auth to link the provider).
+    setLinkPrompt({ visible: true, provider, profile, hasPassword });
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Keyboard handling — gentler auto-scroll:
+          iOS → native inset adjustment (automaticallyAdjustKeyboardInsets): focusing a field scrolls
+          it just above the keyboard in ONE smooth native move; no jump when the field is already
+          visible. KeyboardAvoidingView 'padding' is disabled on iOS because its instant padding change
+          + ScrollView auto-scroll caused a jumpy double-movement (QA friction, phases 17/20/22).
+          Android → KeyboardAvoidingView 'height' (soft-input resize is handled there). */}
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? undefined : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           showsVerticalScrollIndicator={false}
         >
           {/* Back Button */}
@@ -529,7 +566,7 @@ export default function SignupScreen() {
                     .map((user) => (
                       <TouchableOpacity
                         key={user.id}
-                        onPress={() => applyTestUser(user)}
+                        onPress={() => applyTestUser(user, { uniqueContact: true })}
                         style={styles.devAutofillButton}
                         testID={`dev-fill-${user.id}`}
                         accessible
@@ -612,6 +649,20 @@ export default function SignupScreen() {
         onPrimaryPress={() => setSignupFailedVisible(false)}
         onClose={() => setSignupFailedVisible(false)}
         showCloseButton={false}
+      />
+
+      {/* Account-linking prompt — shown when a social signup matches an existing email account */}
+      <AccountLinkingPrompt
+        visible={linkPrompt.visible}
+        provider={linkPrompt.provider}
+        providerProfile={linkPrompt.profile}
+        hasPassword={linkPrompt.hasPassword}
+        onLink={() => {
+          setLinkPrompt((prev) => ({ ...prev, visible: false }));
+          // Refresh auth context so the newly-linked session routes to Home.
+          refreshSession(true);
+        }}
+        onDismiss={() => setLinkPrompt((prev) => ({ ...prev, visible: false }))}
       />
     </SafeAreaView>
   );

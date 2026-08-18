@@ -188,7 +188,9 @@ export default function AppHeader({
             style={styles.headerActionBtn}
             onPress={() => navigateTo('Profile')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Profile"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
             testID="header-profile-btn"
           >
             <Avatar

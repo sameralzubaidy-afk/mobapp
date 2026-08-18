@@ -21,6 +21,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
 - BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient.
 - BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
+- BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -212,6 +213,28 @@ Linking.getInitialURL().then(handleResetUrl);
 const url = await (await import('react-native')).Linking.getInitialURL();
 ```
 4. Detection checklist: if a deep link (or any screen) that dynamically imports `react-native` crashes with `new NativeEventEmitter() requires a non-null argument.` / `Cannot read property 'default' of undefined`, search for `import('react-native')` and replace it with a static import; then verify warm AND cold deep-link delivery on-device plus a tokenized link still parses (fake token → expected auth error, not a crash).
+
+## BP-56: Discover/Design Code Must Use the Canonical Pass-It-Up Tokens — Never Legacy `design-system.md` or Raw Hex
+
+Problem: The Discover screen's design tokens (`src/theme/discoveryTokens.ts`) were sourced from the legacy `docx/design-system.md` (primary `#4A7C59`), while the canonical palette in `docx/design-system-passitup.md` (primary `#5DBB8E`) is what `src/theme/colors.ts` and the QA design-system audit use. The drift produced mixed palettes on one screen (Filters sheet Apply button `#4A7C59` next to a correct `#5DBB8E` Reset), iOS system blue (`#007AFF`/`#EEF6FF`) in the sort dropdown, and raw legacy hex scattered in components. (2026-08-17 QA design-system audit — 14 deviations, all from the wrong token source.)
+
+Rules:
+1. Before writing any new Discover/design code, verify `src/theme/discoveryTokens.ts` is still reconciled to the CANONICAL `docx/design-system-passitup.md` (primary `#5DBB8E`, tint `#E8F5F0`, secondary text `#6B6B6B`, border `#E0E0E0`) — its color values MUST match `src/theme/colors.ts`.
+2. NEVER source Discover colors from the legacy `docx/design-system.md` (primary `#4A7C59`) — that file is deprecated for new code.
+3. NEVER hardcode hex colors in Discover components — import the `ds` tokens from `@/theme/discoveryTokens` (the pattern `SortDropdown.tsx` and `RadiusSlider.tsx` were converted to).
+4. No iOS system blue (`#007AFF`/`#EEF6FF`) or Tailwind-style grays (`#E5E7EB`, `#1F2937`, `#4D4D4D`) on Discover — use the passitup treatment (e.g. selected pill = `ds.primary[100]` tint + `ds.primary[500]` text).
+5. Pattern:
+```ts
+import { ds } from '@/theme/discoveryTokens';
+// ✅ CORRECT — selected sort option uses passitup tint + primary
+backgroundColor: ds.primary[100],
+color: ds.primary[500],
+// ❌ WRONG — iOS system blue / legacy palette / raw hex
+backgroundColor: '#eef6ff',
+color: '#007AFF',
+color: '#4A7C59',
+```
+Detection checklist: on the Discover screen, scan for any legacy primary (`#4A7C59`), iOS system blue (`#007AFF`/`#EEF6FF`), or raw Tailwind grays (`#E5E7EB`, `#1F2937`, `#4D4D4D`) — and confirm `discoveryTokens.ts` still matches `colors.ts`.
 
 ## Backward Compatibility for the Mobile Client
 

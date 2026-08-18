@@ -20,6 +20,8 @@ interface ItemCardProps {
   imageUrl: string | null;
   isFavorite?: boolean;
   acceptsSwapPoints?: boolean;
+  /** P4 (2026-08-17): render an "Other Node" badge (item belongs to a different node than the viewer). */
+  otherNode?: boolean;
   onPress: () => void;
   onFavoritePress?: () => void;
   onSharePress?: () => void;
@@ -33,6 +35,7 @@ export default function ItemCard({
   imageUrl,
   isFavorite = false,
   acceptsSwapPoints = false,
+  otherNode = false,
   onPress,
   onFavoritePress,
   onSharePress,
@@ -83,6 +86,17 @@ export default function ItemCard({
         <Text style={styles.title} numberOfLines={2}>
           {title}
         </Text>
+        {otherNode && (
+          <View
+            style={styles.otherNodeBadge}
+            testID={`${testID || id}-other-node-badge`}
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel="Other Node"
+          >
+            <Text style={styles.otherNodeBadgeText}>Other Node</Text>
+          </View>
+        )}
         <View style={styles.priceRow}>
           <Text style={styles.price}>${price.toFixed(2)}</Text>
           {acceptsSwapPoints && <AcceptsSpBadge testID={`${testID || id}-sp-badge`} />}
@@ -147,6 +161,20 @@ const styles = StyleSheet.create({
     fontWeight: dsType.h4.fontWeight, // H4 (18/24/600) — design-system §6.2
     color: ds.neutral[900],
     marginBottom: 4,
+  },
+  otherNodeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: ds.neutral[100],
+    borderRadius: dsRadii.small,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 6,
+  },
+  otherNodeBadgeText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    color: ds.neutral[500],
   },
   priceRow: {
     flexDirection: 'row',

@@ -193,7 +193,8 @@
 3. Tap **Sign Up**.
 
 **Expected Result:**
-- The header reads "Create Account" with the subheading "Join the P2P Kids Marketplace community".
+- The header reads "Create Account" with the subheading "Join the Kids P2P Marketplace".
+  - NOTE (2026-08-16, Phase 17 QA): the app renders "Join the Kids P2P Marketplace" (matches the app's brand name). The guide previously said "Join the P2P Kids Marketplace community" — updated to match the app. Confirm intended brand copy with design/product; if the app copy is wrong, fix the app (SignupScreen subtitle) instead.
 - No validation errors appear for valid input.
 - After submitting, the app navigates to the **Verify Your Phone** screen showing the entered phone number.
 
@@ -208,7 +209,8 @@
 2. Attempt to submit.
 
 **Expected Result:**
-- Inline red errors appear under the relevant fields, e.g., "Name must be at least 2 characters", "Please enter a valid email address", "Please enter a valid phone number (10+ digits)", and password rule errors ("at least 8 characters", "one uppercase letter", "one lowercase letter", "one number").
+- Inline red errors appear under the relevant fields, e.g., "Name must be at least 2 characters", "Please enter a valid email address", "Please enter a valid phone number (10+ digits)", and a password rule error.
+  - NOTE (2026-08-16, Phase 17 QA): the app's `validatePassword` shows ONE password rule error at a time (the FIRST failing rule), not all rules at once — order is "at least 8 characters" → "one uppercase letter" → "one lowercase letter" → "one number". Update this expected-result wording only; if product intent was to show all rules simultaneously, that is a separate product decision to revisit in the app (not a guide-only fix).
 - Submission is blocked until errors are resolved.
 
 ### AUTH-TC-A03 · Password mismatch and weak password
@@ -223,7 +225,7 @@
 
 **Expected Result:**
 - "Passwords do not match" appears when the two fields differ.
-- Password strength errors appear for weak passwords and submission is blocked.
+- Password strength errors appear for weak passwords and submission is blocked (single error at a time — see A02 note).
 
 ### AUTH-TC-A04 · Under-18 date of birth blocked
 
@@ -637,18 +639,6 @@
 - A confirmation dialog appears ("Are you sure you want to logout?") with Cancel and Logout.
 - Confirming signs out and returns to the Landing screen.
 
-### AUTH-TC-D02 · Sign Out from Settings
-
-**Actors:** test-buyer
-
-**Objective:** Verify the Settings sign-out path.
-
-**Steps:**
-1. Open **Settings** and tap **Sign Out**; confirm.
-
-**Expected Result:**
-- The user is signed out and returned to the Landing screen.
-
 ### AUTH-TC-D03 · After logout, app returns to Landing
 
 **Actors:** test-buyer
@@ -809,15 +799,42 @@
 
 **Actors:** test-buyer
 
-**Objective:** Verify browsing is scoped to the user's node with an option to view all nodes.
+**Objective:** Verify browsing defaults to the user's node ("My Node") with an opt-in **Show All Nodes** toggle, and that waitlisted/inactive-ZIP users keep their global-browse fallback.
+
+**Setup:**
+- Log in as **test-buyer** (active node — Norwalk, CT ZIP `06850`; node_id assigned). Ensure `npm run seed:staging` was run so the node has tagged listings.
+- Note: this case assumes the P3/P4 node-scoped discovery build (search/count RPCs honor `p_node_ids`; Discover defaults to the user's node).
 
 **Steps:**
-1. As **test-buyer**, open the browse/discover view (default scope).
-2. Enable **Show All Nodes** (if available), then disable it again.
+1. As **test-buyer**, open the Discover/browse view (default scope).
+2. Confirm the **Show All Nodes** toggle (`testID: discover-show-all-nodes-toggle`) is visible and **Off**.
+3. Record the result count on the summary line (`testID: discover-results-count`). It should reflect only Norwalk listings (no "all nodes" suffix).
+4. Tap **Show All Nodes** to enable it.
+5. Confirm the count grows (other nodes' items now included; the count line shows "all nodes").
+6. Confirm any item whose seller belongs to a different node shows an **Other Node** badge (`testID: <search-result-id>-other-node-badge`).
+7. Tap **Show All Nodes** again to disable it.
+8. Confirm the view returns to only the user's node items.
+
+**Locator hints:**
+- Show All Nodes toggle: `discover-show-all-nodes-toggle`
+- Results count line: `discover-results-count`
+- Results list: `discover-results-list` (rows: `search-result-<id>`)
+- Other Node badge: `<search-result-id>-other-node-badge`
+- Empty-state CTA: `empty-show-all-nodes` (only when the user's node has no items)
+- Location filter sheet: `discover-filter-button`
+
+**Assert:**
+- With the toggle **Off** (default), the result set contains ONLY items whose `node_id` equals the user's node (`profiles.node_id`), i.e. `search_listings` is called with `p_node_ids = [user node id]`.
+- With the toggle **On**, the result set expands to all nodes (no `p_node_ids`) and other-node items carry the **Other Node** badge; turning it Off restores node-only results.
+- A waitlisted / inactive-ZIP user does NOT see the toggle and keeps the global browse-all behavior (see AUTH-TC-F02 / F03 / F04 — the inactive-ZIP "We're Coming Soon!" / waitlist dialog flow).
+
+**Dependencies:**
+- Seeded active node with tagged listings (Norwalk `06850`). If the user's node has zero available items, the empty state shows `empty-show-all-nodes` instead of a grid.
 
 **Expected Result:**
-- By default only the user's node items appear.
-- With Show All Nodes on, items from other nodes appear with an "Other Node" indicator and distance; turning it off returns to the user's node only.
+- By default only the user's node items appear (hyperlocal "My Node").
+- With **Show All Nodes** on, items from other nodes appear with an "Other Node" indicator (distance display deferred); turning it off returns to the user's node only.
+- Waitlisted/inactive-ZIP users' existing fallback browsing is unchanged (global browse-all).
 
 ---
 
@@ -1258,6 +1275,12 @@
 ---
 
 ## Group K — Bulk Listing Creation
+
+> **DEV-only fixtures (QA automation)** — added 2026-08-17 to `BulkListingCreateScreen.tsx`. The bulk flow is a **separate implementation** from `ItemCreateScreen`, so `dev-add-test-photo`/`dev-set-category` are NOT available here. Reach the screen via deep link `p2pkidsmarketplace://bulk-create`, then use the green "Dev:" buttons at the top of the screen (`__DEV__` only; no AI, no storage upload, no DB writes):
+> - **`dev-add-test-photos`** — injects 5 bundled placeholder photos + runs local auto-grouping → lands on the **Group** step (enables K01/K02/K03 photos→group). Duplicate-hash detection is skipped (all 5 are the same bundled asset).
+> - **`dev-skip-to-review`** — advances Group → **Review** with no AI call and no bulk session (enables K04/K06). The production "Looks good — run AI auto-fill" button is NOT used by this path.
+> - **`dev-set-item-categories`** — sets a real category on every item lacking one, bypassing the native fullScreen `CategorySelectModal` (enables K05's category required field).
+> - **Caveat:** these fixtures never create a bulk session/draft, so tapping the publish-confirm sheet's **Confirm** shows "Missing bulk session or draft session" — the submit button + confirm-sheet UI (K05) are testable, but an actual DB submit requires the real picker flow.
 
 ### AUTH-TC-K01 · Multi-photo upload + auto-grouping
 

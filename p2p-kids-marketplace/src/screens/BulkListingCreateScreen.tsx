@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
   Modal,
   InteractionManager,
 } from 'react-native';
@@ -802,6 +803,81 @@ export default function BulkListingCreateScreen() {
     setShowPhotoSourceModal(true);
   };
 
+  // ───────────────────────────────────────────────────────────────────
+  // DEV-ONLY test fixtures (QA automation)
+  //
+  // The bulk flow is a SEPARATE implementation from ItemCreateScreen, so it
+  // cannot reuse ItemCreate's `dev-add-test-photo` fixture. These fixtures
+  // mirror that pattern: they inject local-only state to bypass the two
+  // native surfaces the QA toolset cannot reach — the native image picker
+  // and the native fullScreen CategorySelectModal. They are gated by
+  // __DEV__ (never in release builds) and perform NO AI analysis, NO
+  // storage uploads, and NO DB writes (no bulk session row, no draft row).
+  //   dev-add-test-photos     -> GROUPING step (AUTH-TC-K01/K02/K03 photos→group)
+  //   dev-skip-to-review      -> REVIEWING_ITEMS without AI/session (K04/K06)
+  //   dev-set-item-categories -> fills category w/o the native modal (K05)
+  // ───────────────────────────────────────────────────────────────────
+
+  const handleAddDevTestPhotos = useCallback(() => {
+    if (photos.length > 0 || groups.length > 0) return;
+    const source = Image.resolveAssetSource(require('../../assets/adaptive-icon.png'));
+    const uri = source?.uri;
+    if (!uri) {
+      console.warn('[BulkListingCreate] Dev test photos: bundled asset unresolved');
+      return;
+    }
+    const stamp = Date.now();
+    const devPhotos: PhotoAsset[] = Array.from({ length: 5 }, (_, i) => ({
+      id: `dev-photo-${stamp}-${i}`,
+      uri,
+      width: 1024,
+      height: 1024,
+      mimeType: 'image/png',
+    }));
+    // Same local grouping pipeline as the production photo path (1 photo/item),
+    // minus the storage upload, bulk session, and draft row. Duplicate-hash
+    // detection is intentionally skipped (all 5 are the same bundled asset).
+    const nextGroups = groupPhotosAuto(devPhotos, 1);
+    const nextItems = mapGroupsToItems(nextGroups, undefined, minListingPrice);
+    setPhotos(nextGroups.flatMap((g) => g.photos));
+    setGroups(nextGroups);
+    setItems(nextItems);
+    setSelectedPhotoIds([]);
+    setDuplicatePhotoIds([]);
+    setPhotoHashes({});
+    dispatch({ type: 'GROUPS_READY' });
+  }, [photos.length, groups.length, minListingPrice]);
+
+  const handleDevSkipToReview = useCallback(() => {
+    if (groups.length === 0) return;
+    // Advance GROUPING -> REVIEWING_ITEMS with no AI call and no bulk session.
+    // The production confirm-grouping path requires a bulk session row, which
+    // this fixture deliberately does not create (no DB writes).
+    dispatch({ type: 'AI_START' });
+    dispatch({ type: 'AI_DONE' });
+  }, [groups.length]);
+
+  const handleDevSetItemCategories = useCallback(() => {
+    if (items.length === 0) return;
+    const fallback: Category = { id: 'dev-fallback', name: 'Toys & Games' };
+    const category =
+      categories.find((c) => c.id !== 'other' && c.name.trim().toLowerCase() !== 'other') ??
+      fallback;
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.category_id) return item;
+        const next = {
+          ...item,
+          category_id: category.id,
+          category_name: category.name,
+          requested_category_name: undefined,
+        };
+        next.missingRequired = getMissingRequired(next, minListingPrice);
+        return next;
+      })
+    );
+  }, [items.length, categories, minListingPrice]);
+
   useEffect(() => {
     console.log('[BulkCreate] Photo source effect - modal:', showPhotoSourceModal, 'pending:', pendingPhotoSource, 'targetGroup:', pendingPhotoSourceTargetGroupId);
     
@@ -1377,6 +1453,48 @@ export default function BulkListingCreateScreen() {
       />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {/* DEV-ONLY: bypass the native photo picker + native fullScreen
+            CategorySelectModal so QA automation can drive the bulk flow.
+            Never rendered in release builds (__DEV__ false). No AI, no
+            upload, no DB writes — see handlers above. */}
+        {__DEV__ && (
+          <View style={styles.devFixtureRow}>
+            <TouchableOpacity
+              style={[styles.devFixtureButton, (photos.length > 0 || groups.length > 0) && styles.devFixtureButtonDisabled]}
+              onPress={handleAddDevTestPhotos}
+              disabled={photos.length > 0 || groups.length > 0}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Add 5 test photos (dev only)"
+              testID="dev-add-test-photos"
+            >
+              <Text style={styles.devFixtureButtonText}>Dev: Add 5 Test Photos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.devFixtureButton, groups.length === 0 && styles.devFixtureButtonDisabled]}
+              onPress={handleDevSkipToReview}
+              disabled={groups.length === 0}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Skip to review without AI (dev only)"
+              testID="dev-skip-to-review"
+            >
+              <Text style={styles.devFixtureButtonText}>Dev: Skip to Review</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.devFixtureButton, items.length === 0 && styles.devFixtureButtonDisabled]}
+              onPress={handleDevSetItemCategories}
+              disabled={items.length === 0}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Set categories on items without one (dev only)"
+              testID="dev-set-item-categories"
+            >
+              <Text style={styles.devFixtureButtonText}>Dev: Set Categories</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {photos.length === 0 && (
           <View style={styles.emptyState}>
             <Package size={64} color="#E0E0E0" weight="regular" />
@@ -1831,6 +1949,30 @@ const styles = StyleSheet.create({
   },
   instructionBold: {
     fontWeight: '700',
+  },
+  devFixtureRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  devFixtureButton: {
+    backgroundColor: '#EAF7F0',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devFixtureButtonDisabled: {
+    opacity: 0.45,
+  },
+  devFixtureButtonText: {
+    color: '#2E7D5B',
+    fontSize: 13,
+    fontWeight: '600',
   },
   photoSourceModalOverlay: {
     flex: 1,

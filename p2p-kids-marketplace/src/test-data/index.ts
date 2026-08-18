@@ -1,3 +1,14 @@
+// ⚠️ DEPRECATED (2026-08-18) — see DEPRECATED.md in this folder.
+//
+// This module (+ `test-users.json`) is a STALE duplicate test-credential
+// fixture. It is NOT used by any app code — the signup screen's dev-autofill
+// reads `@/utils/testUsers` (password `TestPass123`). The stale fixture's
+// different password (`Password123!`) caused a failed QA login (Phase 23
+// credential-source-of-truth trap).
+//
+// CANONICAL dev-autofill source of truth: `@/utils/testUsers` (TEST_USERS).
+// Kept only so any external tooling that imports `@/test-data` doesn't break;
+// do NOT extend it and do NOT consume it in new code.
 import users from './test-users.json';
 
 export type TestUser = {

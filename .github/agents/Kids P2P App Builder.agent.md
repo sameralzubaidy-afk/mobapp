@@ -34,15 +34,14 @@ Translate errors into impact. Instead of "PGRST204 no rows returned", say "The b
 
 NON-NEGOTIABLE RULES (READ FIRST — one-line index of the hard gates detailed later in this file)
 1. Clarification Gate — if you don't know the screen, the before/after UX, or the data layer, ask ONE question before coding (exception: bugs with a clear stack trace).
-2. Requirements Gate — read the relevant docx/*.md files before touching code; list "Requirements Confirmed" in your reply. Before planning any "new" feature (incl. R-series R1–R13), grep the codebase for an existing implementation first — many asks are already shipped under a codename (e.g., D-30 / TradeFlowV2); extend, don't rebuild.
+2. Requirements Gate — read the relevant docx/*.md files before touching code; list "Requirements Confirmed" in your reply.
 3. Scope Containment — touch only what's broken; touching >3 files means STOP and explain why first.
 4. No Partial Implementations — never ship placeholder logic without flagging it; nothing is "done" until testable end-to-end.
-5. Read-Before-Write — never edit a file you haven't read in the current session; when the user edits outside the session, verify on-disk content via the terminal/git diff before editing (read/replace tools can serve a stale cached copy).
+5. Read-Before-Write — never edit a file you haven't read in the current session.
 6. User-Facing Copy Standards — plain, human error/empty-state copy; branded modals only, never Alert.alert() for confirmations.
 7. Duplicate Identifier Guard — search the file, then the repo, for a symbol before creating it; never ship AuthContext2-style duplicates.
 8. Tier 0 Compile Gate — typecheck + lint must pass before you ever say "open the simulator" (canonical commands live in HP-2a — don't restate them elsewhere).
 9. Session Handoff — every response that changes code ends with the 📦 Session Handoff block (includes Change Classification / Impacted Flows / Regression Plan — see Section 14C).
-10. Backward Compatibility — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (see Backward Compatibility Gate below).
 
 Quick DO-NOT list:
 - Do NOT guess at a product/UX decision — ask.
@@ -52,7 +51,6 @@ Quick DO-NOT list:
 - Do NOT tell the user to open the simulator while typecheck/lint is failing.
 - Do NOT invent npm/yarn scripts that aren't in package.json.
 - Do NOT execute ANY Supabase MCP call (read or write) without asking Samer's approval first, every time — see MCP Usage Protocol.
-- Do NOT break backward compatibility silently — no dropping/renaming fields, columns, routes, or params that shipped clients or existing data depend on without flagging it, getting approval, and providing a rollout plan (see Backward Compatibility Gate).
 
 CLARIFICATION GATE (MANDATORY before implementation)
 Before writing any code for a new feature or fix, you MUST ask yourself:
@@ -93,13 +91,6 @@ For the task you are about to implement:
 Use filesystem MCP to read every relevant file from the table above.
 Extract the specific rules, acceptance criteria, or constraints that apply.
 In your response, list them under a "Requirements Confirmed" block:
-
-Step 3 — Verify against shipped code before planning "new" work
-"New implementation" asks (R-series R1–R13 and similar) frequently map to features that are ALREADY shipped under a codename (e.g., R2 "Auth-and-Capture + Countdown State Machine" ≈ D-30 / TradeFlowV2). Before writing a plan or scaffolding anything:
-- grep `supabase/functions/**`, `supabase/migrations/**`, `p2p-kids-marketplace/src/**`, and `p2p-kids-admin/src/**` for the feature's core verbs/screens (hold, capture, offer window, pickup, accept/decline, auto-complete, etc.).
-- If an implementation exists, scope the DELTA (what's missing vs. the ask) and name the existing codename in the plan — extend, don't rebuild.
-- Only genuinely new behavior gets new scaffolding; duplicating a shipped feature risks split-brain behavior (see BP-27).
-
 SCOPE CONTAINMENT (MANDATORY)
 Principle: A fix must only touch what is broken. Unsolicited refactors are bugs waiting to happen.
 
@@ -118,39 +109,9 @@ READ-BEFORE-WRITE (MANDATORY — no exceptions)
 Principle: Never write to a file you haven't read in the current session. Editing from memory causes duplicate code, overwritten fixes, and orphaned styles.
 
 Before editing ANY file, read the CURRENT content of that file using filesystem MCP. Do not rely on what you wrote in a previous turn.
-When the user (or an external tool) edits a file OUTSIDE the agent session, the built-in read/replace tools can serve a stale cached copy of the old content — verify the on-disk state via the terminal (`sed -n`/`grep -n`/`git diff`) before editing; a stale anchor makes string replacements fail and can silently overwrite the user's edits.
 If a file is longer than what can be displayed, read the specific section you are editing plus the lines immediately before and after.
 After writing, re-read the affected lines to confirm the edit landed correctly and no surrounding code was accidentally modified.
 If two files need to be changed for the same fix, read both BEFORE writing either.
-BACKWARD COMPATIBILITY GATE (MANDATORY)
-Principle: The shipped mobile app and admin portal can be running older code than the backend, and existing rows already exist in every table. Assume an older client is already installed on user phones. Every change MUST keep those shipped clients and existing data working — otherwise it is a breaking change that needs explicit owner approval and a coordinated rollout plan.
-
-Rules (apply before any change that touches a schema, API contract, or route):
-
-1. DB schema is additive by default.
-   - New columns MUST be nullable or have a DEFAULT, plus an explicit backfill for existing rows. Never add a NOT NULL column without a default old rows can satisfy.
-   - Never rename or repurpose an existing column/table that deployed code reads. If a rename is unavoidable, do the 4-phase dance: add the new column → write both → backfill + migrate readers → drop the old one in a LATER coordinated migration.
-   - Never drop a column, table, function, view, or index still referenced by deployed code or a `supabase_realtime` subscription.
-   - Enums: ADDING values is safe; REMOVING values is breaking (old code writing the removed value fails) — keep + deprecate instead.
-   - Type widening (int → bigint) is safe; narrowing is not.
-
-2. API / Edge Function contracts are additive-only.
-   - Never remove or rename an existing response field — old clients ignore unknown fields but break on missing ones. Add new fields as optional.
-   - Never change the meaning of an existing error code — add new codes instead.
-   - New required request params need server-side defaults so old clients that don't send them still work. Validate the defaulted path.
-
-3. RPC signature changes are coordinated.
-   - Changing `RETURNS TABLE` requires DROP-then-CREATE (BP-12). Ship the reader change and the DB change together, or keep the old-signature function alive during a transition window — never leave a deployed caller pointing at a dropped signature.
-
-4. Navigation stays compatible.
-   - New route params MUST be optional with defaults (existing callers won't pass them — BP-43-1).
-   - Never rename/remove a route that shipped clients or deep links/notifications reference. During a transition keep the old name working as an alias/redirect.
-
-5. Breaking-change checklist (only after owner approval):
-   - [ ] Backward-compatibility window defined (how long old + new must coexist)
-   - [ ] Rollout order specified (migration → backend → client, or per the change)
-   - [ ] Rollback plan stated (what to revert + how to verify)
-   - [ ] "Backward Compatibility" field filled in the Session Handoff
 USER-FACING COPY STANDARDS (MANDATORY)
 This app is used by adults (18+) who are parents managing their children's marketplace activity. All user-facing text must be clear, trustworthy, and action-oriented — the tone is a friendly, reliable service, not a developer console.
 
@@ -196,7 +157,6 @@ At the end of every response that makes a code change, output this block, make s
 📦 Session Handoff
 Change Classification: [DB/API/UI/Stripe/Realtime/SP/Fee/etc. — see Section 14C for the full A–H list]
 Impacted Flows: [Flow IDs from Section 14D, e.g. FLOW-08, FLOW-11 — "none" only if truly no flow is touched]
-Backward Compatibility: [state how this change keeps existing shipped clients + data working — or mark it BREAKING and note the owner approval + rollout plan]
 Regression Plan: [which tiers ran (0/1/2) + why, per Section 14C's classification → tier mapping — state PASS/FAIL per tier]
 What changed: [file names + one-line description of what each change does]
 Why it matters: [plain English — what user-visible problem this solves]
@@ -206,8 +166,6 @@ Suggested next session: [the single most logical next task to continue from here
 Suggested to improve agent rules: [the single most logical add rule or update to the guidelines based on what you experienced in this session] — if you do not have a suggestion, say "none".
 
 You MUST NOT say "done/complete" unless the required regression tiers (per Section 14C) passed.
-
-Tier-2 gating for A/D/F changes (added 2026-08-09, R4): running only the migration + targeted functional tests is NOT Tier 2. For changes classified A (DB/migrations/RLS/RPC), D (Stripe/webhooks), or F (money/fees/state) that require Tier 2, a "done" verdict is explicitly gated on the FULL Tier 2 — `supabase db reset` (DB rebuild from migrations) + DB lint + ALL smoke scripts (`scripts/smoke/run.mjs --all`), per Section 14C. If only partial Tier 2 ran, report the change as implemented + verified at Tier 0/1 and mark Tier 2 as NOT RUN in the handoff's Regression Plan — never silently assume the missing db-reset/smoke step (mirrors BP-47 deployment-lag discipline: verify the target DB state before declaring success).
 
 This block ensures that if a session ends abruptly, or a new session starts weeks later, the context is always recoverable without reading the code.
 
@@ -238,8 +196,8 @@ Documentation Folder Standard (MANDATORY — confirmed against actual repo conte
 docx/ holds the canonical product/business/architecture specs as markdown (*.md) — BRD, system requirements, solution architecture, trade flow, payouts, etc. (see the Requirements Gate table). Despite the folder name, it is NOT a Word-file folder.
 docs/ holds engineering/testing/operational docs — manual test cases, module implementation summaries, the Flow Registry (docs/flow-registry.md), environment/CI notes, store-submission checklists, etc.
 You MUST NOT create duplicate copies of the same spec in both folders. When in doubt which folder a new doc belongs in, ask.
-Manual-testing guides (e.g., `MODULE-*.md`) are canonical in the `cross-checked-and-consolidated/` folder — the test automation (`test-automation/trade-flow-v2/manifest.json`, `RUNBOOK.md`, `run-tradeflow-suite.mjs`) reads them from `cross-checked-and-consolidated/`, and `docs/flow-registry.md` points there. NEVER create or maintain a second copy of a manual-testing guide at the workspace root.
-Before editing any manual-testing guide, run a TC-ID diff to detect duplicate or lost test cases: `grep -nE "^### .*TC-[A-Za-z0-9-]+" "cross-checked-and-consolidated/<guide>.md"` (and on ANY other copy of the same guide), then confirm exactly ONE canonical copy exists. If you find two diverged copies, merge them into `cross-checked-and-consolidated/` first (preserve every TC; re-letter colliding IDs rather than dropping either) and mark the other copy DEPRECATED — never edit both.
+Manual-testing guides (e.g., `MODULE-*.md`) are canonical in the `misc/` folder — the test automation (`test-automation/trade-flow-v2/manifest.json`, `RUNBOOK.md`, `run-tradeflow-suite.mjs`) reads them from `misc/`, and `docs/flow-registry.md` points there. NEVER create or maintain a second copy of a manual-testing guide at the workspace root.
+Before editing any manual-testing guide, run a TC-ID diff to detect duplicate or lost test cases: `grep -nE "^### .*TC-[A-Za-z0-9-]+" "misc./<guide>.md"` (and on ANY other copy of the same guide), then confirm exactly ONE canonical copy exists. If you find two diverged copies, merge them into `misc/` first (preserve every TC; re-letter colliding IDs rather than dropping either) and mark the other copy DEPRECATED — never edit both.
 File Path Normalization (MANDATORY)
 Filenames MUST NOT include leading/trailing spaces.
 If you detect a file like docx/ Solution Architecture & Implementation Plan.md (leading space), you MUST do ONE of: A) Rename it to docx/Solution Architecture & Implementation Plan.md and update all references, OR B) If renaming is not possible, STOP and ask Samer to rename it (do not implement features against a "fragile" path).
@@ -274,7 +232,7 @@ Required in every SQL deliverable:
 
 Full Postgres RPC / SQL naming convention and required verification queries moved to .github/instructions/supabase-sql.instructions.md (auto-attaches when editing supabase/migrations/**/*.sql).
 
-See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-50) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
+See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-49) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
 UI Performance Defaults (MANDATORY)
 Debounce defaults:
 
@@ -762,8 +720,7 @@ Issue: "E2E test fails right after signup because trigger-created rows (subscrip
 
 ✅ Check: The target DB's signup trigger is actually attached AND its handler body matches the latest migration (BP-47)
 ✅ Check: Deployment lag — the deployed function may predate the migration that defines the asserted defaults; apply/redeploy before blaming app code (BP-47)
-✅ Check: A schema/enum/CHECK value set the new logic assumes is confirmed against the live DB (`FROM pg_constraint`) — the repo migration may not be applied to staging (BP-47)
-See also: BP-47 (verify the target DB's trigger AND its enum/CHECK-constraint values are current before treating a missing-row failure or a schema assumption as an app bug — deployment lag ≠ code bug)
+See also: BP-47 (E2E tests asserting trigger-created defaults must first verify the trigger exists in the target DB)
 
 Issue: "Admin edits a setting on one surface but the other surface shows no 'last updated' / who changed it, or a new settings page silently bypasses the shared write path"
 
@@ -779,36 +736,28 @@ Issue: "Admin page fetch to /api/admin/* fails with 401 / 'No valid authenticati
 ✅ Check: New code doesn't copy legacy header-less admin fetches that 401 in practice (BP-49)
 See also: BP-49 (admin client→API auth — always send the `x-admin-secret` header or an explicit Bearer JWT)
 
-Issue: "Two migration files share the same timestamp / `supabase db reset` applies the wrong one / a fresh build fails with no SQL error"
+Issue: "Bottom nav / persistent tab bar (or other root-level UI) missing after completing or skipping onboarding until the app is relaunched"
 
-✅ Check: `ls supabase/migrations/` — no two files share the same `YYYYMMDDHHMMSS` prefix (parallel WIP collides, e.g. two `20260809000001` files) (BP-50)
-✅ Check: After creating/renaming a migration, code comments referencing the old filename were updated (BP-50)
-See also: BP-50 (migration version uniqueness — check for same-timestamp-prefix collisions before creating a new migration)
+✅ Check: The root-level component's gate state (e.g. `showOnboardingCarousel`) is updated by a `[userId]`-keyed mount effect ONLY — a child screen navigating away does NOT re-run it (BP-55)
+✅ Check: The child screen flips the gate via an explicit `initialParams` callback, not by relying on a re-run effect (BP-55)
+✅ Check: Every exit path (Skip, Get Started, failure fallback) goes through the same shared helper that fires the callback (BP-55)
+See also: BP-55 (wire an explicit `initialParams` callback from the child to flip root-level mount-effect-only gate state)
+
+Issue: "Discover screen renders legacy green (#4A7C59) or iOS system blue (#007AFF) instead of the pass-it-up palette (#5DBB8E)"
+
+✅ Check: `src/theme/discoveryTokens.ts` is reconciled to `docx/design-system-passitup.md` and matches `src/theme/colors.ts` (BP-56)
+✅ Check: Discover components import `ds` tokens from `@/theme/discoveryTokens` — no raw legacy hex (`#4A7C59`, `#E5E7EB`, `#1F2937`, `#4D4D4D`) or system blue (`#007AFF`/`#EEF6FF`) (BP-56)
+See also: BP-56 (design tokens — canonical pass-it-up palette; never source from legacy `design-system.md`)
 
 Issue: "A mutation appears to succeed in the UI but the database wasn't actually changed"
 
 ✅ Check: The caller checked the `{success}` result of the service call instead of ignoring it (BP-35)
 Issue: "Edge Function deploy fails with 'Module not found'"
 
-✅ Check: Every relative import (including transitive `_shared/*` dependencies) is listed in the deploy `files` array with the `functions/` prefix (`functions/_shared/<file>.ts`) — bare `_shared/...` entries are dropped by the MCP bundler; if `../_shared/*` still won't resolve, INLINE the helper and keep `_shared/` in sync (BP-41)
-Issue: "I edited an Edge Function but the deployed/working version is missing the change"
-
-✅ Check: `git diff -- <function>/index.ts` / grep the function for the intended symbol before deploying — edits made earlier in the session can be lost if the working tree was reverted between turns (BP-51)
-See also: BP-51 (verify the intended change is actually in the file before deploying an Edge Function)
+✅ Check: Every relative import (including transitive `_shared/*` dependencies) is listed in the deploy `files` array (BP-41)
 Issue: "An Edge Function and a DB trigger/RPC disagree on the same business rule"
 
 ✅ Check: Split-brain enforcement — search migrations for a trigger/RPC/constraint duplicating the Edge Function's check (BP-27)
-Issue: "QA automation can't find a button/modal testID on iOS (identifier never surfaces in the accessibility tree)"
-
-✅ Check: The control sets `accessible` + `accessibilityRole` (and `accessibilityLabel` = visible text), not just `testID` (BP-53)
-✅ Check: The identifier was confirmed with the accessibility-tree/element-listing tool on the running simulator — unit/widget tests query the React tree, NOT the native iOS tree (BP-53)
-See also: BP-53 (a bare TouchableOpacity with only `testID` renders but its identifier is invisible to the iOS tree — mirror `ui/Button`'s `accessible`/`accessibilityRole`), BP-52 (update the widget test a deliberate UI change breaks)
-Issue: "App crashes when opening a deep link (e.g. password reset) with `new NativeEventEmitter() requires a non-null argument` / `Cannot read property 'default' of undefined`"
-
-✅ Check: Does the screen dynamically `import('react-native')` or `import * as RN` and then access/iterate its exports? That enumerates RN's lazy getters (e.g. `PushNotificationIOS`) (BP-54)
-✅ Check: Replace the dynamic import with a static `import { Linking } from 'react-native'` (or `expo-linking`) — static imports resolve at bundle time and never enumerate (BP-54)
-✅ Check: Verify warm + cold deep-link delivery and that a tokenized link still parses on-device after the change (BP-54)
-See also: BP-54 (Metro's `importAll` iterates RN's lazy getters; a missing optional native module like `PushNotificationManager` makes the getter throw)
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
 Test in Supabase Studio: Run raw SQL queries to verify data/RLS
@@ -1046,7 +995,6 @@ Impacted Flows
 Required Regression Tiers
 Agent must ensure Tier 0 passes first (or provide exact package.json edits to enable it).
 Agent must NOT ask the user to test in simulator when there are known compile/type errors.
-Agent must NOT start a UI test / browser verification for a new implementation until it has checked whether the change needs a SQL/migration change that must be applied to the STAGING database first. If a SQL change is required and has NOT yet been applied to staging, STOP and ask the user (Samer) to approve/apply it BEFORE running any UI test — a UI test against un-migrated staging data is wasted time. (Example that triggered this rule — N1 configurability, 2026-08-09: the admin Trade Timing UI test could not render the new Pickup/Payout keys because the migration `20260809000004_n1_configurability.sql` had not been applied to staging; the browser session had to be abandoned mid-verification.) The inverse also applies: before building client/EF/UI/admin logic that ASSUMES a current schema/enum/CHECK value set (e.g. `trades.status`), read the LIVE DB (e.g. `FROM pg_constraint`) to confirm the repo's migration state actually matches staging — migration files can lag staging, so a migration-only assumption can be wrong (mirrors BP-47 deployment-lag discipline; example 2026-08-11: the header/nav redesign built the Trades badge against `trades.status` values taken from migrations, but the live staging CHECK still allowed `payment_processing`).
 No Duplicate Implementations / Duplicate Identifier Guardrail / Duplicate Symbol Guard — all merged into Section 13 "Duplicate Identifier Prevention" (single canonical source for the search-before-create rule, ripgrep commands, and required evidence). Do not restate these as separate rules.
 
 Navigation Hardening Protocol — moved to .github/instructions/navigation.instructions.md (auto-attaches when editing p2p-kids-marketplace/src/navigation/**). Covers NAV-0 through NAV-6 (route ownership, auth boundary, onboarding completion, regression tiers) plus BP-43 (route params, navigator import validation, buyer/seller path checks).
@@ -1077,7 +1025,6 @@ yarn typecheck (or next lint + tsc --noEmit)
 yarn build (Next.js compile check)
 Admin unit tests use Vitest (`npm test` / `npx vitest run <file>`), NOT Jest — running `npx jest` on a Vitest test file fails with "Vitest cannot be imported in a CommonJS module using require()".
 You MUST NOT mark work complete if build fails. You MUST include the exact error line + the fix.
-Admin dev/build cache rule: NEVER run `yarn build` / `next build` in the same project folder as a running `next dev` — they share `.next` and corrupt each other, and the dev server then crashes with `Cannot find module './NNNN.js'` (MODULE_NOT_FOUND) plus 404s on `/_next/static/*` assets. If both are needed, `rm -rf p2p-kids-admin/.next` between them (build first, then start dev on a clean cache). If a running dev server starts 404ing on static assets or throwing MODULE_NOT_FOUND, clear `.next` and restart dev before diagnosing further — it is cache corruption, not a code regression.
 
 Compile/Lint Gate Before Manual Testing (MANDATORY)
 Same gate as HP-2a and Tier 0 (Section B) — do not restate the commands here, just enforce the outcome: if typecheck, lint, or the bundler build fails, fix it FIRST and re-run before any manual verification step.
@@ -1086,7 +1033,6 @@ After editing any .ts/.tsx file, you MUST:
 
 run Prettier on the changed file(s) OR ensure editor format-on-save is enabled
 run Prettier from INSIDE each project directory (p2p-kids-marketplace/ or p2p-kids-admin/) — invoking it from the monorepo root hangs (observed under p2p-kids-admin/)
-after running Prettier, verify with `git diff --stat` — Prettier can reformat dozens of unrelated lines in a file you only touched once; if it did, revert the file (`git checkout -- <file>`) and re-apply only the intended change to honor scope containment.
 never leave JSX in a partially edited state If Prettier would fail, STOP and fix syntax first.
 Layout safety rule (Admin Portal)
 Avoid complex inline JSX edits inside src/app/layout.tsx. If adding nav links or sidebar items:
@@ -1241,7 +1187,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-53)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-49)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1287,21 +1233,17 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-38 Fee config — absolute percentage per tier, never base+discount; confirm the calculation base with the user.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`); if the MCP bundler still cannot resolve `../_shared/*`, INLINE the helper into the function file (canonical repo pattern — see `archive/misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`) and keep the `_shared/` source in sync.
+- BP-41 Edge Function deploys — every relative import must be in the `files` array, including transitive ones.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
 - BP-43 Navigation & params — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
 - BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
-- BP-47 Live-DB state assumptions — verify the target DB's trigger/handler AND its enum/CHECK-constraint values are attached/current before treating a missing-row failure or a schema assumption as an app bug (deployment lag ≠ code bug).
+- BP-47 E2E trigger-created defaults — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
 - BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it).
-- BP-50 Migration version uniqueness — before creating a migration, list `supabase/migrations/` and confirm no existing file shares the same `YYYYMMDDHHMMSS` timestamp prefix (parallel WIP collides, e.g. two `20260809000001` files); use the next available version.
-- BP-51 Edge Function pre-deploy verification — run `git diff` / grep the function for the new symbol to confirm the intended change is in the file before deploying (edits can be lost when the working tree is reverted between turns).
-- BP-52 Intentional behavior changes — update the widget test a deliberate UI/logic change breaks; confirm other failures are pre-existing via git before classifying.
-- BP-53 QA-testID accessibility — controls shipped with a `testID` must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; verify new identifiers on-device — unit tests alone are insufficient evidence of iOS discoverability.
-- BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
-- BC-1 Backward Compatibility Gate — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (full text in the main body, "Backward Compatibility Gate" section).
+- BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
+- BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1375,10 +1317,8 @@ BP-46: Postgres Function DECLARE Block Must Declare Every `v_*` Variable Used in
 
 BP-48: Admin Config Settings Writes Must Go Through the Shared RPC (never direct `admin_config` table writes; record the editor) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-BP-50: Migration Version Uniqueness (check `supabase/migrations/` for a same-timestamp-prefix collision before creating a new migration) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-47: Live-DB Schema/State Assumptions Must Be Verified Against the Target DB (deployment lag ≠ code bug)
-Problem: `sub-018` ("No subscription found") and the notification-preferences E2E both failed after a signup, and the initial triage pointed at app code. The real root cause was that the deployed `handle_new_user()` was an OLD version — the target staging DB's `on_auth_user_created` trigger was not creating the `subscriptions`/`notification_preferences` rows the tests assert. That is deployment lag / a stale trigger, not an app bug. The same principle bit a mobile UI change (2026-08-11): the header/nav redesign built the Trades badge against `trades.status` values taken from migrations (which had removed `payment_processing`), but the live staging CHECK constraint still allowed it — a migration-only assumption was wrong until verified against the live DB.
+BP-47: E2E Tests Asserting Trigger-Created Defaults Must Verify the Trigger Exists in the Target DB (deployment lag ≠ code bug)
+Problem: `sub-018` ("No subscription found") and the notification-preferences E2E both failed after a signup, and the initial triage pointed at app code. The real root cause was that the deployed `handle_new_user()` was an OLD version — the target staging DB's `on_auth_user_created` trigger was not creating the `subscriptions`/`notification_preferences` rows the tests assert. That is deployment lag / a stale trigger, not an app bug.
 
 Rules:
 - When a live-DB E2E/integration test creates a user and then asserts rows the signup trigger should create (subscription, notification prefs, SP wallet, profile defaults), FIRST verify the trigger is attached AND its handler is current in the target DB:
@@ -1386,18 +1326,12 @@ Rules:
 SELECT tgname, tgenabled FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass;
 SELECT prosrc FROM pg_proc WHERE proname = '<signup handler>';
 ```
-- Before building client/EF/UI/admin logic that ASSUMES a discrete schema value set (enum/CHECK-constraint values, e.g. `trades.status`), read the LIVE constraint — the repo migration may have removed a value staging still allows (or vice versa):
-```sql
-SELECT pg_get_constraintdef(oid) AS check_def
-FROM pg_constraint
-WHERE conrelid = 'public.<table>'::regclass AND contype = 'c' AND conname = '<constraint>';
-```
-- Confirm the handler's `prosrc` (or the constraint definition) matches the latest canonical migration (grep migrations for the newest `CREATE OR REPLACE FUNCTION <handler>` / constraint and diff) — "trigger attached" / "migration present in repo" is not enough; the deployed/staging state may be stale or ahead.
-- Only after confirming the trigger + handler (or constraint) are present and current should a failure on trigger-created rows — or a mismatch with an assumed enum/CHECK set — be treated as an app/code bug.
-- Deployment lag ≠ code bug: if the target DB predates (or diverges from) the migration defining the asserted behavior, the fix is to apply the migration / redeploy — not to edit app code.
-- Cross-ref BP-16 (stale trigger comments) and BP-31 (verify trigger AND RPC layers): verify the live state before trusting a comment, a test, a migration, or a symptom.
+- Confirm the handler's `prosrc` matches the latest canonical migration (grep migrations for the newest `CREATE OR REPLACE FUNCTION <handler>` and diff) — "trigger attached" is not enough; the deployed body may be stale.
+- Only after confirming the trigger + handler are present and current should a failure on trigger-created rows be treated as an app/code bug.
+- Deployment lag ≠ code bug: if the target DB's function predates the migration defining the asserted behavior, the fix is to apply the migration / redeploy the function — not to edit app code.
+- Cross-ref BP-16 (stale trigger comments) and BP-31 (verify trigger AND RPC layers): verify the trigger exists before trusting a comment, a test, or a symptom.
 
-Detection checklist: any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code. Any new logic that assumes an enum/CHECK value set (badge counts, status filters, admin pipelines) → read the live `pg_constraint` first; if the repo migration and the live DB disagree, reconcile staging before coding.
+Detection checklist: any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code.
 
 BP-49: Admin Portal Client→API Auth — Always Send `x-admin-secret` on Browser Fetches to `/api/admin/*`
 Problem: The admin web app's browser→API routes authenticate two different ways: (1) the shared `x-admin-secret` header — client components send `NEXT_PUBLIC_ADMIN_UI_SECRET` — or (2) a Supabase JWT via an explicit `Authorization: Bearer` header. `verifyAdminAuth()` returns `{ authorized: false, error: 'No valid authentication provided' }` (HTTP 401) when a request carries NEITHER. The app has NO middleware, so the Supabase session cookie never reaches the API route. New client-side fetches that omit the header silently 401 — the page shows a generic "Fetch failed" / 401 instead of data.
@@ -1411,6 +1345,10 @@ Rules:
 - Cross-ref BP-35 (always check the `{success}`/response result): a 401 is a non-ok response that must be surfaced, not swallowed.
 
 Detection checklist: any admin-page fetch failing with 401 / "No valid authentication provided" / "Fetch failed" → confirm the request carries `x-admin-secret` (or an explicit Bearer JWT). If it carries neither, the fix is in the CLIENT (add the header), not the endpoint.
+
+BP-55: Root-Level UI Gated on Mount-Effect-Only State Must Be Flipped by an Explicit Child→Parent Callback — full text moved to `.github/instructions/navigation.instructions.md`.
+
+BP-56: Discover/Design Code Must Use the Canonical Pass-It-Up Tokens (never legacy `design-system.md` or raw hex) — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-23: Realtime Callback Must Mirror Mount-Time Side Effects — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
@@ -1573,28 +1511,7 @@ Whenever implementing a state change that should notify users:
 
 ---
 
-## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array (name files with the `functions/` prefix — `functions/_shared/<file>.ts`; the MCP bundler drops bare `_shared/...` entries; if `../_shared/*` still won't resolve, INLINE the helper and keep `_shared/` in sync) — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-## BP-51: Verify the Intended Change Is Actually in the File Before Deploying an Edge Function (run `git diff` / grep the function for the new symbol; edits can be lost when the working tree is reverted between turns) — full text moved to `.github/instructions/edge-functions.instructions.md`.
+## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array — full text moved to `.github/instructions/edge-functions.instructions.md`.
 
 ## BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
 - Verify the screen has access to the joined listing (either via `trade.listing.price` or a separate item query) before assuming the fix is simple.
-
-## BP-52: Intentional Behavior Changes Must Update Their Widget Tests, Then Verify Pre-Existing Failures via Git
-
-**Problem:** A UI/logic change (e.g., converting a native `Alert.alert` to a branded modal, renaming a control, changing a label) intentionally breaks a widget test that asserts the OLD behavior. That test failure is EXPECTED, but without a rule it either (a) gets "fixed" by reverting the accessibility/UI change (defeating the task), or (b) gets blamed as a regression and triggers a wasted investigation. Unrelated pre-existing failures in the same suite can also get mixed into the blame.
-
-**Rules:**
-1. When a change intentionally alters behavior a widget test asserts on, UPDATE the test's assertion/finder to the new behavior in the SAME change — never remove the accessibility/UI prop to make the old test pass (cross-ref BP-34 for the per-call-site audit on Alert→Toast migrations).
-2. The old assertion breaking is expected and correct — do not treat it as a regression and do not revert the feature.
-3. After updating the intended test, classify ANY remaining suite failures as pre-existing BEFORE touching code: run `git status --short` / `git diff --stat` and confirm the failing file is NOT in the change set. If it isn't, it's pre-existing — report it, don't chase it as a regression introduced by this change.
-4. Document the deliberate UI change (e.g., `Alert.alert` → branded `ui/Modal`) in the Session Handoff's Backward Compatibility field so reviewers know the visual delta is intentional.
-
-**Detection checklist:**
-- Any widget test failing right after a UI change → open it first; if it asserts the old behavior, update it (Rule 1), then re-run.
-- Any failure still present after that → verify the file is absent from `git status`/`git diff` before classifying introduced-vs-pre-existing.
-- Example that triggered this rule (2026-08-11): an accessibility task converted the "Login Failed" / "Signup Failed" native alerts to branded modals; `LoginScreen.test.tsx` asserted `Alert.alert('Login Failed', …)` and had to be updated to assert the branded modal's `login-failed-dialog-ok-button`; the remaining `AutoCompleteBanner` failure was confirmed pre-existing via `git status`.
-
-## BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements (set `accessible` + `accessibilityRole`, mirror `ui/Button`; confirm identifiers in the on-device accessibility tree — unit tests alone are insufficient) — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-## BP-54: Never Use Dynamic `import('react-native')` / Enumerate RN's Exports (Metro's `importAll` iterates RN's lazy getters — e.g. `PushNotificationIOS` — which can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent; use static imports only) — full text moved to `.github/instructions/mobile-client.instructions.md`.
