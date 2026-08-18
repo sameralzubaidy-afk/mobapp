@@ -3605,7 +3605,15 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Integration tests: ✅ READY (RUN_SUPABASE_E2E=true)
       - No hardcoded SP rates: ✅ VERIFIED (`grep -rn "1\.10\|1\.30\|70\|80" spCalculatorService.ts` → no matches)
       - Admin publish uses RPC: ✅ VERIFIED (no direct `UPDATE is_published` in admin service)
-  - EDU-004 (Onboarding Carousel): 5-screen skippable carousel on first app open
+  - **EDU-004 (Onboarding Carousel):** 5-screen skippable carousel on first app open
+    - Module: MODULE-18 V1 (Task EDU-004)
+    - Flow gating: `RootNavigator` (`AppNavigator.tsx`) reads `shouldShowOnboarding(userId)` (true iff `onboarding_completed_at` AND `onboarding_skipped_at` are NULL) → mounts `OnboardingScreen`; `PersistentTabBar` renders only when `!showOnboardingCarousel`.
+    - **FIX (2026-08-17) — Tab bar missing after onboarding Skip:** Previously the onboarding gate (`shouldShowOnboardingCarousel`) was only flipped by the `[currentUserId]` effect on a fresh mount, so tapping **Skip** (or Get Started) navigated to Home while `showOnboardingCarousel` stayed `true` → `PersistentTabBar` (no FAB, no tabs) never mounted until a force-quit/relaunch.
+    - Fix: `OnboardingScreen` now reads `onOnboardingFinished` from route params (wired in `AppNavigator.tsx` via `initialParams` on the `Onboarding` screen) and calls it from `navigateToHome()` on BOTH the Skip and Get Started paths → `setShouldShowOnboardingCarousel(false)` → tab bar mounts immediately, no relaunch.
+    - **RE-APPLIED + COMMITTED (2026-08-18, commit `1b12086f`):** the `initialParams` wiring had been applied earlier but silently lost from the uncommitted working tree (`git log -S "onOnboardingFinished"` / `git log -S "initialParams"` on `AppNavigator.tsx` were both empty), so `route?.params?.onOnboardingFinished?.()` no-op'd and the tab bar stayed hidden until relaunch. Re-wired, verified on-device, and committed so it can't be lost again. The earlier claim in this file that the wiring "exists" was premature (doc drift) — it is now genuinely applied AND committed.
+    - Files: `src/screens/onboarding/OnboardingScreen.tsx`, `src/navigation/AppNavigator.tsx`, `src/navigation/types.ts`, `src/screens/onboarding/__tests__/OnboardingScreen.test.tsx`
+    - Unit: `OnboardingScreen.test.tsx` (8 tests incl. Skip + Get Started gate-flip assertions) **+ `src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx` (NEW regression)** which renders the REAL `RootNavigator` + REAL `OnboardingScreen` with mocked auth/onboarding state, drives Skip and Get Started, and asserts all five tab bar items mount WITHOUT a relaunch. It FAILS if `initialParams` is removed (verified) — the older screen-level test mocked the param directly and could not catch the missing wiring.
+    - On-device: verified iPhone 17 Pro Max sim (iOS 26.1) — tab bar (`tab-home`/`tab-discover`/`tab-sell`/`tab-trades`/`tab-trade-basket`) renders immediately after Skip AND after Get Started, no relaunch.
   - **EDU-005 (Help Screen) - COMPLETE ✅:** Accordion sections + embedded SP calculator + bonus categories
     - Module: MODULE-18 V1 (Task EDU-005)
     - Status: **COMPLETE (2026-05-03)**
