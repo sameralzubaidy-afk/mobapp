@@ -458,8 +458,13 @@ export default function ItemCreateScreen() {
     source: PhotoSourceOption,
     selectionLimit: number
   ): Promise<PhotoAsset[] | null> => {
-    console.log('[ItemCreate] pickAssetsFromSource called - source:', source, 'limit:', selectionLimit);
-    
+    console.log(
+      '[ItemCreate] pickAssetsFromSource called - source:',
+      source,
+      'limit:',
+      selectionLimit
+    );
+
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -489,7 +494,7 @@ export default function ItemCreateScreen() {
     console.log('[ItemCreate] Requesting media library permissions...');
     const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     console.log('[ItemCreate] Media permission status:', mediaPermission?.status);
-    
+
     if (mediaPermission?.status && mediaPermission.status !== 'granted') {
       Alert.alert('Permission Required', 'Photo library access is needed to select photos.');
       return null;
@@ -503,7 +508,12 @@ export default function ItemCreateScreen() {
       selectionLimit,
     });
 
-    console.log('[ItemCreate] Picker result - canceled:', result.canceled, 'assets:', result.assets?.length);
+    console.log(
+      '[ItemCreate] Picker result - canceled:',
+      result.canceled,
+      'assets:',
+      result.assets?.length
+    );
 
     if (result.canceled || !result.assets || result.assets.length === 0) {
       return null;
@@ -566,8 +576,13 @@ export default function ItemCreateScreen() {
   );
 
   useEffect(() => {
-    console.log('[ItemCreate] Photo source effect - modal:', showPhotoSourceModal, 'pending:', pendingPhotoSource);
-    
+    console.log(
+      '[ItemCreate] Photo source effect - modal:',
+      showPhotoSourceModal,
+      'pending:',
+      pendingPhotoSource
+    );
+
     if (showPhotoSourceModal || !pendingPhotoSource) {
       return;
     }
@@ -575,7 +590,7 @@ export default function ItemCreateScreen() {
     console.log('[ItemCreate] Queueing picker launch for:', pendingPhotoSource);
     // Wait for modal close animation AND all pending interactions to complete
     const sourceToLaunch = pendingPhotoSource;
-    
+
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
       console.log('[ItemCreate] Interactions complete, waiting additional delay...');
       setTimeout(() => {
@@ -616,6 +631,22 @@ export default function ItemCreateScreen() {
     ]);
     dispatch({ type: 'PHOTOS_ADDED' });
   }, []);
+
+  // DEV-ONLY fixture: set a valid category directly, bypassing the native
+  // fullScreen CategorySelectModal (unreachable by QA automation — synthetic
+  // taps land on the layer beneath, AUTH-TC-E05). Gated by __DEV__ — never in
+  // release builds. No DB writes, no AI; local form state only, so canPublish()'s
+  // category check passes and the phone-verification gate becomes reachable.
+  // Prefers a real non-Other category from the loaded list; disabled until
+  // categories are loaded so it can never inject a fake category id.
+  const handleDevSetCategory = useCallback(() => {
+    const cat =
+      categories.find((c) => c.id !== 'other' && c.name.trim().toLowerCase() !== 'other') ??
+      categories[0];
+    if (!cat) return;
+    setCategory(cat);
+    setRequestedCategoryName('');
+  }, [categories]);
 
   useEffect(() => {
     if (hasHandledInitialPhotoSourceRef.current) {
@@ -774,20 +805,20 @@ export default function ItemCreateScreen() {
 
   const handlePublish = async () => {
     if (!canPublish()) {
-    // AUTH-V3-008: Phone verification gate - check BEFORE publishing
-    if (!phoneVerificationPending) {
-      try {
-        const phoneRequired = await isPhoneRequired(sellerId);
-        if (phoneRequired) {
-          setPhoneVerificationPending(true);
-          setShowPhoneVerificationModal(true);
-          return; // Block publish - modal will call handlePublish again on success
+      // AUTH-V3-008: Phone verification gate - check BEFORE publishing
+      if (!phoneVerificationPending) {
+        try {
+          const phoneRequired = await isPhoneRequired(sellerId);
+          if (phoneRequired) {
+            setPhoneVerificationPending(true);
+            setShowPhoneVerificationModal(true);
+            return; // Block publish - modal will call handlePublish again on success
+          }
+        } catch (err) {
+          console.error('[ItemCreateScreen] Phone check error:', err);
+          // Graceful fallback: allow publish if check fails
         }
-      } catch (err) {
-        console.error('[ItemCreateScreen] Phone check error:', err);
-        // Graceful fallback: allow publish if check fails
       }
-    }
 
       Alert.alert('Missing Fields', 'Please fill all required fields');
       return;
@@ -910,7 +941,6 @@ export default function ItemCreateScreen() {
 
   return (
     <ScreenLayout variant="detail" title="New Item" onBack={handleBackPress}>
-
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -938,6 +968,30 @@ export default function ItemCreateScreen() {
             testID="dev-add-test-photo"
           >
             <Text style={styles.devTestPhotoButtonText}>Dev: Add Test Photo</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* DEV-ONLY: bypass the native fullScreen CategorySelectModal so QA can
+            set a category without the modal (AUTH-TC-E05). No DB writes, no AI —
+            local form state only, so canPublish()'s category check passes and the
+            phone-verification gate becomes reachable. Disabled until the real
+            category list loads. Never rendered in release builds (__DEV__ false). */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={[
+              styles.devTestPhotoButton,
+              categories.length === 0 && styles.devFixtureButtonDisabled,
+            ]}
+            onPress={handleDevSetCategory}
+            disabled={categories.length === 0}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Set category without modal (dev only)"
+            testID="dev-set-category"
+          >
+            <Text style={styles.devTestPhotoButtonText}>
+              Dev: Set Category{category ? ` (${category.name})` : ''}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -1076,9 +1130,7 @@ export default function ItemCreateScreen() {
                   <View style={styles.spToggleRow}>
                     <View style={styles.spToggleLabelGroup}>
                       <Text style={styles.spToggleLabel}>Accept Swap Points?</Text>
-                      <Text style={styles.spToggleHint}>
-                        Allow buyers to pay with Swap Points
-                      </Text>
+                      <Text style={styles.spToggleHint}>Allow buyers to pay with Swap Points</Text>
                     </View>
                     <Switch
                       value={acceptsSwapPoints}
@@ -1274,14 +1326,19 @@ export default function ItemCreateScreen() {
       </Modal>
 
       {/* Price Adjustment Modal (min listing price validation) */}
-      <Modal visible={showPriceAdjustmentModal} transparent animationType="fade" onRequestClose={handlePriceAdjustmentUpdate}>
+      <Modal
+        visible={showPriceAdjustmentModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handlePriceAdjustmentUpdate}
+      >
         <View style={styles.priceAdjOverlay}>
           <View style={styles.priceAdjDialog}>
             <Text style={styles.priceAdjTitle}>Let's Adjust Your Price</Text>
             <Text style={styles.priceAdjMessage}>
-              To keep Pass It Up full of quality items buyers can trust, listings
-              must be priced at ${priceAdjustmentThreshold.toFixed(2)} or more. Update
-              your price to publish this listing.
+              To keep Pass It Up full of quality items buyers can trust, listings must be priced at
+              ${priceAdjustmentThreshold.toFixed(2)} or more. Update your price to publish this
+              listing.
             </Text>
             <TouchableOpacity
               style={styles.priceAdjButton}
@@ -1783,5 +1840,8 @@ const styles = StyleSheet.create({
     color: '#2E7D5B',
     fontSize: 14,
     fontWeight: '600',
+  },
+  devFixtureButtonDisabled: {
+    opacity: 0.5,
   },
 });

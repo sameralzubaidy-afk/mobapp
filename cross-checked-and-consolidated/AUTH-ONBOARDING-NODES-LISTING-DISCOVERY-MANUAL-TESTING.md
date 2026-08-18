@@ -722,6 +722,8 @@
 **Expected Result:**
 - A phone verification modal appears and publishing is blocked until verification completes; after verifying, the publish flow resumes.
 
+**Setup note (QA automation, added 2026-08-18):** the native fullScreen `CategorySelectModal` on `ItemCreateScreen` is unreachable by the toolset, so ItemCreate now has a `__DEV__`-only **`dev-set-category`** button (green, below `dev-add-test-photo`) that sets a real category without the modal. Recipe: reach ItemCreate via deep link `p2pkidsmarketplace://create-item` → tap `dev-add-test-photo` (renders the below-fold form) → tap `dev-set-category` (sets category; disabled until categories load; button label shows the picked category name) → fill Title/Price/Condition → Publish → the phone-verification gate (`isPhoneRequired`) modal appears.
+
 ---
 
 ## Group F — Node/ZIP Gating & Waitlist (End User)
