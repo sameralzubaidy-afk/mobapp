@@ -2,6 +2,10 @@ import '@testing-library/jest-native/extend-expect';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { cleanup } from '@testing-library/react-native';
+// Mock the react-native-gesture-handler native module so @react-navigation/stack
+// (StackView) can render in tests (required to render the real AppNavigator/
+// RootNavigator — see src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx).
+import 'react-native-gesture-handler/jestSetup';
 
 // Load environment variables for testing.
 // Prefer staging env when running Supabase E2E.
@@ -38,16 +42,27 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 // TFV2-014: Mock react-native-safe-area-context so PersistentTabBar renders in tests
+// Must also expose SafeAreaInsetsContext / SafeAreaFrameContext: @react-navigation/stack
+// (StackView, via @react-navigation/elements SafeAreaProviderCompat) renders
+// <SafeAreaInsetsContext.Provider>; without a real context, React throws
+// "Cannot read properties of undefined (reading 'Consumer')".
 jest.mock('react-native-safe-area-context', () => {
   const React = require('react');
+  const insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  const frame = { x: 0, y: 0, width: 390, height: 844 };
+  const SafeAreaInsetsContext = React.createContext(insets);
+  const SafeAreaFrameContext = React.createContext(frame);
   return {
-    useSafeAreaInsets:    () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-    SafeAreaProvider:     ({ children }: any) => children,
-    SafeAreaView:         ({ children, style }: any) =>
+    useSafeAreaInsets: () => insets,
+    useSafeAreaFrame: () => frame,
+    SafeAreaProvider: ({ children }: any) => children,
+    SafeAreaView: ({ children, style }: any) =>
       React.createElement('View', { style }, children),
+    SafeAreaInsetsContext,
+    SafeAreaFrameContext,
     initialWindowMetrics: {
-      frame:  { x: 0, y: 0, width: 390, height: 844 },
-      insets: { top: 0, left: 0, right: 0, bottom: 0 },
+      frame,
+      insets,
     },
   };
 });

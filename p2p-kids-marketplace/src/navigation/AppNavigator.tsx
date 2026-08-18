@@ -101,6 +101,13 @@ import {
   logDeepLinkNavigation,
   type NotificationDeepLinkData,
 } from '@/services/deepLink';
+// MODULE-18 EDU-004: statically imported so the first-run onboarding gate check
+// runs in every runtime (Metro AND Jest). A dynamic import() of this module
+// throws in the Jest VM ('A dynamic import callback was invoked without
+// --experimental-vm-modules'), which silently sent the gate to its catch path
+// and hid the carousel — exactly the class of bug the regression test in
+// src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx guards against.
+import { shouldShowOnboarding } from '@/services/educationAnalyticsService';
 // NOTE: Some profile/onboarding screens use expo-image-picker.
 // Require them lazily to avoid startup crash when native module is unavailable.
 const ProfileSetupScreen = require('@/screens/profile/ProfileSetupScreen').default;
@@ -196,8 +203,12 @@ function isTransientNetworkError(error: unknown): boolean {
  * - If session exists BUT onboarding carousel not complete → show carousel
  * - If session exists AND onboarding complete → show authenticated/dashboard stack
  * - If no session → show landing/auth stack
+ *
+ * Exported (not just local) so the regression test can render the REAL navigator
+ * wiring with a controlled AuthContext — see
+ * src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx.
  */
-function RootNavigator() {
+export function RootNavigator() {
   const { session, isLoading } = React.useContext(AuthContext);
   const [shouldShowOnboardingCarousel, setShouldShowOnboardingCarousel] = React.useState(false);
   const [onboardingCheckComplete, setOnboardingCheckComplete] = React.useState(false);
@@ -247,7 +258,6 @@ function RootNavigator() {
       }
 
       try {
-        const { shouldShowOnboarding } = await import('@/services/educationAnalyticsService');
         const shouldShow = await shouldShowOnboarding(currentUserId);
 
         if (cancelled) {
@@ -477,6 +487,14 @@ function RootNavigator() {
                   name="Onboarding"
                   component={OnboardingScreen}
                   options={{ headerShown: false }}
+                  // MODULE-18 EDU-004 FIX: wire the child->parent gate-flip
+                  // callback so PersistentTabBar mounts immediately after
+                  // Skip / Get Started (no relaunch). OnboardingScreen calls
+                  // route.params.onOnboardingFinished() inside navigateToHome().
+                  initialParams={{
+                    onOnboardingFinished: () =>
+                      setShouldShowOnboardingCarousel(false),
+                  }}
                 />
               ) : null}
 
@@ -962,7 +980,12 @@ function RootNavigator() {
           </>
         )}
         </Stack.Navigator>
-        {isAuthenticated && !isSuspended && <PersistentTabBar />}
+        {/* Hide the floating pill during the first-run onboarding carousel
+            (MODULE-18 EDU-004): that flow is gated by Skip/Continue → Home and
+            shows its own bottom buttons, so the global nav must not overlap them.
+            It re-appears automatically once the carousel completes and the
+            navigator key flips to 'home'. */}
+        {isAuthenticated && !isSuspended && !showOnboardingCarousel && <PersistentTabBar />}
       </CartProvider>
     </NavigationContainer>
   );
