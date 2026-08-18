@@ -29,7 +29,11 @@ The 6 canonical guides (newer, consolidated — **do not** read root/`misc.` cop
 - `**Dependencies:**` — runtime needs: seeded state, network, or — for the three exempt dialog categories — the concrete handling technique (see §5.4).
 - Legacy cases may have only `**Steps:**` / `**Expected Result:**` — if so, treat `Expected Result:` as the assertion source and note the case is not instrumented.
 
+**Verify a referenced case actually exists before executing it (Phase 23):** If a case's `Assert`/`Dependencies` section references another case (e.g., "see AUTH-TC-X07"), verify that referenced case is actually registered in the guide's index/TOC before attempting to execute it — a cross-reference is not proof of registration. If the referenced case doesn't exist, do not fabricate execution of it; instead, execute the underlying intent as part of the current case's discriminating checks, and report the documentation gap (dangling reference) as a finding.
+
 **Flow-registry / source pre-read requirement (Phase 18, generalized to ALL flows in Phase 22):** Before attempting to execute or navigate any flow the agent has not already mapped out in a prior session (per repo memory), consult `docs/flow-registry.md` for the documented flow structure, and read the relevant screen/component source files, before interacting with the UI. This applies to ALL unfamiliar flows, not just OAuth — e.g., a multi-step flow with a sub-choice (such as a 'Sell' entry point offering multiple listing-creation paths) should be understood from the flow registry and navigation source BEFORE attempting blind UI navigation. If a case appears BLOCKED because the agent doesn't understand how to reach a required screen, check the flow registry and source FIRST — do not report BLOCKED until this investigation step has been done and still fails to clarify the path forward. The original OAuth-specific form of this rule (Phase 18) still holds as the concrete example: before executing any social-login test case, read `src/services/oauthService.ts` and `oauthProviderConfig.ts` (or equivalent OAuth service/config files) in full. OAuth initiation behavior is version-sensitive (e.g., how `state` is extracted from `supabase-js`'s `signInWithOAuth` response depends on the exact library version and `skipBrowserRedirect` behavior) — understanding this before testing is what allowed Phase 18 to root-cause a P0 outage with certainty rather than just reporting 'it throws an error.'
+
+**Read-only DB precondition verification before on-device work (Phase 23 — highest-leverage addition):** Before beginning on-device execution, when a test case's setup depends on data state (e.g., a persona's node assignment, listing counts, account status), run read-only DB queries to verify that state actually matches what the case assumes — do not assume a documented persona or precondition is accurate. In one documented run, this single step correctly predicted 3 of 4 execution surprises (an undocumented setup gap, a missing fixture, and an unregistered case) before any device time was spent. This is the single highest-leverage step available and should be treated as close to mandatory whenever DB read access is available and a case has data-dependent setup.
 
 **Dev LogBox console errors as legitimate failure evidence (Phase 18):** When a user-initiated action produces no visible dialog, toast, or banner, but a `console.error` appears in the dev LogBox, treat this as legitimate first-pass failure evidence — do not dismiss it as noise or wait for a user-facing signal that may never come. A silent failure (no UI feedback at all) is itself a valid and often more severe finding than a poorly-worded error message, and should be reported as such (see Phase 18's silent-OAuth-failure UX finding as the reference case).
 
@@ -88,6 +92,8 @@ When a case is a mix of instrumentable elements AND a dialog, keep using the rea
 
 **Pixel-scan disambiguation caution for closely-spaced similar rows (Phase 22):** when multiple similar, closely-spaced, unlabeled UI rows exist near each other (e.g., a 'Resend code' link near a 'Change phone number' link), a pixel/color-band scan can misattribute which row is which, leading to an incorrect tap. Before acting on a pixel-scan result in this situation, cross-reference against a wider screenshot crop showing surrounding context, and verify immediately after tapping (via screenshot or tree) that the expected outcome occurred before proceeding to the next step — don't assume the tap landed correctly just because a tap was registered.
 
+**Measure exact bounding boxes for non-AX-exposed controls, don't estimate centers (Phase 23):** When pixel-scanning for a non-AX-exposed control's tap position, measure the full bounding box via connected-component analysis on the element's known color, and tap the measured center — do not estimate a center from a partial scan or assumed dimensions. An estimated tap position missing the actual bounding box by even a small margin wastes a full tap-and-recheck cycle; a properly measured tap is reliable on the first attempt.
+
 ### 5.5 WebView screens
 
 Element trees on WebView-rendered content explode to 200KB+ and are **unusable as an evidence channel**. For any WebView content (e.g. Terms/Privacy pages), use **screenshots as the primary evidence**, and assert by visible content rather than by element identity.
@@ -133,6 +139,12 @@ When staleness is suspected — e.g. an assertion doesn't match what the flow sh
 
 **Scroll-blocker detection refinement (Phase 22):** confirm a suspected scroll blocker via screenshot pixel-diff before and after the swipe attempt (not just visual inspection or tree comparison) — this gives a definitive, quantifiable answer (e.g., '0 changed pixels' vs. '190K changed pixels') rather than a subjective judgment call. A swipe producing 0 changed pixels across variants is a scroll blocker to report as tooling friction — don't keep retrying it as if it were a tap-placement problem. **Caveat (Phase 22 — avoid false-positive defect reports):** a swipe producing 0 changed pixels is not automatically a scroll defect — before concluding a screen is blocked or broken, check whether the screen's content is actually scrollable at its current state. Conditional rendering (e.g., a form that only appears after a prerequisite action, like adding a photo) can mean there is genuinely nothing to scroll yet, which is correct behavior, not a bug. Investigate the screen's conditional-rendering logic (via source, if available) before reporting a scroll blocker as a defect or an unresolvable BLOCKED condition — the real issue may be an earlier prerequisite step that wasn't completed, not the scroll mechanism itself.
 
+**Scroll-anchor technique for diagnosing true scroll state (Phase 23):** When it's ambiguous whether a swipe actually scrolled content (vs. the list already being at its maximum scroll position), track a known, stable element's position (e.g., a pinned header) before and after the swipe, rather than assuming from a single screenshot. This distinguishes "nothing to scroll further" from "the swipe didn't register" without guessing.
+
+**Deterministic pixel/OCR fallback when visual tools fail (Phase 23):** If `view_image` or equivalent visual tooling fails to deliver parseable image content in a session (returns only a resource URI, not usable pixels), do not treat this as a dead end — fall back to deterministic pixel/color analysis (e.g., ImageMagick connected-components on a known theme color) and/or an OCR pass on the screenshot file directly. Treat "visual tooling may be broken this session" as a real possibility to check early, and have this fallback ready rather than discovering it's needed mid-investigation.
+
+**Discover grid sub-element coordinates can be stale/logical vs. rendered:** On the Discover results grid, item sub-element coordinates reported by the accessibility tree can be stale or reflect logical (pre-layout) positions rather than actual rendered positions — one documented case showed a badge reported at a tree coordinate that didn't match its actual rendered pixel position by a significant margin. When verifying grid-card sub-elements (badges, price, etc.), treat a pixel-scan of the screenshot as authoritative over the tree-reported coordinate when they disagree.
+
 ### 5.10 Field clearing before relaunch (first-class technique — attempt this before a resetting relaunch)
 
 Before relaunching the app to reset a field's content between test cases (e.g., testing multiple input variants on the same form), **first attempt field clearing**: long-press the field → tap **Select All** → type the replacement text. This technique was proven effective for password/text fields in Phase 14/15 (Group S — ForgotPassword/ResetPassword) but was **not** applied in Phase 17 (Group A/B — Signup/Login), causing an avoidable ~15+ relaunch cost driven by the assumption that fields can't be cleared. **Only fall back to a full relaunch** (then restart the case from its `Setup:` state) if:
@@ -167,6 +179,46 @@ When an app-side JS error needs to be captured and the standard device log doesn
 
 When a test case requires a fresh signup account and a DEV-only autofill helper exists (e.g., `dev-fill-test-user-1/2/3`), use it as the default approach: trigger the autofill, then override only the fields that must be unique for the test (typically email and phone) via long-press → Select All → retype. This is significantly faster than filling every field from scratch and should be the standard pattern for any group requiring repeated fresh accounts, not an occasional shortcut.
 
+### 5.14 Terminal approval discipline (read-only command discipline)
+
+The QA Test Agent is a read-only test-execution agent. Minimize terminal approval prompts without expanding your authority or making changes to the application, repository, infrastructure, or staging data. This section governs **ad-hoc commands issued during a run**; it does not restrict the sanctioned single-entry test suite (`bash test-automation/trade-flow-v2/scripts/run-suite.sh` from the workspace root — its archive + GitHub-issue filing + `git commit` within `e2e-test-results/` are the suite's documented contract per `.github/copilot-instructions.md` and are pre-approved, never to be reproduced ad-hoc). Evidence/report files written into the run's own archive folder `e2e-test-results/<run>/` (via `create_file`, `mobile_save_screenshot`, or `cp`) are the agent's deliverable surface and need no approval — **no write outside `e2e-test-results/` is covered by this exception**.
+
+**Command construction**
+- Prefer one simple, read-only terminal command at a time.
+- For inspection and evidence collection, prefer: `rg`, `grep`, `cat`, `sed`, `jq`, `find`, `ls`, `pwd`, `stat`, `file`, `wc`, `head`, `tail`, `sort`, `diff`, `git status`, `git diff`, `git log`, `git show`, `node`, and `python3`.
+- `xcrun simctl` device-state commands (`list`, `boot`, `launch`, `openurl` for deep-link delivery such as `p2pkidsmarketplace://qa-logout`) remain permitted — they change simulator state, never the repo or infrastructure.
+- Prefer direct commands such as `rg "tab-.*" path/to/file` over a compound command that first assigns a variable and then pipes output.
+- Use `python3` or `node` only for read-only parsing, analysis, test execution, screenshot inspection, accessibility-tree inspection, or evidence extraction.
+
+**Avoid approval-triggering shell patterns**
+- Do not use `;`, `&&`, `||`, pipes (`|`), command substitution (`$(...)`), shell functions, `eval`, heredocs, process substitution, or temporary shell scripts unless there is no practical single-command alternative.
+- Do not chain multiple investigations into one terminal call. Run separate read-only commands instead.
+- Do not create temporary scripts or files merely to simplify a command. Use direct read-only commands where possible.
+- When a compound command is genuinely necessary for test execution or evidence collection, keep it read-only and explain why it cannot be split before requesting approval.
+
+**Strictly prohibited without explicit user approval**
+Never run commands that can modify code, files, Git history, dependencies, databases, Supabase, cloud infrastructure, credentials, deployment state, or remote systems (except the sanctioned suite and the `e2e-test-results/` evidence archive above). This includes:
+- Git writes: `git add`, `git commit`, `git push`, `git reset`, `git clean`, `git checkout`, `git restore`, `git rebase`, `git merge`, `git stash`, tag creation, branch creation, or worktree changes.
+- File writes or destructive operations: `rm`, `rmdir`, `mv`, `cp`, `chmod`, `chown`, `touch`, redirection that writes files (`>` or `>>`), `tee`, `sed -i`, or file-generating scripts.
+- Dependency changes: `npm install`, `npm uninstall`, `npm update`, `yarn add`, `yarn remove`, `pnpm add`, `brew install`, or equivalent commands.
+- Database or Supabase writes: SQL `INSERT`, `UPDATE`, `DELETE`, `ALTER`, `CREATE`, `DROP`, `TRUNCATE`; Supabase migrations, deploys, seeds, resets, or mutations. Read-only SQL stays permitted (e.g. `mcp_supabase_execute_sql` baselines and §5.11 session checks).
+- Infrastructure and deployment activity: `aws`, `sam deploy`, Terraform, CloudFormation, CI/CD triggers, app-store actions, or any release/deployment command.
+- Credential or remote-network activity: `curl`, `wget`, credential changes, token generation, secret writes, or remote downloads. Localhost-only reads for the §5.12 Hermes CDP capture (e.g. fetching `http://localhost:8081/json`) remain permitted.
+
+**Escalation**
+- If a task requires a command that could write or mutate anything, stop before executing it.
+- State the exact command, the target, the expected change, why it is necessary, and the safest read-only alternative if one exists.
+- Request explicit user approval before proceeding.
+- Having read-only Supabase credentials does not authorize any mutation attempt.
+
+### 5.15 Stale-observation check for backend-object findings (verify before escalating)
+
+When a QA finding reports a backend object (RPC, migration, table, column) as absent or misbehaving, before treating it as confirmed and escalating for a code fix, check whether the object now exists and when it was deployed (e.g., `pg_proc`/`information_schema` presence plus `supabase_migrations.schema_migrations` timestamp) and compare that timestamp against the QA capture's timestamp. If the deploy postdates the capture, the finding is stale, not live — note this explicitly in the report rather than re-escalating a resolved gap.
+
+### 5.16 Logout technique (prefer the `qa-logout` deep link over the Profile UI logout when stuck)
+
+The `p2pkidsmarketplace://qa-logout` deep link is the preferred, fast, reliable way to log out during a test session. If attempting to log out via the Profile screen's UI logout row and it isn't readily locatable (e.g., due to AX-exposure gaps requiring pixel-scanning) within a small bounded number of attempts, do not over-investigate — fall back to the qa-logout deep link immediately. Only use the Profile UI logout path when a test case specifically requires verifying that exact UI flow (e.g., a logout-confirmation-dialog case); for all other session-teardown purposes, the deep link is faster and should be the default.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
@@ -178,6 +230,8 @@ Evaluate the case's `Assert:` conditions (or `Expected Result:` for non-instrume
 - **SKIPPED** — deliberately not run (out of scope, dependency unavailable, non-repeatable), with the reason stated.
 
 Each verdict needs evidence: trace lines, screenshots, and the specific assertion that passed/failed.
+
+**Two-source corroboration for occluded or otherwise unobservable UI elements (Phase 23):** When a UI element cannot be directly observed (e.g., occluded by another element, off-screen with no further scroll available), do not report it as simply unverified if better evidence is available — corroborate via the underlying source condition logic (does the code say it should render here?) AND the actual data path (does the relevant query/RPC return the value the render condition depends on?). Two independent sources of evidence in agreement is stronger than a single visual observation, and this avoids both false-PASS and false-FAIL when direct observation isn't possible.
 
 ### 6.2 UX review — structural / affordance (required)
 
