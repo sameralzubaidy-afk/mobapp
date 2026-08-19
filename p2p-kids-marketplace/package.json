@@ -49,6 +49,7 @@
     "test:maestro:android:all": "maestro test --platform android .maestro/",
     "seed:staging": "npx ts-node scripts/seed-staging-data.ts",
     "seed:staging:extended": "npx ts-node scripts/seed-staging-data.ts --extended",
+    "seed:c04-fixture": "npx ts-node scripts/provision-c04-collision-fixture.ts",
     "clean:staging": "npx ts-node scripts/clean-staging-data.ts",
     "reset:staging": "npm run clean:staging && npm run seed:staging",
     "reset:staging:extended": "npm run clean:staging && npm run seed:staging:extended",
