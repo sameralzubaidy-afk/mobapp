@@ -469,6 +469,7 @@ This file is the canonical registry of end-to-end flows and their required regre
       - `npx jest src/screens/__tests__/ItemCreateScreen.test.tsx --runInBand`
       - `npx jest src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx --runInBand`
       - Regression test confirmed to FAIL without the Fix 1 gate hoist (valid form, unverified seller → modal must appear)
+      - **Tier 2 live-DB verification (2026-08-19, staging `drntwgporzabmxdqykrp`): PASS** — migration `20260819000001` applied; `trg_items_enforce_phone_verified` live + enabled; helper functions present; blocked-insert case rejected with `P0001 PHONE_VERIFICATION_REQUIRED`; allowed-insert case (verified seller) succeeded; service_role-style insert (no `auth.uid()`) bypasses as designed. Known limitation: the trigger's best-effort `debug_logs` audit row is rolled back with the aborted insert (same transaction; matches COPPA precedent) — blocked-attempt observability is a candidate follow-up.
   - **ADMIN-LISTING-SEARCH-FILTERS (2026-04-29):** Admin listings page adds category filter, seller email search, and row-level selection checkboxes
     - Scope:
       - `p2p-kids-admin/src/app/components/ListingSearch.tsx`
