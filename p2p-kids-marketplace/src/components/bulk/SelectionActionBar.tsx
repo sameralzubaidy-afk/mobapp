@@ -32,6 +32,9 @@ export function SelectionActionBar({
           onPress={onMerge}
           disabled={!canMerge}
           style={[styles.btn, !canMerge && styles.btnDisabled]}
+          accessible
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canMerge }}
           accessibilityLabel="Merge selected photos into one item"
           testID="selection-merge"
         >
@@ -40,6 +43,8 @@ export function SelectionActionBar({
         <TouchableOpacity
           onPress={onMoveToNew}
           style={styles.btn}
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Move selected photos into a new item"
           testID="selection-move-to-new"
         >
@@ -48,6 +53,8 @@ export function SelectionActionBar({
         <TouchableOpacity
           onPress={onDelete}
           style={[styles.btn, styles.btnDanger]}
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Delete selected photos"
           testID="selection-delete"
         >
@@ -56,6 +63,8 @@ export function SelectionActionBar({
         <TouchableOpacity
           onPress={onClear}
           style={styles.btn}
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Clear selection"
           testID="selection-clear"
         >

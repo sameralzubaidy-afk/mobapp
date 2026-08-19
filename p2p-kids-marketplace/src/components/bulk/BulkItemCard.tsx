@@ -31,7 +31,9 @@ const MISSING_FIELD_LABELS: Record<string, string> = {
 };
 
 function formatMissingField(key: string): string {
-  return MISSING_FIELD_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    MISSING_FIELD_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 /**
@@ -80,7 +82,13 @@ interface BulkItemCardProps {
   minListingPrice?: number;
 }
 
-function StatusChip({ item, minListingPrice }: { item: BulkEditableItem; minListingPrice?: number }) {
+function StatusChip({
+  item,
+  minListingPrice,
+}: {
+  item: BulkEditableItem;
+  minListingPrice?: number;
+}) {
   if (!item.includeInPublish) {
     return (
       <View style={[styles.chip, styles.chipExcluded]} testID="status-chip-excluded">
@@ -163,6 +171,12 @@ export function BulkItemCard({
       <TouchableOpacity
         style={styles.header}
         onPress={onToggleExpanded}
+        // Fix 2 (AX): explicit accessible button so the toggle reliably
+        // surfaces in the iOS accessibility tree (previously relied on
+        // TouchableOpacity's implicit accessible, which was fragile).
+        accessible
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
         accessibilityLabel={`Open item ${index + 1} details`}
         accessibilityHint="Expands or collapses this item editor"
         testID={`bulk-item-card-toggle-${index}`}
@@ -184,16 +198,6 @@ export function BulkItemCard({
           </Text>
           <View style={styles.chipRow}>
             <StatusChip item={item} minListingPrice={minListingPrice} />
-            {item.aiState === 'failed' && onRetryAI && (
-              <TouchableOpacity
-                onPress={onRetryAI}
-                style={styles.retryBtn}
-                accessibilityLabel="Retry AI auto-fill for this item"
-                testID={`bulk-item-retry-ai-${index}`}
-              >
-                <Text style={styles.retryBtnText}>Retry</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
         <View style={styles.expandIconWrap}>
@@ -210,9 +214,26 @@ export function BulkItemCard({
         <Switch
           value={!item.includeInPublish}
           onValueChange={(value) => onToggleInclude(!value)}
+          accessibilityLabel={`Exclude item ${index + 1} from publish`}
           testID={`bulk-item-exclude-toggle-${index}`}
         />
       </View>
+
+      {/* Fix 2 (AX): the retry chip is now a SIBLING of the accessible header —
+          it was previously nested inside the toggle, so iOS flattened it away
+          from the accessibility tree. */}
+      {item.aiState === 'failed' && onRetryAI && (
+        <TouchableOpacity
+          onPress={onRetryAI}
+          style={styles.retryRow}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Retry AI auto-fill for this item"
+          testID={`bulk-item-retry-ai-${index}`}
+        >
+          <Text style={styles.retryBtnText}>Retry AI auto-fill</Text>
+        </TouchableOpacity>
+      )}
 
       {expanded && (
         <ScrollView style={styles.form} nestedScrollEnabled>
@@ -350,7 +371,9 @@ export function BulkItemCard({
           />
 
           {item.missingRequired.length > 0 && (
-            <Text style={styles.warningText}>Missing: {item.missingRequired.map(formatMissingField).join(', ')}</Text>
+            <Text style={styles.warningText}>
+              Missing: {item.missingRequired.map(formatMissingField).join(', ')}
+            </Text>
           )}
           {item.aiError && (
             <Text style={styles.warningText} testID={`bulk-item-ai-error-${index}`}>
@@ -593,9 +616,11 @@ const styles = StyleSheet.create({
   chipTextReady: {
     color: '#047857',
   },
-  retryBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  retryRow: {
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     backgroundColor: '#5DBB8E',
     borderRadius: 999,
   },

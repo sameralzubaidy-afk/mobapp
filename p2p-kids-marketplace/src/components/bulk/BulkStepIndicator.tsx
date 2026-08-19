@@ -37,6 +37,7 @@ export function BulkStepIndicator({
               style={styles.stepWrap}
               disabled={!isTappable}
               onPress={() => isTappable && onStepPress?.(step.id)}
+              accessible
               accessibilityRole="tab"
               accessibilityState={{ selected: isCurrent, disabled: !isTappable }}
               accessibilityLabel={`Step ${index + 1}: ${step.label}${isCurrent ? ', current' : ''}`}

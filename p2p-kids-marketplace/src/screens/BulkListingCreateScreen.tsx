@@ -26,6 +26,7 @@ import {
   removePhotoFromGroups,
   appendPhotosAsGroups,
   addPhotosToGroup,
+  reorderPhotoInGroup,
   PHOTO_LIMITS,
 } from '../services/photoService';
 import { analyzePhotosBatch } from '../services/aiService';
@@ -56,8 +57,15 @@ import { BulkFlowState, bulkListingReducer } from './bulkListingStateMachine';
 import { BulkSPSummaryCard } from '../components/bulk/BulkSPSummaryCard';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// AUTH-V3-008: Phone verification gate (mirrors ItemCreateScreen.handlePublish)
+import PhoneVerificationModal from '../components/auth/PhoneVerificationModal';
+import { isPhoneRequired } from '../services/phoneService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GroupingHelpTooltip } from '../components/bulk/GroupingHelpTooltip';
 
 const BULK_AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000;
+// Fix 4 (UX): once-per-device flag for the one-time grouping help tooltip.
+const GROUPING_HELP_SEEN_KEY = '@kids_marketplace:bulk_grouping_hint_seen_v1';
 type PhotoSourceOption = 'camera' | 'library';
 
 function getMissingRequired(item: BulkEditableItem, minListingPrice = 0): string[] {
@@ -190,6 +198,12 @@ export default function BulkListingCreateScreen() {
   const [showConfirmSheet, setShowConfirmSheet] = useState(false);
   const [publishErrors, setPublishErrors] = useState<string[]>([]);
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
+  // AUTH-V3-008: Phone verification modal state
+  const [showPhoneVerificationModal, setShowPhoneVerificationModal] = useState(false);
+  const [phoneVerificationPending, setPhoneVerificationPending] = useState(false);
+  // Fix 4 (UX): one-time "How grouping works" tooltip (first entry to Group step)
+  const [showGroupingHelp, setShowGroupingHelp] = useState(false);
+  const groupingHelpResolvedRef = useRef(false);
   const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
   const [pendingPhotoSource, setPendingPhotoSource] = useState<PhotoSourceOption | null>(null);
   const [pendingPhotoSourceTargetGroupId, setPendingPhotoSourceTargetGroupId] = useState<
@@ -481,6 +495,31 @@ export default function BulkListingCreateScreen() {
     void loadMinListingPrice();
   }, [loadSubscription]);
 
+  // Fix 4 (UX): show the one-time grouping tooltip on first entry to the Group
+  // step (persisted once per device so returning sellers aren't nagged).
+  useEffect(() => {
+    if (flowState !== 'GROUPING' && flowState !== 'AI_ANALYZING') return;
+    if (groupingHelpResolvedRef.current) return;
+    groupingHelpResolvedRef.current = true;
+    AsyncStorage.getItem(GROUPING_HELP_SEEN_KEY)
+      .then((value) => {
+        if (value !== '1') {
+          setShowGroupingHelp(true);
+        }
+      })
+      .catch(() => {
+        // Storage unavailable — show it once this session anyway.
+        setShowGroupingHelp(true);
+      });
+  }, [flowState]);
+
+  const handleDismissGroupingHelp = () => {
+    setShowGroupingHelp(false);
+    AsyncStorage.setItem(GROUPING_HELP_SEEN_KEY, '1').catch(() => {
+      // ignore — non-fatal; the hint may show again next session
+    });
+  };
+
   useFocusEffect(
     useCallback(() => {
       void loadSubscription();
@@ -581,8 +620,13 @@ export default function BulkListingCreateScreen() {
   // ───────────────────────────────────────────────────────────────────
 
   const pickAssetsFromSource = async (source: PhotoSourceOption, selectionLimit: number) => {
-    console.log('[BulkCreate] pickAssetsFromSource called - source:', source, 'limit:', selectionLimit);
-    
+    console.log(
+      '[BulkCreate] pickAssetsFromSource called - source:',
+      source,
+      'limit:',
+      selectionLimit
+    );
+
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -608,7 +652,7 @@ export default function BulkListingCreateScreen() {
     console.log('[BulkCreate] Requesting media library permissions...');
     const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     console.log('[BulkCreate] Media permission status:', mediaPermission?.status);
-    
+
     if (mediaPermission?.status && mediaPermission.status !== 'granted') {
       Alert.alert('Permission Required', 'Photo library access is needed to select photos.');
       return null;
@@ -621,8 +665,13 @@ export default function BulkListingCreateScreen() {
       selectionLimit,
       quality: 1,
     });
-    console.log('[BulkCreate] Picker result - canceled:', result.canceled, 'assets:', result.assets?.length);
-    
+    console.log(
+      '[BulkCreate] Picker result - canceled:',
+      result.canceled,
+      'assets:',
+      result.assets?.length
+    );
+
     if (result.canceled || !result.assets || result.assets.length === 0) return null;
     return result.assets.slice(0, selectionLimit).map((asset, index) => ({
       id: `${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`,
@@ -698,7 +747,10 @@ export default function BulkListingCreateScreen() {
         if (draft) setDraftId(draft.id);
 
         if (uploadResult.errors.length > 0) {
-          Alert.alert('Some uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
+          Alert.alert(
+            'Some uploads failed',
+            buildUploadFailureMessage(uploadResult.errors, picked)
+          );
         }
       } catch (error: any) {
         Alert.alert('Error', error?.message || 'Failed to add photos');
@@ -782,7 +834,10 @@ export default function BulkListingCreateScreen() {
         setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
 
         if (uploadResult.errors.length > 0) {
-          Alert.alert('Some uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
+          Alert.alert(
+            'Some uploads failed',
+            buildUploadFailureMessage(uploadResult.errors, picked)
+          );
         }
       } catch (error: any) {
         Alert.alert('Error', error?.message || 'Failed to add photos');
@@ -879,8 +934,15 @@ export default function BulkListingCreateScreen() {
   }, [items.length, categories, minListingPrice]);
 
   useEffect(() => {
-    console.log('[BulkCreate] Photo source effect - modal:', showPhotoSourceModal, 'pending:', pendingPhotoSource, 'targetGroup:', pendingPhotoSourceTargetGroupId);
-    
+    console.log(
+      '[BulkCreate] Photo source effect - modal:',
+      showPhotoSourceModal,
+      'pending:',
+      pendingPhotoSource,
+      'targetGroup:',
+      pendingPhotoSourceTargetGroupId
+    );
+
     if (showPhotoSourceModal || !pendingPhotoSource) {
       return;
     }
@@ -893,7 +955,12 @@ export default function BulkListingCreateScreen() {
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
       console.log('[BulkCreate] Interactions complete, waiting additional delay...');
       setTimeout(() => {
-        console.log('[BulkCreate] Launching picker for:', sourceToLaunch, 'targetGroup:', targetGroupId);
+        console.log(
+          '[BulkCreate] Launching picker for:',
+          sourceToLaunch,
+          'targetGroup:',
+          targetGroupId
+        );
         if (targetGroupId === undefined) {
           void handlePickPhotosFromSource(sourceToLaunch);
         } else {
@@ -1040,6 +1107,19 @@ export default function BulkListingCreateScreen() {
       const next = prev.map((g) =>
         g.groupId === groupId ? { ...g, primaryPhotoIndex: photoIndexInGroup } : g
       );
+      setItems((current) => mapGroupsToItems(next, current, minListingPrice));
+      return next;
+    });
+  };
+
+  // K02 reorder: move a photo within the same item's group. The cover photo
+  // follows the move (reorderPhotoInGroup tracks primaryPhotoIndex), so the
+  // cover stays on the same photo after reordering.
+  const handleReorderPhoto = (groupId: string, fromIndex: number, toIndex: number) => {
+    setGroups((prev) => {
+      const next = reorderPhotoInGroup(prev, groupId, fromIndex, toIndex);
+      if (next === prev) return prev; // invalid indices → no-op (same reference)
+      setPhotos(next.flatMap((g) => g.photos));
       setItems((current) => mapGroupsToItems(next, current, minListingPrice));
       return next;
     });
@@ -1358,6 +1438,28 @@ export default function BulkListingCreateScreen() {
   };
 
   const handlePublish = async () => {
+    // AUTH-V3-008: Phone verification gate — check FIRST, before any session or
+    // field-validation guard, so unverified sellers are blocked regardless of
+    // form completeness. Mirrors ItemCreateScreen.handlePublish (QA E05, P0).
+    // The modal's onSuccess re-invokes handlePublish() after verification, at
+    // which point isPhoneRequired() returns false.
+    if (!phoneVerificationPending) {
+      try {
+        const phoneRequired = await isPhoneRequired(sellerId);
+        if (phoneRequired) {
+          setPhoneVerificationPending(true);
+          setShowPhoneVerificationModal(true);
+          // Close the confirm sheet first — two stacked RN Modals can create a
+          // blank native overlay that blocks touches (see ItemCreateScreen).
+          setShowConfirmSheet(false);
+          return; // Block publish - modal will call handlePublish again on success
+        }
+      } catch (err) {
+        console.error('[BulkListingCreateScreen] Phone check error:', err);
+        // Graceful fallback: allow publish if the check itself fails
+      }
+    }
+
     if (!bulkUploadId || !draftId) {
       Alert.alert('Cannot submit for review', 'Missing bulk session or draft session.');
       return;
@@ -1445,7 +1547,6 @@ export default function BulkListingCreateScreen() {
     <ScreenLayout variant="detail" title="Bulk Upload">
       <BulkIntroSheet />
 
-
       <BulkStepIndicator
         currentStep={currentStep}
         reachedSteps={reachedSteps}
@@ -1460,7 +1561,10 @@ export default function BulkListingCreateScreen() {
         {__DEV__ && (
           <View style={styles.devFixtureRow}>
             <TouchableOpacity
-              style={[styles.devFixtureButton, (photos.length > 0 || groups.length > 0) && styles.devFixtureButtonDisabled]}
+              style={[
+                styles.devFixtureButton,
+                (photos.length > 0 || groups.length > 0) && styles.devFixtureButtonDisabled,
+              ]}
               onPress={handleAddDevTestPhotos}
               disabled={photos.length > 0 || groups.length > 0}
               accessible
@@ -1471,7 +1575,10 @@ export default function BulkListingCreateScreen() {
               <Text style={styles.devFixtureButtonText}>Dev: Add 5 Test Photos</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.devFixtureButton, groups.length === 0 && styles.devFixtureButtonDisabled]}
+              style={[
+                styles.devFixtureButton,
+                groups.length === 0 && styles.devFixtureButtonDisabled,
+              ]}
               onPress={handleDevSkipToReview}
               disabled={groups.length === 0}
               accessible
@@ -1482,7 +1589,10 @@ export default function BulkListingCreateScreen() {
               <Text style={styles.devFixtureButtonText}>Dev: Skip to Review</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.devFixtureButton, items.length === 0 && styles.devFixtureButtonDisabled]}
+              style={[
+                styles.devFixtureButton,
+                items.length === 0 && styles.devFixtureButtonDisabled,
+              ]}
               onPress={handleDevSetItemCategories}
               disabled={items.length === 0}
               accessible
@@ -1553,6 +1663,7 @@ export default function BulkListingCreateScreen() {
               onTogglePhotoSelection={togglePhotoSelection}
               onLongPressPhoto={longPressPhoto}
               onSetCover={handleSetCover}
+              onReorderPhoto={handleReorderPhoto}
               onDeletePhoto={handleDeletePhoto}
               onDeleteGroup={handleDeleteGroup}
               onSplitGroup={handleSplitGroup}
@@ -1637,7 +1748,12 @@ export default function BulkListingCreateScreen() {
         <ApplyToAllBar
           items={items}
           onApply={(next) =>
-            setItems(next.map((it) => ({ ...it, missingRequired: getMissingRequired(it, minListingPrice) })))
+            setItems(
+              next.map((it) => ({
+                ...it,
+                missingRequired: getMissingRequired(it, minListingPrice),
+              }))
+            )
           }
         />
       )}
@@ -1676,6 +1792,26 @@ export default function BulkListingCreateScreen() {
         onCancel={() => setShowConfirmSheet(false)}
         onConfirm={handlePublish}
       />
+
+      {/* AUTH-V3-008: Phone Verification Modal (transaction gate) */}
+      <PhoneVerificationModal
+        visible={showPhoneVerificationModal}
+        onClose={() => {
+          setShowPhoneVerificationModal(false);
+          setPhoneVerificationPending(false);
+        }}
+        onSuccess={() => {
+          setShowPhoneVerificationModal(false);
+          setPhoneVerificationPending(false);
+          // Retry publish after successful verification
+          void handlePublish();
+        }}
+        required
+        testID="bulk-phone-verification"
+      />
+
+      {/* Fix 4 (UX): one-time grouping help tooltip (first entry to Group step) */}
+      <GroupingHelpTooltip visible={showGroupingHelp} onClose={handleDismissGroupingHelp} />
 
       <Modal
         visible={showPhotoSourceModal}

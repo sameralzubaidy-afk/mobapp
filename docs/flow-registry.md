@@ -470,6 +470,24 @@ This file is the canonical registry of end-to-end flows and their required regre
       - `npx jest src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx --runInBand`
       - Regression test confirmed to FAIL without the Fix 1 gate hoist (valid form, unverified seller → modal must appear)
       - **Tier 2 live-DB verification (2026-08-19, staging `drntwgporzabmxdqykrp`): PASS** — migration `20260819000001` applied; `trg_items_enforce_phone_verified` live + enabled; helper functions present; blocked-insert case rejected with `P0001 PHONE_VERIFICATION_REQUIRED`; allowed-insert case (verified seller) succeeded; service_role-style insert (no `auth.uid()`) bypasses as designed. Known limitation: the trigger's best-effort `debug_logs` audit row is rolled back with the aborted insert (same transaction; matches COPPA precedent) — blocked-attempt observability is a candidate follow-up.
+  - **BULK-LISTING-FOUR-FIXES (2026-08-19):** Bulk listing screen — phone gate, AX instrumentation, K02 photo reorder, and Review/Group UX polish
+    - Scope:
+      - `p2p-kids-marketplace/src/screens/BulkListingCreateScreen.tsx`
+      - `p2p-kids-marketplace/src/screens/__tests__/BulkListingCreateScreen.test.tsx` (re-enabled; was `describe.skip` since LISTING-V3-006)
+      - `p2p-kids-marketplace/src/components/bulk/{PhotoSelectGrid,SelectionActionBar,BulkItemCard,BulkStepIndicator,BulkPublishBar,ApplyToAllBar}.tsx`
+      - `p2p-kids-marketplace/src/components/bulk/GroupingHelpTooltip.tsx` (new)
+      - `p2p-kids-marketplace/src/components/bulk/__tests__/PhotoSelectGrid.test.tsx` (new)
+    - Fixes:
+      - Fix 1 (P1, AUTH-V3-008 parity): `handlePublish` phone-verification gate hoisted to the very top (mirrors ItemCreateScreen), `PhoneVerificationModal required` wired with `testID="bulk-phone-verification"`; closes the confirm sheet before showing the modal (avoids stacked RN Modals). Re-enabled the disabled bulk screen test + added regression tests (unverified → modal appears & publish blocked; verified → skipped).
+      - Fix 2 (P2, AX): added explicit `accessible` + `accessibilityRole` + `accessibilityState` to `photo-tile-*`, `selection-*` (4), `bulk-item-card-toggle-*`, `bulk-step-*`, `bulk-publish-button`, group header actions; de-nested the nested touchables that iOS flattens out of the tree (photo-tile delete chip, item-card retry chip → now siblings).
+      - Fix 3 (P2, K02): arrow-button reorder within an item's group wired into `PhotoSelectGrid` (`onReorderPhoto`) → `handleReorderPhoto` using the unit-tested `reorderPhotoInGroup` (cover follows the moved photo). Arrow affordance adapted from the orphaned `PhotoGroupingView` (no new deps; no parallel component).
+      - Fix 4 (P3, UX): `ApplyToAllBar` collapsed into a single tappable "Apply all" row that expands on tap; one-time "How grouping works" modal tooltip (`GroupingHelpTooltip`) on first entry to the Group step, persisted once per device via AsyncStorage `@kids_marketplace:bulk_grouping_hint_seen_v1`.
+    - Validation:
+      - `yarn typecheck` + `npx eslint <changed files>` (0 errors) in `p2p-kids-marketplace/`
+      - `npx jest src/screens/__tests__/BulkListingCreateScreen.test.tsx src/screens/__tests__/ItemCreateScreen.test.tsx src/components/bulk/__tests__/PhotoSelectGrid.test.tsx src/services/__tests__/photoService.merge-split.test.ts src/utils/__tests__/bulkApplyToAll.test.ts` — 64/64 PASS
+      - Fix 1 regression confirmed FAIL without the gate (modal never appears), PASS with it
+      - Full suite: 2 failures are pre-existing (AutoCompleteBanner.test.tsx, SignupScreen.test.tsx — verified failing on baseline via stash); 3351 passed
+    - Regression: Tier 0 (typecheck/lint) + targeted Tier 1 (bulk screen + ItemCreate phone gate + reorder unit tests). No DB/API changes (phone gate reuses deployed `isPhoneRequired`/`verifyPhoneCode`).
   - **ADMIN-LISTING-SEARCH-FILTERS (2026-04-29):** Admin listings page adds category filter, seller email search, and row-level selection checkboxes
     - Scope:
       - `p2p-kids-admin/src/app/components/ListingSearch.tsx`

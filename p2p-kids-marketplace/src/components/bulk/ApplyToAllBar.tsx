@@ -7,8 +7,9 @@
  * across items) and lets the seller propagate it to every included item with
  * one tap. Non-destructive by default — only fills blanks.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { CaretDown, CaretUp } from 'phosphor-react-native';
 import { ApplyToAllField, applyFieldToAll, suggestApplyValue } from '../../utils/bulkApplyToAll';
 import { BulkEditableItem } from './BulkItemCard';
 
@@ -31,6 +32,11 @@ function renderValue(value: BulkEditableItem[ApplyToAllField]): string {
 }
 
 export function ApplyToAllBar({ items, onApply }: ApplyToAllBarProps) {
+  // Fix 4 (UX): collapsed by default — a single tappable "Apply all" row that
+  // expands to reveal the per-field suggestion chips, freeing vertical space
+  // on the Review step where the fixed Submit bar crowds the bottom.
+  const [expanded, setExpanded] = useState(false);
+
   const suggestions = SUPPORTED_FIELDS.map((field) => ({
     ...field,
     value: suggestApplyValue(items, field.id),
@@ -40,27 +46,48 @@ export function ApplyToAllBar({ items, onApply }: ApplyToAllBarProps) {
 
   return (
     <View style={styles.bar} testID="apply-to-all-bar">
-      <Text style={styles.title}>Apply to all included items:</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
+      <TouchableOpacity
+        style={styles.toggleRow}
+        onPress={() => setExpanded((value) => !value)}
+        accessible
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={
+          expanded ? 'Collapse apply to all options' : 'Apply the same value to all included items'
+        }
+        testID="apply-to-all-toggle"
       >
-        {suggestions.map((suggestion) => (
-          <TouchableOpacity
-            key={suggestion.id}
-            style={styles.chip}
-            onPress={() => onApply(applyFieldToAll(items, suggestion.id, suggestion.value))}
-            accessibilityLabel={`Apply ${suggestion.label} ${renderValue(suggestion.value)} to all included items`}
-            testID={`apply-to-all-${suggestion.id}`}
-          >
-            <Text style={styles.chipLabel}>{suggestion.label}</Text>
-            <Text style={styles.chipValue} numberOfLines={1}>
-              {renderValue(suggestion.value)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        <Text style={styles.title}>Apply all</Text>
+        {expanded ? (
+          <CaretUp size={18} color="#065F46" weight="bold" />
+        ) : (
+          <CaretDown size={18} color="#065F46" weight="bold" />
+        )}
+      </TouchableOpacity>
+      {expanded && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.row}
+        >
+          {suggestions.map((suggestion) => (
+            <TouchableOpacity
+              key={suggestion.id}
+              style={styles.chip}
+              onPress={() => onApply(applyFieldToAll(items, suggestion.id, suggestion.value))}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Apply ${suggestion.label} ${renderValue(suggestion.value)} to all included items`}
+              testID={`apply-to-all-${suggestion.id}`}
+            >
+              <Text style={styles.chipLabel}>{suggestion.label}</Text>
+              <Text style={styles.chipValue} numberOfLines={1}>
+                {renderValue(suggestion.value)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -71,16 +98,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#A7F3D0',
     paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 8,
-    // Keep chips above the fixed bottom submit bar in BulkListingCreateScreen.
+    paddingTop: 6,
+    paddingBottom: 6,
+    // Keep the collapsed row above the fixed bottom submit bar in
+    // BulkListingCreateScreen.
     marginBottom: 86,
   },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 40,
+  },
   title: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#065F46',
-    marginBottom: 4,
   },
   row: {
     gap: 6,

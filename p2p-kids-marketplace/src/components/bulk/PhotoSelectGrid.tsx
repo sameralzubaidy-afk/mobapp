@@ -24,6 +24,8 @@ export interface PhotoSelectGridProps {
   onTogglePhotoSelection: (photoId: string) => void;
   onLongPressPhoto: (photoId: string) => void;
   onSetCover: (groupId: string, photoIndex: number) => void;
+  /** K02 reorder: move a photo within the same item's group (arrow affordance). */
+  onReorderPhoto: (groupId: string, fromIndex: number, toIndex: number) => void;
   onDeletePhoto: (photoId: string) => void;
   onDeleteGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string) => void;
@@ -37,6 +39,7 @@ export function PhotoSelectGrid({
   onTogglePhotoSelection,
   onLongPressPhoto,
   onSetCover,
+  onReorderPhoto,
   onDeletePhoto,
   onDeleteGroup,
   onSplitGroup,
@@ -57,6 +60,8 @@ export function PhotoSelectGrid({
             <View style={styles.groupActions}>
               <TouchableOpacity
                 onPress={() => onAddPhotosToGroup(group.groupId)}
+                accessible
+                accessibilityRole="button"
                 accessibilityLabel={`Add more photos to item ${groupIndex + 1}`}
                 accessibilityHint="Opens the photo picker so you can add more photos to this item"
                 testID={`group-add-photos-${groupIndex}`}
@@ -67,6 +72,8 @@ export function PhotoSelectGrid({
               {group.photos.length > 1 && (
                 <TouchableOpacity
                   onPress={() => onSplitGroup(group.groupId)}
+                  accessible
+                  accessibilityRole="button"
                   accessibilityLabel={`Split item ${groupIndex + 1} into separate items`}
                   accessibilityHint="Each photo becomes its own item"
                   testID={`group-split-${groupIndex}`}
@@ -77,6 +84,8 @@ export function PhotoSelectGrid({
               )}
               <TouchableOpacity
                 onPress={() => onDeleteGroup(group.groupId)}
+                accessible
+                accessibilityRole="button"
                 accessibilityLabel={`Delete item ${groupIndex + 1}`}
                 accessibilityHint="Removes this item and all its photos"
                 testID={`group-delete-${groupIndex}`}
@@ -113,6 +122,10 @@ export function PhotoSelectGrid({
                   }}
                   onLongPress={() => onLongPressPhoto(photo.id)}
                   onDelete={() => onDeletePhoto(photo.id)}
+                  canMoveLeft={photoIndex > 0}
+                  canMoveRight={photoIndex < group.photos.length - 1}
+                  onMoveLeft={() => onReorderPhoto(group.groupId, photoIndex, photoIndex - 1)}
+                  onMoveRight={() => onReorderPhoto(group.groupId, photoIndex, photoIndex + 1)}
                   testID={`photo-tile-${groupIndex}-${photoIndex}`}
                 />
               );
@@ -133,6 +146,10 @@ interface PhotoTileProps {
   onPress: () => void;
   onLongPress: () => void;
   onDelete: () => void;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
   testID: string;
 }
 
@@ -145,66 +162,109 @@ function PhotoTile({
   onPress,
   onLongPress,
   onDelete,
+  canMoveLeft,
+  canMoveRight,
+  onMoveLeft,
+  onMoveRight,
   testID,
 }: PhotoTileProps) {
   const [imageError, setImageError] = useState(false);
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={250}
-      style={[styles.tile, selected && styles.tileSelected, isDuplicate && styles.tileDuplicate]}
-      accessibilityLabel={
-        selectionMode
-          ? selected
-            ? 'Deselect this photo'
-            : 'Select this photo'
-          : 'Tap to set as cover, long-press to start a selection'
-      }
-      accessibilityHint={
-        selectionMode
-          ? 'Toggles this photo in the current selection'
-          : 'Long press to enter selection mode for grouping or deletion'
-      }
-      testID={testID}
-    >
-      {imageError ? (
-        <View style={[styles.image, styles.imageFallback]}>
-          <Text style={styles.imageFallbackText}>No preview</Text>
-        </View>
-      ) : (
-        <Image
-          source={{ uri: photo.uri }}
-          style={styles.image}
-          onError={() => setImageError(true)}
-        />
+    <View style={styles.tileWrap}>
+      <TouchableOpacity
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={250}
+        style={[styles.tile, selected && styles.tileSelected, isDuplicate && styles.tileDuplicate]}
+        // Fix 2 (AX): explicit accessible button + role so the tile reliably
+        // surfaces in the iOS accessibility tree. TouchableOpacity's implicit
+        // accessible was fragile, and the nested delete chip was flattening it.
+        accessible
+        accessibilityRole="button"
+        accessibilityState={selectionMode ? { selected } : undefined}
+        accessibilityLabel={
+          selectionMode
+            ? selected
+              ? 'Deselect this photo'
+              : 'Select this photo'
+            : 'Tap to set as cover, long-press to start a selection'
+        }
+        accessibilityHint={
+          selectionMode
+            ? 'Toggles this photo in the current selection'
+            : 'Long press to enter selection mode for grouping or deletion'
+        }
+        testID={testID}
+      >
+        {imageError ? (
+          <View style={[styles.image, styles.imageFallback]}>
+            <Text style={styles.imageFallbackText}>No preview</Text>
+          </View>
+        ) : (
+          <Image
+            source={{ uri: photo.uri }}
+            style={styles.image}
+            onError={() => setImageError(true)}
+          />
+        )}
+        {isCover && (
+          <View style={styles.coverBadge}>
+            <Text style={styles.coverBadgeText}>COVER</Text>
+          </View>
+        )}
+        {selected && (
+          <View style={styles.selectedBadge}>
+            <Text style={styles.selectedBadgeText}>✓</Text>
+          </View>
+        )}
+        {isDuplicate && !selected && (
+          <View style={styles.duplicateBadge}>
+            <Text style={styles.duplicateBadgeText}>DUP?</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      {!selectionMode && canMoveLeft && (
+        // K02 reorder: move this photo one slot left within the item's group.
+        <TouchableOpacity
+          onPress={onMoveLeft}
+          style={[styles.reorderChip, styles.reorderChipLeft]}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Move this photo earlier in the item"
+          testID={`${testID}-move-left`}
+        >
+          <Text style={styles.reorderChipText}>◀</Text>
+        </TouchableOpacity>
       )}
-      {isCover && (
-        <View style={styles.coverBadge}>
-          <Text style={styles.coverBadgeText}>COVER</Text>
-        </View>
-      )}
-      {selected && (
-        <View style={styles.selectedBadge}>
-          <Text style={styles.selectedBadgeText}>✓</Text>
-        </View>
-      )}
-      {isDuplicate && !selected && (
-        <View style={styles.duplicateBadge}>
-          <Text style={styles.duplicateBadgeText}>DUP?</Text>
-        </View>
+      {!selectionMode && canMoveRight && (
+        // K02 reorder: move this photo one slot right within the item's group.
+        <TouchableOpacity
+          onPress={onMoveRight}
+          style={[styles.reorderChip, styles.reorderChipRight]}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Move this photo later in the item"
+          testID={`${testID}-move-right`}
+        >
+          <Text style={styles.reorderChipText}>▶</Text>
+        </TouchableOpacity>
       )}
       {!selectionMode && (
+        // Fix 2 (AX): the delete chip is a SIBLING of the tile, not a child —
+        // iOS was flattening the nested touchable into the tile's single AX
+        // element and dropping it from the tree.
         <TouchableOpacity
           onPress={onDelete}
           style={styles.deleteChip}
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Delete this photo"
           testID={`${testID}-delete`}
         >
           <Text style={styles.deleteChipText}>×</Text>
         </TouchableOpacity>
       )}
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -258,6 +318,9 @@ const styles = StyleSheet.create({
   },
   photoStrip: {
     gap: 8,
+  },
+  tileWrap: {
+    position: 'relative',
   },
   tile: {
     width: 88,
@@ -347,5 +410,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 16,
+  },
+  reorderChip: {
+    position: 'absolute',
+    top: 31,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(17,24,39,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderChipLeft: {
+    left: 2,
+  },
+  reorderChipRight: {
+    right: 2,
+  },
+  reorderChipText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 14,
   },
 });

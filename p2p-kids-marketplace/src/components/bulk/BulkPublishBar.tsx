@@ -16,6 +16,9 @@ export function BulkPublishBar({ count, disabled = false, onPress }: BulkPublish
         style={[styles.button, disabled && styles.buttonDisabled]}
         onPress={onPress}
         disabled={disabled}
+        accessible
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
         accessibilityLabel={`Submit ${count} ${itemLabel} for Review`}
         accessibilityHint="Opens submit-for-review confirmation summary"
         testID="bulk-publish-button"
