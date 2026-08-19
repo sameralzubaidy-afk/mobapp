@@ -452,6 +452,23 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
   - Create listing -> appears in listings feed for same node.
+  - **PHONE-VERIFICATION-GATE (2026-08-19):** Hoisted the client phone-verification gate out of dead code + added a server-side items INSERT backstop + fixed the tab-bar occlusion of the Publish button on ItemCreate
+    - Scope:
+      - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx`
+      - `p2p-kids-marketplace/src/components/organisms/PersistentTabBar/index.tsx`
+      - `supabase/migrations/20260819000001_enforce_phone_verification_on_items_insert.sql`
+      - `p2p-kids-marketplace/src/screens/__tests__/ItemCreateScreen.test.tsx`
+      - `p2p-kids-marketplace/src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx`
+    - Fixes (QA E05, P0):
+      - AUTH-V3-008: `isPhoneRequired` gate was nested inside `if (!canPublish())` while the Publish button is `disabled={!canPublish()}`, so the gate never fired — unverified sellers could publish. Hoisted to the top of `handlePublish` (before `canPublish()`).
+      - Server-side backstop: `BEFORE INSERT` trigger `trg_items_enforce_phone_verified` on `public.items` rejects inserts from non-admin, phone-unverified sellers (`auth.uid() = NEW.seller_id`); service_role (seed/admin/Edge Functions) and admins bypass. Raises `PHONE_VERIFICATION_REQUIRED` (P0001).
+      - `PersistentTabBar` no longer renders on `ItemCreate` (root-stack full-screen form) — the floating pill was occluding the Publish button at max scroll.
+      - Publish button moved to a sticky footer above the bottom safe-area inset (always visible without scrolling).
+    - Validation:
+      - `yarn typecheck` + `yarn lint` in `p2p-kids-marketplace/`
+      - `npx jest src/screens/__tests__/ItemCreateScreen.test.tsx --runInBand`
+      - `npx jest src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx --runInBand`
+      - Regression test confirmed to FAIL without the Fix 1 gate hoist (valid form, unverified seller → modal must appear)
   - **ADMIN-LISTING-SEARCH-FILTERS (2026-04-29):** Admin listings page adds category filter, seller email search, and row-level selection checkboxes
     - Scope:
       - `p2p-kids-admin/src/app/components/ListingSearch.tsx`

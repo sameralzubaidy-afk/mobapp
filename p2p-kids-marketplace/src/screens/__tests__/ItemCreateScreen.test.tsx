@@ -25,6 +25,9 @@ import { uploadPhotoBatch } from '../../services/photoService';
 import { getCategories, flagForCategoryReview } from '../../services/categoryService';
 import { getSuggestedPrice } from '../../services/pricingService';
 import { getSubscriptionSummary } from '../../services/subscription';
+import { isPhoneRequired } from '../../services/phoneService';
+import { createListing } from '../../services/listing';
+import { getAdminConfig } from '../../services/adminConfig';
 
 // Mock all dependencies
 jest.mock('../../hooks/useAuth');
@@ -35,6 +38,12 @@ jest.mock('../../services/photoService');
 jest.mock('../../services/categoryService');
 jest.mock('../../services/pricingService');
 jest.mock('../../services/subscription');
+// AUTH-V3-008 / QA E05: phone-verification gate regression — mock the gate
+// service, the publish service, and admin config so the publish path is
+// deterministic in both the gated (unverified) and allowed (verified) cases.
+jest.mock('../../services/phoneService');
+jest.mock('../../services/listing');
+jest.mock('../../services/adminConfig');
 jest.mock('../../hooks/useNotificationBadge', () => ({
   useNotificationBadge: () => ({
     unreadCount: 0,
@@ -81,6 +90,9 @@ const mockGetSuggestedPrice = getSuggestedPrice as jest.MockedFunction<typeof ge
 const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<
   typeof getSubscriptionSummary
 >;
+const mockIsPhoneRequired = isPhoneRequired as jest.MockedFunction<typeof isPhoneRequired>;
+const mockCreateListing = createListing as jest.MockedFunction<typeof createListing>;
+const mockGetAdminConfig = getAdminConfig as jest.MockedFunction<typeof getAdminConfig>;
 const mockImagePicker = ImagePicker.launchImageLibraryAsync as jest.MockedFunction<
   typeof ImagePicker.launchImageLibraryAsync
 >;
@@ -385,7 +397,9 @@ describe('ItemCreateScreen', () => {
         errors: [],
       });
 
-      const { getByTestId } = renderScreen({ params: { draftId: 'draft-1', showPhotoSourcePrompt: false } } as any);
+      const { getByTestId } = renderScreen({
+        params: { draftId: 'draft-1', showPhotoSourcePrompt: false },
+      } as any);
 
       fireEvent.press(getByTestId('add-photos-button'));
 
@@ -470,6 +484,71 @@ describe('ItemCreateScreen', () => {
 
       // Test would complete publish flow and verify navigation.replace called
       // with ListingDetail and item ID
+    });
+
+    // ── AUTH-V3-008 / QA E05 regression: the phone-verification gate must fire
+    //    BEFORE canPublish(). It was previously nested inside `if (!canPublish())`
+    //    while the Publish button is disabled={!canPublish()}, so the gate was
+    //    dead code for valid forms and unverified sellers could publish. These
+    //    tests fill a fully-valid form (canPublish() → button enabled) and assert
+    //    the gate still fires for an unverified seller (and does NOT for a
+    //    verified one). Without Fix 1, the unverified-seller test fails (the
+    //    modal never appears and publish proceeds).
+    it('shows the phone-verification modal when an unverified seller taps Publish on a valid form', async () => {
+      mockIsPhoneRequired.mockResolvedValue(true); // unverified seller
+      mockGetAdminConfig.mockResolvedValue({ min_listing_price: 0 } as any);
+      mockCreateListing.mockResolvedValue({ id: 'item-123' } as any);
+
+      const { getByTestId, queryByTestId } = renderScreen();
+
+      // Fill a fully-valid form (photo → category → title → condition → price).
+      fireEvent.press(getByTestId('dev-add-test-photo'));
+      await waitFor(() => expect(getByTestId('title-input')).toBeTruthy());
+
+      fireEvent.press(getByTestId('dev-set-category'));
+      fireEvent.changeText(getByTestId('title-input'), 'QA E05 test book');
+      fireEvent.press(getByTestId('condition-good'));
+      fireEvent.changeText(getByTestId('manual-price-input'), '12.50');
+
+      // Modal must not be open before tapping Publish.
+      expect(queryByTestId('listing-phone-verification')).toBeNull();
+
+      // Tap Publish → gate fires first and shows the phone-verification modal.
+      fireEvent.press(getByTestId('publish-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('listing-phone-verification')).toBeTruthy();
+      });
+
+      // Publish must be blocked — the listing is never created.
+      expect(mockCreateListing).not.toHaveBeenCalled();
+    });
+
+    it('does not show the phone-verification modal for a verified seller and proceeds to publish', async () => {
+      mockIsPhoneRequired.mockResolvedValue(false); // verified seller
+      mockGetAdminConfig.mockResolvedValue({ min_listing_price: 0 } as any);
+      mockCreateListing.mockResolvedValue({ id: 'item-123' } as any);
+
+      const { getByTestId, queryByTestId } = renderScreen();
+
+      fireEvent.press(getByTestId('dev-add-test-photo'));
+      await waitFor(() => expect(getByTestId('title-input')).toBeTruthy());
+
+      fireEvent.press(getByTestId('dev-set-category'));
+      fireEvent.changeText(getByTestId('title-input'), 'QA E05 test book');
+      fireEvent.press(getByTestId('condition-good'));
+      fireEvent.changeText(getByTestId('manual-price-input'), '12.50');
+
+      fireEvent.press(getByTestId('publish-button'));
+
+      await waitFor(() => {
+        // Publish proceeded — the listing was created and the submit modal shows.
+        expect(mockCreateListing).toHaveBeenCalled();
+        expect(getByTestId('submit-review-go-my-items')).toBeTruthy();
+      });
+
+      // The phone-verification modal must never have appeared.
+      expect(queryByTestId('listing-phone-verification')).toBeNull();
     });
   });
 

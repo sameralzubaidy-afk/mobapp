@@ -63,6 +63,7 @@ import PhoneVerificationModal from '../components/auth/PhoneVerificationModal';
 import { isPhoneRequired } from '../services/phoneService';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // State machine states
 type CreateScreenState =
@@ -130,6 +131,7 @@ export default function ItemCreateScreen() {
   // overwritten by AI analysis, even via the per-field "Use" action (spec).
   const prefilledTitle = route.params?.prefilledTitle;
   const titlePrefilledFromComposerRef = useRef(Boolean(prefilledTitle));
+  const insets = useSafeAreaInsets();
   const sellerId = session?.user?.id || '';
   const hasTriggeredInitialDraftCreateRef = useRef(false);
   const hasHydratedDraftRef = useRef(false);
@@ -804,22 +806,28 @@ export default function ItemCreateScreen() {
   };
 
   const handlePublish = async () => {
-    if (!canPublish()) {
-      // AUTH-V3-008: Phone verification gate - check BEFORE publishing
-      if (!phoneVerificationPending) {
-        try {
-          const phoneRequired = await isPhoneRequired(sellerId);
-          if (phoneRequired) {
-            setPhoneVerificationPending(true);
-            setShowPhoneVerificationModal(true);
-            return; // Block publish - modal will call handlePublish again on success
-          }
-        } catch (err) {
-          console.error('[ItemCreateScreen] Phone check error:', err);
-          // Graceful fallback: allow publish if check fails
+    // AUTH-V3-008: Phone verification gate — check FIRST, before canPublish().
+    // The Publish button is disabled={!canPublish()}, so a gate nested inside
+    // `if (!canPublish())` was unreachable for valid forms (dead code) and an
+    // unverified seller could publish with zero phone verification (QA E05, P0).
+    // Hoisted here so the modal fires for unverified sellers regardless of form
+    // completeness; the modal's onSuccess re-invokes handlePublish() after
+    // verification, at which point isPhoneRequired() returns false.
+    if (!phoneVerificationPending) {
+      try {
+        const phoneRequired = await isPhoneRequired(sellerId);
+        if (phoneRequired) {
+          setPhoneVerificationPending(true);
+          setShowPhoneVerificationModal(true);
+          return; // Block publish - modal will call handlePublish again on success
         }
+      } catch (err) {
+        console.error('[ItemCreateScreen] Phone check error:', err);
+        // Graceful fallback: allow publish if the check itself fails
       }
+    }
 
+    if (!canPublish()) {
       Alert.alert('Missing Fields', 'Please fill all required fields');
       return;
     }
@@ -1190,19 +1198,29 @@ export default function ItemCreateScreen() {
               onUpgradePress={() => navigation.navigate('JoinKidsClub')}
               testID="sp-earnings-preview"
             />
-
-            {/* Publish Button */}
-            <PublishButton
-              onPress={handlePublish}
-              loading={isPublishing}
-              disabled={!canPublish()}
-              label="Submit for Review"
-            />
           </>
         )}
 
         {saveError && <Text style={styles.errorText}>Draft save error: {saveError}</Text>}
       </ScrollView>
+
+      {/* Sticky Publish footer (Fix 4 / UX): the primary CTA now lives OUTSIDE
+          the ScrollView, pinned above the bottom safe-area inset, so sellers
+          always see it without scrolling to the absolute bottom of the form.
+          The PersistentTabBar is hidden on ItemCreate (Fix 3), so this footer
+          is the only bottom-anchored element here. No overlap: the ScrollView
+          (flex:1) shrinks to make room — the footer never covers the form
+          fields (e.g. the SP-estimate copy or the Kids Club+ upgrade banner). */}
+      {photos.length > 0 && (
+        <View style={[styles.publishFooter, { paddingBottom: insets.bottom + 12 }]}>
+          <PublishButton
+            onPress={handlePublish}
+            loading={isPublishing}
+            disabled={!canPublish()}
+            label="Submit for Review"
+          />
+        </View>
+      )}
 
       {/* Category Modal */}
       <CategorySelectModal
@@ -1429,6 +1447,18 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    // Keep the last form section clear of the sticky Publish footer.
+    paddingBottom: 24,
+  },
+  // Sticky footer that holds the always-visible Publish button above the
+  // bottom safe-area inset (Fix 4). Rendered OUTSIDE the ScrollView so it never
+  // overlaps form content — the ScrollView (flex:1) shrinks to make room.
+  publishFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E0E0E0',
+    backgroundColor: '#FFFFFF',
   },
   field: {
     marginBottom: 16,

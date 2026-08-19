@@ -21,24 +21,10 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-} from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useNavigationState, NavigationState } from '@react-navigation/native';
-import {
-  House,
-  MagnifyingGlass,
-  Tag,
-  Receipt,
-  ShoppingCart,
-  Package,
-} from 'phosphor-react-native';
+import { House, MagnifyingGlass, Tag, Receipt, ShoppingCart, Package } from 'phosphor-react-native';
 import { useCartContext } from '@/contexts/CartContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useTradesBadge } from '@/hooks/useTradesBadge';
@@ -46,6 +32,17 @@ import CountBadge from '@/components/ui/CountBadge';
 import { trackEvent } from '@/services/analytics';
 import { NAV_EVENTS } from '@/constants/analytics-events';
 import { colors, borderRadius, shadows, spacing, componentSpacing } from '@/theme';
+
+// Full-screen focused-task forms where the floating pill nav must NOT render.
+// The pill is positioned ABSOLUTE at the bottom of the screen and floats OVER
+// the stack content, so it occludes bottom-anchored CTAs on these screens.
+// ItemCreate is a root Stack screen (not inside the tab navigator) reached via
+// the `p2pkidsmarketplace://create-item` deep link or the Sell FAB — QA E05
+// measured 0px scroll at max scroll because the Publish button sat behind the
+// pill. The pill hides here so the form's own sticky CTA is reachable.
+// TODO(REFACTOR): BulkListingCreate is the same class of full-screen form and
+// may need the same treatment — not included to keep this fix scoped.
+const TAB_BAR_HIDDEN_ROUTES = new Set<string>(['ItemCreate']);
 
 // ─── Sell Action Sheet (self-contained modal) ─────────────────────────────────
 
@@ -72,13 +69,23 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
         <Text style={styles.sheetTitle}>Sell</Text>
 
         {/* List One Item */}
-        <TouchableOpacity style={styles.sheetOption} onPress={onSingleItem} activeOpacity={0.7} testID="sell-option-list-one-item">
+        <TouchableOpacity
+          style={styles.sheetOption}
+          onPress={onSingleItem}
+          activeOpacity={0.7}
+          testID="sell-option-list-one-item"
+        >
           <Text style={styles.sheetOptionTitle}>List One Item</Text>
           <Text style={styles.sheetOptionSubtitle}>Snap a photo or choose from your library</Text>
         </TouchableOpacity>
 
         {/* Bulk Upload */}
-        <TouchableOpacity style={styles.sheetOption} onPress={onBulkUpload} activeOpacity={0.7} testID="sell-option-bulk-upload">
+        <TouchableOpacity
+          style={styles.sheetOption}
+          onPress={onBulkUpload}
+          activeOpacity={0.7}
+          testID="sell-option-bulk-upload"
+        >
           <View style={styles.sheetOptionRow}>
             <Package size={20} color="#1A1A1A" weight="regular" />
             <View style={styles.sheetOptionTextWrap}>
@@ -191,7 +198,14 @@ export function PersistentTabBar() {
 
   const { activeCount: activeTradeCount } = useTradesBadge(userId);
 
-  const activeTab = computeActiveTab(useNavigationState((s: NavigationState) => s));
+  const navState = useNavigationState((s: NavigationState) => s);
+  const activeTab = computeActiveTab(navState);
+
+  // Do not render the floating pill on full-screen form routes (ItemCreate) —
+  // it would occlude the form's bottom-anchored CTA. See TAB_BAR_HIDDEN_ROUTES.
+  if (TAB_BAR_HIDDEN_ROUTES.has(navState?.routes?.[navState.index]?.name)) {
+    return null;
+  }
 
   const navigateToTab = (routeName: string, eventName?: string) => {
     if (eventName) {
@@ -372,7 +386,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#FF8C42',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.40,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
   },

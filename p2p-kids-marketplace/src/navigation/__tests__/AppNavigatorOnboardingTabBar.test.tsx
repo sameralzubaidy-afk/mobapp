@@ -61,6 +61,23 @@ jest.mock('../HomeTabNavigator', () => {
   };
 });
 
+// ItemCreate is a full-screen root-stack form (Fix 3 / QA E05). It is not under
+// test here — only the WIRING (PersistentTabBar must not render on that route).
+// Stub the screen so navigating to ItemCreate stays light and deterministic.
+jest.mock('@/screens/ItemCreateScreen', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: () =>
+      React.createElement(
+        View,
+        { testID: 'item-create-stub' },
+        React.createElement(Text, null, 'ItemCreate')
+      ),
+  };
+});
+
 // Phosphor icons render via react-native-svg; stub them for the REAL
 // PersistentTabBar so it renders in the test environment.
 jest.mock('phosphor-react-native', () => {
@@ -243,12 +260,9 @@ const mockAuthContextValue = {
   refreshSession: jest.fn(),
 };
 
-const mockShouldShowOnboarding =
-  educationAnalyticsService.shouldShowOnboarding as jest.Mock;
-const mockMarkOnboardingSkipped =
-  educationAnalyticsService.markOnboardingSkipped as jest.Mock;
-const mockMarkOnboardingComplete =
-  educationAnalyticsService.markOnboardingComplete as jest.Mock;
+const mockShouldShowOnboarding = educationAnalyticsService.shouldShowOnboarding as jest.Mock;
+const mockMarkOnboardingSkipped = educationAnalyticsService.markOnboardingSkipped as jest.Mock;
+const mockMarkOnboardingComplete = educationAnalyticsService.markOnboardingComplete as jest.Mock;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -327,5 +341,27 @@ describe('AppNavigator onboarding → tab-bar wiring (real RootNavigator)', () =
     });
 
     expect(mockMarkOnboardingComplete).toHaveBeenCalledWith('test-user-123');
+  });
+
+  it('hides the tab bar on the ItemCreate full-screen form (Fix 3 / QA E05)', async () => {
+    const { getByTestId, queryByTestId } = await renderRootNavigator();
+
+    // Skip onboarding so the tabs mount.
+    fireEvent.press(getByTestId('onboarding-skip-button'));
+    await waitFor(() => {
+      expectAllTabsPresent(getByTestId);
+    });
+
+    // Drive the real Sell FAB → "List One Item" → ItemCreate path.
+    fireEvent.press(getByTestId('tab-sell'));
+    fireEvent.press(getByTestId('sell-option-list-one-item'));
+
+    await waitFor(() => {
+      expect(getByTestId('item-create-stub')).toBeTruthy();
+    });
+
+    // The floating pill must NOT render over the full-screen form (it would
+    // occlude the bottom-anchored Publish button — see QA E05).
+    expectNoTabsPresent(queryByTestId);
   });
 });
