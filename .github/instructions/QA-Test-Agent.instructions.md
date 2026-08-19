@@ -219,6 +219,10 @@ When a QA finding reports a backend object (RPC, migration, table, column) as ab
 
 The `p2pkidsmarketplace://qa-logout` deep link is the preferred, fast, reliable way to log out during a test session. If attempting to log out via the Profile screen's UI logout row and it isn't readily locatable (e.g., due to AX-exposure gaps requiring pixel-scanning) within a small bounded number of attempts, do not over-investigate — fall back to the qa-logout deep link immediately. Only use the Profile UI logout path when a test case specifically requires verifying that exact UI flow (e.g., a logout-confirmation-dialog case); for all other session-teardown purposes, the deep link is faster and should be the default.
 
+### 5.17 DB-gate triggers: best-effort audit-log inserts roll back with the aborted statement (expected, not a bug)
+
+When reviewing or writing a DB-gate trigger (e.g., a `BEFORE INSERT` guard that raises an exception to block a disallowed write), note that any audit-log insert attempted from within that same trigger will roll back along with the aborted statement — Postgres triggers do not get autonomous transactions. This is expected behavior, not a bug, and matches existing precedent in this repo (the COPPA guard trigger). If persisted observability of blocked attempts is desired, it must be logged from the calling application after catching the error, not from inside the trigger.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
