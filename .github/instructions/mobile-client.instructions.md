@@ -19,7 +19,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-36 Realtime subscriptions — confirm the table is in the `supabase_realtime` publication; watch for RLS-filtered events.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
-- BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient.
+- BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`.
 - BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
@@ -194,6 +194,21 @@ Rules:
 <TouchableOpacity testID="age-gate-dialog-ok-button" onPress={...} />
 ```
 4. Detection checklist: after a modal/alert/button change, run the element-listing tool on the simulator and confirm each intended `testID` appears; if the identifier is missing but the element renders, it's an exposure bug (add `accessible`/`accessibilityRole`), not a tooling limitation.
+5. **Some `accessibilityRole` VALUES never register on iOS, even with `accessible` set.** On RN 0.81 (Fabric), `accessibilityRole="tab"` (and `"tablist"` on a container) does NOT surface in the iOS accessibility tree — confirmed on-device 2026-08-20 (the bulk `bulk-step-*` step indicator on `BulkListingCreateScreen` was invisible until the role was changed to `"button"`; removing the container's `tablist` role and disabled-node flattening were both ruled out by controlled on-device experiments). For tappable steps/tabs, use `accessibilityRole="button"` and carry current state via `accessibilityState` + the label (e.g. `"Step 2: Group, current"`). Do NOT use `tab`/`tablist` on iOS.
+6. Pattern (tab-like tappable step that actually surfaces):
+```tsx
+// ✅ CORRECT — registers on the iOS tree; current step carried in label + state
+<TouchableOpacity
+  testID="bulk-step-group"
+  accessible
+  accessibilityRole="button"
+  accessibilityState={{ selected: isCurrent, disabled: !isTappable }}
+  accessibilityLabel={`Step 2: Group${isCurrent ? ', current' : ''}`}
+/>
+
+// ❌ WRONG — accessibilityRole="tab" renders but never registers in the iOS tree
+<TouchableOpacity testID="bulk-step-group" accessible accessibilityRole="tab" ... />
+```
 
 ## BP-54: Never Use Dynamic `import('react-native')` / Enumerate RN's Exports — Lazy-Getter Load Can Crash on Missing Native Modules
 

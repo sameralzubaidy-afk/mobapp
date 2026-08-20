@@ -1242,6 +1242,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-47 E2E trigger-created defaults — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
 - BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it).
+- BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`.
 - BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 
@@ -1345,6 +1346,8 @@ Rules:
 - Cross-ref BP-35 (always check the `{success}`/response result): a 401 is a non-ok response that must be surfaced, not swallowed.
 
 Detection checklist: any admin-page fetch failing with 401 / "No valid authentication provided" / "Fetch failed" → confirm the request carries `x-admin-secret` (or an explicit Bearer JWT). If it carries neither, the fix is in the CLIENT (add the header), not the endpoint.
+
+BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-55: Root-Level UI Gated on Mount-Effect-Only State Must Be Flipped by an Explicit Child→Parent Callback — full text moved to `.github/instructions/navigation.instructions.md`.
 
