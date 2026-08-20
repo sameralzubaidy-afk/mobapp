@@ -233,6 +233,10 @@ The `p2pkidsmarketplace://qa-logout` deep link is the preferred, fast, reliable 
 
 When reviewing or writing a DB-gate trigger (e.g., a `BEFORE INSERT` guard that raises an exception to block a disallowed write), note that any audit-log insert attempted from within that same trigger will roll back along with the aborted statement — Postgres triggers do not get autonomous transactions. This is expected behavior, not a bug, and matches existing precedent in this repo (the COPPA guard trigger). If persisted observability of blocked attempts is desired, it must be logged from the calling application after catching the error, not from inside the trigger.
 
+### 5.18 iOS RN 0.81: `accessibilityRole="tab"` / `"tablist"` do not register in the AX tree (Phase 13.27)
+
+Do not use `accessibilityRole="tab"` or `"tablist"` for step indicators or tab-like UI on iOS with RN 0.81 — these roles do not register in the Fabric accessibility tree and the elements will silently fail to surface despite correct `accessible`/`accessibilityLabel`/`accessibilityState` props. Use `accessibilityRole="button"` with `accessibilityState` (e.g., `selected`) to convey current-step/tab semantics instead. When an AX-instrumentation fix is reported as complete for an element using `role="tab"`, verify on-device before accepting the fix — this exact role has already caused one fix to be reported working (via prop review) that didn't actually work on-device.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
