@@ -100,9 +100,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 6,
     paddingBottom: 6,
-    // Keep the collapsed row above the fixed bottom submit bar in
-    // BulkListingCreateScreen.
-    marginBottom: 86,
+    // Keep this panel fully above the fixed Submit bar in BulkListingCreateScreen
+    // (BulkPublishBar now floats at bottom:120 with ~72px height → top ≈192pt)
+    // AND the floating pill nav, so it is never partially hidden behind them.
+    marginBottom: 200,
   },
   toggleRow: {
     flexDirection: 'row',

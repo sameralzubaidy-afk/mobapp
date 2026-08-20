@@ -34,7 +34,10 @@ export function BulkPublishBar({ count, disabled = false, onPress }: BulkPublish
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    // Clear the floating pill nav (PersistentTabBar overlays the stack): the
+    // pill top sits ~110pt from the bottom, so the fixed Submit CTA must sit
+    // above it (same bottom:120 clearance CartScreen's sticky bar uses).
+    bottom: 120,
     left: 0,
     right: 0,
     backgroundColor: '#fff',

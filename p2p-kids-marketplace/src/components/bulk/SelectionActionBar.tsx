@@ -78,7 +78,10 @@ export function SelectionActionBar({
 const styles = StyleSheet.create({
   bar: {
     position: 'absolute',
-    bottom: 0,
+    // Clear the floating pill nav (PersistentTabBar overlays the stack): same
+    // bottom:120 clearance CartScreen's sticky bar uses so the selection
+    // actions are never hidden behind the pill during the grouping step.
+    bottom: 120,
     left: 0,
     right: 0,
     backgroundColor: '#F5FAF7',
