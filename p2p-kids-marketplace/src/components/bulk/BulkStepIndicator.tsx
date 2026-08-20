@@ -26,7 +26,7 @@ export function BulkStepIndicator({
   onStepPress,
 }: BulkStepIndicatorProps) {
   return (
-    <View style={styles.row} testID="bulk-step-indicator" accessibilityRole="tablist">
+    <View style={styles.row} testID="bulk-step-indicator">
       {STEPS.map((step, index) => {
         const isCurrent = step.id === currentStep;
         const isReached = reachedSteps.has(step.id);
@@ -38,7 +38,7 @@ export function BulkStepIndicator({
               disabled={!isTappable}
               onPress={() => isTappable && onStepPress?.(step.id)}
               accessible
-              accessibilityRole="tab"
+              accessibilityRole="button"
               accessibilityState={{ selected: isCurrent, disabled: !isTappable }}
               accessibilityLabel={`Step ${index + 1}: ${step.label}${isCurrent ? ', current' : ''}`}
               testID={`bulk-step-${step.id}`}

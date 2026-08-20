@@ -179,6 +179,18 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Manual testing required for actual Twilio SMS delivery and password setting flows
       - Maestro: `.maestro/auth-v3-005-profile-autofill.yaml` (Google/Facebook/Apple auto-fill states)
       - Manual: `AUTH-V3-005-MANUAL-TESTING.md` (8 test cases + 2 regression checks)
+  - **PHONE-OTP-PGCRYPTO-FIX (2026-08-20):** Fixed real send-phone-otp HTTP 500 (`function gen_salt(unknown) does not exist`) + dev-bypass data-consistency fix
+    - Scope:
+      - `supabase/migrations/20260820000001_fix_phone_otp_pgcrypto_search_path.sql` (new)
+      - `p2p-kids-marketplace/src/services/phoneService.ts`
+    - Fixes:
+      - P1: `hash_otp_code`/`verify_otp_code` RPCs were `SET search_path = public`, so pgcrypto's `gen_salt`/`crypt` (which live in the `extensions` schema on Supabase) were unresolvable → `send-phone-otp` 500'd on EVERY real send. Changed both RPCs to `SET search_path = public, extensions`. This was masked by the dev SMS bypass in every prior QA run.
+      - P3: dev-bypass verify path (and the real verify path) now also set `phone_verified = true` alongside `phone_verified_at`/`phone_verification_method` (matches the canonical `phone.ts` pattern; `isPhoneRequired` only reads `phone_verified_at`, so this is consistency, not behavior).
+    - Verification:
+      - Tier 0: `yarn typecheck` PASS; `npx eslint <changed files>` 0 errors.
+      - Targeted tests: `npx jest src/screens/__tests__/BulkListingCreateScreen.test.tsx src/services/__tests__/phoneService.test.ts` — 18/18 PASS.
+      - **Tier 2 live-DB (2026-08-20, staging `drntwgporzabmxdqykrp`): PASS** — migration applied; `SELECT public.hash_otp_code('123456')` → `$2a$06$…` (previously threw `function gen_salt(unknown) does not exist`); both RPCs `proconfig = [search_path=public, extensions]`.
+      - **Real (non-bypass) Edge Function invoke:** `send-phone-otp` now gets past hashing + DB insert and fails only at the Twilio step (`{error:'Twilio credentials not configured', code:'SEND_FAILED'}`) — proving the P1 bug is gone. Remaining gap (NOT this bug): staging Edge Function env lacks `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM_NUMBER`, so real SMS still can't be sent until those are set (dev-bypass remains the dev path).
   - **AUTH-V3-007-SOCIAL-LOGIN-UI (2026-05-01):** Social login buttons UI component + login/signup screen integration
     - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-007)
     - Scope:
@@ -488,6 +500,16 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Fix 1 regression confirmed FAIL without the gate (modal never appears), PASS with it
       - Full suite: 2 failures are pre-existing (AutoCompleteBanner.test.tsx, SignupScreen.test.tsx — verified failing on baseline via stash); 3351 passed
     - Regression: Tier 0 (typecheck/lint) + targeted Tier 1 (bulk screen + ItemCreate phone gate + reorder unit tests). No DB/API changes (phone gate reuses deployed `isPhoneRequired`/`verifyPhoneCode`).
+  - **BULK-STEP-AX-TAB-ROLE-FIX (2026-08-20):** `bulk-step-*` step indicator now surfaces in the iOS accessibility tree (was absent)
+    - Scope:
+      - `p2p-kids-marketplace/src/components/bulk/BulkStepIndicator.tsx`
+    - Root cause (confirmed on-device, not guessed): the step `TouchableOpacity` used `accessibilityRole="tab"` — the ONLY such usage in the app — and RN 0.81 iOS (Fabric) does not register `role="tab"` elements in the accessibility tree. Ruled out by controlled on-device experiments: (a) container `accessibilityRole="tablist"` removal changed nothing; (b) disabled-step flattening ruled out (an enabled step still absent at the Group step); (c) changing the role to `"button"` surfaced all four `bulk-step-*` elements immediately.
+    - Fix: `accessibilityRole="tab"` → `"button"` on each step; removed the now-orphaned `accessibilityRole="tablist"` from the container (semantically inconsistent with button children; had no functional effect). `testID`/`accessibilityLabel`/`accessibilityState.selected`/`disabled` preserved — the label carries the current-step state ("Step 2: Group, current").
+    - Validation:
+      - Tier 0: `yarn typecheck` PASS; `npx eslint src/components/bulk/BulkStepIndicator.tsx src/services/phoneService.ts` 0 errors (2 pre-existing `no-console` warnings).
+      - **On-device AX-tree verification (2026-08-20, iPhone 17 Pro Max sim, iOS 26.1): PASS** — after the fix, `bulk-step-photos/group/review/publish` all appear in the `mobile_list_elements_on_screen` tree at both the Photos step (all disabled) and the Group step (photos enabled, group selected), with correct labels. Screenshots: `temp/ax-baseline-bulk-photos.png` (before).
+      - Targeted tests: `npx jest src/screens/__tests__/BulkListingCreateScreen.test.tsx src/services/__tests__/phoneService.test.ts` — 18/18 PASS.
+    - Regression: Tier 0 + targeted Tier 1 (bulk screen AX + phone service). No logic/DB changes.
   - **ADMIN-LISTING-SEARCH-FILTERS (2026-04-29):** Admin listings page adds category filter, seller email search, and row-level selection checkboxes
     - Scope:
       - `p2p-kids-admin/src/app/components/ListingSearch.tsx`

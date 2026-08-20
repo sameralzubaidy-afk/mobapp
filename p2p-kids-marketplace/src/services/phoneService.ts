@@ -272,6 +272,7 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
+          phone_verified: true,
           phone_verified_at: new Date().toISOString(),
           phone_verification_method: 'sms',
         })
@@ -354,6 +355,7 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
+        phone_verified: true,
         phone_verified_at: new Date().toISOString(),
         phone_verification_method: 'sms',
       })
