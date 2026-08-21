@@ -562,9 +562,15 @@ async function seedListings(
 
     if (existing) {
       // Reset status to available if it was previously sold/pending
+      // Also (re)stamp approval metadata so the every-available-item-is-approved
+      // invariant holds (approved_at must be set on any 'available' row).
       const { error: resetError } = await adminSupabase
         .from('items')
-        .update({ status: 'available', updated_at: new Date().toISOString() })
+        .update({
+          status: 'available',
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', existing.id)
         .in('status', ['sold', 'pending', 'unavailable']);
       if (resetError) {
@@ -588,6 +594,9 @@ async function seedListings(
         condition: listing.condition,
         price: listing.price,
         status: listing.status,
+        // Approval metadata: seed items are pre-approved (visible immediately),
+        // so stamp approved_at to keep the available⇒approved invariant intact.
+        approved_at: now,
         accepts_swap_points: true,
         seller_subscription_status_at_creation: 'trial',
         eligible_for_starter_pack: false,
