@@ -650,6 +650,21 @@ export default function ItemCreateScreen() {
     setRequestedCategoryName('');
   }, [categories]);
 
+  // DEV-ONLY fixture: fill title/price/condition in ONE tap, bypassing the manual
+  // form-fill + keyboard-dismiss dance (and its price-corruption risk). Mirrors
+  // handleAddDevTestPhoto/handleDevSetCategory — gated by __DEV__, never in
+  // release builds. Adds a test photo if none exists (the form fields only render
+  // after photos.length > 0). Local form state only, so canPublish() passes and
+  // QA can reach the phone-verification gate / Submit without typing anything.
+  const handleDevFillItem = useCallback(() => {
+    if (photos.length === 0) {
+      handleAddDevTestPhoto();
+    }
+    setTitle('QA Dev Fixture Item');
+    setPriceInput('20');
+    setCondition('new');
+  }, [photos.length, handleAddDevTestPhoto]);
+
   useEffect(() => {
     if (hasHandledInitialPhotoSourceRef.current) {
       return;
@@ -999,6 +1014,24 @@ export default function ItemCreateScreen() {
           >
             <Text style={styles.devTestPhotoButtonText}>
               Dev: Set Category{category ? ` (${category.name})` : ''}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* DEV-ONLY: fill title/price/condition in one tap so QA can skip the
+            manual form-fill + keyboard-dismiss dance entirely. Adds a test photo
+            if none exists. Never rendered in release builds (__DEV__ false). */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.devTestPhotoButton}
+            onPress={handleDevFillItem}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Fill item with test values (dev only)"
+            testID="dev-fill-item"
+          >
+            <Text style={styles.devTestPhotoButtonText}>
+              Dev: Fill Item (Title/Price/Condition)
             </Text>
           </TouchableOpacity>
         )}

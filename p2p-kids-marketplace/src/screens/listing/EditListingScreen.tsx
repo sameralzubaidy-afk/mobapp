@@ -288,6 +288,15 @@ export default function EditListingScreen({ route, navigation }: any) {
     }, 100);
   }, [priceFieldY]);
 
+  // DEV-ONLY fixture: fill title/price/condition in one tap (mirrors ItemCreate's
+  // dev-fill-item) so QA can skip the manual form-fill + keypad-dismiss dance and
+  // jump straight to Save Changes. Gated by __DEV__ — never in release builds.
+  const handleDevFillItem = useCallback(() => {
+    setTitle('QA Dev Fixture Item');
+    setPriceText('20');
+    setCondition('new');
+  }, []);
+
   if (loadingListing || checkingSubscription) {
     return (
       <ScreenLayout variant="detail" title="Edit Listing">
@@ -317,6 +326,21 @@ export default function EditListingScreen({ route, navigation }: any) {
       <ScrollView ref={scrollViewRef} style={styles.container}>
         <View style={styles.form}>
         <Text style={styles.sectionTitle}>Edit Item Details</Text>
+
+        {/* DEV-ONLY: fill title/price/condition in one tap so QA can skip the
+            manual form-fill + keypad-dismiss dance. Never in release builds. */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.devFillButton}
+            onPress={handleDevFillItem}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Fill edit form with test values (dev only)"
+            testID="dev-fill-item"
+          >
+            <Text style={styles.devFillButtonText}>Dev: Fill Item (Title/Price/Condition)</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Title */}
         <Text style={styles.label}>Title *</Text>
@@ -569,6 +593,23 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
     color: '#1A1A1A',
+  },
+  devFillButton: {
+    backgroundColor: '#EAF7F0',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  devFillButtonText: {
+    color: '#2E7D5B',
+    fontSize: 14,
+    fontWeight: '600',
   },
   label: {
     fontSize: 16,

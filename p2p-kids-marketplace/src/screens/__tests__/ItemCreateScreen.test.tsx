@@ -194,6 +194,25 @@ describe('ItemCreateScreen', () => {
         expect(getByTestId('publish-button')).toBeTruthy();
       });
     });
+
+    it('dev-fill-item fills title/price/condition and adds a photo in one tap', async () => {
+      const { getByTestId } = renderScreen();
+
+      // The fixture must be exposed for automation to reach it.
+      expect(getByTestId('dev-fill-item')).toBeTruthy();
+
+      fireEvent.press(getByTestId('dev-fill-item'));
+
+      // It adds a test photo (so the below-fold form renders)…
+      expect(resolveAssetSourceSpy).toHaveBeenCalled();
+
+      // …and fills title/price/condition deterministically (no typing needed).
+      await waitFor(() => {
+        expect(getByTestId('title-input').props.value).toBe('QA Dev Fixture Item');
+      });
+      expect(getByTestId('manual-price-input').props.value).toBe('20');
+      expect(getByTestId('condition-new').props.accessibilityState?.checked).toBe(true);
+    });
   });
 
   describe('State Machine: IDLE → ADDING_PHOTOS', () => {
