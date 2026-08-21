@@ -510,10 +510,28 @@ This file is the canonical registry of end-to-end flows and their required regre
       - **On-device AX-tree verification (2026-08-20, iPhone 17 Pro Max sim, iOS 26.1): PASS** — after the fix, `bulk-step-photos/group/review/publish` all appear in the `mobile_list_elements_on_screen` tree at both the Photos step (all disabled) and the Group step (photos enabled, group selected), with correct labels. Screenshots: `temp/ax-baseline-bulk-photos.png` (before).
       - Targeted tests: `npx jest src/screens/__tests__/BulkListingCreateScreen.test.tsx src/services/__tests__/phoneService.test.ts` — 18/18 PASS.
     - Regression: Tier 0 + targeted Tier 1 (bulk screen AX + phone service). No logic/DB changes.
-  - **ADMIN-LISTING-SEARCH-FILTERS (2026-04-29):** Admin listings page adds category filter, seller email search, and row-level selection checkboxes
+  - **GROUP-L-BACKLOG (2026-08-21):** Dev backlog from the Group L run — QA fixtures (dev-fill-item + OTP autofill), listing-control AX exposure, admin post-approval refresh race, and seed approval-metadata invariant
     - Scope:
-      - `p2p-kids-admin/src/app/components/ListingSearch.tsx`
-      - `supabase/migrations/20260429000012_admin_listing_search_category_email_filters.sql`
+      - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx`, `p2p-kids-marketplace/src/screens/listing/EditListingScreen.tsx` (dev-fill-item fixture + AX)
+      - `p2p-kids-marketplace/src/components/listing/ConditionSelector.tsx` (radio→button role, BP-53)
+      - `p2p-kids-marketplace/src/hooks/usePhoneVerification.ts` + `src/components/auth/PhoneVerificationModal.tsx` (DEV OTP autofill + auto-verify race fix)
+      - `p2p-kids-marketplace/src/services/phoneService.ts` (transient network-error log downgrade in dev)
+      - `p2p-kids-marketplace/scripts/seed-staging-data.ts` + `supabase/migrations/20260821000005_backfill_approved_at_for_available_items.sql` (approved_at invariant)
+      - `p2p-kids-admin/src/app/components/ListingSearch.tsx` (post-approval refresh respects current filter — `mobappadmin` repo)
+    - Fixes:
+      - Fix 1 (P1): `__DEV__` `dev-fill-item` fixture on ItemCreate + EditListing — one tap sets title/price/condition (ItemCreate also injects a photo if needed). Removes the manual form-fill + keyboard-dismiss dance (and price-corruption risk) that drove ~30% of the Group L run's wall-clock.
+      - Fix 2 (P2): DEV OTP autofill (`<modal>-dev-autofill`) fills + verifies `123456` in one tap; `verifyCode(overrideCode?)` fixes the auto-verify state race (freshly-typed code passed through instead of stale `state.code`).
+      - Fix 3 (P2, BP-53): AX exposure for ConditionSelector rows (role `button` + `{selected,checked}` — `radio` doesn't register on iOS RN 0.81), EditListing inputs/condition chips/Save/Delete/success modal, ItemCreate dev-fixture dynamic label + submit-modal buttons.
+      - Fix 4 (P2): Admin `/listings` post-approval/action refresh reads the LATEST filter via refs (`refreshListingsAfterAction`) instead of a stale closure — a status-filter change made while the action modal was open is no longer clobbered by the 100ms auto-refresh.
+      - Fix 5 (P3): seed/legacy `available` items with `approved_at=NULL` backfilled (`COALESCE(updated_at, created_at)`); seed script now stamps `approved_at` on insert and on reset-to-available. **Migration NOT yet applied to staging (awaiting Samer's approval).**
+      - Fix 6 (P3): transient `send-phone-otp` EF network failures downgraded to `console.warn` in dev (DEV SMS bypass recovers the flow) — no more blocking red LogBox during listing-flow QA.
+    - Validation:
+      - Tier 0 (mobile): `yarn typecheck` PASS; `npx eslint <8 changed files>` 0 errors; 5 affected Jest suites 84/84 PASS (ItemCreate, usePhoneVerification, PhoneVerificationModal, ConditionSelector, phoneService). Full-suite `yarn lint` has 103 pre-existing errors (all in integration/detox/auth test files, none in changed files).
+      - Tier 0 (admin, `mobappadmin`): `yarn typecheck` PASS; `yarn lint` PASS (pre-existing warnings only); `yarn build` PASS.
+      - On-device AX-tree + staging approval-refresh verification: PENDING (see known gaps).
+    - Regression: Tier 0 for all; Fix 4 also Tier 1 (admin `/listings` flows). No backend contract changes (Fix 5 is data-only backfill + seed).
+    - Known gaps / not done yet: Fix 5 migration not applied to staging; on-device smoke (Fix 1/2) and AX-tree inspection (Fix 3) and the real approval+filter-change sequence (Fix 4) not yet executed (require simulator + admin session).
+
     - Expected behavior:
       - Admin can filter results by exact category, including uncategorized.
       - Admin can search listings by seller email (partial match).
