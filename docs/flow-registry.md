@@ -528,9 +528,11 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Validation:
       - Tier 0 (mobile): `yarn typecheck` PASS; `npx eslint <8 changed files>` 0 errors; 5 affected Jest suites 84/84 PASS (ItemCreate, usePhoneVerification, PhoneVerificationModal, ConditionSelector, phoneService). Full-suite `yarn lint` has 103 pre-existing errors (all in integration/detox/auth test files, none in changed files).
       - Tier 0 (admin, `mobappadmin`): `yarn typecheck` PASS; `yarn lint` PASS (pre-existing warnings only); `yarn build` PASS.
-      - On-device AX-tree + staging approval-refresh verification: PENDING (see known gaps).
+      - **On-device (2026-08-21, iPhone 17 Pro Max sim, iOS 26.1, Metro-served fresh bundle): PASS for Fix 1 + Fix 3** — `dev-fill-item` surfaces in the iOS AX tree (`mobile_list_elements_on_screen`); one tap injected a photo (1/10), set Title "QA Dev Fixture Item" (OCR `vision-ocr.swift`), set Price "20" (AX `manual-price-input value=20`); condition rows `condition-*` now surface as AX Buttons with labels + checked/unchecked state (they were absent before — the radio→button BP-53 fix works). Evidence: `temp/groupL-fix1-fill-verify.png`, `temp/groupL-fix1-condition-price.png`.
+      - Fix 2 on-device modal-open check: DEFERRED (test-seller is phone-verified, so the listing gate doesn't fire; needs an unverified seller or a first-purchase gate to open the modal). Unit-tested (10/10 modal tests incl. new dev-autofill).
+      - Fix 4 staging approval+filter-change sequence: DEFERRED (needs an admin session + a pending fixture item; the group-l Playwright spec exercises this path).
     - Regression: Tier 0 for all; Fix 4 also Tier 1 (admin `/listings` flows). No backend contract changes (Fix 5 is data-only backfill + seed).
-    - Known gaps / not done yet: Fix 5 migration not applied to staging; on-device smoke (Fix 1/2) and AX-tree inspection (Fix 3) and the real approval+filter-change sequence (Fix 4) not yet executed (require simulator + admin session).
+    - Known gaps / not done yet: Fix 5 migration NOT applied to staging (awaiting Samer's approval); Fix 2 on-device modal + Fix 4 staging sequence pending as above.
 
     - Expected behavior:
       - Admin can filter results by exact category, including uncategorized.
