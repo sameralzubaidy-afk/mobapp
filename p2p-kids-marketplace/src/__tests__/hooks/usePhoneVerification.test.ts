@@ -142,6 +142,29 @@ describe('usePhoneVerification', () => {
     expect(mockVerifyPhoneCode).toHaveBeenCalledWith('+12025551234', '123456');
   });
 
+  it('should verify using an override code without waiting for state.code to flush', async () => {
+    mockVerifyPhoneCode.mockResolvedValue({
+      success: true,
+      message: 'Verified',
+    });
+
+    const { result } = renderHook(() => usePhoneVerification());
+
+    // No setCode() call — the override supplies the code (fixes the auto-verify
+    // state race where a freshly-typed code isn't in state.code yet).
+    act(() => {
+      result.current.setPhone('+12025551234');
+    });
+
+    let verifyResult: boolean = false;
+    await act(async () => {
+      verifyResult = await result.current.verifyCode('123456');
+    });
+
+    expect(verifyResult).toBe(true);
+    expect(mockVerifyPhoneCode).toHaveBeenCalledWith('+12025551234', '123456');
+  });
+
   it('should handle verification code validation error', async () => {
     const { result } = renderHook(() => usePhoneVerification());
 

@@ -11,6 +11,8 @@ jest.mock('@expo/vector-icons', () => ({
 jest.mock('@/services/phoneService', () => ({
   sendPhoneVerificationCode: jest.fn(),
   verifyPhoneCode: jest.fn(),
+  // The modal's __DEV__ autofill button reads this constant.
+  DEV_SMS_BYPASS_CODE: '123456',
 }));
 
 const mockPhoneService = phoneService as jest.Mocked<typeof phoneService>;
@@ -133,8 +135,41 @@ describe('PhoneVerificationModal', () => {
 
     await enterOtpSequentially(getByTestId, '123456');
 
+    // Entering the 6th digit auto-verifies now (the auto-verify state race is
+    // fixed by passing the freshly-typed code through), so no manual VERIFY tap.
+    await waitFor(() => {
+      expect(mockPhoneService.verifyPhoneCode).toHaveBeenCalledWith('+15551234567', '123456');
+      expect(onSuccess).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('DEV autofill button fills and verifies the bypass code in one tap', async () => {
+    const onSuccess = jest.fn();
+    const onClose = jest.fn();
+
+    const { getByTestId } = render(
+      <PhoneVerificationModal visible={true} onClose={onClose} onSuccess={onSuccess} />
+    );
+
+    fireEvent.changeText(getByTestId(PHONE_INPUT_ID), '5551234567');
+
+    await waitFor(() => {
+      expect(getByTestId(PHONE_INPUT_ID).props.value).toBe('+15551234567');
+      expect(getByTestId(SEND_CODE_ID).props.accessibilityState?.disabled).toBe(false);
+    });
+
     await act(async () => {
-      fireEvent(getByTestId(VERIFY_ID), 'onPress');
+      fireEvent(getByTestId(SEND_CODE_ID), 'onPress');
+    });
+
+    await waitFor(() => {
+      expect(getByTestId(`${TEST_ID}-code-digit-0`)).toBeTruthy();
+    });
+
+    // One tap fills the fixed DEV bypass code AND verifies it (no digit-by-digit).
+    await act(async () => {
+      fireEvent(getByTestId(`${TEST_ID}-dev-autofill`), 'onPress');
     });
 
     await waitFor(() => {
@@ -168,10 +203,7 @@ describe('PhoneVerificationModal', () => {
 
     await enterOtpSequentially(getByTestId, '999999');
 
-    await act(async () => {
-      fireEvent(getByTestId(VERIFY_ID), 'onPress');
-    });
-
+    // Auto-verify fires on the 6th digit and surfaces the error immediately.
     await waitFor(() => {
       expect(getByText(/Invalid verification code\. Please try again\./i)).toBeTruthy();
     });
@@ -203,10 +235,7 @@ describe('PhoneVerificationModal', () => {
 
     await enterOtpSequentially(getByTestId, '123456');
 
-    await act(async () => {
-      fireEvent(getByTestId(VERIFY_ID), 'onPress');
-    });
-
+    // Auto-verify fires on the 6th digit; the expired error returns to phone step.
     await waitFor(() => {
       expect(getByText(/Code expired\. Please request a new one\./i)).toBeTruthy();
       expect(getByTestId(PHONE_INPUT_ID)).toBeTruthy();

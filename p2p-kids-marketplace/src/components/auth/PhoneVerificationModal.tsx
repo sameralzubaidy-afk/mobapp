@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePhoneVerification } from '@/hooks/usePhoneVerification';
+import { DEV_SMS_BYPASS_CODE } from '@/services/phoneService';
 
 interface PhoneVerificationModalProps {
   visible: boolean;
@@ -119,8 +120,10 @@ export default function PhoneVerificationModal({
     }
   };
 
-  const handleVerifyCode = async (_codeToVerify?: string) => {
-    const success = await verifyCode();
+  const handleVerifyCode = async (codeToVerify?: string) => {
+    // Pass the freshly-typed code through so verification doesn't race React's
+    // state flush (auto-verify previously read a stale state.code and failed).
+    const success = await verifyCode(codeToVerify);
     if (success) {
       onSuccess();
       reset();
@@ -291,6 +294,28 @@ export default function PhoneVerificationModal({
                   )}
                 </TouchableOpacity>
 
+                {/* DEV-ONLY: auto-fill + verify the fixed dev bypass code in one
+                    tap, so QA never has to type the 6 digits one at a time (the
+                    auto-advance input drops bulk-pasted characters). Never
+                    rendered in release builds (__DEV__ false). */}
+                {__DEV__ && (
+                  <TouchableOpacity
+                    style={styles.devAutofillButton}
+                    onPress={() => {
+                      setCode(DEV_SMS_BYPASS_CODE);
+                      void handleVerifyCode(DEV_SMS_BYPASS_CODE);
+                    }}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={`Autofill dev verification code ${DEV_SMS_BYPASS_CODE}`}
+                    testID={`${testID}-dev-autofill`}
+                  >
+                    <Text style={styles.devAutofillButtonText}>
+                      Dev: Autofill &amp; Verify ({DEV_SMS_BYPASS_CODE})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 {/* Back to Phone */}
                 <TouchableOpacity
                   onPress={() => {
@@ -410,6 +435,21 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  devAutofillButton: {
+    height: 48,
+    backgroundColor: '#EAF7F0',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  devAutofillButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2E7D5B',
   },
   primaryButtonText: {
     fontSize: 16,

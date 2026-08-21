@@ -109,8 +109,13 @@ export function usePhoneVerification() {
     }
   }, [state.phone]);
 
-  const verifyCode = useCallback(async (): Promise<boolean> => {
-    if (!state.code || state.code.length !== 6) {
+  const verifyCode = useCallback(async (overrideCode?: string): Promise<boolean> => {
+    // overrideCode lets a caller verify a freshly-entered code without waiting for
+    // React to flush state.code (fixes the auto-verify state race in the OTP modal,
+    // where handleCodeChange passes the just-typed 6-digit code but verifyCode was
+    // reading a stale state.code). Backward compatible: omit it to use state.code.
+    const effectiveCode = overrideCode ?? state.code;
+    if (!effectiveCode || effectiveCode.length !== 6) {
       setState((prev) => ({ ...prev, error: 'Please enter the 6-digit code' }));
       return false;
     }
@@ -118,7 +123,7 @@ export function usePhoneVerification() {
     setState((prev) => ({ ...prev, isVerifying: true, error: null }));
 
     try {
-      await verifyPhoneCode(state.phone, state.code);
+      await verifyPhoneCode(state.phone, effectiveCode);
 
       setState((prev) => ({ ...prev, isVerifying: false }));
       return true;
