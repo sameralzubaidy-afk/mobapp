@@ -31,6 +31,42 @@ function isDevSmsBypassEnabled(): boolean {
   );
 }
 
+// Transient network failures (no response, fetch failed, timeout) on the
+// send-phone-otp Edge Function are expected noise in dev builds: the DEV SMS
+// bypass path recovers the flow, so surfacing them as console.error produces a
+// blocking red LogBox that interrupts QA verification of unrelated features.
+// Downgrade them to console.warn ONLY when the dev bypass is enabled (matches
+// the isTransientNetworkError pattern in notificationAnalytics/discovery/etc.).
+// Real (non-network) failures still log as console.error.
+function isTransientNetworkError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String((error as { message?: unknown } | null)?.message || '');
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('network request failed') ||
+    normalized.includes('fetch failed') ||
+    normalized.includes('failed to fetch') ||
+    normalized.includes('timeout') ||
+    normalized.includes('timed out')
+  );
+}
+
+function logSendOtpError(error: unknown): void {
+  const transientInDev = isDevSmsBypassEnabled() && isTransientNetworkError(error);
+  if (transientInDev) {
+    console.warn(
+      '[phoneService] send-phone-otp transient network error (dev, non-fatal — DEV bypass recovers):',
+      error instanceof Error ? error.message : error
+    );
+    return;
+  }
+  console.error('[phoneService] send-phone-otp invoke error:', error);
+}
+
 async function parseEdgeFunctionErrorPayload(error: unknown): Promise<EdgeFunctionErrorPayload | null> {
   const context = (error as { context?: { clone?: () => { json?: () => Promise<unknown> } } })
     ?.context;
@@ -167,7 +203,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<SendPhon
     });
 
     if (error) {
-      console.error('[phoneService] send-phone-otp invoke error:', error);
+      logSendOtpError(error);
 
       const payload = await parseEdgeFunctionErrorPayload(error);
 
@@ -209,7 +245,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<SendPhon
     return { devBypass: false };
   } catch (err) {
     const error = err as Error;
-    console.error('[phoneService] sendPhoneVerificationCode failed:', error);
+    logSendOtpError(error);
 
     // Re-throw OTPRateLimitError as-is
     if (error instanceof OTPRateLimitError) {
