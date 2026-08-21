@@ -22,6 +22,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`.
 - BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
+- BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -250,6 +251,18 @@ color: '#007AFF',
 color: '#4A7C59',
 ```
 Detection checklist: on the Discover screen, scan for any legacy primary (`#4A7C59`), iOS system blue (`#007AFF`/`#EEF6FF`), or raw Tailwind grays (`#E5E7EB`, `#1F2937`, `#4D4D4D`) — and confirm `discoveryTokens.ts` still matches `colors.ts`.
+
+## BP-57: A Behavior Fix That Makes an Auto-Verify/Auto-Submit Path Work Will Break Tests Written Around the Old Broken Behavior — Audit & Update Them
+
+Problem: When a fix makes an auto-verify / auto-submit / auto-advance path actually work (it previously failed silently, so tests relied on a manual fallback), the tests written around the OLD broken behavior break. Real case (2026-08-21, Group L backlog Fix 2): `usePhoneVerification.verifyCode(overrideCode?)` fixed the OTP auto-verify state race (the freshly-typed code is now passed through instead of reading a stale `state.code`) — the modal now closes on the 6th digit — which broke 3 `PhoneVerificationModal` tests that typed 6 digits and then tapped the manual Verify button (the button was unreachable because auto-verify had already succeeded and closed the modal). Those failures were EVIDENCE the fix worked, not regressions.
+
+Rules:
+1. When a fix changes an auto-verify / auto-submit / auto-advance behavior, run the affected test suites BEFORE merging. If they fail, audit whether they were written around the old broken behavior (e.g., a test that manually taps a fallback button because the auto-path used to fail).
+2. Update those tests to assert the CORRECT new behavior (e.g., the 6th digit auto-verifies and calls `onSuccess`/`onClose`; an auto-fired error surfaces immediately) rather than "fixing" them to re-exercise the manual fallback.
+3. If the manual-fallback UI still exists as a real affordance, keep ONE dedicated test for it (e.g., the DEV autofill button) — just don't let the happy-path test depend on it because the auto-path used to be broken.
+4. NEVER revert or weaken the behavior fix to keep old tests green.
+
+Detection checklist: a fix that removes a "state race" / makes an "auto-X now works" path — grep the affected tests for a manual-fallback tap (e.g., a `*-verify` press after typing a full code) that may now be unreachable; confirm (unit or on-device) whether the auto-path fires first.
 
 ## Backward Compatibility for the Mobile Client
 
