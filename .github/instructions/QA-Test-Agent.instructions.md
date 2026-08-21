@@ -237,6 +237,22 @@ When reviewing or writing a DB-gate trigger (e.g., a `BEFORE INSERT` guard that 
 
 Do not use `accessibilityRole="tab"` or `"tablist"` for step indicators or tab-like UI on iOS with RN 0.81 — these roles do not register in the Fabric accessibility tree and the elements will silently fail to surface despite correct `accessible`/`accessibilityLabel`/`accessibilityState` props. Use `accessibilityRole="button"` with `accessibilityState` (e.g., `selected`) to convey current-step/tab semantics instead. When an AX-instrumentation fix is reported as complete for an element using `role="tab"`, verify on-device before accepting the fix — this exact role has already caused one fix to be reported working (via prop review) that didn't actually work on-device.
 
+### 5.19 Multi-surface technique rules (Phase 13.28 — Group L trace)
+
+Six technique rules consolidated from the Group L (AUTH-TC-L01–L04, admin listing approval) decision-and-outcome trace, where mobile form-fill/OTP and Playwright-timing bugs dominated wall-clock. **Phase 13.28 v2 supersedes the original LogBox-only Phase 13.28** by folding that rule into Rule 6 below (no separate LogBox-only version remains).
+
+**Rule 1 — Re-measure before every post-typing dismiss tap.** After typing into any field, never tap an assumed-neutral coordinate to dismiss the keyboard or advance focus. The keyboard-up layout can shift the focused field, and a guessed coordinate can land back inside it (e.g., appending a stray digit to a price field). Always re-measure via OCR/pixel-probe of known static text before any dismiss tap, even when the tap's intent has nothing to do with the field itself. If a field is found corrupted after a dismiss tap, terminate and relaunch and redo the form rather than attempting a repair.
+
+**Rule 2 — Switch to digit-by-digit OTP entry on the first failure, not after retrying.** When entering an OTP/verification code into auto-advance digit boxes, if a bulk-paste or fast-type attempt drops or mangles characters, switch immediately to digit-by-digit entry with a manual Verify-button tap as backup (in case auto-verify races the last digit's state update). Do not retry the same bulk approach a second time before switching.
+
+**Rule 3 — Playwright `--grep` must target a unique test-title fragment.** When running Playwright with `--grep`, never use a bare test-case ID (e.g., "L04") if it could also appear as a substring inside a `describe` block's title — `--grep` matches the full title string, and a substring match against the describe title will silently re-run the entire suite under it. Grep a fragment unique to the specific test's own title.
+
+**Rule 4 — Wait for the redirect decision on client-side-auth web apps.** When automating a web app that guards routes via a client-side auth check (e.g., a `useEffect`/`getUser()` call that redirects to login asynchronously after the route resolves), never treat `page.url()` immediately after `page.goto()` as authoritative — the redirect may not have fired yet. Use `page.waitForURL()` to wait for the actual redirect decision (either to the login page or staying on the target route) before deciding whether a login flow is needed.
+
+**Rule 5 — Use DB read-back to arbitrate between a backend bug and a test bug.** When a UI-level assertion fails after an action that has a server-side effect (e.g., an approval, a status change), check the database state directly before concluding the backend is broken. If the DB shows the correct end state, the failure is in the test's UI assertion (e.g., a stale filter, a race with an auto-refresh) — fix the test, not the app. This DB-arbitration step has twice, in separate sessions, correctly redirected a suspected app bug into a same-session test fix instead of an unnecessary dev escalation.
+
+**Rule 6 — LogBox: bounded dismiss attempts, then terminate and relaunch.** If a dev-build LogBox (non-fatal console-error overlay) blocks on-device interaction and its dismiss/header controls aren't reliably locatable via the accessibility tree or pixel-probing within 2-3 attempts, stop trying to locate the dismiss control and terminate + relaunch the app instead — session/persona state persists across relaunch, and this is faster than continuing to hunt an unreliable control. (This is the Phase 13.28 v2 replacement for the original LogBox-only rule; it complements the fatal-overlay handling in §5.8.)
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
