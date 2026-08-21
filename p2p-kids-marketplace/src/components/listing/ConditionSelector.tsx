@@ -47,9 +47,12 @@ export function ConditionSelector({
             <TouchableOpacity
               style={styles.radioContainer}
               onPress={() => onChange(condition.value)}
+              accessible
+              // BP-53 (RN 0.81 iOS/Fabric): `accessibilityRole="radio"` does NOT
+              // surface in the iOS accessibility tree — use "button" + state.
+              accessibilityRole="button"
               accessibilityLabel={`Select condition: ${condition.label}`}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isSelected }}
+              accessibilityState={{ selected: isSelected, checked: isSelected }}
               testID={`condition-${condition.value}`}
             >
               <View style={[styles.radio, isSelected && styles.radioActive]}>

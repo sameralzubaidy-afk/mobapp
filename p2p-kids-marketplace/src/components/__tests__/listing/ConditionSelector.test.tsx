@@ -132,16 +132,16 @@ describe('ConditionSelector', () => {
   });
 
   describe('Accessibility', () => {
-    it('has radio role for condition options', () => {
+    it('has button role for condition options (BP-53: radio does not surface on iOS)', () => {
       const { getByTestId } = render(
         <ConditionSelector value={null} onChange={mockOnChange} onOpenGuide={mockOnOpenGuide} />
       );
 
-      expect(getByTestId('condition-new').props.accessibilityRole).toBe('radio');
-      expect(getByTestId('condition-like_new').props.accessibilityRole).toBe('radio');
-      expect(getByTestId('condition-good').props.accessibilityRole).toBe('radio');
-      expect(getByTestId('condition-fair').props.accessibilityRole).toBe('radio');
-      expect(getByTestId('condition-worn').props.accessibilityRole).toBe('radio');
+      expect(getByTestId('condition-new').props.accessibilityRole).toBe('button');
+      expect(getByTestId('condition-like_new').props.accessibilityRole).toBe('button');
+      expect(getByTestId('condition-good').props.accessibilityRole).toBe('button');
+      expect(getByTestId('condition-fair').props.accessibilityRole).toBe('button');
+      expect(getByTestId('condition-worn').props.accessibilityRole).toBe('button');
     });
 
     it('has accessible labels for conditions', () => {
@@ -162,8 +162,8 @@ describe('ConditionSelector', () => {
       );
 
       const goodButton = getByTestId('condition-good');
-      // accessibilityState should have checked: true for selected condition
-      expect(goodButton.props.accessibilityState).toEqual({ checked: true });
+      // accessibilityState should carry checked AND selected for the chosen row.
+      expect(goodButton.props.accessibilityState).toEqual({ selected: true, checked: true });
     });
 
     it('has accessible labels for photo guide buttons', () => {

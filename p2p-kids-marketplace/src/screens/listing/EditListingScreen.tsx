@@ -350,6 +350,8 @@ export default function EditListingScreen({ route, navigation }: any) {
           value={title}
           onChangeText={setTitle}
           maxLength={100}
+          accessibilityLabel="Title"
+          testID="edit-listing-title-input"
         />
         <Text style={styles.hint}>{title.length}/100 characters</Text>
 
@@ -363,6 +365,8 @@ export default function EditListingScreen({ route, navigation }: any) {
           multiline
           numberOfLines={4}
           maxLength={1000}
+          accessibilityLabel="Description"
+          testID="edit-listing-description-input"
         />
 
         {/* Price */}
@@ -375,6 +379,8 @@ export default function EditListingScreen({ route, navigation }: any) {
             value={priceText}
             onChangeText={setPriceText}
             keyboardType="decimal-pad"
+            accessibilityLabel="Price"
+            testID="edit-listing-price-input"
           />
         </View>
 
@@ -416,6 +422,13 @@ export default function EditListingScreen({ route, navigation }: any) {
               key={c}
               style={[styles.conditionButton, condition === c && styles.conditionButtonActive]}
               onPress={() => setCondition(c)}
+              accessible
+              // BP-53 (RN 0.81 iOS/Fabric): use "button" + state so it surfaces
+              // on the iOS accessibility tree.
+              accessibilityRole="button"
+              accessibilityLabel={`Condition: ${c.replace('_', ' ')}`}
+              accessibilityState={{ selected: condition === c, checked: condition === c }}
+              testID={`edit-listing-condition-${c}`}
             >
               <Text
                 style={[
@@ -506,6 +519,11 @@ export default function EditListingScreen({ route, navigation }: any) {
           style={[styles.saveButton, (loading || syncingImages) && styles.saveButtonDisabled]}
           onPress={handleSaveChanges}
           disabled={loading || syncingImages}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Save changes"
+          accessibilityState={{ disabled: loading || syncingImages }}
+          testID="edit-listing-save-button"
         >
           {loading || syncingImages ? (
             <View style={styles.loadingRow}>
@@ -523,6 +541,11 @@ export default function EditListingScreen({ route, navigation }: any) {
           style={[styles.deleteLinkButton, (loading || syncingImages) && styles.saveButtonDisabled]}
           onPress={handleDeleteListing}
           disabled={loading || syncingImages}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Delete listing"
+          accessibilityState={{ disabled: loading || syncingImages }}
+          testID="edit-listing-delete-button"
         >
           <Text style={styles.deleteLinkText}>Delete Listing</Text>
         </TouchableOpacity>
@@ -558,6 +581,9 @@ export default function EditListingScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={styles.successModalButton}
               onPress={handleSuccessModalClose}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Done"
               testID="edit-listing-success-ok"
             >
               <Text style={styles.successModalButtonText}>Done</Text>

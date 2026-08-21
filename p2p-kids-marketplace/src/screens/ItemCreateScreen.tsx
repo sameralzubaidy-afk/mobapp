@@ -1009,7 +1009,13 @@ export default function ItemCreateScreen() {
             disabled={categories.length === 0}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Set category without modal (dev only)"
+            // Dynamic label so QA can read which category was actually set (the
+            // visible text updates but a static label would not).
+            accessibilityLabel={
+              category
+                ? `Set category without modal (dev only): ${category.name}`
+                : 'Set category without modal (dev only)'
+            }
             testID="dev-set-category"
           >
             <Text style={styles.devTestPhotoButtonText}>
@@ -1357,6 +1363,9 @@ export default function ItemCreateScreen() {
                 setShowSubmitReviewModal(false);
                 navigation.navigate('MyListings');
               }}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Go to my items"
               testID="submit-review-go-my-items"
             >
               <Text style={styles.submitModalPrimaryButtonText}>Go To My Items</Text>
@@ -1368,6 +1377,9 @@ export default function ItemCreateScreen() {
                 setShowSubmitReviewModal(false);
                 navigation.navigate('Home');
               }}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Go to dashboard"
               testID="submit-review-go-dashboard"
             >
               <Text style={styles.submitModalSecondaryButtonText}>Go To Dashboard</Text>
