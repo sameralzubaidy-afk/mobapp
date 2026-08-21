@@ -253,6 +253,10 @@ Six technique rules consolidated from the Group L (AUTH-TC-L01–L04, admin list
 
 **Rule 6 — LogBox: bounded dismiss attempts, then terminate and relaunch.** If a dev-build LogBox (non-fatal console-error overlay) blocks on-device interaction and its dismiss/header controls aren't reliably locatable via the accessibility tree or pixel-probing within 2-3 attempts, stop trying to locate the dismiss control and terminate + relaunch the app instead — session/persona state persists across relaunch, and this is faster than continuing to hunt an unreliable control. (This is the Phase 13.28 v2 replacement for the original LogBox-only rule; it complements the fatal-overlay handling in §5.8.)
 
+### 5.20 Multi-surface screenshot evidence rule (Phase 13.29)
+
+When a test run spans multiple surfaces (e.g., mobile via simulator + admin/web via Playwright), every surface must leave screenshot evidence in the run's shared evidence folder, not just the surface driven by the primary tool. For Playwright-driven steps, do not rely on default failure-only screenshot behavior — take an explicit `page.screenshot()` at each key assertion point (login success, key state before/after an action, final confirmation) and save it into the same evidence directory used for mobile screenshots, using a naming convention that makes the surface and step obvious (e.g., `ADMIN-L02-approve-confirmed.png` alongside `MOBILE-L01-pending-item.png`). A run's final evidence set should let someone reconstruct what happened on every surface, not just the one that failed.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
