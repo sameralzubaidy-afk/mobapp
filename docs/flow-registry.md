@@ -1600,6 +1600,16 @@ add one section on the top give summary on what this file covers from testing an
       - Validation: `yarn typecheck` PASS; `yarn lint` 0 errors on changed files; `npm run test:unit` 2881 pass / 2 pre-existing failures (AutoCompleteBanner, SignupScreen — unrelated, prior-session files).
     - Impacted Flows: FLOW-06 (Discovery), FLOW-03 (Node/ZIP gating + waitlist fallback preserved), FLOW-00 (env).
     - Tier: Tier 0 (passed) + Tier 2 (DB migrations/RPC applied to staging + verified); QA on-device per phase (AUTH-TC-F06) pending — see `e2e-test-results/`.
+  - **ZIP-WAITLIST-OPT-IN + SCOPE-DECOUPLE (2026-08-22):** Explicit waitlist opt-in for inactive-ZIP filter + decouple waitlist row from discovery scope
+    - Module: AUTH-TC-O03 follow-up (Group O QA finding: silent auto-enroll + scope flip)
+    - Purpose: Applying an inactive ZIP in Discover Filters no longer auto-enrolls the user in `zip_waitlist` — a consent dialog asks explicit Yes/No first. Discover's scope-flipping (global-browse fallback, Show All Nodes toggle hidden) now responds ONLY to a waitlist row tied to the user's own home ZIP (onboarding, no active node), never to rows created by exploring a different ZIP.
+    - Scope (client):
+      - `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx` — `handleApplyZipCode` no longer calls `upsertZipWaitlist` (auto-enroll removed); two-step inactive-ZIP dialog (consent → outcome step preserving Back to Filters / See All Results); `checkWaitlistStatus` scoped to `requested_zip = session.user.zip_code` + `status IN (pending, notified)`; consent/outcome buttons get `accessible` + `accessibilityRole="button"` (BP-53).
+      - Tests: `src/screens/home/__tests__/DiscoverScreen.test.tsx` — 5 new cases (no row until Yes; No leaves no row; Yes creates row; already-waitlisted skips consent; waitlist query home-ZIP-scoped + node-scoped default preserved; home-ZIP row still preserves global-browse fallback).
+      - Guide: `cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` AUTH-TC-O03 updated (explicit opt-in + own scope unchanged).
+    - Validation: `yarn typecheck` PASS; eslint on changed files 0 errors (4 pre-existing warnings in DiscoverScreen); Prettier PASS; `npm test` 3366 pass / 2 pre-existing failures (AutoCompleteBanner, SignupScreen — unrelated, prior-session files).
+    - Impacted Flows: FLOW-06 (Discovery), FLOW-03 (Node/ZIP gating + waitlist).
+    - Tier: Tier 0 (passed); Tier 1 (targeted smoke for FLOW-06/FLOW-03) recommended before QA re-run of AUTH-TC-O03.
   - **MODULE-15.1-UI-REDESIGN-FLOW-06 (2025-01-XX):** Discovery & Search screens redesigned to Whisk "Pass It Up" design system
     - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-06)
     - Scope:

@@ -110,7 +110,7 @@
 | | AUTH-TC-N04 | "Accepts SP" badge on item card (gold, §6.7) |
 | **O — Discovery: Node Scoping & SP Visibility** | AUTH-TC-O01 | Results scoped to user's node |
 | | AUTH-TC-O02 | Location ZIP + radius filter |
-| | AUTH-TC-O03 | Inactive ZIP in filter → waitlist prompt |
+| | AUTH-TC-O03 | Inactive ZIP in filter → explicit waitlist opt-in (no auto-enroll) |
 | | AUTH-TC-O04 | Subscriber vs free SP visibility |
 | | AUTH-TC-O05 | Admin radius defaults and bounds reflect in Discover |
 | **P — Global Header, Floating Nav & Home Composer** | AUTH-TC-P01 | Header node chip shows registered market (read-only) |
@@ -1647,17 +1647,26 @@
 **Expected Result:**
 - Results scope to nearby nodes within the chosen radius; the radius preference is remembered.
 
-### AUTH-TC-O03 · Inactive ZIP in filter → waitlist prompt
+### AUTH-TC-O03 · Inactive ZIP in filter → explicit waitlist opt-in (no auto-enrollment; own scope unchanged)
 
 **Actors:** test-buyer
 
-**Objective:** Verify filtering by an inactive ZIP surfaces a waitlist prompt.
+**Objective:** Verify that filtering by an inactive ZIP asks for an explicit Yes/No waitlist opt-in (never auto-enrolls), and that exploring another ZIP never changes the user's own Discover scope.
 
 **Steps:**
-1. In the location filter, enter a ZIP with no active node and apply.
+1. As **test-buyer**, open Discover and confirm the default is node-scoped for your home node (the result count shows your node/state and the **Show All Nodes** toggle is visible).
+2. Open the **Filters** modal, enter a ZIP with no active node (e.g. `99999`), and apply.
+3. In the waitlist dialog, confirm you are **asked** rather than auto-enrolled — the copy asks, e.g. "We're not live in ZIP 99999 yet. Would you like us to let you know when we launch here?" with **Yes, Add Me to the Waitlist** / **No, Thanks** options. No "Added you to the waitlist…" auto-enrollment message appears.
+4. Tap **No, Thanks** → confirm no waitlist enrollment happened; the outcome step still offers **Back to Filters** / **See All Results**.
+5. (Regression) Return to Discover and confirm your own default scope is **unchanged**: still node-scoped for your home node, with the **Show All Nodes** toggle still visible (no `zip_waitlist` row was created for a ZIP you merely explored).
+6. Re-apply the same inactive ZIP and tap **Yes, Add Me to the Waitlist** → confirm the confirmation step ("You're on the waitlist for ZIP 99999…").
+7. (Regression) Verify your own Discover default scope is **still** node-scoped: filtering by someone else's inactive ZIP (even after opting in) must **not** flip your browsing default to global-browse.
 
 **Expected Result:**
-- A prompt like "We are not live in ZIP {zip} yet. We can add you to the waitlist." appears with options such as **Back to Filters** / **See All Results**.
+- Applying an inactive ZIP does **NOT** create a `zip_waitlist` row until the user explicitly taps **Yes**; **No** or dismissing the dialog leaves no row.
+- The dialog asks for consent with clear **Yes, Add Me to the Waitlist** / **No, Thanks** options before any enrollment (no auto-enrollment copy like "Added you to the waitlist").
+- The outcome step preserves the **Back to Filters** / **See All Results** navigation.
+- A `zip_waitlist` row created via the filter path is tied to the explored ZIP only and does **NOT** flip the user's own Discover default scope (home-node scope + **Show All Nodes** toggle preserved).
 
 ### AUTH-TC-O04 · Subscriber vs free SP visibility
 
@@ -2460,5 +2469,5 @@
 | Infinite scroll pagination | AUTH-TC-N03 |
 | Item card §6.2 layout + gold Accepts SP badge | AUTH-TC-N04 |
 | Location ZIP + radius | AUTH-TC-O02 |
-| Inactive ZIP in discovery filter | AUTH-TC-O03 |
+| Inactive ZIP in discovery filter → explicit waitlist opt-in | AUTH-TC-O03 |
 | Admin radius defaults/bounds | AUTH-TC-O05 |

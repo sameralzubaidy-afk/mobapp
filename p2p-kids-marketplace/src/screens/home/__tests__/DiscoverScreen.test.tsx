@@ -21,6 +21,8 @@ import { fetchDatabaseBrands } from '@/services/brandAutocomplete';
 import { suggestSpellingCorrection } from '@/services/discovery';
 import { getCategories } from '@/services/items';
 import { useAuth, useSubscriptionStatus } from '@/hooks/useAuth';
+import { checkZipCodeHasActiveNode } from '@/services/location';
+import { upsertZipWaitlist, isUserOnWaitlist } from '@/services/waitlist';
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -36,6 +38,14 @@ jest.mock('@/services/discovery');
 jest.mock('@/services/searchHistory');
 jest.mock('@/services/brandAutocomplete');
 jest.mock('@/services/items');
+// 2026-08-22 (AUTH-TC-O03 regression): mock waitlist + location services so the
+// inactive-ZIP consent flow is controllable per-test (no real enrollment, no
+// network ZIP lookups).
+jest.mock('@/services/location');
+jest.mock('@/services/waitlist');
+// Point the supabase client at the shared mock so tests can both drive the
+// waitlist query (Fix A) and override per-table responses (__setSupabaseTableResponse).
+jest.mock('@/config/supabase', () => require('@/__mocks__/supabase'));
 // Group M Fix 4: mock the auth hook so the SP upgrade CTA gate (canSpendSP)
 // is controllable per-test. Same auto-mock pattern as ItemCreateScreen tests.
 jest.mock('@/hooks/useAuth');
@@ -1086,5 +1096,195 @@ describe('DiscoverScreen', () => {
 
       expect(queryByTestId('discover-sp-upgrade-cta')).toBeNull();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ZIP waitlist consent + scope decouple (2026-08-22) — AUTH-TC-O03 regression
+// ---------------------------------------------------------------------------
+// The shared Supabase mock (jest.setup.ts) exposes mock-only helpers that are
+// NOT on the real `@/config/supabase` export type, so we require() it here.
+const supabaseMock = require('@/config/supabase') as {
+  supabase: any;
+  __setSupabaseTableResponse: (
+    table: string,
+    operation: string,
+    response: { data: any; error: any }
+  ) => void;
+};
+
+describe('DiscoverScreen ZIP waitlist opt-in + scope (2026-08-22)', () => {
+  const userId = '49243010-f458-4744-add1-a6c84ab95f1f';
+  const userEmail = 'test-buyer@kidsmarketplace.test';
+  const userNodeId = '550e8400-e29b-41d4-a716-446655440001';
+  const homeZip = '06850';
+
+  const signedInSession = {
+    user: {
+      id: userId,
+      user_id: userId,
+      email: userEmail,
+      name: 'Test Buyer',
+      zip_code: homeZip,
+      node_id: userNodeId,
+      node: { id: userNodeId, state: 'CT' },
+    },
+  } as any;
+
+  const renderSignedIn = () =>
+    render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockUseAuth.mockReturnValue({
+      session: signedInSession,
+      user: signedInSession.user,
+      isLoading: false,
+      isSignout: false,
+      error: null,
+      setSession: jest.fn(),
+      refreshSession: jest.fn(),
+      logout: jest.fn(),
+      subscribeToSessionChanges: jest.fn(),
+    } as any);
+    (checkZipCodeHasActiveNode as jest.Mock).mockResolvedValue(false);
+    (isUserOnWaitlist as jest.Mock).mockResolvedValue(false);
+    (upsertZipWaitlist as jest.Mock).mockResolvedValue({
+      success: true,
+      wasNewEntry: true,
+      requestedZip: '99999',
+      assignedNodeId: null,
+    });
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  it('does NOT create a zip_waitlist row when an inactive ZIP is applied; No leaves no row', async () => {
+    const screen = renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-filter-button')).toBeTruthy();
+    });
+
+    // Open the filter sheet, enter an inactive ZIP, apply.
+    fireEvent.press(screen.getByTestId('discover-filter-button'));
+    fireEvent.changeText(screen.getByTestId('filter-location-zip-input'), '99999');
+    fireEvent.press(screen.getByTestId('filter-modal-apply'));
+
+    // Applying an inactive ZIP must NOT auto-enroll. The consent step appears
+    // (async apply + 300ms modal-close delay).
+    await waitFor(() => {
+      expect(screen.getByTestId('inactive-zip-waitlist-yes')).toBeTruthy();
+    });
+    expect(upsertZipWaitlist).not.toHaveBeenCalled();
+
+    // Explicit "No" → still no row; outcome step with navigation appears.
+    fireEvent.press(screen.getByTestId('inactive-zip-waitlist-no'));
+    expect(upsertZipWaitlist).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByTestId('inactive-zip-see-all-results')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('inactive-zip-waitlist-yes')).toBeNull();
+  });
+
+  it('creates the zip_waitlist row only after explicit Yes consent', async () => {
+    const screen = renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-filter-button')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId('discover-filter-button'));
+    fireEvent.changeText(screen.getByTestId('filter-location-zip-input'), '99999');
+    fireEvent.press(screen.getByTestId('filter-modal-apply'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('inactive-zip-waitlist-yes')).toBeTruthy();
+    });
+    expect(upsertZipWaitlist).not.toHaveBeenCalled();
+
+    // Explicit "Yes" → the row is created with the user's identity + ZIP.
+    fireEvent.press(screen.getByTestId('inactive-zip-waitlist-yes'));
+    await waitFor(() => {
+      expect(upsertZipWaitlist).toHaveBeenCalledWith({
+        userId,
+        email: userEmail,
+        requestedZip: '99999',
+      });
+    });
+
+    // Outcome step confirms enrollment with the navigation options.
+    await waitFor(() => {
+      expect(screen.getByTestId('inactive-zip-see-all-results')).toBeTruthy();
+    });
+  });
+
+  it('skips the consent step when the user is already on the waitlist for that ZIP', async () => {
+    (isUserOnWaitlist as jest.Mock).mockResolvedValue(true);
+    const screen = renderSignedIn();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-filter-button')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId('discover-filter-button'));
+    fireEvent.changeText(screen.getByTestId('filter-location-zip-input'), '99999');
+    fireEvent.press(screen.getByTestId('filter-modal-apply'));
+
+    // No consent step — straight to the "already on the list" outcome.
+    await waitFor(() => {
+      expect(screen.getByTestId('inactive-zip-see-all-results')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('inactive-zip-waitlist-yes')).toBeNull();
+    expect(upsertZipWaitlist).not.toHaveBeenCalled();
+  });
+
+  it("scopes the waitlist check to the user's own home ZIP — a filter-path row for another ZIP cannot flip their scope", async () => {
+    const screen = renderSignedIn();
+
+    // No home-ZIP row → NOT waitlisted → node-scoped default (toggle visible).
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-show-all-nodes-toggle')).toBeTruthy();
+    });
+
+    // The waitlist query is now scoped to the user's own home ZIP + active
+    // statuses — a row for a *different* ZIP (e.g. filter exploration) can't
+    // match and flip the default scope to global-browse.
+    const fromCalls = supabaseMock.supabase.from.mock.calls;
+    const idx = fromCalls.findIndex((c: string[]) => c[0] === 'zip_waitlist');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    const builder = supabaseMock.supabase.from.mock.results[idx].value;
+    expect(builder.eq).toHaveBeenCalledWith('user_id', userId);
+    expect(builder.eq).toHaveBeenCalledWith('requested_zip', homeZip);
+    expect(builder.in).toHaveBeenCalledWith('status', ['pending', 'notified']);
+
+    // Search actually ran node-scoped for the user's node.
+    const calls = (searchListings as jest.Mock).mock.calls;
+    expect(
+      calls.some((call) => JSON.stringify(call[1]?.nodeIds) === JSON.stringify([userNodeId]))
+    ).toBe(true);
+  });
+
+  it("keeps the global-browse fallback when the waitlist row IS for the user's own home ZIP", async () => {
+    // Simulate an onboarding waitlist row for the user's home ZIP.
+    supabaseMock.__setSupabaseTableResponse('zip_waitlist', 'select', {
+      data: [{ id: 'wl-home-row' }],
+      error: null,
+    });
+
+    const screen = renderSignedIn();
+
+    // Waitlisted → global-browse fallback: Show All Nodes toggle hidden.
+    await waitFor(() => {
+      expect(screen.queryByTestId('discover-show-all-nodes-toggle')).toBeNull();
+    });
+
+    // Search ran global (no nodeIds).
+    const calls = (searchListings as jest.Mock).mock.calls;
+    expect(calls.some((call) => call[1]?.nodeIds === undefined)).toBe(true);
   });
 });

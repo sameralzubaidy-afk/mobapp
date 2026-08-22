@@ -46,7 +46,7 @@ import {
   getUserPreferredRadius,
   saveUserPreferredRadius,
 } from '@/services/location';
-import { upsertZipWaitlist } from '@/services/waitlist';
+import { upsertZipWaitlist, isUserOnWaitlist } from '@/services/waitlist';
 import { useAuth, useSubscriptionStatus } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getFavorites, toggleFavorite } from '@/services/favoritesService';
@@ -147,14 +147,23 @@ export default function DiscoverScreen({ navigation }: Props) {
   const [autocompleteVisible, setAutocompleteVisible] = useState(false);
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<string[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
+  // ZIP waitlist consent dialog (2026-08-22): two-step — an explicit Yes/No
+  // consent step BEFORE any zip_waitlist row is created, then an outcome step
+  // that preserves the Back to Filters / See All Results navigation.
   const [inactiveZipDialog, setInactiveZipDialog] = useState<{
     visible: boolean;
+    step: 'consent' | 'confirmed' | 'none';
     zip: string;
-    message: string;
+    enrolled: boolean;
+    signInRequired: boolean;
+    enrollmentFailed: boolean;
   }>({
     visible: false,
+    step: 'none',
     zip: '',
-    message: '',
+    enrolled: false,
+    signInRequired: false,
+    enrollmentFailed: false,
   });
 
   // Categories for filter modal
@@ -310,14 +319,24 @@ export default function DiscoverScreen({ navigation }: Props) {
     initializeLocationDefaults();
   }, [session?.user?.zip_code, userId]);
 
-  // P4 (2026-08-17): Detect waitlisted status (zip_waitlist row). Waitlisted
-  // users keep the intentional global-browse fallback — never scope them.
-  // On query failure, default to active-node (scope) so the hyperlocal fix
-  // can't silently regress; log for diagnosability.
+  // P4 (2026-08-17) + ZIP-waitlist decouple (2026-08-22): Detect waitlisted
+  // status. A user is "waitlisted" (keeps the intentional global-browse
+  // fallback) ONLY when their zip_waitlist row is tied to their own home ZIP —
+  // the one established during onboarding when they have no active node. Rows
+  // created via ad-hoc filter exploration of a *different* ZIP (explicit
+  // opt-in) must NOT flip the user's own browsing default. On query failure,
+  // default to active-node (scope) so the hyperlocal fix can't silently
+  // regress; log for diagnosability.
   useEffect(() => {
     let cancelled = false;
     const checkWaitlistStatus = async () => {
       if (!userId) {
+        if (!cancelled) setWaitlisted(false);
+        return;
+      }
+      const homeZip = sanitizeZipCode(session?.user?.zip_code || '');
+      if (homeZip.length !== 5) {
+        // No known home ZIP → never treat the user as waitlisted for scope.
         if (!cancelled) setWaitlisted(false);
         return;
       }
@@ -326,6 +345,8 @@ export default function DiscoverScreen({ navigation }: Props) {
           .from('zip_waitlist')
           .select('id')
           .eq('user_id', userId)
+          .eq('requested_zip', homeZip)
+          .in('status', ['pending', 'notified'])
           .maybeSingle();
         if (!cancelled) setWaitlisted(!error && !!data);
       } catch (err) {
@@ -337,7 +358,7 @@ export default function DiscoverScreen({ navigation }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, session?.user?.zip_code]);
 
   const resolveNodeScopeByLocation = useCallback(async (zipCode: string, radius: number) => {
     if (!/^\d{5}$/.test(zipCode)) {
@@ -878,13 +899,17 @@ export default function DiscoverScreen({ navigation }: Props) {
   }, []);
 
   /**
-   * Apply ZIP filter from user input and auto-enroll waitlist when zip is inactive.
+   * Apply ZIP filter from user input. (2026-08-22) For an inactive ZIP this NO
+   * LONGER auto-enrolls the user in zip_waitlist — the consent dialog asks for
+   * explicit Yes/No before any row is created. This only reports whether the
+   * user is already on this ZIP's waitlist so the dialog can skip consent on
+   * repeat visits.
    */
   const handleApplyZipCode = async (): Promise<{
     ok: boolean;
     zip: string;
     isInactiveZip: boolean;
-    waitlistNote?: string;
+    alreadyWaitlisted: boolean;
   }> => {
     const normalizedZip = sanitizeZipCode(zipCodeInput);
     setZipCodeInput(normalizedZip);
@@ -892,7 +917,7 @@ export default function DiscoverScreen({ navigation }: Props) {
 
     if (!/^\d{5}$/.test(normalizedZip)) {
       setInactiveZipMessage('Enter a valid 5-digit ZIP code.');
-      return { ok: false, zip: normalizedZip, isInactiveZip: false };
+      return { ok: false, zip: normalizedZip, isInactiveZip: false, alreadyWaitlisted: false };
     }
 
     setAppliedZipCode(normalizedZip);
@@ -900,56 +925,148 @@ export default function DiscoverScreen({ navigation }: Props) {
 
     if (hasActiveNode) {
       setWaitlistMessage(null);
-      return { ok: true, zip: normalizedZip, isInactiveZip: false };
+      return { ok: true, zip: normalizedZip, isInactiveZip: false, alreadyWaitlisted: false };
     }
 
-    if (!hasActiveNode && userId && userEmail) {
-      let waitlistNote = `Added you to the waitlist for ZIP ${normalizedZip}.`;
-      try {
-        // Note: assignedNodeId not passed because get_nodes_within_radius returns
-        // geographic_nodes IDs, but zip_waitlist FK references public.nodes.
-        // This will be fixed when migration 008_unify_nodes_table.sql is run.
-        await upsertZipWaitlist({
-          userId,
-          email: userEmail,
-          requestedZip: normalizedZip,
-        });
-        setWaitlistMessage(waitlistNote);
-      } catch (waitlistError) {
-        console.error('[DiscoverScreen] Waitlist enrollment failed:', waitlistError);
-        waitlistNote = 'Could not add you to waitlist right now. Please try again.';
-        setWaitlistMessage(waitlistNote);
-      }
-      return { ok: true, zip: normalizedZip, isInactiveZip: true, waitlistNote };
+    // Inactive ZIP: no row is created here. Just check existing membership so
+    // the dialog can skip the consent step for ZIPs the user already opted into.
+    let alreadyWaitlisted = false;
+    if (userId) {
+      alreadyWaitlisted = await isUserOnWaitlist(userId, normalizedZip);
     }
-
-    const signInNote = 'Sign in to be added to the waitlist for this ZIP.';
-    setWaitlistMessage(signInNote);
-    return { ok: true, zip: normalizedZip, isInactiveZip: true, waitlistNote: signInNote };
+    setWaitlistMessage(null);
+    return { ok: true, zip: normalizedZip, isInactiveZip: true, alreadyWaitlisted };
   };
 
   /**
-   * Show alert when user tries to apply an inactive ZIP code
+   * Show the inactive-ZIP dialog. (2026-08-22) Two-step: an explicit Yes/No
+   * consent step BEFORE any zip_waitlist row is created, then an outcome step
+   * preserving the Back to Filters / See All Results navigation. Signed-out
+   * users cannot enroll and skip straight to the outcome step with a sign-in
+   * note; already-waitlisted users skip the consent step on repeat visits.
    */
-  const showInactiveZipAlert = (zip: string, waitlistNote?: string) => {
-    const alertMessage = waitlistNote
-      ? `We're not live in ZIP code ${zip} yet. ${waitlistNote} In the meantime, you can browse all available items.`
-      : `We're not live in ZIP code ${zip} yet. In the meantime, you can browse all available items.`;
-
+  const showInactiveZipDialog = (zip: string, alreadyWaitlisted: boolean) => {
+    if (!userId) {
+      setInactiveZipDialog({
+        visible: true,
+        step: 'confirmed',
+        zip,
+        enrolled: false,
+        signInRequired: true,
+        enrollmentFailed: false,
+      });
+      return;
+    }
+    if (alreadyWaitlisted) {
+      // Already explicitly on this ZIP's list — confirm, don't re-ask.
+      setInactiveZipDialog({
+        visible: true,
+        step: 'confirmed',
+        zip,
+        enrolled: true,
+        signInRequired: false,
+        enrollmentFailed: false,
+      });
+      return;
+    }
     setInactiveZipDialog({
       visible: true,
+      step: 'consent',
       zip,
-      message: alertMessage,
+      enrolled: false,
+      signInRequired: false,
+      enrollmentFailed: false,
+    });
+  };
+
+  /** Explicit "Yes" — only now create the zip_waitlist row. */
+  const handleWaitlistOptInYes = async () => {
+    if (!inactiveZipDialog.visible || !inactiveZipDialog.zip) {
+      return;
+    }
+    const zip = inactiveZipDialog.zip;
+    if (!userId || !userEmail) {
+      setInactiveZipDialog({
+        visible: true,
+        step: 'confirmed',
+        zip,
+        enrolled: false,
+        signInRequired: true,
+        enrollmentFailed: false,
+      });
+      return;
+    }
+    try {
+      await upsertZipWaitlist({ userId, email: userEmail, requestedZip: zip });
+      setInactiveZipDialog({
+        visible: true,
+        step: 'confirmed',
+        zip,
+        enrolled: true,
+        signInRequired: false,
+        enrollmentFailed: false,
+      });
+    } catch (enrollError) {
+      console.error('[DiscoverScreen] Waitlist enrollment failed:', enrollError);
+      setInactiveZipDialog({
+        visible: true,
+        step: 'confirmed',
+        zip,
+        enrolled: false,
+        signInRequired: false,
+        enrollmentFailed: true,
+      });
+    }
+  };
+
+  /** Explicit "No" — no row created; proceed to the outcome step. */
+  const handleWaitlistOptInNo = () => {
+    if (!inactiveZipDialog.visible || !inactiveZipDialog.zip) {
+      return;
+    }
+    setInactiveZipDialog({
+      visible: true,
+      step: 'confirmed',
+      zip: inactiveZipDialog.zip,
+      enrolled: false,
+      signInRequired: false,
+      enrollmentFailed: false,
+    });
+  };
+
+  /** Outcome-step message (enrolled / declined / sign-in / failure). */
+  const inactiveZipOutcomeMessage = (): string => {
+    const { zip, enrolled, signInRequired, enrollmentFailed } = inactiveZipDialog;
+    if (signInRequired) {
+      return `We're not live in ZIP ${zip} yet. Sign in to be added to the waitlist for this ZIP. In the meantime, you can browse all available items.`;
+    }
+    if (enrollmentFailed) {
+      return `We couldn't add you to the waitlist for ZIP ${zip} right now. Please try again later. In the meantime, you can browse all available items.`;
+    }
+    if (enrolled) {
+      return `You're on the waitlist for ZIP ${zip}. We'll let you know when we launch here. In the meantime, you can browse all available items.`;
+    }
+    return 'No problem — you can still browse everything on Pass It Up.';
+  };
+
+  const resetInactiveZipDialog = () => {
+    setInactiveZipDialog({
+      visible: false,
+      step: 'none',
+      zip: '',
+      enrolled: false,
+      signInRequired: false,
+      enrollmentFailed: false,
     });
   };
 
   const handleInactiveZipBackToFilters = () => {
-    setInactiveZipDialog({ visible: false, zip: '', message: '' });
+    resetInactiveZipDialog();
     setFilterModalVisible(true);
   };
 
   const handleInactiveZipSeeAllResults = () => {
-    setInactiveZipDialog({ visible: false, zip: '', message: '' });
+    resetInactiveZipDialog();
     // Clear location filter and show all items
     setAppliedZipCode('');
     setNodeIdsInScope([]);
@@ -1051,7 +1168,7 @@ export default function DiscoverScreen({ navigation }: Props) {
   const handleApplyFilters = async (newFilters: DiscoveryFilters) => {
     const normalizedZip = sanitizeZipCode(zipCodeInput);
 
-    let inactiveZipAlertPayload: { zip: string; waitlistNote?: string } | null = null;
+    let inactiveZipDialogPayload: { zip: string; alreadyWaitlisted: boolean } | null = null;
 
     if (normalizedZip.length === 0) {
       // Clearing ZIP reverts to global discovery scope.
@@ -1065,9 +1182,9 @@ export default function DiscoverScreen({ navigation }: Props) {
         return;
       }
       if (zipApplyResult.isInactiveZip) {
-        inactiveZipAlertPayload = {
+        inactiveZipDialogPayload = {
           zip: zipApplyResult.zip,
-          waitlistNote: zipApplyResult.waitlistNote,
+          alreadyWaitlisted: zipApplyResult.alreadyWaitlisted,
         };
       }
     }
@@ -1076,12 +1193,12 @@ export default function DiscoverScreen({ navigation }: Props) {
     setFilterModalVisible(false);
     setOffset(0);
 
-    // Show inactive ZIP alert AFTER modal closes if ZIP was inactive
-    if (inactiveZipAlertPayload) {
-      const { zip, waitlistNote } = inactiveZipAlertPayload;
+    // Show inactive ZIP dialog AFTER modal closes if ZIP was inactive
+    if (inactiveZipDialogPayload) {
+      const { zip, alreadyWaitlisted } = inactiveZipDialogPayload;
       // Small delay to let modal close animation complete
       setTimeout(() => {
-        showInactiveZipAlert(zip, waitlistNote);
+        showInactiveZipDialog(zip, alreadyWaitlisted);
       }, 300);
     }
   };
@@ -1679,25 +1796,69 @@ export default function DiscoverScreen({ navigation }: Props) {
         <View style={styles.inactiveZipModalOverlay}>
           <View style={styles.inactiveZipModalCard}>
             <Text style={styles.inactiveZipModalTitle}>Not Available in Your Area</Text>
-            <Text style={styles.inactiveZipModalMessage}>{inactiveZipDialog.message}</Text>
 
-            <View style={styles.inactiveZipModalActions}>
-              <Pressable
-                style={styles.inactiveZipSecondaryButton}
-                onPress={handleInactiveZipBackToFilters}
-                testID="inactive-zip-back-to-filters"
-              >
-                <Text style={styles.inactiveZipSecondaryButtonText}>Back to Filters</Text>
-              </Pressable>
+            {inactiveZipDialog.step === 'consent' ? (
+              <>
+                <Text style={styles.inactiveZipModalMessage}>
+                  We're not live in ZIP {inactiveZipDialog.zip} yet. Would you like us to let you
+                  know when we launch here?
+                </Text>
 
-              <Pressable
-                style={styles.inactiveZipPrimaryButton}
-                onPress={handleInactiveZipSeeAllResults}
-                testID="inactive-zip-see-all-results"
-              >
-                <Text style={styles.inactiveZipPrimaryButtonText}>See All Results</Text>
-              </Pressable>
-            </View>
+                <View style={styles.inactiveZipModalActionsColumn}>
+                  <Pressable
+                    style={styles.inactiveZipConsentPrimaryButton}
+                    onPress={handleWaitlistOptInYes}
+                    testID="inactive-zip-waitlist-yes"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Yes, add me to the waitlist"
+                  >
+                    <Text style={styles.inactiveZipPrimaryButtonText}>
+                      Yes, Add Me to the Waitlist
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.inactiveZipConsentSecondaryButton}
+                    onPress={handleWaitlistOptInNo}
+                    testID="inactive-zip-waitlist-no"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="No, thanks"
+                  >
+                    <Text style={styles.inactiveZipSecondaryButtonText}>No, Thanks</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.inactiveZipModalMessage}>{inactiveZipOutcomeMessage()}</Text>
+
+                <View style={styles.inactiveZipModalActions}>
+                  <Pressable
+                    style={styles.inactiveZipSecondaryButton}
+                    onPress={handleInactiveZipBackToFilters}
+                    testID="inactive-zip-back-to-filters"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Back to Filters"
+                  >
+                    <Text style={styles.inactiveZipSecondaryButtonText}>Back to Filters</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.inactiveZipPrimaryButton}
+                    onPress={handleInactiveZipSeeAllResults}
+                    testID="inactive-zip-see-all-results"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="See All Results"
+                  >
+                    <Text style={styles.inactiveZipPrimaryButtonText}>See All Results</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </RNModal>
@@ -2078,6 +2239,30 @@ const styles = StyleSheet.create({
     marginTop: 24,
     flexDirection: 'row',
     gap: 12,
+  },
+  // 2026-08-22: consent step uses full-width stacked buttons (longer labels
+  // than the two navigation buttons in the outcome step).
+  inactiveZipModalActionsColumn: {
+    marginTop: 24,
+    gap: 12,
+  },
+  inactiveZipConsentSecondaryButton: {
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#C9C9C9',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  inactiveZipConsentPrimaryButton: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   inactiveZipSecondaryButton: {
     flex: 1,

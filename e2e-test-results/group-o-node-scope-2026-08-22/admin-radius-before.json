@@ -1,0 +1,7 @@
+{
+  "default_radius_miles": "10",
+  "max_assignment_distance_miles": "100",
+  "distance_warning_threshold_miles": "50",
+  "min_user_radius_miles": "5",
+  "max_user_radius_miles": "25"
+}
