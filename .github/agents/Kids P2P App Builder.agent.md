@@ -722,6 +722,11 @@ Issue: "E2E test fails right after signup because trigger-created rows (subscrip
 ✅ Check: Deployment lag — the deployed function may predate the migration that defines the asserted defaults; apply/redeploy before blaming app code (BP-47)
 See also: BP-47 (E2E tests asserting trigger-created defaults must first verify the trigger exists in the target DB)
 
+Issue: "Dev task points at a fragile pattern (a cast, a missing variable, a stale trigger comment) inside a migration file"
+
+✅ Check: Grep migrations for the NEWEST `CREATE OR REPLACE FUNCTION <name>` / trigger definition and diff — a superseded body is dead code even if the function name is still attached to a trigger (BP-47)
+See also: BP-47 (the latest migration definition is authoritative — verify the attached/deployed body before patching anything found in a historical migration)
+
 Issue: "Admin edits a setting on one surface but the other surface shows no 'last updated' / who changed it, or a new settings page silently bypasses the shared write path"
 
 ✅ Check: The settings write goes through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never a direct `admin_config` insert/update (BP-48)
@@ -748,6 +753,12 @@ Issue: "Discover screen renders legacy green (#4A7C59) or iOS system blue (#007A
 ✅ Check: `src/theme/discoveryTokens.ts` is reconciled to `docx/design-system-passitup.md` and matches `src/theme/colors.ts` (BP-56)
 ✅ Check: Discover components import `ds` tokens from `@/theme/discoveryTokens` — no raw legacy hex (`#4A7C59`, `#E5E7EB`, `#1F2937`, `#4D4D4D`) or system blue (`#007AFF`/`#EEF6FF`) (BP-56)
 See also: BP-56 (design tokens — canonical pass-it-up palette; never source from legacy `design-system.md`)
+
+Issue: "A fix makes an auto-verify/auto-submit path actually work, and suddenly unit tests that used to pass are failing"
+
+✅ Check: The failing tests were written around the OLD broken behavior — e.g., a manual Verify/fallback tap that is now unreachable because the auto-path fires first (BP-57)
+✅ Check: The tests were updated to assert the corrected auto-behavior, not the fix reverted or weakened to keep them green (BP-57)
+See also: BP-57 (a behavior fix that makes an auto-path work breaks manual-fallback tests — update those tests; the failure proves the fix worked)
 
 Issue: "A mutation appears to succeed in the UI but the database wasn't actually changed"
 
@@ -1239,12 +1250,13 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
-- BP-47 E2E trigger-created defaults — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug).
+- BP-47 Latest migration definition is authoritative — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug); a fragile pattern in a historical migration FILE isn't live if a newer `CREATE OR REPLACE` removed it (superseded body = dead code — don't patch it).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
 - BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it).
 - BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`.
 - BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
+- BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1330,9 +1342,11 @@ SELECT prosrc FROM pg_proc WHERE proname = '<signup handler>';
 - Confirm the handler's `prosrc` matches the latest canonical migration (grep migrations for the newest `CREATE OR REPLACE FUNCTION <handler>` and diff) — "trigger attached" is not enough; the deployed body may be stale.
 - Only after confirming the trigger + handler are present and current should a failure on trigger-created rows be treated as an app/code bug.
 - Deployment lag ≠ code bug: if the target DB's function predates the migration defining the asserted behavior, the fix is to apply the migration / redeploy the function — not to edit app code.
+- FIX-AUTHORING direction (same principle, opposite side): a fragile pattern found in a HISTORICAL migration FILE is not automatically live. Later `CREATE OR REPLACE FUNCTION` rewrites may have replaced the body, or a later migration may have dropped the trigger. Before patching anything found in a migration, grep migrations for the NEWEST definition of that function/trigger and diff. If a newer body exists and no longer contains the pattern, the historical body is dead code and MUST NOT be patched (real case: `process_referral_bonus_on_listing_v2` — the fragile `(config_value)::INTEGER` cast lived only in `20260204000009`, removed the next day by `20260205000003`; the live trigger function never carried the bug, so "fixing" the old body would have edited code that doesn't run).
+- A function name still attached to a trigger does NOT mean the historical migration body you're reading is what runs — "function is live" and "this file's body is live" are different questions.
 - Cross-ref BP-16 (stale trigger comments) and BP-31 (verify trigger AND RPC layers): verify the trigger exists before trusting a comment, a test, or a symptom.
 
-Detection checklist: any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code.
+Detection checklist: any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code. Likewise, a dev task pointing at a fragile pattern inside a migration FILE → grep migrations for the newest `CREATE OR REPLACE FUNCTION`/trigger definition and diff BEFORE authoring a fix; a superseded body is dead code even if the function name is still attached.
 
 BP-49: Admin Portal Client→API Auth — Always Send `x-admin-secret` on Browser Fetches to `/api/admin/*`
 Problem: The admin web app's browser→API routes authenticate two different ways: (1) the shared `x-admin-secret` header — client components send `NEXT_PUBLIC_ADMIN_UI_SECRET` — or (2) a Supabase JWT via an explicit `Authorization: Bearer` header. `verifyAdminAuth()` returns `{ authorized: false, error: 'No valid authentication provided' }` (HTTP 401) when a request carries NEITHER. The app has NO middleware, so the Supabase session cookie never reaches the API route. New client-side fetches that omit the header silently 401 — the page shows a generic "Fetch failed" / 401 instead of data.
@@ -1352,6 +1366,8 @@ BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Element
 BP-55: Root-Level UI Gated on Mount-Effect-Only State Must Be Flipped by an Explicit Child→Parent Callback — full text moved to `.github/instructions/navigation.instructions.md`.
 
 BP-56: Discover/Design Code Must Use the Canonical Pass-It-Up Tokens (never legacy `design-system.md` or raw hex) — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-57: Behavior-Fix Test Drift — a fix that makes an auto-verify/auto-submit path actually work breaks tests written around the old broken behavior (manual-fallback reliance); audit & update those tests — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-23: Realtime Callback Must Mirror Mount-Time Side Effects — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
