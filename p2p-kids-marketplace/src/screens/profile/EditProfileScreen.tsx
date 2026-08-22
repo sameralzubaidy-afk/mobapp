@@ -979,7 +979,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 40,
+    // Clear the floating pill bottom nav (PersistentTabBar) so the Save Changes
+    // button scrolls fully above it — matches the app-wide 100px clearance used
+    // by Profile/Home/Cart etc.
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,

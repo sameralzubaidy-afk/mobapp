@@ -100,6 +100,7 @@ Rules:
   ```
 - Funnel ALL exit paths (Skip, Complete/Get Started, and failure fallbacks) through ONE shared helper (e.g. `navigateToHome()`) so the callback fires on every exit — do not sprinkle the callback at individual button handlers.
 - The callback param MUST be optional and read defensively (`route.params?.cb?.()`); existing callers/tests that don't pass it must not crash (see BP-43-1 and NAV-7).
+- While the onboarding carousel is showing, the pill MUST stay hidden (gate on `!showOnboardingCarousel`) so the carousel's own Skip/Continue buttons are never covered; it must appear the instant the carousel finishes — the same shared exit helper that navigates to Home also flips the gate (this is the UX intent behind the BP-55 gate; a pill overlaying the carousel buttons is the same defect class as BP-58).
 - Cross-ref BP-33 (render persistent UI once at the root stack), NAV-2 (RootNavigator owns stack choice; screens change state and let RootNavigator redirect), NAV-3 (onboarding completion), BP-43 (route params).
 
 Detection checklist: "Bottom nav / persistent tab bar / header missing after a child screen completes (Skip, Get Started, logout) until the app is relaunched" → the gating state is mount-effect-only and no child→parent callback flips it; wire an explicit `initialParams` callback and route every exit through the shared helper.

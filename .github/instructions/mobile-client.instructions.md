@@ -5,7 +5,7 @@ applyTo: "p2p-kids-marketplace/src/**"
 
 # Mobile Client Hardening Protocol
 
-Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 43 rules.
+Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device), BP-58 (bottom-anchored UI must clear the floating pill nav) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 43 rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -23,6 +23,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
+- BP-58 Bottom-anchored UI on pill-nav screens — scroll content `paddingBottom: 100`, fixed bottom bars `bottom: 120`, in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -275,3 +276,17 @@ Rules:
 - **Cache compatibility.** When a cached object's shape changes (e.g., a service now returns a grouped array), add a cache schema version or clear old-shaped entries — never read a stale-shaped cached object as if it were the new shape.
 - **Keep old UI paths working** when a new field is absent — render the pre-feature state instead of blocking the screen.
 - If a field is REQUIRED by the UI but optional in the API, add a `// TODO(BACKCOMP):` noting the contract change and coordinate both sides.
+
+## BP-58: Bottom-Anchored UI Must Clear the Floating Pill Nav (PersistentTabBar)
+
+Problem: The global bottom nav is a floating pill (`PersistentTabBar`, rendered once at the root authenticated stack) that overlays the bottom of every screen. Bottom-anchored content — fixed CTAs, sticky bars, or a trailing Save/Submit button inside a ScrollView — gets hidden behind the pill. This recurred 5× (2026-08-16…22): Profile logout, Edit Profile Save, the bulk-flow Submit CTA, the Apply-to-All panel, and onboarding Skip/Continue. The overlap blocks the user's key action and looks broken.
+
+Rules:
+- The pill top sits ~110pt from the bottom (safe-area inset + `spacing.sm` + pill height), so any bottom-anchored element that must stay visible/tappable needs clearance:
+  - Scroll content → `paddingBottom: 100` on the scroll `contentContainerStyle` (app-wide standard — Home, Cart, Trades, Favorites, Profile, Edit Profile).
+  - Fixed bottom bar (`position: 'absolute', bottom: 0`) → `bottom: 120` (CartScreen's `stickyBottomContainer` is the canonical example).
+  - In-flow bar that must sit ABOVE a fixed bottom bar → `marginBottom: 200` (the ApplyToAllBar, whose bar top is ~192pt once the fixed Submit bar sits at `bottom: 120`).
+- Never leave a trailing CTA flush at the very bottom of a pill-nav screen.
+- When adding a fixed/sticky bottom element, size its clearance against the pill height, not just the safe-area inset.
+
+Detection checklist: for every new/edited screen, grep for a bottom-anchored element (`position: 'absolute', bottom: 0`, a trailing button in a ScrollView, or a sticky footer) and verify it clears the pill; on-device, scroll each such screen to the bottom and confirm no CTA/button is partially hidden behind the pill.

@@ -761,6 +761,11 @@ Issue: "A fix makes an auto-verify/auto-submit path actually work, and suddenly 
 ✅ Check: The tests were updated to assert the corrected auto-behavior, not the fix reverted or weakened to keep them green (BP-57)
 See also: BP-57 (a behavior fix that makes an auto-path work breaks manual-fallback tests — update those tests; the failure proves the fix worked)
 
+Issue: "A CTA / Save / Submit button (or a sticky bottom bar) is hidden behind the floating bottom nav pill"
+
+✅ Check: Scroll content uses `paddingBottom: 100`; fixed bottom bars use `bottom: 120`; in-flow bars above a fixed bar use `marginBottom: 200` (BP-58)
+See also: BP-58 (bottom-anchored UI must clear the floating pill nav — the pill top sits ~110pt from the screen bottom)
+
 Issue: "A mutation appears to succeed in the UI but the database wasn't actually changed"
 
 ✅ Check: The caller checked the `{success}` result of the service call instead of ignoring it (BP-35)
@@ -1268,6 +1273,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
+- BP-58 Bottom-anchored UI on pill-nav screens — scroll content needs `paddingBottom: 100`, fixed bottom bars `bottom: 120`, and in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1379,6 +1385,8 @@ BP-55: Root-Level UI Gated on Mount-Effect-Only State Must Be Flipped by an Expl
 BP-56: Discover/Design Code Must Use the Canonical Pass-It-Up Tokens (never legacy `design-system.md` or raw hex) — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-57: Behavior-Fix Test Drift — a fix that makes an auto-verify/auto-submit path actually work breaks tests written around the old broken behavior (manual-fallback reliance); audit & update those tests — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-58: Bottom-Anchored UI Must Clear the Floating Pill Nav (PersistentTabBar) — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-23: Realtime Callback Must Mirror Mount-Time Side Effects — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
