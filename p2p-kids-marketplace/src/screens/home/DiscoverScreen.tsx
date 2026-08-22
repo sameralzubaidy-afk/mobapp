@@ -12,6 +12,7 @@ import {
   View,
   Text,
   FlatList,
+  Keyboard,
   TextInput,
   Pressable,
   ActivityIndicator,
@@ -46,7 +47,7 @@ import {
   saveUserPreferredRadius,
 } from '@/services/location';
 import { upsertZipWaitlist } from '@/services/waitlist';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useSubscriptionStatus } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getFavorites, toggleFavorite } from '@/services/favoritesService';
 import { MagnifyingGlass, FunnelSimple, X, Coins, GlobeSimple } from 'phosphor-react-native';
@@ -106,6 +107,12 @@ type Props = NativeStackScreenProps<any, 'Discover'>;
  */
 export default function DiscoverScreen({ navigation }: Props) {
   const { session } = useAuth();
+
+  // Fix 4 (2026-08-22): Free users toggling the "Accepts SP" filter (header
+  // quick-toggle OR Filters-sheet toggle — both write filters.spEligibleOnly)
+  // or viewing SP-eligible results get the Kids Club+ upgrade CTA. Single gate:
+  // canSpendSP (subscriber-only) + SP filter active.
+  const { canSpendSP } = useSubscriptionStatus();
 
   // --- STATE ---
 
@@ -193,6 +200,21 @@ export default function DiscoverScreen({ navigation }: Props) {
   // --- COMPUTED VALUES ---
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
+
+  // Group M P2: when the empty state shows the "Clear Filters" action, the
+  // software keyboard can push that action below the fold and make it
+  // unreachable. Dismiss the keyboard once each time this empty-state variant
+  // renders so the action is always reachable. (While the user keeps typing in
+  // this same state the boolean doesn't change, so it won't re-dismiss and
+  // interrupt them.)
+  const showClearFiltersEmptyState = !loading && results.length === 0 && activeFilterCount > 0;
+
+  useEffect(() => {
+    if (showClearFiltersEmptyState) {
+      Keyboard.dismiss();
+    }
+  }, [showClearFiltersEmptyState]);
+
   const userId = session?.user?.user_id ?? null;
   const userEmail = session?.user?.email ?? null;
 
@@ -1220,7 +1242,14 @@ export default function DiscoverScreen({ navigation }: Props) {
                 autoCorrect={false}
               />
               {query.length > 0 && (
-                <Pressable onPress={() => setQuery('')} hitSlop={8}>
+                <Pressable
+                  testID="discover-search-clear"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  onPress={() => setQuery('')}
+                  hitSlop={8}
+                >
                   <X size={16} color="#6B6B6B" weight="regular" />
                 </Pressable>
               )}
@@ -1232,6 +1261,8 @@ export default function DiscoverScreen({ navigation }: Props) {
         <View style={styles.controlsRow}>
           <Pressable
             testID="discover-filter-button"
+            accessible
+            accessibilityRole="button"
             accessibilityLabel={`Filters${activeFilterCount > 0 ? `, ${activeFilterCount} active` : ''}`}
             style={styles.filterButton}
             onPress={handleOpenFilters}
@@ -1249,6 +1280,8 @@ export default function DiscoverScreen({ navigation }: Props) {
 
           <Pressable
             testID="discover-sp-toggle"
+            accessible
+            accessibilityRole="button"
             accessibilityLabel={`Accepts Swap Points filter ${filters.spEligibleOnly ? 'enabled' : 'disabled'}`}
             accessibilityState={{ selected: filters.spEligibleOnly === true }}
             style={[styles.spQuickToggle, filters.spEligibleOnly && styles.spQuickToggleActive]}
@@ -1269,6 +1302,30 @@ export default function DiscoverScreen({ navigation }: Props) {
             </Text>
           </Pressable>
         </View>
+
+        {/* Fix 4 (2026-08-22): Free-user upgrade CTA for the SP filter. Shown
+            whenever a non-subscriber has the "Accepts SP" filter active — via
+            the header quick-toggle, the Filters-sheet toggle, or simply
+            viewing SP-eligible results. Mirrors ItemCreateScreen's Payment
+            Preference upgrade prompt (AUTH-TC-J07): same copy + "Upgrade Now"
+            → Subscription Choice (JoinKidsClub). */}
+        {!canSpendSP && filters.spEligibleOnly === true && (
+          <View style={styles.spUpgradePrompt} testID="discover-sp-upgrade-cta">
+            <Text style={styles.spUpgradeText}>
+              🌟 Subscribe to Kids Club+ to accept Swap Points and unlock more features!
+            </Text>
+            <Pressable
+              testID="discover-sp-upgrade-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Upgrade to Kids Club+"
+              style={styles.spUpgradeButton}
+              onPress={() => navigation.navigate('JoinKidsClub')}
+            >
+              <Text style={styles.spUpgradeButtonText}>Upgrade Now</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* P4: "My Node" default + "Show All Nodes" opt-in (hyperlocal discovery).
             Only rendered for signed-in active-node users; waitlisted users keep
@@ -1335,6 +1392,8 @@ export default function DiscoverScreen({ navigation }: Props) {
                       </Text>
                       <Pressable
                         testID={`remove-filter-${chip.key}`}
+                        accessible
+                        accessibilityRole="button"
                         accessibilityLabel={`Remove ${chip.label} filter`}
                         onPress={() => handleRemoveFilter(chip.key)}
                         hitSlop={8}
@@ -1350,6 +1409,8 @@ export default function DiscoverScreen({ navigation }: Props) {
                 </ScrollView>
                 <Pressable
                   testID="clear-all-filters"
+                  accessible
+                  accessibilityRole="button"
                   accessibilityLabel="Clear all filters"
                   onPress={handleClearAllActiveFilters}
                   hitSlop={8}
@@ -1375,6 +1436,9 @@ export default function DiscoverScreen({ navigation }: Props) {
               <Pressable
                 key={`autocomplete-${index}`}
                 testID={`autocomplete-suggestion-${index}`}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`Search for ${suggestion}`}
                 style={styles.autocompleteSuggestion}
                 onPress={() => handleAutocompleteTap(suggestion)}
               >
@@ -1393,6 +1457,9 @@ export default function DiscoverScreen({ navigation }: Props) {
                   <Text style={styles.discoverySectionTitle}>Recent Searches</Text>
                   <Pressable
                     testID="clear-recent-searches"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear recent searches"
                     onPress={handleClearAllRecentSearches}
                     hitSlop={8}
                   >
@@ -1408,6 +1475,8 @@ export default function DiscoverScreen({ navigation }: Props) {
                     <Pressable
                       key={`recent-${index}`}
                       testID={`recent-search-${index}`}
+                      accessible
+                      accessibilityRole="button"
                       style={styles.recentChip}
                       onPress={() => handleAutocompleteTap(search)}
                       accessibilityLabel={`Search for ${search}`}
@@ -1433,6 +1502,8 @@ export default function DiscoverScreen({ navigation }: Props) {
                     <Pressable
                       key={cat.category_id}
                       testID={`trending-chip-${cat.category_id}`}
+                      accessible
+                      accessibilityRole="button"
                       style={styles.trendingChip}
                       onPress={() => handleTrendingTap(cat)}
                       accessibilityLabel={`Browse trending category ${cat.category_name}`}
@@ -1485,6 +1556,9 @@ export default function DiscoverScreen({ navigation }: Props) {
             <Text style={styles.emptySubtitle}>Try adjusting your filters</Text>
             <Pressable
               testID="clear-filters-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Clear Filters"
               style={styles.clearFiltersButton}
               onPress={() => setFilters(getDefaultFilters())}
             >
@@ -1497,6 +1571,9 @@ export default function DiscoverScreen({ navigation }: Props) {
             <Text style={styles.emptySubtitle}>Did you mean "{spellSuggestion}"?</Text>
             <Pressable
               testID="spell-suggestion-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Search for ${spellSuggestion}`}
               style={styles.spellSuggestionButton}
               onPress={() => setQuery(spellSuggestion)}
             >
@@ -1517,6 +1594,9 @@ export default function DiscoverScreen({ navigation }: Props) {
             </Text>
             <Pressable
               testID="empty-show-all-nodes"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Show All Nodes"
               style={styles.clearFiltersButton}
               onPress={() => setShowAllNodes(true)}
             >
@@ -1716,6 +1796,36 @@ const styles = StyleSheet.create({
   spQuickToggleTextActive: {
     color: ds.sp[500],
     fontWeight: '700',
+  },
+  // Fix 4: Free-user SP upgrade CTA — mirrors ItemCreateScreen's
+  // spUpgradePrompt block (AUTH-TC-J07) so the free-tier SP restriction CTA is
+  // visually identical app-wide. Colors intentionally match that pattern
+  // (amber tint + brand-green button); #7A5A2A is the amber prompt text from
+  // the ItemCreate pattern (not in the passitup token set).
+  spUpgradePrompt: {
+    marginTop: 12,
+    backgroundColor: ds.sp[100],
+    borderRadius: dsRadii.medium,
+    padding: 12,
+  },
+  spUpgradeText: {
+    ...dsType.body,
+    color: '#7A5A2A',
+    marginBottom: 10,
+  },
+  spUpgradeButton: {
+    backgroundColor: ds.primary[500],
+    borderRadius: dsRadii.pill,
+    minHeight: 48,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+  },
+  spUpgradeButtonText: {
+    ...dsType.label,
+    fontWeight: '600',
+    color: ds.neutral.white,
   },
   showAllNodesRow: {
     marginTop: 12,

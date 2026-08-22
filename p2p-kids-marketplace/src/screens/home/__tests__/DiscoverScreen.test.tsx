@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { Keyboard } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import DiscoverScreen from '../DiscoverScreen';
 import { searchListings } from '@/services/discovery';
@@ -19,6 +20,7 @@ import {
 import { fetchDatabaseBrands } from '@/services/brandAutocomplete';
 import { suggestSpellingCorrection } from '@/services/discovery';
 import { getCategories } from '@/services/items';
+import { useAuth, useSubscriptionStatus } from '@/hooks/useAuth';
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -34,6 +36,9 @@ jest.mock('@/services/discovery');
 jest.mock('@/services/searchHistory');
 jest.mock('@/services/brandAutocomplete');
 jest.mock('@/services/items');
+// Group M Fix 4: mock the auth hook so the SP upgrade CTA gate (canSpendSP)
+// is controllable per-test. Same auto-mock pattern as ItemCreateScreen tests.
+jest.mock('@/hooks/useAuth');
 
 // Mock navigation
 const mockNavigate = jest.fn();
@@ -43,6 +48,12 @@ const mockNavigation = {
   setOptions: jest.fn(),
   canGoBack: jest.fn(() => true),
 };
+
+// Group M Fix 4: typed handles on the auto-mocked auth hook.
+const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockUseSubscriptionStatus = useSubscriptionStatus as jest.MockedFunction<
+  typeof useSubscriptionStatus
+>;
 
 // Mock search results
 const mockSearchResults = [
@@ -88,6 +99,26 @@ describe('DiscoverScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+
+    // Group M Fix 4: default to a logged-out "free" user (session null →
+    // canSpendSP false), matching the real AuthContext default. Individual
+    // tests override useSubscriptionStatus for the subscriber case.
+    mockUseAuth.mockReturnValue({
+      session: null,
+      user: null,
+      isLoading: false,
+      isSignout: false,
+      error: null,
+      setSession: jest.fn(),
+      refreshSession: jest.fn(),
+      logout: jest.fn(),
+      subscribeToSessionChanges: jest.fn(),
+    } as any);
+    mockUseSubscriptionStatus.mockReturnValue({
+      status: 'free',
+      canSpendSP: false,
+      isTrialExpired: true,
+    });
 
     // Setup default mock responses
     (searchListings as jest.Mock).mockResolvedValue(mockSearchResults);
@@ -760,6 +791,32 @@ describe('DiscoverScreen', () => {
         expect(getByText('Did you mean "bicycle"?')).toBeTruthy();
       });
     });
+
+    // Group M P2: when results are empty AND filters are active, the "Clear
+    // Filters" action can be pushed below the software keyboard and become
+    // unreachable. The screen must dismiss the keyboard so the action is always
+    // reachable.
+    it('dismisses the keyboard when the empty "Clear Filters" state renders', async () => {
+      const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+      (searchListings as jest.Mock).mockResolvedValue([]);
+
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      // Apply an active filter (SP toggle) so the "Clear Filters" variant shows.
+      await waitFor(() => {
+        expect(getByTestId('discover-sp-toggle')).toBeTruthy();
+      });
+      fireEvent.press(getByTestId('discover-sp-toggle'));
+
+      await waitFor(() => {
+        expect(getByTestId('clear-filters-button')).toBeTruthy();
+      });
+
+      expect(dismissSpy).toHaveBeenCalled();
+      dismissSpy.mockRestore();
+    });
   });
 
   describe('Error Handling', () => {
@@ -872,6 +929,162 @@ describe('DiscoverScreen', () => {
       const calls = (searchListings as jest.Mock).mock.calls;
       const lastCall = calls[calls.length - 1];
       expect(lastCall[1].offset).toBe(0);
+    });
+  });
+
+  // Group M P3 / BP-53: Discover-surface controls must surface as distinct
+  // accessibility-tree elements (accessible + accessibilityRole) — QA testID
+  // automation and screen readers rely on these being real AX elements, not
+  // just visual Pressables. (Trending chips render only for a signed-in
+  // userState and are verified on-device via AX-tree inspection instead.)
+  describe('Accessibility (Group M P3 / BP-53)', () => {
+    it('exposes filter + SP toggle + search clear as accessible buttons', async () => {
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('discover-filter-button')).toBeTruthy();
+        expect(getByTestId('discover-sp-toggle')).toBeTruthy();
+      });
+
+      const filterBtn = getByTestId('discover-filter-button');
+      expect(filterBtn.props.accessible).toBe(true);
+      expect(filterBtn.props.accessibilityRole).toBe('button');
+
+      const spToggle = getByTestId('discover-sp-toggle');
+      expect(spToggle.props.accessible).toBe(true);
+      expect(spToggle.props.accessibilityRole).toBe('button');
+
+      // Search clear-X only appears while there is text in the query.
+      const searchInput = getByTestId('discover-search-input');
+      fireEvent.changeText(searchInput, 'bi');
+
+      await waitFor(() => {
+        expect(getByTestId('discover-search-clear')).toBeTruthy();
+      });
+
+      const clearX = getByTestId('discover-search-clear');
+      expect(clearX.props.accessible).toBe(true);
+      expect(clearX.props.accessibilityRole).toBe('button');
+      expect(clearX.props.accessibilityLabel).toBe('Clear search');
+    });
+
+    it('exposes recent-search chips and autocomplete suggestions as accessible buttons', async () => {
+      (getAutocompleteSuggestions as jest.Mock).mockReturnValue(['bike']);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      const searchInput = getByTestId('discover-search-input');
+
+      // Recent searches show when the input is focused (empty) — chips must be buttons.
+      fireEvent(searchInput, 'focus');
+      await waitFor(() => {
+        expect(getByTestId('recent-search-0')).toBeTruthy();
+      });
+
+      const recentChip = getByTestId('recent-search-0');
+      expect(recentChip.props.accessible).toBe(true);
+      expect(recentChip.props.accessibilityRole).toBe('button');
+
+      // Autocomplete suggestions show when typing — must be buttons.
+      fireEvent.changeText(searchInput, 'bi');
+      await waitFor(() => {
+        expect(getByTestId('autocomplete-suggestion-0')).toBeTruthy();
+      });
+
+      const suggestion = getByTestId('autocomplete-suggestion-0');
+      expect(suggestion.props.accessible).toBe(true);
+      expect(suggestion.props.accessibilityRole).toBe('button');
+      expect(suggestion.props.accessibilityLabel).toBe('Search for bike');
+    });
+
+    it('exposes active-filter-chip controls as accessible buttons', async () => {
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      // Apply the SP filter so an active chip + "Clear all" render above the grid.
+      await waitFor(() => {
+        expect(getByTestId('discover-sp-toggle')).toBeTruthy();
+      });
+      fireEvent.press(getByTestId('discover-sp-toggle'));
+
+      await waitFor(() => {
+        expect(getByTestId('clear-all-filters')).toBeTruthy();
+      });
+
+      const clearAll = getByTestId('clear-all-filters');
+      expect(clearAll.props.accessible).toBe(true);
+      expect(clearAll.props.accessibilityRole).toBe('button');
+
+      const removeChip = getByTestId('remove-filter-spEligibleOnly');
+      expect(removeChip.props.accessible).toBe(true);
+      expect(removeChip.props.accessibilityRole).toBe('button');
+    });
+  });
+
+  // Group M Fix 4: Free-user upgrade CTA for the "Accepts SP" filter.
+  // Free users who toggle/filter by SP (header quick-toggle or Filters sheet)
+  // or view SP-eligible results get a Kids Club+ upgrade CTA that opens
+  // Subscription Choice; subscribers never see it (AUTH-TC-J07 pattern).
+  describe('SP Upgrade CTA (Group M Fix 4)', () => {
+    it('shows the Kids Club+ upgrade CTA for a free user when the SP filter is active and opens Subscription Choice', async () => {
+      const { getByTestId, queryByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('discover-sp-toggle')).toBeTruthy();
+      });
+
+      // CTA hidden before the SP filter is applied.
+      expect(queryByTestId('discover-sp-upgrade-cta')).toBeNull();
+
+      // Free user toggles the header quick-toggle → CTA appears immediately.
+      fireEvent.press(getByTestId('discover-sp-toggle'));
+
+      await waitFor(() => {
+        expect(getByTestId('discover-sp-upgrade-cta')).toBeTruthy();
+      });
+
+      // "Upgrade Now" opens Subscription Choice (JoinKidsClub).
+      fireEvent.press(getByTestId('discover-sp-upgrade-button'));
+      expect(mockNavigate).toHaveBeenCalledWith('JoinKidsClub');
+
+      // Turning the SP filter back off hides the CTA.
+      fireEvent.press(getByTestId('discover-sp-toggle'));
+      await waitFor(() => {
+        expect(queryByTestId('discover-sp-upgrade-cta')).toBeNull();
+      });
+    });
+
+    it('does NOT show the upgrade CTA for a subscriber even when the SP filter is active', async () => {
+      mockUseSubscriptionStatus.mockReturnValue({
+        status: 'active',
+        canSpendSP: true,
+        isTrialExpired: false,
+      });
+
+      const { getByTestId, queryByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('discover-sp-toggle')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('discover-sp-toggle'));
+
+      // Confirm the SP filter actually became active for the subscriber (so the
+      // missing CTA is due to the subscription gate, not an inactive filter).
+      await waitFor(() => {
+        const calls = (searchListings as jest.Mock).mock.calls;
+        expect(calls.some((call) => call[1]?.spEligibleOnly === true)).toBe(true);
+      });
+
+      expect(queryByTestId('discover-sp-upgrade-cta')).toBeNull();
     });
   });
 });
