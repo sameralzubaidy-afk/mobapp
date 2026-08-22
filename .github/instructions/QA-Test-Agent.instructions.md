@@ -253,9 +253,20 @@ Six technique rules consolidated from the Group L (AUTH-TC-L01–L04, admin list
 
 **Rule 6 — LogBox: bounded dismiss attempts, then terminate and relaunch.** If a dev-build LogBox (non-fatal console-error overlay) blocks on-device interaction and its dismiss/header controls aren't reliably locatable via the accessibility tree or pixel-probing within 2-3 attempts, stop trying to locate the dismiss control and terminate + relaunch the app instead — session/persona state persists across relaunch, and this is faster than continuing to hunt an unreliable control. (This is the Phase 13.28 v2 replacement for the original LogBox-only rule; it complements the fatal-overlay handling in §5.8.)
 
-### 5.20 Multi-surface screenshot evidence rule (Phase 13.29)
+### 5.20 Multi-surface screenshot evidence rule — admin/web screenshots are MANDATORY (Phase 13.29; hardened 2026-08-21)
 
-When a test run spans multiple surfaces (e.g., mobile via simulator + admin/web via Playwright), every surface must leave screenshot evidence in the run's shared evidence folder, not just the surface driven by the primary tool. For Playwright-driven steps, do not rely on default failure-only screenshot behavior — take an explicit `page.screenshot()` at each key assertion point (login success, key state before/after an action, final confirmation) and save it into the same evidence directory used for mobile screenshots, using a naming convention that makes the surface and step obvious (e.g., `ADMIN-L02-approve-confirmed.png` alongside `MOBILE-L01-pending-item.png`). A run's final evidence set should let someone reconstruct what happened on every surface, not just the one that failed.
+When a test run spans multiple surfaces (e.g., mobile via simulator + admin/web via Playwright), **every surface must leave screenshot evidence in the run's shared evidence folder** — this is mandatory, not aspirational. A run's final evidence set must let someone reconstruct what happened on every surface, not just the one that failed.
+
+**Admin/web (Playwright) surfaces — ALWAYS capture screenshots where applicable:**
+
+1. **Never rely on Playwright's default failure-only screenshot behavior.** A fully passing run saves ZERO screenshots, so an all-green suite produces no admin visual evidence at all. This was a real gap observed 2026-08-21: the Group L spec had no `page.screenshot()` calls and the passing run left the admin surface with console output + DB read-backs only.
+2. **Preferred — the spec itself takes explicit `page.screenshot()`** at each key assertion point: login success, each key state before/after an action (e.g., pending queue → details modal → confirm dialog → approval alert → post-action state), and final confirmation. Save into the run's shared `screenshots/` dir with a surface+step-obvious name (`ADMIN-L02-approve-confirmed.png` alongside `MOBILE-L01-pending-item.png`).
+3. **If the spec lacks screenshot calls and cannot be edited during an execution-only run — capture them with a small evidence-capture Playwright script** that reproduces the flow and screenshots each step (reference: `capture-admin-evidence.cjs` from the 2026-08-21 Group L closeout). Verified recipe:
+   - Run it from the web-app directory with `NODE_PATH=$PWD/node_modules node <script>` — importing `@playwright/test` from a script located outside the app's `node_modules` fails in ESM (`ERR_MODULE_NOT_FOUND`), so use a CommonJS `.cjs` script + `NODE_PATH`.
+   - Read admin credentials from the app's `.env.local` inside the script (`dotenv.config` with the correct relative path — the run's archive dir sits 2 levels under the workspace root, NOT 3) — never route credentials through the model.
+   - Name outputs `ADMIN-<step>.png` into the same `screenshots/` folder as mobile evidence.
+   - Reproducing an action changes state (e.g., re-approving a listing → `available`): record the resulting state in the report's App-State section.
+4. **Verify evidence completeness before finishing a run:** after a passing Playwright run, check that admin screenshots actually exist in the evidence folder (a passing run never auto-produces them); if missing, run the capture step above rather than shipping a console+DB-only admin surface.
 
 ## 6. Judgment — three distinct layers, ALL required
 
