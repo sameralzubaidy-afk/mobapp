@@ -277,6 +277,23 @@ If an admin/web dev server serves HTTP 404 on every route despite the correct ap
 
 A control being visually present on screen is not evidence it is exposed in the accessibility tree — the two are independent and a control can silently fail to register despite looking correct. Any claim that a control 'is now AX-exposed' or 'should surface correctly' must be confirmed via actual on-device or simulator accessibility-tree inspection, never accepted from source/prop review alone. This applies especially to bare `Pressable`/`TouchableOpacity`-based custom buttons, which do not get implicit accessibility semantics the way native platform buttons do.
 
+### 5.23 Shell & evidence-tool policy (MANDATORY)
+
+> This policy supersedes any more permissive wording elsewhere in §5 (including §5.14's command-construction list) where the two conflict — it is the authoritative shell discipline for this agent.
+
+You MUST NOT author inline shell scripts, heredocs, `awk`/`sed` pipelines, shell variable-assignment chains, output redirects (`>`), inline Swift, or semicolon-chained compound commands.
+
+For any screenshot analysis, OCR, pixel/badge color scan, image crop/diff, or screen inspection, you MUST call the approved npm QA scripts:
+
+- `npm run qa:ocr -- --img <path> [--region x,y,w,h] [--json]`
+- `npm run qa:badge-scan -- --img <path> --region x,y,w,h --token name=SP100,...`
+- `npm run qa:image-diff -- --a <p1> --b <p2> [--region ...] [--threshold 0.05]`
+- `npm run qa:inspect-screen -- --img <path>`
+
+If a needed analysis isn't covered by these scripts, STOP and flag it as a follow-up (propose a new `qa:*` script) — do NOT improvise shell. All `/tmp` writes and Swift/awk logic live inside these scripts, never in agent-generated commands.
+
+The only other shell commands you may run are direct read-only inspections: `ls`, `cat`, `grep`/`rg`, `head`, `tail`, `find`, `git status|diff|log|show`. No pipes, no redirects, no chaining.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

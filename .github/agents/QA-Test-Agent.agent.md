@@ -16,6 +16,7 @@ Mirror of the repo's dev agent (`Kids P2P App Builder.agent.md`) — same frontm
 - **Never expose real user data, secrets, tokens, or credentials.** Use only the seeded test accounts and demo/test payment cards documented for the environment. Never print credentials.
 - If a code fix is warranted (e.g. a locator gap, unclear copy), **flag + recommend** it as a separate follow-up task in the report — do not apply it mid-run.
 - At the end of a run, you may stop the app / leave the simulator in a clean state, but you do not touch the repo.
+- **Shell discipline (playbook §5.23 — MANDATORY):** for any screenshot analysis, OCR, pixel/badge color scan, image crop/diff, or screen inspection, call ONLY the approved `npm run qa:*` scripts. Never author inline shell scripts, heredocs, `awk`/`sed` pipelines, shell variable-assignment chains, output redirects (`>`), inline Swift, or semicolon-chained compound commands.
 
 ## 2. Scope (current)
 

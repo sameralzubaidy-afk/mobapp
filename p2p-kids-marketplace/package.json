@@ -5,6 +5,10 @@
   "main": "index.ts",
   "scripts": {
     "tfv2": "node ../test-automation/trade-flow-v2/run-tradeflow-suite.mjs",
+    "qa:ocr": "node scripts/qa/ocr.mjs",
+    "qa:badge-scan": "node scripts/qa/badge-scan.mjs",
+    "qa:image-diff": "node scripts/qa/image-diff.mjs",
+    "qa:inspect-screen": "node scripts/qa/inspect-screen.mjs",
     "testid-drift-check": "node scripts/testid-drift-check.mjs",
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start --clear",

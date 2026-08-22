@@ -944,6 +944,16 @@ Open questions / TODOs (if any)
 HP-7: Formula Documentation
 Cross-Reference rule requiring at least 2 independent doc examples to verify any formula before implementation. This would have caught the SP formula error immediately by forcing verification against the ADMIN-CATEGORY example.
 
+HP-8 Gitignored repo-local tooling config that gates agent behavior must be version-controlled or documented (config drift)
+When you create or rely on repo-local tooling config that changes how an agent behaves — e.g. a terminal auto-approve allowlist in `p2p-kids-marketplace/.vscode/settings.json` (the QA Test Agent's prompt gate) — remember that `.vscode/` is gitignored, so that config exists only in the current clone: it never appears in `git status`/`git diff`, and another developer's clone silently behaves differently (e.g. the QA agent re-prompts on every terminal command).
+
+Rules:
+
+- If the config must live under a gitignored path (e.g. `.vscode/`), ALSO commit an `.example` copy of it (e.g. `p2p-kids-marketplace/.vscode/settings.json.example`) so the canonical content is version-controlled and reviewable in `git diff`.
+- If the file genuinely cannot be committed, at minimum add a one-line note in the owning agent's tracked playbook/instructions documenting exactly where it lives (e.g. "the terminal allowlist lives repo-locally in `p2p-kids-marketplace/.vscode/settings.json`") so a fresh clone can reproduce it.
+- Never assume a gitignored config is shared: after creating any file/dir that gates behavior, confirm whether it is gitignored (`git check-ignore <path>`) and state in your reply whether it will propagate to other clones.
+- A "single allowlist" that gates prompts must not silently drift — make any behavior-changing edit reviewable (an `.example` file, or a note in tracked docs), never only an edit to a gitignored file.
+
 13 Bug-class prevention rules
 No “magic constants”:
 fees, caps, time windows must be in config tables or a single constants module.
