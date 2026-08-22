@@ -268,6 +268,10 @@ When a test run spans multiple surfaces (e.g., mobile via simulator + admin/web 
    - Reproducing an action changes state (e.g., re-approving a listing → `available`): record the resulting state in the report's App-State section.
 4. **Verify evidence completeness before finishing a run:** after a passing Playwright run, check that admin screenshots actually exist in the evidence folder (a passing run never auto-produces them); if missing, run the capture step above rather than shipping a console+DB-only admin surface.
 
+### 5.21 Stale dev-server diagnostic — an admin/web server 404ing on all routes is NOT an app-side blocker (Phase 13.30)
+
+If an admin/web dev server serves HTTP 404 on every route despite the correct app and routes existing in source, do not immediately treat this as an app-side blocker — check whether the dev server process is stale (e.g., left running across a git checkout, branch switch, or code change since it last started) before escalating. Restart the dev server (its documented `npm run dev` recovery) and re-verify a known route (e.g., `/auth/login`) returns 200 before declaring an admin-side blocker. Also check the listening process's working directory to rule out it serving the wrong app entirely. (Confirmed case, Phase 13.30: a stale Next.js admin dev server left running across a git operation/code change served 404 on every route despite the correct app and routes existing in source.)
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
