@@ -42,71 +42,91 @@ export default function ItemCard({
   testID,
 }: ItemCardProps) {
   return (
-    <Pressable
-      testID={testID || `item-card-${id}`}
-      style={styles.card}
-      onPress={onPress}
-      accessibilityLabel={`${title}, $${price}`}
-    >
-      {/* Image with overlay icons */}
-      <View style={styles.imageContainer}>
-        <ListingImage url={imageUrl} containerStyle={styles.image} imageStyle={styles.image} />
-
-        {/* Overlay action buttons - top-right */}
-        <View style={styles.overlayActions}>
-          {onFavoritePress && (
-            <Pressable
-              testID={`${testID || id}-favorite-button`}
-              style={styles.overlayButton}
-              onPress={onFavoritePress}
-              hitSlop={8}
-            >
-              {isFavorite ? (
-                <HeartStraight size={18} color="#5DBB8E" weight="fill" />
-              ) : (
-                <Heart size={18} color="#1A1A1A" weight="regular" />
-              )}
-            </Pressable>
-          )}
-          {onSharePress && (
-            <Pressable
-              testID={`${testID || id}-share-button`}
-              style={styles.overlayButton}
-              onPress={onSharePress}
-              hitSlop={8}
-            >
-              <Share size={18} color="#1A1A1A" weight="regular" />
-            </Pressable>
-          )}
+    <View style={styles.cardContainer}>
+      {/* Main card tap target. `accessible` groups the image + details into one
+          AX element; the favorite/share overlays must live OUTSIDE this Pressable
+          (as siblings) or iOS absorbs them into the parent and they never
+          surface in the accessibility tree (BP-53 on-device confirmation). */}
+      <Pressable
+        testID={testID || `item-card-${id}`}
+        style={styles.card}
+        onPress={onPress}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, $${price}${otherNode ? ', Other Node' : ''}`}
+      >
+        {/* Image */}
+        <View style={styles.imageContainer}>
+          <ListingImage url={imageUrl} containerStyle={styles.image} imageStyle={styles.image} />
         </View>
-      </View>
 
-      {/* Item details */}
-      <View style={styles.details}>
-        <Text style={styles.title} numberOfLines={2}>
-          {title}
-        </Text>
-        {otherNode && (
-          <View
-            style={styles.otherNodeBadge}
-            testID={`${testID || id}-other-node-badge`}
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel="Other Node"
-          >
-            <Text style={styles.otherNodeBadgeText}>Other Node</Text>
+        {/* Item details */}
+        <View style={styles.details}>
+          <Text style={styles.title} numberOfLines={2}>
+            {title}
+          </Text>
+          {otherNode && (
+            <View
+              style={styles.otherNodeBadge}
+              testID={`${testID || id}-other-node-badge`}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel="Other Node"
+            >
+              <Text style={styles.otherNodeBadgeText}>Other Node</Text>
+            </View>
+          )}
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>${price.toFixed(2)}</Text>
+            {acceptsSwapPoints && <AcceptsSpBadge testID={`${testID || id}-sp-badge`} />}
           </View>
-        )}
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>${price.toFixed(2)}</Text>
-          {acceptsSwapPoints && <AcceptsSpBadge testID={`${testID || id}-sp-badge`} />}
         </View>
+      </Pressable>
+
+      {/* Overlay action buttons - top-right (siblings of the card so they are
+          exposed as separate iOS AX elements; rendered after the card so they
+          sit on top for touch). */}
+      <View style={styles.overlayActions}>
+        {onFavoritePress && (
+          <Pressable
+            testID={`${testID || id}-favorite-button`}
+            style={styles.overlayButton}
+            onPress={onFavoritePress}
+            hitSlop={8}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            {isFavorite ? (
+              <HeartStraight size={18} color="#5DBB8E" weight="fill" />
+            ) : (
+              <Heart size={18} color="#1A1A1A" weight="regular" />
+            )}
+          </Pressable>
+        )}
+        {onSharePress && (
+          <Pressable
+            testID={`${testID || id}-share-button`}
+            style={styles.overlayButton}
+            onPress={onSharePress}
+            hitSlop={8}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Share this item"
+          >
+            <Share size={18} color="#1A1A1A" weight="regular" />
+          </Pressable>
+        )}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    position: 'relative',
+    flex: 1,
+  },
   card: {
     flex: 1,
     backgroundColor: ds.neutral.white,

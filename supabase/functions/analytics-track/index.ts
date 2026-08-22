@@ -17,7 +17,7 @@
 // invalid input and real failures (BP-7).
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,21 +56,26 @@ serve(async (req) => {
     );
   }
 
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     {
       global: {
-        headers: { Authorization: req.headers.get('Authorization') ?? '' },
+        headers: { Authorization: authHeader },
       },
     }
   );
 
   try {
+    // FIX (2026-08-22): getUser() must be passed the JWT explicitly. The original
+    // pinned supabase-js@2.38.4 returned no user here (no stored session in the
+    // Edge Runtime), 401ing every event. Matches the proven pattern in 30+ EFs.
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getUser(token);
 
     if (userError || !user) {
       console.warn('[analytics-track] unauthenticated event dropped', userError?.message);

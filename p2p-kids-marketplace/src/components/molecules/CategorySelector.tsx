@@ -33,8 +33,12 @@ export default function CategorySelector({ showTitle = true }: { showTitle?: boo
         {CATEGORIES.map((cat) => (
           <TouchableOpacity
             key={cat.name}
+            testID={`category-tile-${cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
             style={styles.categoryItem}
             onPress={() => (navigation as any).navigate('CategoryBrowse', { category: cat.name })}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={cat.name}
           >
             <View style={styles.iconContainer}>
               <Text style={styles.icon}>{cat.icon}</Text>

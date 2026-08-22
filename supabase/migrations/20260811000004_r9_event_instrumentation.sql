@@ -83,11 +83,14 @@ DROP POLICY IF EXISTS "analytics_events service_role all" ON public.analytics_ev
 CREATE POLICY "analytics_events service_role all" ON public.analytics_events
   FOR ALL USING (auth.role() = 'service_role');
 
+-- FIX (2026-08-22): the original policy referenced public.admin_users, which does
+-- NOT exist in this project's schema (that was a copy-paste from the trade_events
+-- pattern). The canonical admin check here is public.admin_has_role() — the same
+-- enforcement point used by admin RPCs (20260809000001). admin_has_role prefers
+-- is_admin() (raw_user_meta_data.is_admin='true') and falls back to legacy roles.
 DROP POLICY IF EXISTS "analytics_events admin read" ON public.analytics_events;
 CREATE POLICY "analytics_events admin read" ON public.analytics_events
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.admin_users au WHERE au.user_id = auth.uid())
-  );
+  FOR SELECT USING (public.admin_has_role(auth.uid()));
 
 -- ---------------------------------------------------------------------------
 -- BLOCK 2: Core helper functions
@@ -453,6 +456,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
   v_inserted INTEGER := 0;
+  v_rows     INTEGER := 0;
 BEGIN
   -- SP outstanding (total available SP per node)
   INSERT INTO public.analytics_events (user_id, node_id, event_name, event_category, properties, source, idempotency_key)
@@ -469,7 +473,10 @@ BEGIN
   WHERE COALESCE(w.node_id, p.node_id) IS NOT NULL
   GROUP BY COALESCE(w.node_id, p.node_id)
   ON CONFLICT (idempotency_key) DO NOTHING;
-  GET DIAGNOSTICS v_inserted = ROW_COUNT;
+  -- FIX (2026-08-22): GET DIAGNOSTICS RHS must be a single item (ROW_COUNT), not
+  -- an expression like v_inserted + ROW_COUNT (42601). Accumulate via a temp var.
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  v_inserted := v_inserted + v_rows;
 
   -- SP pending (total pending_balance per node)
   INSERT INTO public.analytics_events (user_id, node_id, event_name, event_category, properties, source, idempotency_key)
@@ -486,7 +493,8 @@ BEGIN
   WHERE COALESCE(w.node_id, p.node_id) IS NOT NULL
   GROUP BY COALESCE(w.node_id, p.node_id)
   ON CONFLICT (idempotency_key) DO NOTHING;
-  GET DIAGNOSTICS v_inserted = v_inserted + ROW_COUNT;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  v_inserted := v_inserted + v_rows;
 
   -- Subscription retention milestones (30/60/90 days since cohort anchor).
   -- Cohort = every subscription that is no longer the default 'free' row, so
@@ -513,7 +521,8 @@ BEGIN
   WHERE s.status <> 'free'
     AND (CURRENT_DATE - (COALESCE(s.trial_start_date, s.current_period_start, s.created_at))::date) = m.days
   ON CONFLICT (idempotency_key) DO NOTHING;
-  GET DIAGNOSTICS v_inserted = v_inserted + ROW_COUNT;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  v_inserted := v_inserted + v_rows;
 
   RETURN v_inserted;
 END;
