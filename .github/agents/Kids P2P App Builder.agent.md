@@ -111,6 +111,7 @@ Principle: Never write to a file you haven't read in the current session. Editin
 Before editing ANY file, read the CURRENT content of that file using filesystem MCP. Do not rely on what you wrote in a previous turn.
 If a file is longer than what can be displayed, read the specific section you are editing plus the lines immediately before and after.
 After writing, re-read the affected lines to confirm the edit landed correctly and no surrounding code was accidentally modified.
+Multi-replacement edits (e.g., `multi_replace_string_in_file`) can apply SOME replacements and silently skip others while still reporting overall success — a failure isn't always clearly flagged. After any multi-replacement edit, re-read EACH targeted region (not just one) and confirm every edit actually landed; fix any that didn't before continuing.
 If two files need to be changed for the same fix, read both BEFORE writing either.
 USER-FACING COPY STANDARDS (MANDATORY)
 This app is used by adults (18+) who are parents managing their children's marketplace activity. All user-facing text must be clear, trustworthy, and action-oriented — the tone is a friendly, reliable service, not a developer console.

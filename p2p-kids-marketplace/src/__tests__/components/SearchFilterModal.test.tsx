@@ -606,6 +606,54 @@ describe('SearchFilterModal', () => {
         expect.objectContaining({ spEligibleOnly: false })
       );
     });
+
+    // Group M P2 regression: flipping the LIVE shared SP toggle must NOT re-sync
+    // the draft from the applied filters — that used to wipe in-progress category /
+    // age-group selections the user hadn't applied yet (reproduced: result count
+    // regressed 5→54 and pills visually reset to unselected).
+    it('preserves draft category/age-group selections when the shared SP toggle flips', () => {
+      const mockOnSpToggle = jest.fn();
+      const baseFilters = getDefaultFilters();
+
+      const { getByTestId, rerender } = render(
+        <SearchFilterModal
+          visible={true}
+          filters={baseFilters}
+          categories={mockCategories}
+          spEligibleOnly={false}
+          onSpToggle={mockOnSpToggle}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+
+      // Build an in-progress draft: one category + one age group (not yet applied).
+      fireEvent.press(getByTestId('filter-category-cat-1'));
+      fireEvent.press(getByTestId('filter-age-3-5'));
+      expect(getByTestId('filter-category-cat-1').props.accessibilityState.selected).toBe(true);
+      expect(getByTestId('filter-age-3-5').props.accessibilityState.selected).toBe(true);
+
+      // Flip the LIVE shared SP toggle. In the app this calls the parent's
+      // onSpToggle, which updates the `filters` prop and re-renders the sheet.
+      fireEvent(getByTestId('filter-sp-toggle'), 'onValueChange', true);
+      expect(mockOnSpToggle).toHaveBeenCalledWith(true);
+
+      rerender(
+        <SearchFilterModal
+          visible={true}
+          filters={{ ...baseFilters, spEligibleOnly: true }}
+          categories={mockCategories}
+          spEligibleOnly={true}
+          onSpToggle={mockOnSpToggle}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+
+      // REGRESSION: the draft must keep the category + age-group selections.
+      expect(getByTestId('filter-category-cat-1').props.accessibilityState.selected).toBe(true);
+      expect(getByTestId('filter-age-3-5').props.accessibilityState.selected).toBe(true);
+    });
   });
 
   describe('Clear All', () => {

@@ -11,7 +11,7 @@
  * - Apply button: sticky green pill (52px)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Modal,
   View,
@@ -128,14 +128,31 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
   const [countLoading, setCountLoading] = useState(false);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
-  // Reset draft state when modal opens
+  // Resync the draft from the applied filters ONLY when the sheet first opens.
+  // Group M P2: the SP toggle is a LIVE filter (shared with the Discover header
+  // chip via onSpToggle) — a `filters` change while the sheet is open must NOT
+  // re-sync and wipe in-progress draft selections (category/age-group/etc. the
+  // user hasn't applied yet). The latest `filters` are read via a ref so this
+  // effect depends only on `visible` (the open transition), never on `filters`.
+  const wasVisibleRef = useRef(false);
+  const latestFiltersRef = useRef(filters);
+  latestFiltersRef.current = filters;
+
   useEffect(() => {
-    if (visible) {
-      setDraft(filters);
-      setBrandQuery(filters.brand || '');
-      setPriceError(null);
+    if (!visible) {
+      wasVisibleRef.current = false;
+      return;
     }
-  }, [visible, filters]);
+    if (wasVisibleRef.current) {
+      // Sheet already open — don't re-sync (the live SP toggle must not wipe the draft).
+      return;
+    }
+    wasVisibleRef.current = true;
+    const openedWith = latestFiltersRef.current;
+    setDraft(openedWith);
+    setBrandQuery(openedWith.brand || '');
+    setPriceError(null);
+  }, [visible]);
 
   // Brand autocomplete with debounce
   useEffect(() => {

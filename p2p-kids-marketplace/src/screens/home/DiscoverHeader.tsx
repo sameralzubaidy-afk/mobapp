@@ -54,6 +54,8 @@ export default function DiscoverHeader() {
           style={styles.headerActionBtn}
           onPress={() => navigateTo('Favorites')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Saved items"
           testID="discover-header-bookmark"
         >
@@ -65,6 +67,8 @@ export default function DiscoverHeader() {
           style={styles.headerActionBtn}
           onPress={() => navigateTo('Notifications')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Notifications"
           testID="header-notifications-btn"
         >
@@ -83,6 +87,8 @@ export default function DiscoverHeader() {
           style={styles.headerActionBtn}
           onPress={() => navigateTo('InboxTab')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Messages"
           testID="header-chat-btn"
         >
