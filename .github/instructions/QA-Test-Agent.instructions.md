@@ -273,6 +273,10 @@ When a test run spans multiple surfaces (e.g., mobile via simulator + admin/web 
 
 If an admin/web dev server serves HTTP 404 on every route despite the correct app and routes existing in source, do not immediately treat this as an app-side blocker — check whether the dev server process is stale (e.g., left running across a git checkout, branch switch, or code change since it last started) before escalating. Restart the dev server (its documented `npm run dev` recovery) and re-verify a known route (e.g., `/auth/login`) returns 200 before declaring an admin-side blocker. Also check the listening process's working directory to rule out it serving the wrong app entirely. (Confirmed case, Phase 13.30: a stale Next.js admin dev server left running across a git operation/code change served 404 on every route despite the correct app and routes existing in source.)
 
+### 5.22 Visual presence ≠ AX-tree presence (Phase 13.32)
+
+A control being visually present on screen is not evidence it is exposed in the accessibility tree — the two are independent and a control can silently fail to register despite looking correct. Any claim that a control 'is now AX-exposed' or 'should surface correctly' must be confirmed via actual on-device or simulator accessibility-tree inspection, never accepted from source/prop review alone. This applies especially to bare `Pressable`/`TouchableOpacity`-based custom buttons, which do not get implicit accessibility semantics the way native platform buttons do.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
