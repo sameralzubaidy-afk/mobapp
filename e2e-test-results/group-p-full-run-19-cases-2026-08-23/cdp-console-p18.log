@@ -1,0 +1,142 @@
+[2026-08-23T14:49:59.260Z] CDP CONNECTED
+[2026-08-23T14:49:59.266Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-23T14:49:59.266Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-23T14:49:59.267Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-23T14:49:59.267Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-23T14:49:59.267Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-23T14:49:59.267Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-23T14:49:59.267Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-23T14:49:59.268Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-23T14:49:59.268Z] [console.log] [NAV] route: Landing
+[2026-08-23T14:49:59.269Z] [console.log] [NAV] route: Login
+[2026-08-23T14:49:59.269Z] [console.log] Login successful: Object
+[2026-08-23T14:49:59.269Z] [console.log] [NAV] route: Home
+[2026-08-23T14:49:59.269Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-23T14:49:59.269Z] [console.log] [NAV] route: Profile
+[2026-08-23T14:49:59.270Z] [console.log] [NAV] route: Settings
+[2026-08-23T14:49:59.270Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:529356:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:369912:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316006:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316447:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316428:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316278:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316285:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316738:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316738:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316698:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316447:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316428:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316708:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316295:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316282:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314407:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314414:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311506:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:369926:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118418:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119416:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-23T14:49:59.271Z] [console.log] [NAV] route: Landing
+[2026-08-23T14:49:59.271Z] [console.log] [NAV] route: Login
+[2026-08-23T14:49:59.271Z] [console.log] Login successful: Object
+[2026-08-23T14:49:59.271Z] [console.log] [NAV] route: Home
+[2026-08-23T14:49:59.272Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"14be337c-aad6-403f-bab2-ba1a7d80b666","result_count":10,"limit":10}
+[2026-08-23T14:49:59.273Z] [console.log] [ConversationsListScreen] Screen focused, loading conversations
+[2026-08-23T14:49:59.274Z] [console.log] [ConversationsListScreen] Setting up real-time subscription for userId: 14be337c-aad6-403f-bab2-ba1a7d80b666
+[2026-08-23T14:49:59.275Z] [console.log] [NAV] route: InboxTab
+[2026-08-23T14:49:59.275Z] [console.log] [ConversationsListScreen] Subscription status: SUBSCRIBED
+[2026-08-23T14:49:59.275Z] [console.log] [ConversationsListScreen] Loaded 0 conversations (hasMore: false )
+[2026-08-23T14:49:59.275Z] [console.debug] DEBUG  [Analytics] Event tracked: tab_trades_tapped
+[2026-08-23T14:49:59.276Z] [console.log] [NAV] route: TradeList
+[2026-08-23T14:49:59.276Z] [console.log] [NAV] route: ReviewOffer
+[2026-08-23T14:49:59.277Z] [console.log] [NAV] route: TradeList
+[2026-08-23T14:49:59.277Z] [console.debug] DEBUG  [Analytics] Event tracked: tab_home_tapped
+[2026-08-23T14:49:59.278Z] [console.log] [ConversationsListScreen] Unmounting, unsubscribing
+[2026-08-23T14:49:59.279Z] [console.log] [ConversationsListScreen] Subscription status: CLOSED
+[2026-08-23T14:49:59.279Z] [console.log] [NAV] route: Home
+[2026-08-23T14:49:59.279Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"14be337c-aad6-403f-bab2-ba1a7d80b666","result_count":10,"limit":10}
+[2026-08-23T14:49:59.279Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"14be337c-aad6-403f-bab2-ba1a7d80b666","result_count":10,"limit":10}
+[2026-08-23T14:49:59.280Z] [console.log] [NAV] route: ListingDetail
+[2026-08-23T14:49:59.280Z] [console.log] [listing] getListingById fetched item: Object
+[2026-08-23T14:49:59.280Z] [console.debug] DEBUG  [Analytics] Event tracked: listing_viewed {"listing_id":"1b43302a-be0d-44e0-9bc3-1623858f8823","seller_id":"b219a7c9-0761-4c61-b2b1-591c7fd09416","price":100,"accepts_swap_points":true}
+[2026-08-23T14:49:59.280Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-23T14:49:59.292Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:529356:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:369912:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316006:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316447:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316428:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316278:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316285:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316738:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316738:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316698:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316447:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316428:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316708:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316295:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316282:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314407:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314414:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311506:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:369926:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118418:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119416:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-23T14:49:59.293Z] [console.log] [NAV] route: Landing
+[2026-08-23T14:49:59.293Z] [console.log] [NAV] route: Login
+[2026-08-23T14:49:59.293Z] [console.log] Login successful: Object
+[2026-08-23T14:49:59.295Z] [console.log] [NAV] route: Home
+[2026-08-23T14:49:59.296Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-23T14:50:59.314Z] CDP CAPTURE END
