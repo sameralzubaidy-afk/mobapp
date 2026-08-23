@@ -394,6 +394,9 @@ export default function ProfileScreen({ route }: any) {
               activeOpacity={0.8}
               onPress={() => navigation.navigate('MyListings')}
               testID="profile-listings-stat"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`${profileStats.listingsCount} Listings`}
             >
               <Storefront size={18} color="#5DBB8E" weight="regular" />
               <Text style={styles.statValue}>{profileStats.listingsCount}</Text>
@@ -404,6 +407,9 @@ export default function ProfileScreen({ route }: any) {
               activeOpacity={0.8}
               onPress={() => navigation.getParent()?.navigate('TradeList')}
               testID="profile-trades-stat"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`${profileStats.tradesCount} Trades`}
             >
               <Package size={18} color="#5DBB8E" weight="regular" />
               <Text style={styles.statValue}>{profileStats.tradesCount}</Text>
@@ -414,6 +420,9 @@ export default function ProfileScreen({ route }: any) {
               activeOpacity={0.8}
               onPress={() => navigation.navigate('SpWallet')}
               testID="profile-sp-balance-stat"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`${profileSpBalance} SP Balance`}
             >
               <Coins size={18} color="#F59E0B" weight="regular" />
               <Text style={styles.statValue}>{profileSpBalance}</Text>

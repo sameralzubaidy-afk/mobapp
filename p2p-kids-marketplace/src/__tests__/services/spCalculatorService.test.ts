@@ -4,16 +4,32 @@
 import { calculateSP, getBonusCategories } from '../../services/spCalculatorService';
 import * as categoryService from '../../services/categoryService';
 import * as adminConfigService from '../../services/adminConfig';
+import * as subscriptionService from '../../services/subscription';
+import { supabase } from '../../config/supabase';
 
 // Mock category service (MODULE-12 V3)
 jest.mock('../../services/categoryService');
 jest.mock('../../services/adminConfig');
+jest.mock('../../services/subscription');
+// Mock supabase (repo convention: educationAnalyticsService.test.ts does the same)
+jest.mock('../../config/supabase', () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(),
+    },
+  },
+}));
 
 describe('spCalculatorService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
       transaction_fee_non_subscriber_cents: 299,
+    });
+    // Default: no signed-in user -> non-subscriber fee (keeps legacy tests stable).
+    (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+      data: { user: null },
+      error: null,
     });
   });
 
@@ -99,6 +115,118 @@ describe('spCalculatorService', () => {
         fee: 2.99, // Flat fee per SYSTEM_REQUIREMENTS_V2.md
         total_cost: 8.99, // 6 + 2.99
         is_bonus: true,
+      });
+    });
+
+    it('should use the non-subscriber fee when the user is not logged in', async () => {
+      (categoryService.getCategoryById as jest.Mock).mockResolvedValue(mockCategory);
+      (categoryService.calculateCategorySP as jest.Mock).mockResolvedValue({
+        earn_sp: 26,
+        max_spend_sp: 14,
+        spend_percent: 70,
+      });
+      (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
+        transaction_fee_subscriber_cents: 99,
+        transaction_fee_non_subscriber_cents: 2000,
+      });
+      // No signed-in user -> isSubscriber stays false, non-subscriber fee applies.
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+
+      const result = await calculateSP(20, 'cat-1', 'buy', 10);
+
+      expect(result).toMatchObject({
+        mode: 'buy',
+        fee: 20, // $20.00 non-subscriber flat fee
+      });
+      expect(subscriptionService.getSubscriptionSummary).not.toHaveBeenCalled();
+    });
+
+    it('should use the subscriber fee for a Kids Club+ member', async () => {
+      (categoryService.getCategoryById as jest.Mock).mockResolvedValue(mockCategory);
+      (categoryService.calculateCategorySP as jest.Mock).mockResolvedValue({
+        earn_sp: 26,
+        max_spend_sp: 14,
+        spend_percent: 70,
+      });
+      (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
+        transaction_fee_subscriber_cents: 99,
+        transaction_fee_non_subscriber_cents: 2000,
+      });
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'subscriber-user' } },
+        error: null,
+      });
+      (subscriptionService.getSubscriptionSummary as jest.Mock).mockResolvedValue({
+        status: 'active',
+        is_subscriber: true,
+      });
+
+      const result = await calculateSP(20, 'cat-1', 'buy', 10);
+
+      expect(result).toMatchObject({
+        mode: 'buy',
+        fee: 0.99, // $0.99 subscriber flat fee, NOT the $20.00 non-subscriber figure
+      });
+      expect(subscriptionService.getSubscriptionSummary).toHaveBeenCalledWith('subscriber-user');
+    });
+
+    it('should use the non-subscriber fee for a free user', async () => {
+      (categoryService.getCategoryById as jest.Mock).mockResolvedValue(mockCategory);
+      (categoryService.calculateCategorySP as jest.Mock).mockResolvedValue({
+        earn_sp: 26,
+        max_spend_sp: 14,
+        spend_percent: 70,
+      });
+      (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
+        transaction_fee_subscriber_cents: 99,
+        transaction_fee_non_subscriber_cents: 2000,
+      });
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'free-user' } },
+        error: null,
+      });
+      (subscriptionService.getSubscriptionSummary as jest.Mock).mockResolvedValue({
+        status: 'free',
+        is_subscriber: false,
+      });
+
+      const result = await calculateSP(20, 'cat-1', 'buy', 10);
+
+      expect(result).toMatchObject({
+        mode: 'buy',
+        fee: 20, // $20.00 non-subscriber flat fee for free users
+      });
+    });
+
+    it('should fall back to the non-subscriber fee when the tier lookup fails', async () => {
+      (categoryService.getCategoryById as jest.Mock).mockResolvedValue(mockCategory);
+      (categoryService.calculateCategorySP as jest.Mock).mockResolvedValue({
+        earn_sp: 26,
+        max_spend_sp: 14,
+        spend_percent: 70,
+      });
+      (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
+        transaction_fee_subscriber_cents: 99,
+        transaction_fee_non_subscriber_cents: 2000,
+      });
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'u1' } },
+        error: null,
+      });
+      (subscriptionService.getSubscriptionSummary as jest.Mock).mockRejectedValue(
+        new Error('subscription lookup failed')
+      );
+
+      const result = await calculateSP(20, 'cat-1', 'buy', 10);
+
+      // The preview must still render — a tier-lookup failure must not nuke it.
+      expect(result).not.toBeNull();
+      expect(result).toMatchObject({
+        mode: 'buy',
+        fee: 20,
       });
     });
 

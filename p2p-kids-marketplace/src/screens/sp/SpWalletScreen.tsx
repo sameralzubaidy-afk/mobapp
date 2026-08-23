@@ -219,6 +219,9 @@ export default function SpWalletScreen() {
               testID="sp-wallet-how-trading-works-btn"
               onPress={() => navigation.navigate('Help')}
               activeOpacity={0.7}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="How Trading Works"
             >
               <Info size={18} color="#5DBB8E" weight="regular" />
               <View>

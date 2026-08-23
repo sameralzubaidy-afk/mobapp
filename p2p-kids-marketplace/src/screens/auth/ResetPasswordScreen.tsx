@@ -69,6 +69,14 @@ export default function ResetPasswordScreen() {
         }
 
         if (access_token) {
+          // A valid reset token supersedes any prior Link Error state. Without
+          // this, a stale expired-link fragment keeps linkError set and hides
+          // the submit button, so a genuinely valid reset link delivered
+          // afterwards becomes unusable without an app relaunch (QA: Group Q+S
+          // 2026-08-23, Phase 16 finding #1 — reconfirmed live). Clear it BEFORE
+          // establishing the session so the form recovers immediately.
+          if (isMounted) setLinkError(null);
+
           // Set session so supabase.auth.updateUser works
           // supabase.auth.setSession exists in Supabase JS client
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,6 +141,9 @@ export default function ResetPasswordScreen() {
       }
 
       if (access_token) {
+        // Same recovery as the deep-link path: a valid token clears any prior
+        // Link Error so the submit button is not left hidden.
+        setLinkError(null);
         (async () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { error: setErr } = await (supabase.auth as any).setSession({

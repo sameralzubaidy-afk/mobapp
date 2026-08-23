@@ -4,6 +4,7 @@
 import type { SPCalculation, BonusCategory } from '../types/education';
 import { calculateCategorySP, getCategoryById, getBonusCategories as getV3BonusCategories } from './categoryService';
 import { getAdminConfig } from './adminConfig';
+import { getSubscriptionSummary } from './subscription';
 import { supabase } from '../config/supabase';
 
 function roundToCents(amount: number): number {
@@ -70,7 +71,36 @@ export async function calculateSP(
       // fn_get_buyer_fee_for_checkout (flat for active members / first-trade users,
       // or % + fixed for free users with 1+ completed trades). This preview is
       // illustrative only — it is never the charge.
-      const feeInCents = Number(adminConfig.transaction_fee_non_subscriber_cents ?? 299);
+      //
+      // The preview is now subscriber-aware: Kids Club+ members see the subscriber
+      // flat fee (staging $1.00), free users the non-subscriber fee (staging $20.00).
+      // QA: Group Q+S 2026-08-23 — a subscriber previously saw the $20.00 figure.
+      let feeInCents: number;
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        let isSubscriber = false;
+        if (user?.id) {
+          const summary = await getSubscriptionSummary(user.id);
+          isSubscriber = summary.is_subscriber;
+        }
+
+        feeInCents = Number(
+          isSubscriber
+            ? adminConfig.transaction_fee_subscriber_cents ?? 99
+            : adminConfig.transaction_fee_non_subscriber_cents ?? 299
+        );
+      } catch (error: any) {
+        // Never fail the whole preview on a tier-lookup error — fall back to the
+        // non-subscriber figure so the calculator still renders.
+        console.warn(
+          '[spCalculatorService] Failed to resolve tier for fee preview, using non-subscriber fee:',
+          error
+        );
+        feeInCents = Number(adminConfig.transaction_fee_non_subscriber_cents ?? 299);
+      }
       const fee = roundToCents(feeInCents / 100);
 
       // For educational preview, default to max usable SP when caller does not provide a value.
