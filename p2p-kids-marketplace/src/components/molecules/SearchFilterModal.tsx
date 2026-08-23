@@ -331,6 +331,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
           <View style={styles.headerRight}>
             <TouchableOpacity
               onPress={onClose}
+              accessible
+              accessibilityRole="button"
               accessibilityLabel="Close filter modal"
               testID="filter-modal-close"
               style={styles.headerButton}
@@ -339,6 +341,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleClearAll}
+              accessible
+              accessibilityRole="button"
               accessibilityLabel="Reset all filters"
               testID="filter-modal-reset"
               style={styles.headerButton}
@@ -650,6 +654,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             style={[styles.applyButton, !canApply && styles.applyButtonDisabled]}
             onPress={handleApply}
             disabled={!canApply}
+            accessible
+            accessibilityRole="button"
             accessibilityLabel={
               canApply ? `Show ${liveCount ?? 0} results` : 'Apply disabled due to errors'
             }

@@ -2093,6 +2093,7 @@ add one section on the top give summary on what this file covers from testing an
           - `filter-color-{id}`, `filter-brand-input`, `brand-suggestion-{index}`
           - `filter-price-preset-{id}`, `filter-price-min`, `filter-price-max`, `filter-price-error`
           - `filter-sp-toggle`
+          - `radius-slider-decrease`, `radius-slider-track`, `radius-slider-increase` (2026-08-23 — RadiusSlider −/+/track now AX-exposed via `accessible`+role; track uses `button` role on iOS)
       - MODIFIED: `p2p-kids-marketplace/src/components/molecules/index.ts`
         - Added export: `export { SearchFilterModal } from './SearchFilterModal';`
       - MODIFIED: `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx`

@@ -109,6 +109,13 @@ export default function RadiusSlider({
             (disabled || loading || localValue <= minRadius) && styles.arrowButtonDisabled,
             pressed && styles.arrowButtonPressed,
           ]}
+          testID="radius-slider-decrease"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Decrease search radius"
+          accessibilityState={{
+            disabled: disabled || loading || localValue <= minRadius,
+          }}
         >
           <Text style={styles.arrowButtonText}>−</Text>
         </Pressable>
@@ -121,6 +128,13 @@ export default function RadiusSlider({
             setTrackWidth(event.nativeEvent.layout.width);
           }}
           {...panResponder.panHandlers}
+          testID="radius-slider-track"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Search radius slider"
+          accessibilityState={{
+            disabled: disabled || loading,
+          }}
         >
           {/* Filled portion */}
           <View style={[styles.filledTrack, { width: `${percentage * 100}%` }]} />
@@ -143,6 +157,13 @@ export default function RadiusSlider({
             (disabled || loading || localValue >= maxRadius) && styles.arrowButtonDisabled,
             pressed && styles.arrowButtonPressed,
           ]}
+          testID="radius-slider-increase"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Increase search radius"
+          accessibilityState={{
+            disabled: disabled || loading || localValue >= maxRadius,
+          }}
         >
           <Text style={styles.arrowButtonText}>+</Text>
         </Pressable>
