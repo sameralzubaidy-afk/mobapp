@@ -1,13 +1,19 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { Alert } from 'react-native';
 import SignupScreen from '@/screens/auth/SignupScreen';
 import { signupWithTrial } from '@/services/auth';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+
+// SignupScreen now shows branded dialogs via useGlobalAlert (native Alert.alert
+// is no longer used for user-facing messages). Mock the hook to assert payloads.
+const mockShowAlert = jest.fn();
+jest.mock('@/providers/GlobalAlertProvider', () => ({
+  useGlobalAlert: () => ({ showAlert: mockShowAlert }),
+}));
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -57,12 +63,8 @@ const mockCheckCodeExists = ReferralCodeServiceV2.checkCodeExists as jest.Mocked
 describe('SignupScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    mockShowAlert.mockClear();
     mockCheckCodeExists.mockResolvedValue(true as any);
-  });
-
-  afterEach(() => {
-    (Alert.alert as jest.Mock).mockRestore?.();
   });
 
   const renderScreen = () =>
@@ -101,7 +103,7 @@ describe('SignupScreen', () => {
     expect(mockSignupWithTrial).not.toHaveBeenCalled();
   });
 
-  it('blocks underage signup with alert', async () => {
+  it('blocks underage signup with a branded dialog', async () => {
     const { getByPlaceholderText, getByTestId } = renderScreen();
 
     fireEvent.changeText(getByPlaceholderText('Enter your full name'), 'Test User');
@@ -116,9 +118,11 @@ describe('SignupScreen', () => {
     fireEvent.press(getByTestId('signup-submit-button'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Sorry',
-        'Sorry, you must be 18 years old to register.'
+      expect(mockShowAlert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Sorry',
+          message: 'Sorry, you must be 18 years old to register.',
+        })
       );
     });
 

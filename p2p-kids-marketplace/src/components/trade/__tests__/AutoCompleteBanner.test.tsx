@@ -13,7 +13,8 @@ describe('AutoCompleteBanner', () => {
     );
 
     expect(getByTestId('auto-complete-banner')).toBeTruthy();
-    expect(getByText(/Auto-completes in/)).toBeTruthy();
+    // Component copy is mid-sentence ("Confirm pickup — auto-completes in …"), so match case-insensitively.
+    expect(getByText(/auto-completes in/i)).toBeTruthy();
   });
 
   it('returns null when trade is not in progress', () => {
