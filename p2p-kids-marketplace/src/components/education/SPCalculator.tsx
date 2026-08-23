@@ -24,6 +24,12 @@ interface SPCalculatorProps {
   initialPrice?: number; // Pre-fill price (locked mode)
   onCalculate?: (sellResult: SPCalculation | null, buyResult: SPCalculation | null) => void;
   testID?: string;
+  /**
+   * Bump this to re-fetch categories (e.g. on screen focus or pull-to-refresh)
+   * so an admin's multiplier change is reflected without a full remount.
+   * QA: Group Q+S 2026-08-23 Item 3.
+   */
+  refreshKey?: number;
 }
 
 export function SPCalculator({
@@ -32,6 +38,7 @@ export function SPCalculator({
   initialPrice,
   onCalculate,
   testID = 'sp-calculator',
+  refreshKey = 0,
 }: SPCalculatorProps) {
   const [categories, setCategories] = useState<CategoryWithCount[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(initialCategoryId || '');
@@ -98,10 +105,12 @@ export function SPCalculator({
     }
   }, [mode, onCalculate]);
 
-  // Load categories on mount
+  // Load categories on mount, and re-fetch when refreshKey changes (screen
+  // focus / pull-to-refresh) so admin rate changes are picked up without a
+  // full remount. QA: Group Q+S 2026-08-23 Item 3.
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [refreshKey]);
 
   // Auto-calculate when locked mode with initial values
   useEffect(() => {
@@ -150,7 +159,9 @@ export function SPCalculator({
     return '>100';
   };
 
-  if (loadingCategories) {
+  // Only block on the FIRST load. On refreshKey re-fetches keep the existing
+  // data visible (no spinner flash) and swap in the fresh rates when they land.
+  if (loadingCategories && categories.length === 0) {
     return (
       <View style={styles.container} testID={testID}>
         <ActivityIndicator size="small" color="#5DBB8E" testID={`${testID}-loading`} />

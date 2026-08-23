@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { supabase } from '@/services/supabase/client';
 import { getSimulatedForgotPasswordError } from '@/services/devTestingService';
+import { captureException } from '@/services/errorReporter';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 
@@ -58,7 +59,18 @@ export default function ForgotPasswordScreen() {
       const { error } = result;
 
       if (error) {
-        console.error('Password reset error:', error);
+        // Report to Sentry instead of console.error — a raw console.error on a
+        // dev/staging build makes RN LogBox render a duplicate, internals-leaking
+        // red banner (AuthApiError) stacked under the styled alert below.
+        // QA: Group Q+S 2026-08-23 Item 1.
+        captureException(error, {
+          tags: { screen: 'ForgotPasswordScreen', action: 'send_reset_email' },
+          extra: {
+            hasEmail: !!email,
+            status: (error as any)?.status,
+            code: (error as any)?.code,
+          },
+        });
 
         const baseMessage = error.message || 'Failed to send password reset email.';
         let detailMessage = baseMessage;
@@ -89,7 +101,10 @@ export default function ForgotPasswordScreen() {
         console.log('Password reset email sent successfully');
       }
     } catch (error: any) {
-      console.error('Password reset exception:', error);
+      captureException(error, {
+        tags: { screen: 'ForgotPasswordScreen', action: 'send_reset_email_exception' },
+        extra: { hasEmail: !!email },
+      });
       Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     } finally {
       setLoading(false);

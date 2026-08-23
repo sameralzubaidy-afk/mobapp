@@ -15,15 +15,24 @@ import { BonusCategoryBadge } from './BonusCategoryBadge';
 
 interface BonusCategoriesListProps {
   testID?: string;
+  /**
+   * Bump this to re-fetch bonus categories (e.g. on screen focus or
+   * pull-to-refresh) so an admin's multiplier change is reflected without a
+   * full remount. QA: Group Q+S 2026-08-23 Item 3.
+   */
+  refreshKey?: number;
 }
 
-export function BonusCategoriesList({ testID = 'bonus-categories-list' }: BonusCategoriesListProps) {
+export function BonusCategoriesList({
+  testID = 'bonus-categories-list',
+  refreshKey = 0,
+}: BonusCategoriesListProps) {
   const [categories, setCategories] = useState<BonusCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadBonusCategories();
-  }, []);
+  }, [refreshKey]);
 
   const loadBonusCategories = async () => {
     try {
@@ -38,7 +47,9 @@ export function BonusCategoriesList({ testID = 'bonus-categories-list' }: BonusC
     }
   };
 
-  if (loading) {
+  // Only block on the FIRST load. On refreshKey re-fetches keep the existing
+  // data visible (no spinner flash) and swap in the fresh rates when they land.
+  if (loading && categories.length === 0) {
     return (
       <View style={styles.loadingContainer} testID={`${testID}-loading`}>
         <ActivityIndicator size="small" color="#5DBB8E" />

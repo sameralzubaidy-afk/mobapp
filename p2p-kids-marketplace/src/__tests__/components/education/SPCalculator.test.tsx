@@ -117,4 +117,28 @@ describe('SPCalculator', () => {
 
     expect(getByTestId('test-calc-price-input').props.value).toBe('');
   });
+
+  it('refetches categories when refreshKey changes without remounting', async () => {
+    (categoryService.getCategoriesWithCounts as jest.Mock)
+      .mockResolvedValueOnce(mockCategories) // 1.3 on first load
+      .mockResolvedValueOnce([{ ...mockCategories[0], sp_earning_multiplier: 1.4 }]); // 1.4 on focus
+
+    const { getByTestId, rerender } = render(
+      <SPCalculator mode="free" testID="test-calc" refreshKey={0} />
+    );
+
+    await waitFor(() => {
+      // Initial mount load fires once.
+      expect(categoryService.getCategoriesWithCounts).toHaveBeenCalledTimes(1);
+      expect(getByTestId('test-calc-category-picker')).toBeTruthy();
+    });
+
+    // Simulate a screen-focus event: parent bumps refreshKey while this
+    // component stays mounted (no remount). Categories must re-fetch.
+    rerender(<SPCalculator mode="free" testID="test-calc" refreshKey={1} />);
+
+    await waitFor(() => {
+      expect(categoryService.getCategoriesWithCounts).toHaveBeenCalledTimes(2);
+    });
+  });
 });

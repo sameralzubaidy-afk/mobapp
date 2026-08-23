@@ -12,16 +12,32 @@ jest.mock('../../../services/educationContentService');
 jest.mock('../../../services/educationAnalyticsService');
 jest.mock('../../../services/categoryService');
 jest.mock('../../../services/spCalculatorService');
+// Keep all other @react-navigation/native exports real; capture the focus hook
+// so tests can simulate a screen-focus event (QA: Group Q+S 2026-08-23 Item 3).
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useFocusEffect: jest.fn(),
+}));
+// Expose refreshKey so tests can assert focus/pull-to-refresh propagates to the
+// SP calculator + bonus list without needing their real internals.
 jest.mock('../../../components/education/SPCalculator', () => ({
-  SPCalculator: ({ testID }: any) => {
-    const { View } = require('react-native');
-    return <View testID={testID} />;
+  SPCalculator: ({ testID, refreshKey = 0 }: any) => {
+    const { View, Text } = require('react-native');
+    return (
+      <View testID={testID}>
+        <Text testID={`${testID}-refresh-key`}>{String(refreshKey)}</Text>
+      </View>
+    );
   },
 }));
 jest.mock('../../../components/education/BonusCategoriesList', () => ({
-  BonusCategoriesList: ({ testID }: any) => {
-    const { View } = require('react-native');
-    return <View testID={testID} />;
+  BonusCategoriesList: ({ testID, refreshKey = 0 }: any) => {
+    const { View, Text } = require('react-native');
+    return (
+      <View testID={testID}>
+        <Text testID={`${testID}-refresh-key`}>{String(refreshKey)}</Text>
+      </View>
+    );
   },
 }));
 jest.mock('../../../components/education/EducationSectionAccordion', () => ({
@@ -143,6 +159,34 @@ describe('HelpScreen', () => {
 
     await waitFor(() => {
       expect(getByTestId('help-bonus-categories')).toBeTruthy();
+    });
+  });
+
+  it('re-fetches SP calculator/bonus category data on screen focus', async () => {
+    const mockUseFocusEffect = require('@react-navigation/native').useFocusEffect as jest.Mock;
+    let focusCallback: () => void = () => {};
+    mockUseFocusEffect.mockImplementation((cb: () => void) => {
+      focusCallback = cb;
+    });
+
+    const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
+
+    // Simulate the initial mount focus: the screen deliberately skips it
+    // (children already load on mount), so dataVersion stays 0.
+    act(() => {
+      focusCallback();
+    });
+    expect(getByTestId('help-sp-calculator-refresh-key')).toHaveTextContent('0');
+    expect(getByTestId('help-bonus-categories-refresh-key')).toHaveTextContent('0');
+
+    // Simulate navigating away + back (screen re-focus) WITHOUT a remount.
+    act(() => {
+      focusCallback();
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('help-sp-calculator-refresh-key')).toHaveTextContent('1');
+      expect(getByTestId('help-bonus-categories-refresh-key')).toHaveTextContent('1');
     });
   });
 

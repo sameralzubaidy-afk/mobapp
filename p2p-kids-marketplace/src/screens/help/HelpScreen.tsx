@@ -1,7 +1,7 @@
 // FILE: p2p-kids-marketplace/src/screens/help/HelpScreen.tsx
 // MODULE-18 EDU-005: Help screen with accordion sections, calculator, and bonus categories
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Alert
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ChartLine, CurrencyCircleDollar } from 'phosphor-react-native';
 import { getPublishedSections } from '../../services/educationContentService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
@@ -33,6 +34,11 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
   const sectionRefs = useRef<{ [key: string]: View | null }>({});
   const hasTrackedView = useRef(false);
 
+  // Incremented on screen focus / pull-to-refresh so the SP calculator and
+  // bonus category list re-fetch (admin rate changes) without a full remount.
+  const [dataVersion, setDataVersion] = useState(0);
+  const hasFocusedRef = useRef(false);
+
   // Handle deep link section parameter
   const deepLinkSection = route.params?.section;
 
@@ -47,6 +53,19 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
       hasTrackedView.current = true;
     }
   }, []);
+
+  // Re-fetch calculator/bonus category data on screen focus so an admin rate
+  // change is reflected without a full remount. QA: Group Q+S 2026-08-23
+  // Item 3. Skip the initial focus (mount) — children already load then.
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedRef.current) {
+        hasFocusedRef.current = true;
+        return;
+      }
+      setDataVersion((v) => v + 1);
+    }, [])
+  );
 
   useEffect(() => {
     // Handle deep link - expand specific section and scroll to it
@@ -88,6 +107,9 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
+      // Also refresh the SP calculator + bonus list, not just the sections,
+      // so admin rate changes picked up by pull-to-refresh.
+      setDataVersion((v) => v + 1);
       await loadSections();
     } catch (error) {
       console.error('[HelpScreen] Refresh error:', error);
@@ -162,12 +184,13 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
             <SPCalculator
               mode="free"
               testID="help-sp-calculator"
+              refreshKey={dataVersion}
             />
           </View>
 
           {/* Bonus Categories List */}
           <View style={styles.bonusSection}>
-            <BonusCategoriesList testID="help-bonus-categories" />
+            <BonusCategoriesList testID="help-bonus-categories" refreshKey={dataVersion} />
           </View>
 
           {/* Footer */}
