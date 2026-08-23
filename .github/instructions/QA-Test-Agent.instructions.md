@@ -234,9 +234,13 @@ The `p2pkidsmarketplace://qa-logout` deep link is the preferred, fast, reliable 
 
 When reviewing or writing a DB-gate trigger (e.g., a `BEFORE INSERT` guard that raises an exception to block a disallowed write), note that any audit-log insert attempted from within that same trigger will roll back along with the aborted statement — Postgres triggers do not get autonomous transactions. This is expected behavior, not a bug, and matches existing precedent in this repo (the COPPA guard trigger). If persisted observability of blocked attempts is desired, it must be logged from the calling application after catching the error, not from inside the trigger.
 
-### 5.18 iOS RN 0.81: `accessibilityRole="tab"` / `"tablist"` do not register in the AX tree (Phase 13.27)
+### 5.18 iOS RN 0.81: `accessibilityRole="tab"` / `"tablist"` / `"adjustable"` do not register in the AX tree (Phase 13.27, extended Phase 13.35)
 
-Do not use `accessibilityRole="tab"` or `"tablist"` for step indicators or tab-like UI on iOS with RN 0.81 — these roles do not register in the Fabric accessibility tree and the elements will silently fail to surface despite correct `accessible`/`accessibilityLabel`/`accessibilityState` props. Use `accessibilityRole="button"` with `accessibilityState` (e.g., `selected`) to convey current-step/tab semantics instead. When an AX-instrumentation fix is reported as complete for an element using `role="tab"`, verify on-device before accepting the fix — this exact role has already caused one fix to be reported working (via prop review) that didn't actually work on-device.
+Do not use `accessibilityRole="tab"`, `"tablist"`, or `"adjustable"` on iOS with RN 0.81 — none of these roles reliably register in the Fabric accessibility tree, and elements using them will silently fail to surface despite correct `accessible`/`accessibilityLabel`/`accessibilityState` props. Use `accessibilityRole="button"` with appropriate `accessibilityState` to convey the semantic meaning instead (current-step/selected for tabs, or just treat slider increment/decrement/track controls as buttons). When encountering a new custom or less-common `accessibilityRole` value on this RN version, treat it as unverified until confirmed via on-device AX-tree inspection — several roles beyond just `tab` have now proven unreliable.
+
+Confirmed cases:
+- **`tab`/`tablist`** (Phase 13.27, 2026-08-20): `bulk-step-*` on `BulkListingCreateScreen` never surfaced on-device until the role was changed to `"button"`; the container `tablist` had no effect.
+- **`adjustable`** (Phase 13.35, 2026-08-23): the `RadiusSlider` track (`radius-slider-track`, Discover filter modal) was invisible in the AX tree with `accessibilityRole="adjustable"` + `accessibilityValue`; switching it to `"button"` made it surface as a Button ("Search radius slider"). When an AX-instrumentation fix is reported as complete for an element using any of these roles, verify on-device before accepting the fix — prop review alone has twice reported working fixes that didn't actually work on-device.
 
 ### 5.19 Multi-surface technique rules (Phase 13.28 — Group L trace)
 
