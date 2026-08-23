@@ -74,9 +74,6 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
           onPress={onSingleItem}
           activeOpacity={0.7}
           testID="sell-option-list-one-item"
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Sell option list one item"
         >
           <Text style={styles.sheetOptionTitle}>List One Item</Text>
           <Text style={styles.sheetOptionSubtitle}>Snap a photo or choose from your library</Text>
@@ -88,9 +85,6 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
           onPress={onBulkUpload}
           activeOpacity={0.7}
           testID="sell-option-bulk-upload"
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Sell option bulk upload"
         >
           <View style={styles.sheetOptionRow}>
             <Package size={20} color="#1A1A1A" weight="regular" />
