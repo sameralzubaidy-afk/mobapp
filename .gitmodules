@@ -1,0 +1,4 @@
+[submodule "p2p-kids-admin"]
+	path = p2p-kids-admin
+	url = https://github.com/sameralzubaidy-afk/mobappadmin.git
+	branch = develop
