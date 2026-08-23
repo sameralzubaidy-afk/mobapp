@@ -480,6 +480,11 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-03: Node/ZIP Gating + Waitlist
 - Smoke: (manual)
   - User is assigned to a node; sees node-scoped content.
+  - **NODE-MEMBER-COUNT-LIVE (2026-08-23, QA group-F/G cross-cutting #1):** Admin `/nodes` membership now computed LIVE from `profiles.node_id` instead of the stale stored `nodes.member_count`
+    - Problem: stored `member_count` had drifted on staging (Norwalk Central stored 0 vs 146 real assigned profiles; Test Node 1 stored 100 vs 0 real) because it is a client-maintained counter — incremented only on signup via the `increment_node_member_count` RPC from `profile.ts`; never backfilled for historical assignments, never decremented on ZIP-change/delete. The admin stats card "Total Members", the node-deactivation warning, and the per-node "Members" column all read the stale column, so an admin could be misled about real impact before deactivating a node.
+    - Fix (compute live — matches the existing `admin_node_kpis` pattern): `p2p-kids-admin/src/app/nodes/page.tsx` now sources per-node membership from the already-loaded `admin_node_kpis.users` (live `COUNT(profiles) WHERE node_id = n.id`, service-role route `/api/admin/nodes/kpis`), falling back to the stored value only until KPIs load. Applies to the stats card, the deactivation warning, and the Members column (with a `title="Live member count (from profiles)"` tooltip).
+    - Validation: admin Tier 0 PASS (typecheck / lint / `next build`). Live-browser verified on staging — Norwalk Central Members=146 (was 0), Test Node 1 Members=0 (was 100), Total Members=157 = sum of live column (was 100); deactivation warning for Norwalk reads "146 active members", Test Node 1 no longer warns (0 members). No DB migration / no backfill / no Edge Function change.
+    - Regression: Tier 0 (admin). No DB/API/Edge Function changes → no Tier 2. FLOW-03 admin surface only.
 
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
