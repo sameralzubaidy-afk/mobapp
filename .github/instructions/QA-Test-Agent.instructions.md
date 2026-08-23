@@ -186,6 +186,8 @@ When an app-side JS error needs to be captured and the standard device log doesn
 - Re-resolve the target from `/json` and reconnect if the socket closes (the device/page id changes across an app relaunch — a re-resolve loop keeps the capture continuous across the whole run).
 - When the app-side error path logs the failure (e.g. the OAuth logging fix logs `[SocialLoginButtons] OAuth flow failed: <errorCode> <errorMessage>`), this capture is what retrieves the exact string, distinguishing exchange-vs-session-set failures without retrying real credentials.
 
+**DB-over-CDP for persistence assertions; verify capture contents before treating absence as evidence (Phase 13.36):** Before treating an empty or missing result from a console/capture tool as evidence that an event did not fire, first verify the capture actually contains the expected type of content at all (e.g., check it captured *any* events from the relevant time window, not just that it ran). A confirmed prior session's capture delivered only a burst of pre-capture replay events and then went silent — an empty-looking result that could easily be misread as "no events fired" when it actually meant "the capture missed the window entirely." For analytics/telemetry persistence assertions (e.g., "an event was recorded"), prefer the database as the authoritative channel — a read-only DB query (per §5.14 / the MCP approval discipline) is deterministic and definitive; treat CDP console capture as a fallback for such persistence assertions, not the default. Use the DB verdict to arbitrate before concluding an event did not fire.
+
 ### 5.13 DEV-autofill default for repeated signups (first-class technique — Phase 22)
 
 When a test case requires a fresh signup account and a DEV-only autofill helper exists (e.g., `dev-fill-test-user-1/2/3`), use it as the default approach: trigger the autofill, then override only the fields that must be unique for the test (typically email and phone) via long-press → Select All → retype. This is significantly faster than filling every field from scratch and should be the standard pattern for any group requiring repeated fresh accounts, not an occasional shortcut.
@@ -297,6 +299,27 @@ For any screenshot analysis, OCR, pixel/badge color scan, image crop/diff, or sc
 If a needed analysis isn't covered by these scripts, STOP and flag it as a follow-up (propose a new `qa:*` script) — do NOT improvise shell. All `/tmp` writes and Swift/awk logic live inside these scripts, never in agent-generated commands.
 
 The only other shell commands you may run are direct read-only inspections: `ls`, `cat`, `grep`/`rg`, `head`, `tail`, `find`, `git status|diff|log|show`. No pipes, no redirects, no chaining.
+
+### 5.24 Long-run session discipline — mandatory checkpoints, count-based AND trigger-based (Phase 13.36)
+
+In any multi-case session (~10+ cases), impose a **mandatory count-based checkpoint every ~10–12 executed cases**: pause, summarize verdicts so far, flag any strain or deviation from the operating rules, and confirm the re-list/keyboard, evidence-capture, and dialog-handling disciplines are still being followed.
+
+**Additionally, a mandatory checkpoint is triggered immediately by EITHER of the following events, regardless of case count:**
+
+- **(a) Any re-authentication / login cycle** — a fresh login, an app relaunch that restores a session, or a persona switch. At this triggered checkpoint, explicitly confirm that the §5.2 re-list-after-keyboard-change discipline will be followed with **zero exceptions** on the upcoming login steps. A confirmed session found the single deviation from this existing rule — skipping the re-list on a second, later-session login — caused a corrupted field and a full terminate + relaunch + redo.
+- **(b) Any tooling failure or unexpected result from a verification method** — e.g., a capture tool (CDP console capture, OCR, badge-scan, screenshot) returning empty, truncated, or unexpected data. At this triggered checkpoint, explicitly confirm that the verification method's actual output was inspected for the **target content** (not just "it ran without erroring") before concluding a negative result, and that a **fallback method** is used rather than retrying the same failed approach (see the §5.12 DB-over-CDP rule).
+
+### 5.25 Fail fast when source already proves a path impossible (Phase 13.36)
+
+If source code inspection already demonstrates that a path is gated or impossible under current conditions (e.g., a button is conditionally hidden for the exact state your test data is in), stop exploring that path immediately and report it as a **fixture/precondition gap** rather than continuing to search for a workaround through the UI. Continuing to explore a source-proven-impossible path wastes the most effort for the least value of any pattern observed across multiple sessions. (Confirmed case: a messaging path gated on an in-progress trade was chased across multiple screens and accounts before a source read proved the Message button is hidden for pending/cancelled trades.)
+
+### 5.26 Batch test cases by persona to minimize re-authentication cycles (Phase 13.36)
+
+When planning execution order for a multi-case session, group cases requiring the same logged-in persona together before switching to a different persona, rather than following the guide's numeric case order if that order causes unnecessary persona switches. Each login/logout or relaunch cycle is one of the most expensive and highest-risk operations in a session (both in wall-clock cost and in being the point where field-corruption errors occur) — minimizing the number of these cycles is a direct, high-leverage lever for reducing both time and risk in a long run. Note the persona-batching order (and any deliberate deviation from guide order) in the run's execution trace.
+
+### 5.27 Prefer simultaneous evidence over sequential action-then-recheck (Phase 13.36)
+
+When a guide's prescribed verification method is sequential (e.g., "complete or cancel a trade, then recheck a count"), consider whether the current data state already provides equally strong or stronger **simultaneous** evidence (e.g., existing completed/cancelled items alongside existing active ones, observed at once) without requiring a new mutating action. Prefer the non-mutating simultaneous-evidence approach when it demonstrates the same rule at least as conclusively — this also avoids unnecessary fixture-state mutation. Record the substitution (and why the simultaneous evidence is conclusive) in the case's trace.
 
 ## 6. Judgment — three distinct layers, ALL required
 
