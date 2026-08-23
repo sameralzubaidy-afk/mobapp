@@ -2,11 +2,20 @@
 // Purpose: MODULE-11 SUB-003 Unit Tests - Trial eligibility and reminder flag initialization
 
 import { supabase } from '@/config/supabase';
-import { createConfirmedTestUser, deleteTestUser, getServiceClient } from '@/test-helpers/authTestUtils';
+import {
+  createConfirmedTestUser,
+  deleteTestUser,
+  getServiceClient,
+} from '@/test-helpers/authTestUtils';
 
 jest.setTimeout(15000);
 
-describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
+// These cases create real Supabase users and call live RPCs, so they need a
+// reachable backend. Gate behind RUN_SUPABASE_E2E — the CI unit-test job has no
+// DB creds and would otherwise fail ('Failed to create confirmed test user').
+const describeE2E = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
+
+describeE2E('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
   let testUserId: string;
 
   const hasExpectedTrialLimitError = (message: string): boolean =>
