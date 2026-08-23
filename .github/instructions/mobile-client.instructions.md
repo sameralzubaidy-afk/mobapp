@@ -5,7 +5,7 @@ applyTo: "p2p-kids-marketplace/src/**"
 
 # Mobile Client Hardening Protocol
 
-Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device), BP-58 (bottom-anchored UI must clear the floating pill nav) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 43 rules.
+Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device), BP-58 (bottom-anchored UI must clear the floating pill nav), BP-59 (verify scripted JSX mass-edits with more than typecheck alone) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -24,6 +24,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
 - BP-58 Bottom-anchored UI on pill-nav screens — scroll content `paddingBottom: 100`, fixed bottom bars `bottom: 120`, in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
+- BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: (a) typecheck, (b) grep for a bare prop-like line immediately followed by a JSX child (text-children corruption), (c) Prettier and confirm it doesn't rewrite the region unexpectedly.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -290,3 +291,20 @@ Rules:
 - When adding a fixed/sticky bottom element, size its clearance against the pill height, not just the safe-area inset.
 
 Detection checklist: for every new/edited screen, grep for a bottom-anchored element (`position: 'absolute', bottom: 0`, a trailing button in a ScrollView, or a sticky footer) and verify it clears the pill; on-device, scroll each such screen to the bottom and confirm no CTA/button is partially hidden behind the pill.
+
+## BP-59: Verify Scripted JSX Mass-Edits With More Than Typecheck Alone
+
+Problem: A bulk-edit tool that rewrites JSX without a real AST parser can insert props as invisible JSX **text children** rather than actual element attributes. TypeScript's typecheck does NOT catch this — the inserted text is still syntactically valid JSX children, just semantically wrong (e.g., a bare `accessible` / `accessibilityRole="button"` rendered as visible text inside a `<View>` instead of a prop on the `<TouchableOpacity>`). Observed live 2026-08-23 during the app-wide BP-53 sweep: ~15 files corrupted this way (stray `accessible`/`accessibilityRole` lines inserted as children or into object literals/destructuring); `yarn typecheck` stayed green and only a targeted grep caught it.
+
+Rules:
+1. After any scripted/bulk JSX prop-insertion edit (e.g., adding `accessible`/`accessibilityRole`/`accessibilityLabel` across many files at once), before considering the change complete:
+   (a) **Run typecheck** (`yarn typecheck`) — necessary but NOT sufficient.
+   (b) **Run a targeted grep** for the pattern of a bare prop-like line immediately followed by a JSX child — i.e., confirm the inserted text landed as a JSX attribute INSIDE the opening tag, not as rendered/child content. Example (also repeat for `accessibilityRole="..."`):
+       `grep -rn -A1 -E '^[ ]*accessible$' --include="*.tsx" src` — any hit whose next line starts with `<` or `</` is corruption (a real prop is followed by another prop or `>`).
+   (c) **Run Prettier/the formatter** and confirm it does NOT rewrite the affected regions unexpectedly — a formatter choking on, or silently reformatting, the inserted lines is itself a signal something is structurally wrong.
+2. Do NOT skip steps (b) and (c) just because (a) passes — passing typecheck is necessary but not sufficient evidence the edit is structurally correct.
+3. When a scripted pass is used at all, prefer a parser-based transform; if a regex/line-based transform is used, treat every insertion as suspect until verified.
+
+Detection checklist:
+- `grep -rn -A1 -E '^[ ]*accessible$' --include="*.tsx" src` → any match whose next line starts with `<` or `</` is a JSX-text-children corruption (should never happen for a real prop).
+- `yarn typecheck` passing is NOT proof of correctness for scripted JSX edits.
