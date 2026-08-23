@@ -3949,9 +3949,9 @@ add one section on the top give summary on what this file covers from testing an
     - SendGrid webhook endpoint configured to point to `email-webhook` edge function
     - SendGrid templates created and template IDs added to `admin_config`
   - **QA-QS-EDU-ANALYTICS-FEE (2026-08-23):** Trading Education fixes from the Group Q+S run
-    - `chk_education_analytics_event_type` widened to accept `help_view`/`seller_prompt_view`/`buyer_prompt_view` (TS union) per `docx/TRADING-EDUCATION-REQUIREMENTS.md` — the app's own Help-screen `help_view` event was silently dropped (Q06). Migration `supabase/migrations/20260823000001_reconcile_education_analytics_event_type.sql` (created; NOT yet applied to staging — needs Samer's approval).
+    - `chk_education_analytics_event_type` widened to accept `help_view`/`seller_prompt_view`/`buyer_prompt_view` (TS union) per `docx/TRADING-EDUCATION-REQUIREMENTS.md` — the app's own Help-screen `help_view` event was silently dropped (Q06). Migration `supabase/migrations/20260823000001_reconcile_education_analytics_event_type.sql` (**APPLIED to staging 2026-08-23** — constraint verified live; rollback-safe `help_view` insert returns an id).
     - Education SP calculator fee preview is now subscriber-aware (`spCalculatorService.calculateSP` buy mode): Kids Club+ members see `transaction_fee_subscriber_cents` (staging $1.00), free users the non-subscriber fee (Q04 UX concern). Tier-lookup failure falls back to the non-subscriber figure without nuking the preview. Unit tests added.
-    - Tier: 0 (mobile) + Tier 2 (DB) once the migration is applied to staging.
+    - Tier: 0 (mobile) + Tier 2 (DB) — migration applied and verified on staging.
 
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
