@@ -57,8 +57,12 @@ jobs:
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json')); if(p.devDependencies && p.devDependencies.detox){delete p.devDependencies.detox; fs.writeFileSync('package.json', JSON.stringify(p, null,2)); console.log('removed detox from devDependencies');} else {console.log('no detox entry found');}"
       - name: Install dependencies
         run: npm install --legacy-peer-deps
+      # Use the repo's unit-test script: plain `npm test` also picks up the
+      # E2E/integration suites under src/__tests__/e2e + __tests__/integration,
+      # several of which are ungated and throw for missing DB creds in this job
+      # (they belong in the dedicated e2e-cache job / RUN_SUPABASE_E2E runs).
       - name: Run tests
-        run: npm test --silent
+        run: npm run test:unit --silent
 
   e2e-cache:
     name: E2E - Cache Integration Tests
