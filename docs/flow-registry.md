@@ -414,6 +414,10 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Logout returns to unauthenticated stack.
   - Cold launch does not hang indefinitely on a full-screen spinner even if profile/subscription fetches time out.
   - App launch does not get stuck in an auth refresh loop (no repeated profile realtime subscribe spam).
+  - **QA-QS-RESET-LINK-RECOVERY (2026-08-23):** ResetPasswordScreen now clears `linkError` when a valid reset deep link arrives after an expired-link error (both `handleResetUrl` and route-params paths), so the submit button is no longer left hidden and a valid link recovers without an app relaunch. Recurring finding (Phase 16 #1, reconfirmed live in Group Q+S).
+    - Files: `p2p-kids-marketplace/src/screens/auth/ResetPasswordScreen.tsx` + regression test `src/__tests__/screens/auth/ResetPasswordScreen.test.tsx`
+    - Regression test verified RED on the old code path, GREEN on the fix.
+    - Tier: 0 (UI state fix + unit test; no API/DB change). No new smoke script required.
 
 ### FLOW-02: Profiles & Onboarding
 - Smoke: (manual)
@@ -456,6 +460,7 @@ This file is the canonical registry of end-to-end flows and their required regre
       - FeatureHighlightsScreen: 4 slides with pagination dots (green active), Next button with CaretRight icon, Get Started on slide 4
       - OnboardingCarousel: 5 slides with elongated green active dot (24px), Get Started button green pill
       - ProfileSetupScreen: Avatar with Camera icon, filled inputs (User, MapPin icons), Complete Setup button green pill
+  - **QA-QS-BP53-PROFILE-STAT-LOCATORS (2026-08-23):** Profile stat chips (Listings/Trades/SP Balance) now set `accessible` + `accessibilityRole="button"` + `accessibilityLabel` (mirror `ui/Button.tsx`) so their `testID`s surface in the iOS AX tree (BP-53). Zero-logic UI change — no new smoke script required. Tier: 0.
 
 ### FLOW-03: Node/ZIP Gating + Waitlist
 - Smoke: (manual)
@@ -2598,6 +2603,7 @@ add one section on the top give summary on what this file covers from testing an
       - "Redeem" and "Earn More" buttons have placeholder handlers (TODO: implement in future module)
       - Expiring SP alert only shows if batches expire within 30 days (conditional display)
       - Transaction icon mapping relies on transaction_type string matching (sale, trade, redeem, etc.)
+  - **QA-QS-BP53-SPWALLET-LOCATOR (2026-08-23):** SP Wallet "How Trading Works" button (`sp-wallet-how-trading-works-btn`) now sets `accessible` + `accessibilityRole="button"` + `accessibilityLabel="How Trading Works"` so it surfaces in the iOS AX tree (BP-53). Zero-logic UI change — no new smoke script required. Tier: 0.
 
 ### FLOW-11: Swap Points – Earn/Spend/Cap + Pending→Release
 - Smoke: (manual)
@@ -3942,6 +3948,10 @@ add one section on the top give summary on what this file covers from testing an
     - SendGrid API key configured in Supabase Edge Function secrets
     - SendGrid webhook endpoint configured to point to `email-webhook` edge function
     - SendGrid templates created and template IDs added to `admin_config`
+  - **QA-QS-EDU-ANALYTICS-FEE (2026-08-23):** Trading Education fixes from the Group Q+S run
+    - `chk_education_analytics_event_type` widened to accept `help_view`/`seller_prompt_view`/`buyer_prompt_view` (TS union) per `docx/TRADING-EDUCATION-REQUIREMENTS.md` — the app's own Help-screen `help_view` event was silently dropped (Q06). Migration `supabase/migrations/20260823000001_reconcile_education_analytics_event_type.sql` (created; NOT yet applied to staging — needs Samer's approval).
+    - Education SP calculator fee preview is now subscriber-aware (`spCalculatorService.calculateSP` buy mode): Kids Club+ members see `transaction_fee_subscriber_cents` (staging $1.00), free users the non-subscriber fee (Q04 UX concern). Tier-lookup failure falls back to the non-subscriber figure without nuking the preview. Unit tests added.
+    - Tier: 0 (mobile) + Tier 2 (DB) once the migration is applied to staging.
 
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
