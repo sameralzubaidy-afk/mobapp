@@ -37,9 +37,18 @@ describe('ComposerBar — Home Composer Redesign', () => {
     expect(getByTestId('composer-add-button')).toBeTruthy();
   });
 
-  it('tapping the bar focuses the input and fires composer_bar_tapped (no navigation)', () => {
+  it('tapping the bar focuses the input (no navigation)', () => {
     const { getByTestId } = render(<ComposerBar />);
     fireEvent.press(getByTestId('composer-bar'));
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  // P18 fix: composer_bar_tapped fires from the TextInput's onFocus (the bar's
+  // onPress is shadowed by camera/input/"+" hit areas), so the event is asserted
+  // against a real focus, not a press of the unreachable bar surface.
+  it('focusing the input fires composer_bar_tapped (primary composer interaction)', () => {
+    const { getByTestId } = render(<ComposerBar />);
+    fireEvent(getByTestId('composer-input'), 'focus');
     expect(trackEvent).toHaveBeenCalledWith(COMPOSER_EVENTS.BAR_TAPPED);
     expect(mockNavigate).not.toHaveBeenCalled();
   });

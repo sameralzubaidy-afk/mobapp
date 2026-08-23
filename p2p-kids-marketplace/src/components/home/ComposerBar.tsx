@@ -15,7 +15,7 @@
  *    (no regression from current New Item entry behavior).
  *
  * Analytics:
- *  - composer_bar_tapped on bar focus
+ *  - composer_bar_tapped on input focus (primary tap interaction)
  *  - composer_bar_submit with { has_text: true|false }
  *
  * Design system: input/pill token styling, primary-accent "+" button.
@@ -35,7 +35,6 @@ export default function ComposerBar() {
   const inputRef = useRef<TextInput>(null);
 
   const focusInput = () => {
-    trackEvent(COMPOSER_EVENTS.BAR_TAPPED);
     inputRef.current?.focus();
   };
 
@@ -79,6 +78,11 @@ export default function ComposerBar() {
           <Camera size={20} color={colors.neutral[700]} weight="regular" />
         </TouchableOpacity>
 
+        {/* P18 fix: fire composer_bar_tapped on input focus. The bar's onPress
+            is shadowed by the camera button's hitSlop, the TextInput's native
+            focus, and the "+" button's hitSlop — so the bar onPress (and thus
+            the old event wiring) was unreachable by normal taps. onFocus fires
+            for the primary "tap into the composer" interaction. */}
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -88,6 +92,7 @@ export default function ComposerBar() {
           placeholderTextColor={colors.neutral[500]}
           returnKeyType="go"
           onSubmitEditing={() => submit()}
+          onFocus={() => trackEvent(COMPOSER_EVENTS.BAR_TAPPED)}
           testID="composer-input"
         />
 
