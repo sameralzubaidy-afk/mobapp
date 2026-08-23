@@ -84,7 +84,7 @@ export function SPEarningsPreview({
     return (
       <View style={styles.container} testID={testID}>
         <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#5DBB8E" />
+          <ActivityIndicator size="small" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading SP rates...</Text>
         </View>
       </View>
@@ -107,7 +107,7 @@ export function SPEarningsPreview({
     return (
       <View style={styles.container} testID={testID}>
         <View style={styles.placeholderContainer}>
-            <Info size={20} color="#6B6B6B" weight="regular" style={styles.placeholderIcon} />
+          <Info size={20} color="#6B6B6B" weight="regular" style={styles.placeholderIcon} />
           <Text style={styles.placeholderText}>Select a category to see estimated SP earnings</Text>
         </View>
       </View>
@@ -119,7 +119,7 @@ export function SPEarningsPreview({
     return (
       <View style={styles.container} testID={testID}>
         <View style={styles.placeholderContainer}>
-            <Info size={20} color="#6B6B6B" weight="regular" style={styles.placeholderIcon} />
+          <Info size={20} color="#6B6B6B" weight="regular" style={styles.placeholderIcon} />
           <Text style={styles.placeholderText}>Enter a price above to see SP estimate</Text>
         </View>
       </View>
@@ -137,6 +137,7 @@ export function SPEarningsPreview({
           accessibilityLabel="What are Swap Points? Tap to learn more"
           accessibilityRole="button"
           testID="sp-info-icon"
+          accessible
         >
           <View style={styles.infoIcon}>
             <Info size={14} color="#FFFFFF" weight="bold" />
@@ -183,6 +184,8 @@ export function SPEarningsPreview({
           onPress={() => setShowTooltip(true)}
           accessibilityLabel="Tap for more info about SP estimate"
           testID="disclaimer-info-icon"
+          accessible
+          accessibilityRole="button"
         >
           <View style={styles.disclaimerInfoIcon}>
             <Info size={10} color="#FFFFFF" weight="bold" />
@@ -201,6 +204,7 @@ export function SPEarningsPreview({
           accessibilityLabel="Upgrade to Kids Club Plus to earn Swap Points"
           accessibilityRole="button"
           testID="upgrade-cta"
+          accessible
         >
           <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
         </TouchableOpacity>

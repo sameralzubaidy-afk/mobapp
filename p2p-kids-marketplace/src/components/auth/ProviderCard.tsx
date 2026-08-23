@@ -65,9 +65,7 @@ export default function ProviderCard({
             </Text>
           )}
           {isLinked && linkedAt && (
-            <Text style={styles.linkedAt}>
-              Linked {new Date(linkedAt).toLocaleDateString()}
-            </Text>
+            <Text style={styles.linkedAt}>Linked {new Date(linkedAt).toLocaleDateString()}</Text>
           )}
         </View>
       </View>
@@ -76,6 +74,7 @@ export default function ProviderCard({
         <ActivityIndicator size="small" color={config.color} />
       ) : (
         <TouchableOpacity
+          accessible
           style={[styles.button, isLinked ? styles.unlinkButton : styles.linkButton]}
           onPress={isLinked ? onUnlink : onLink}
           accessibilityRole="button"

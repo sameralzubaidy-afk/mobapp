@@ -15,7 +15,9 @@ const MISSING_FIELD_LABELS: Record<string, string> = {
 };
 
 function formatMissingField(key: string): string {
-  return MISSING_FIELD_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    MISSING_FIELD_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 interface BulkPublishConfirmSheetProps {
@@ -95,6 +97,9 @@ export function BulkPublishConfirmSheet({
               style={styles.cancelButton}
               onPress={onCancel}
               testID="bulk-publish-cancel"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bulk publish cancel"
             >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -103,6 +108,9 @@ export function BulkPublishConfirmSheet({
               disabled={publishing}
               onPress={onConfirm}
               testID="bulk-publish-confirm"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bulk publish confirm"
             >
               <Text style={styles.confirmText}>
                 {publishing ? 'Submitting...' : 'Submit for Review'}

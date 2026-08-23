@@ -38,6 +38,7 @@ export function PublishButton({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       testID={testID}
+      accessible
     >
       {loading ? (
         <ActivityIndicator color="#FFFFFF" size="small" />

@@ -29,19 +29,12 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import ScreenLayout from '@/components/ScreenLayout';
+import { captureException } from '@/services/errorReporter';
 import { ListingImage } from '@/components/atoms';
 import MatchesCartBadge from '@/components/molecules/MatchesCartBadge';
 import { showDifferentSellerModal } from '@/components/molecules/DifferentSellerModal';
-import {
-  getMaskedSellerListings,
-  MaskedSellerListing,
-} from '@/services/listing';
-import {
-  addToCart,
-  getCartItems,
-  saveCurrentCart,
-  clearCart,
-} from '@/services/cartService';
+import { getMaskedSellerListings, MaskedSellerListing } from '@/services/listing';
+import { addToCart, getCartItems, saveCurrentCart, clearCart } from '@/services/cartService';
 import { useCartContext } from '@/contexts/CartContext';
 import { getSellerGroup, isSameSellerGroup } from '@/utils/sellerGroup';
 import { ShoppingCart, Heart, HeartStraight } from 'phosphor-react-native';
@@ -99,7 +92,9 @@ export default function MoreFromThisSellerScreen() {
       }
       setFavoritedIds(new Set(favIds));
     } catch (e) {
-      console.error('[MoreFromThisSeller] Load error:', e);
+      captureException(e, {
+        tags: { screen: 'MoreFromThisSellerScreen', action: 'load_listings' },
+      });
       Alert.alert('Error', 'Could not load listings. Please try again.');
     } finally {
       setLoading(false);
@@ -199,6 +194,8 @@ export default function MoreFromThisSellerScreen() {
 
     return (
       <Pressable
+        accessible
+        accessibilityRole="button"
         style={styles.itemCard}
         onPress={() => handleItemPress(item.id)}
         testID={`more-seller-item-${item.id}`}
@@ -226,18 +223,20 @@ export default function MoreFromThisSellerScreen() {
 
         {/* Details */}
         <View style={styles.itemDetails}>
-          <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.itemTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
           <View style={styles.priceRow}>
             <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-            {item.accepts_swap_points && (
-              <Text style={styles.spBadge}>SP ✓</Text>
-            )}
+            {item.accepts_swap_points && <Text style={styles.spBadge}>SP ✓</Text>}
           </View>
 
           {matchesCart && <MatchesCartBadge size="small" />}
 
           {/* Add to Cart button */}
           <Pressable
+            accessible
+            accessibilityRole="button"
             style={[styles.addToCartBtn, isInCart && styles.addToCartBtnInCart]}
             onPress={() => handleAddToCart(item)}
             disabled={isInCart}

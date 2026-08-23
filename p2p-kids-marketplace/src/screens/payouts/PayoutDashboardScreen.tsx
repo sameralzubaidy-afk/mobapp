@@ -24,6 +24,7 @@ import {
   Clock,
 } from 'phosphor-react-native';
 import { RootStackParamList } from '@/navigation/types';
+import { captureException } from '@/services/errorReporter';
 import {
   getSellerBalance,
   formatBalanceForDisplay,
@@ -65,7 +66,10 @@ export default function PayoutDashboardScreen() {
       setPrimaryMethod(methodsData.primary_method ?? methodsData.methods?.[0] ?? null);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load payout data');
-      console.error('[PayoutDashboard] loadData error:', err);
+      captureException(err, {
+        tags: { screen: 'PayoutDashboardScreen', action: 'load_data' },
+        extra: { message: err?.message },
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -92,7 +96,10 @@ export default function PayoutDashboardScreen() {
       setPayouts(more);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load more payouts');
-      console.error('[PayoutDashboard] handleLoadMore error:', err);
+      captureException(err, {
+        tags: { screen: 'PayoutDashboardScreen', action: 'load_more' },
+        extra: { message: err?.message },
+      });
     } finally {
       setLoadingMore(false);
     }
@@ -112,9 +119,7 @@ export default function PayoutDashboardScreen() {
       case 'venmo':
         return method.venmo_handle ?? 'Venmo';
       case 'bank_ach':
-        return method.bank_account_last4
-          ? `Bank ••••${method.bank_account_last4}`
-          : 'Bank Account';
+        return method.bank_account_last4 ? `Bank ••••${method.bank_account_last4}` : 'Bank Account';
       default:
         return 'Payment Method';
     }
@@ -123,9 +128,7 @@ export default function PayoutDashboardScreen() {
   const getMethodMasked = (method: SellerPayoutMethod): string => {
     switch (method.method_type) {
       case 'paypal':
-        return method.paypal_email
-          ? method.paypal_email.replace(/(.{2}).*(@)/, '$1***$2')
-          : '';
+        return method.paypal_email ? method.paypal_email.replace(/(.{2}).*(@)/, '$1***$2') : '';
       case 'bank_ach':
         return method.bank_account_last4 ? `••••${method.bank_account_last4}` : '';
       default:
@@ -179,6 +182,9 @@ export default function PayoutDashboardScreen() {
           {/* Request Payout pill on card */}
           <TouchableOpacity
             testID="request-payout-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Request payout btn"
             style={styles.requestBtn}
             onPress={() => navigation.navigate('RequestPayout')}
             activeOpacity={0.85}
@@ -194,6 +200,9 @@ export default function PayoutDashboardScreen() {
           {primaryMethod ? (
             <TouchableOpacity
               testID="bank-row"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bank row"
               style={styles.bankRow}
               onPress={() => navigation.navigate('PayoutSettings')}
               activeOpacity={0.7}
@@ -214,6 +223,9 @@ export default function PayoutDashboardScreen() {
           ) : (
             <TouchableOpacity
               testID="add-bank-row"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Add bank row"
               style={styles.bankRow}
               onPress={() => navigation.navigate('PayoutSettings')}
               activeOpacity={0.7}
@@ -232,6 +244,9 @@ export default function PayoutDashboardScreen() {
             onPress={() => navigation.navigate('SellerEarnings')}
             activeOpacity={0.7}
             testID="view-all-earnings-link"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="View all earnings link"
           >
             <Text style={styles.sectionLabel}>Payout History</Text>
             <View style={styles.viewAllRow}>
@@ -296,6 +311,9 @@ export default function PayoutDashboardScreen() {
                 onPress={handleLoadMore}
                 disabled={loadingMore}
                 testID="payout-load-more"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Payout load more"
               >
                 {loadingMore ? (
                   <ActivityIndicator size="small" color="#5DBB8E" />

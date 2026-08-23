@@ -2,17 +2,11 @@
 // MODULE-18 EDU-005: Help screen with accordion sections, calculator, and bonus categories
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  StyleSheet,
-  Alert
-} from 'react-native';
+import { View, Text, ScrollView, RefreshControl, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ChartLine, CurrencyCircleDollar } from 'phosphor-react-native';
 import { getPublishedSections } from '../../services/educationContentService';
+import { captureException } from '@/services/errorReporter';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
 import type { EducationSection } from '../../types/education';
 import { EducationSectionAccordion } from '../../components/education/EducationSectionAccordion';
@@ -97,7 +91,9 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
       const data = await getPublishedSections();
       setSections(data);
     } catch (error) {
-      console.error('[HelpScreen] Load sections error:', error);
+      captureException(error, {
+        tags: { screen: 'HelpScreen', action: 'load_sections' },
+      });
       Alert.alert('Error', 'Failed to load help content. Please try again.');
     } finally {
       setLoading(false);
@@ -112,7 +108,9 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
       setDataVersion((v) => v + 1);
       await loadSections();
     } catch (error) {
-      console.error('[HelpScreen] Refresh error:', error);
+      captureException(error, {
+        tags: { screen: 'HelpScreen', action: 'refresh' },
+      });
     } finally {
       setRefreshing(false);
     }
@@ -181,11 +179,7 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
               </View>
               <Text style={styles.sectionTitle}>Try the SP Calculator</Text>
             </View>
-            <SPCalculator
-              mode="free"
-              testID="help-sp-calculator"
-              refreshKey={dataVersion}
-            />
+            <SPCalculator mode="free" testID="help-sp-calculator" refreshKey={dataVersion} />
           </View>
 
           {/* Bonus Categories List */}

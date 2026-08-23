@@ -43,6 +43,8 @@ const NavItem = ({
 
   return (
     <TouchableOpacity
+      accessible
+      accessibilityRole="button"
       style={styles.navItem}
       onPress={onPress}
       activeOpacity={0.7}
@@ -81,13 +83,47 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
 
   return (
     <View style={styles.container}>
-      <NavItem Icon={House}           label="Home"     routeName="Home"       active={isActive('Home')}        onPress={() => nav('Home')} />
-      <NavItem Icon={MagnifyingGlass} label="Discover" routeName="Discover"   active={isActive('Discover')}    onPress={() => nav('Discover')} />
-      <NavItem Icon={ShoppingCart}    label="Trade Basket"     routeName="Cart"       active={isActive('Cart')}        onPress={() => nav('Cart')} />
-      <NavItem Icon={Storefront}      label="Sell"     active={false}          onPress={() => setSellSheetVisible(true)} />
-      <NavItem Icon={List}            label="My Items" routeName="MyListings"  active={isActive('MyListings')} onPress={() => nav('MyListings')} />
+      <NavItem
+        Icon={House}
+        label="Home"
+        routeName="Home"
+        active={isActive('Home')}
+        onPress={() => nav('Home')}
+      />
+      <NavItem
+        Icon={MagnifyingGlass}
+        label="Discover"
+        routeName="Discover"
+        active={isActive('Discover')}
+        onPress={() => nav('Discover')}
+      />
+      <NavItem
+        Icon={ShoppingCart}
+        label="Trade Basket"
+        routeName="Cart"
+        active={isActive('Cart')}
+        onPress={() => nav('Cart')}
+      />
+      <NavItem
+        Icon={Storefront}
+        label="Sell"
+        active={false}
+        onPress={() => setSellSheetVisible(true)}
+      />
+      <NavItem
+        Icon={List}
+        label="My Items"
+        routeName="MyListings"
+        active={isActive('MyListings')}
+        onPress={() => nav('MyListings')}
+      />
       {showHelp && (
-        <NavItem Icon={GearSix} label="Settings" active={isActive('Settings')} onPress={() => nav('Settings')} />
+        <NavItem
+          Icon={GearSix}
+          label="Settings"
+          active={isActive('Settings')}
+          onPress={() => nav('Settings')}
+        />
       )}
 
       {/* Sell Options Sheet — logic unchanged */}
@@ -107,6 +143,9 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
               style={styles.sheetButton}
               onPress={() => handleStartSellFlow('ItemCreate')}
               testID="sell-option-list-one-item"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sell option list one item"
             >
               <Text style={styles.sheetButtonTitle}>List One Item</Text>
               <Text style={styles.sheetButtonMeta}>Snap a photo or choose from your library</Text>
@@ -116,6 +155,9 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
               style={styles.sheetButton}
               onPress={() => handleStartSellFlow('BulkListingCreate')}
               testID="sell-option-bulk-upload"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sell option bulk upload"
             >
               <Text style={styles.sheetButtonTitle}>Bulk Upload</Text>
               <Text style={styles.sheetButtonMeta}>
@@ -127,6 +169,9 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
               style={styles.sheetCancelButton}
               onPress={() => setSellSheetVisible(false)}
               testID="sell-options-cancel"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sell options cancel"
             >
               <Text style={styles.sheetCancelText}>Cancel</Text>
             </TouchableOpacity>

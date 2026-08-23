@@ -1,4 +1,5 @@
 import { supabase } from './supabase/client';
+import { captureException } from './errorReporter';
 
 const DEV_BYPASS_CODE = '123456';
 
@@ -49,7 +50,9 @@ export const requestPhoneVerification = async (
         );
         return { success: true, code: DEV_BYPASS_CODE };
       }
-      console.error('requestPhoneVerification insert error:', error);
+      captureException(error, {
+        tags: { service: 'phone', action: 'request_insert_error' },
+      });
       return { success: false, error };
     }
 
@@ -59,7 +62,9 @@ export const requestPhoneVerification = async (
     return { success: true, code };
   } catch (error) {
     const err = error as Error;
-    console.error('requestPhoneVerification exception:', err);
+    captureException(err, {
+      tags: { service: 'phone', action: 'request_exception' },
+    });
     return { success: false, error: err };
   }
 };
@@ -105,7 +110,9 @@ export const verifyPhoneCode = async (
           );
           const fallback = await updatePhoneOnProfileFallback(userId, phone);
           if (!fallback.success) {
-            console.error('Dev bypass fallback profile update failed after SDK error:', fallback.error);
+            captureException(fallback.error, {
+              tags: { service: 'phone', action: 'dev_bypass_fallback_sdk' },
+            });
             return { success: false, error: fallback.error };
           }
           return { success: true, message: fallback.message };
@@ -118,10 +125,9 @@ export const verifyPhoneCode = async (
           );
           const fallback = await updatePhoneOnProfileFallback(userId, phone);
           if (!fallback.success) {
-            console.error(
-              'Dev bypass fallback profile update failed after non-2xx response:',
-              fallback.error
-            );
+            captureException(fallback.error, {
+              tags: { service: 'phone', action: 'dev_bypass_fallback_non2xx' },
+            });
             return { success: false, error: fallback.error };
           }
           return { success: true, message: fallback.message };
@@ -133,7 +139,9 @@ export const verifyPhoneCode = async (
         console.warn('Dev bypass auth-update-phone exception; using profile fallback:', err);
         const fallback = await updatePhoneOnProfileFallback(userId, phone);
         if (!fallback.success) {
-          console.error('Dev bypass fallback profile update failed after exception:', fallback.error);
+          captureException(fallback.error, {
+            tags: { service: 'phone', action: 'dev_bypass_fallback_exception' },
+          });
           return { success: false, error: fallback.error };
         }
         return { success: true, message: fallback.message };
@@ -145,7 +153,9 @@ export const verifyPhoneCode = async (
       p_code: code,
     });
     if (rpcError) {
-      console.error('verify_phone_code rpc error:', rpcError);
+      captureException(rpcError, {
+        tags: { service: 'phone', action: 'verify_phone_code_rpc' },
+      });
       // Handle ambiguous column error specifically with helpful message
       if (rpcError.code === '42702') {
         return {
@@ -179,7 +189,9 @@ export const verifyPhoneCode = async (
       .maybeSingle();
 
     if (verror) {
-      console.error('Error fetching verified code row:', verror);
+      captureException(verror, {
+        tags: { service: 'phone', action: 'fetch_verified_row' },
+      });
       return { success: false, error: verror };
     }
 
@@ -197,12 +209,16 @@ export const verifyPhoneCode = async (
 
       const { data: fnData, error: fnError } = invokeRes;
       if (fnError) {
-        console.error('auth-update-phone invoke SDK error:', fnError);
+        captureException(fnError, {
+          tags: { service: 'phone', action: 'update_phone_invoke_sdk' },
+        });
         return { success: false, error: fnError };
       }
       // If the function returned a body with an error
       if (fnData && (fnData.error || fnData?.status >= 400)) {
-        console.error('auth-update-phone function returned error:', fnData);
+        captureException(fnData, {
+          tags: { service: 'phone', action: 'update_phone_fn_error' },
+        });
         // If function is not configured (missing service role key), fall back to updating the `profiles` table
         const msg = fnData.error || fnData;
         const errorMessage =
@@ -224,7 +240,9 @@ export const verifyPhoneCode = async (
             .update({ phone, phone_verified: true, phone_verified_at: new Date().toISOString() })
             .eq('user_id', userId);
           if (profileErr) {
-            console.error('Fallback profile update failed:', profileErr);
+            captureException(profileErr, {
+              tags: { service: 'phone', action: 'fallback_profile_update' },
+            });
             return { success: false, error: profileErr };
           }
           return {
@@ -237,12 +255,16 @@ export const verifyPhoneCode = async (
       return { success: true, message: 'Phone verified and updated' };
     } catch (error) {
       const err = error as Error;
-      console.error('Error invoking auth-update-phone function:', err);
+      captureException(err, {
+        tags: { service: 'phone', action: 'update_phone_invoke_exception' },
+      });
       return { success: false, error: err };
     }
   } catch (error) {
     const err = error as Error;
-    console.error('verifyPhoneCode exception:', err);
+    captureException(err, {
+      tags: { service: 'phone', action: 'verify_phone_code_exception' },
+    });
     return { success: false, error: err };
   }
 };

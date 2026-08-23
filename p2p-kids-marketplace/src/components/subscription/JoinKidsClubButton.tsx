@@ -41,6 +41,7 @@ export function JoinKidsClubButton({
     <View>
       <Pressable
         testID={testID}
+        accessible
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={handlePress}

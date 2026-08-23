@@ -19,7 +19,7 @@ type SuccessScreenRouteProp = RouteProp<{ Success: SuccessScreenParams }, 'Succe
 const SuccessScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<SuccessScreenRouteProp>();
-  
+
   const {
     title = 'Success!',
     subtitle,
@@ -40,21 +40,22 @@ const SuccessScreen: React.FC = () => {
     <SafeAreaView style={styles.container} testID="success-screen">
       <View style={styles.content}>
         <CheckCircle size={72} color="#5DBB8E" weight="fill" testID="success-icon" />
-        
+
         <Text style={styles.title} testID="success-title">
           {title}
         </Text>
-        
+
         {subtitle && (
           <Text style={styles.subtitle} testID="success-subtitle">
             {subtitle}
           </Text>
         )}
-        
+
         <TouchableOpacity
           style={styles.ctaBtn}
           onPress={handleCTA}
           testID="success-cta-button"
+          accessible
           accessibilityLabel={ctaLabel}
           accessibilityRole="button"
         >

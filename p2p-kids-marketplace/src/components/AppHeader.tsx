@@ -57,12 +57,7 @@ export interface AppHeaderProps {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AppHeader({
-  variant,
-  title,
-  showBell = true,
-  onBack,
-}: AppHeaderProps) {
+export default function AppHeader({ variant, title, showBell = true, onBack }: AppHeaderProps) {
   let navigation: any;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks -- defensive: AppHeader may render outside NavigationContainer in tests/storybook
@@ -77,16 +72,12 @@ export default function AppHeader({
   const { unreadCount: chatUnreadCount } = useUnreadMessagesBadge(userId);
 
   const displayName =
-    (session?.user as any)?.display_name ||
-    session?.user?.email?.split('@')[0] ||
-    'User';
+    (session?.user as any)?.display_name || session?.user?.email?.split('@')[0] || 'User';
 
   // Read-only node/market context (registered at onboarding). Fixed — there is
   // no in-header mechanism to change it and no navigation attached to the chip.
   const nodeName =
-    (session?.user as any)?.node?.name ||
-    (session?.user as any)?.node?.city ||
-    'Local Market';
+    (session?.user as any)?.node?.name || (session?.user as any)?.node?.city || 'Local Market';
 
   // Resolve the avatar to a displayable URL. `profiles.avatar_url` can be a
   // storage PATH (e.g. 'user-avatars/<uuid>.jpg') rather than a full URL, and
@@ -151,7 +142,13 @@ export default function AppHeader({
       testID="header-notifications-btn"
     >
       {renderIcon(Bell, { size: 22, color: '#1A1A1A', weight: 'bold' })}
-      <CountBadge count={unreadCount} top={4} right={4} withRing testID="header-notifications-badge" />
+      <CountBadge
+        count={unreadCount}
+        top={4}
+        right={4}
+        withRing
+        testID="header-notifications-badge"
+      />
     </TouchableOpacity>
   );
 
@@ -197,11 +194,7 @@ export default function AppHeader({
             accessibilityLabel="Open profile"
             testID="header-profile-btn"
           >
-            <Avatar
-              imageUrl={resolvedAvatarUrl ?? undefined}
-              size={36}
-              name={displayName}
-            />
+            <Avatar imageUrl={resolvedAvatarUrl ?? undefined} size={36} name={displayName} />
           </TouchableOpacity>
         </View>
       </View>
@@ -237,6 +230,7 @@ export default function AppHeader({
         accessibilityLabel="Go back"
         accessibilityRole="button"
         testID="back-button"
+        accessible
       >
         {renderIcon(CaretLeft, { size: 24, color: '#1A1A1A', weight: 'regular' })}
       </TouchableOpacity>

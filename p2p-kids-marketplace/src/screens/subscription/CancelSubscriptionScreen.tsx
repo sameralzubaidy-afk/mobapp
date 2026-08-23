@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/CancelSubscriptionScreen.tsx
  * MODULE-15.1 FLOW-12 Screen 7: Cancel Subscription
- * 
+ *
  * TASK: Redesign CancelSubscriptionScreen — VISUAL ONLY
  * DO NOT CHANGE: cancel handler, keep handler, navigation
  * ONLY CHANGE: StyleSheet, icons → Phosphor
@@ -21,6 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { WarningCircle, X, Check, Heart, ShieldCheck } from 'phosphor-react-native';
 import { cancelSubscription } from '@/services/subscription';
+import { captureException } from '@/services/errorReporter';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
 import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
@@ -40,7 +41,7 @@ export default function CancelSubscriptionScreen() {
   const handleCancelConfirm = async () => {
     Alert.alert(
       'Cancel Subscription?',
-      'Are you sure? You\'ll lose access to all Kids Club+ benefits.',
+      "Are you sure? You'll lose access to all Kids Club+ benefits.",
       [
         {
           text: 'Go Back',
@@ -57,7 +58,9 @@ export default function CancelSubscriptionScreen() {
               Alert.alert('Subscription Cancelled', 'Your subscription has been cancelled.');
               navigation.navigate('ManageKidsClub');
             } catch (error) {
-              console.error('[CancelSubscriptionScreen] Cancel failed:', error);
+              captureException(error, {
+                tags: { screen: 'CancelSubscriptionScreen', action: 'cancel' },
+              });
               Alert.alert('Error', 'Failed to cancel subscription. Please try again.');
             } finally {
               setCancelling(false);
@@ -92,7 +95,7 @@ export default function CancelSubscriptionScreen() {
             <WarningCircle size={20} color="#E85D75" weight="fill" />
             <Text style={styles.lossHeaderText}>Benefits you'll lose immediately</Text>
           </View>
-          
+
           <View style={styles.benefitsList}>
             {MY_SUBSCRIPTION_BENEFITS.map((benefit, index) => (
               <View key={index} style={styles.benefitRow} testID={`benefit-${index}`}>
@@ -120,6 +123,9 @@ export default function CancelSubscriptionScreen() {
             onPress={handleKeepSubscription}
             disabled={cancelling}
             testID="keep-subscription-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Keep subscription button"
           >
             <Check size={20} color="#FFFFFF" weight="bold" style={{ marginRight: 8 }} />
             <Text style={styles.keepButtonText}>Keep My Benefits</Text>
@@ -130,6 +136,9 @@ export default function CancelSubscriptionScreen() {
             onPress={handleCancelConfirm}
             disabled={cancelling}
             testID="cancel-anyway-link"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Cancel anyway link"
           >
             {cancelling ? (
               <ActivityIndicator size="small" color="#94A3B8" />
@@ -140,7 +149,8 @@ export default function CancelSubscriptionScreen() {
         </View>
 
         <Text style={styles.disclaimerText}>
-          Your subscription will remain active until the end of the current billing cycle if you decide to stay.
+          Your subscription will remain active until the end of the current billing cycle if you
+          decide to stay.
         </Text>
       </ScrollView>
     </ScreenLayout>

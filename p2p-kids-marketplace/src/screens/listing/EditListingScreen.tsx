@@ -24,9 +24,15 @@ import {
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
-import { deleteListing, updateListing, getListingById, syncListingImages } from '../../services/listing';
+import {
+  deleteListing,
+  updateListing,
+  getListingById,
+  syncListingImages,
+} from '../../services/listing';
 import { getCategories } from '../../services/items';
 import { getConfigValue } from '../../services/adminConfig';
+import { captureException } from '@/services/errorReporter';
 import { Listing, ListingCondition } from '../../types/listing';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
 import { ColorPicker } from '../../components/listing/ColorPicker';
@@ -163,7 +169,9 @@ export default function EditListingScreen({ route, navigation }: any) {
         setCategoryId(categoryRows[0].id);
       }
     } catch (error) {
-      console.error('[EditListing] loadData error:', error);
+      captureException(error, {
+        tags: { screen: 'EditListingScreen', action: 'load_data' },
+      });
       Alert.alert('Error', 'Failed to load listing');
       navigation.goBack();
     } finally {
@@ -239,7 +247,10 @@ export default function EditListingScreen({ route, navigation }: any) {
       setSuccessModalTarget('goBack');
       setShowSuccessModal(true);
     } catch (error: any) {
-      console.error('[EditListing] handleSaveChanges error:', error);
+      captureException(error, {
+        tags: { screen: 'EditListingScreen', action: 'save_changes' },
+        extra: { message: error?.message },
+      });
       Alert.alert('Error', error.message || 'Failed to update listing');
     } finally {
       setLoading(false);
@@ -264,7 +275,10 @@ export default function EditListingScreen({ route, navigation }: any) {
             setSuccessModalTarget('myListings');
             setShowSuccessModal(true);
           } catch (error: any) {
-            console.error('[EditListing] handleDeleteListing error:', error);
+            captureException(error, {
+              tags: { screen: 'EditListingScreen', action: 'delete_listing' },
+              extra: { message: error?.message },
+            });
             Alert.alert('Error', error.message || 'Failed to delete listing');
           } finally {
             setLoading(false);
@@ -325,232 +339,242 @@ export default function EditListingScreen({ route, navigation }: any) {
     <ScreenLayout variant="detail" title="Edit Listing">
       <ScrollView ref={scrollViewRef} style={styles.container}>
         <View style={styles.form}>
-        <Text style={styles.sectionTitle}>Edit Item Details</Text>
+          <Text style={styles.sectionTitle}>Edit Item Details</Text>
 
-        {/* DEV-ONLY: fill title/price/condition in one tap so QA can skip the
+          {/* DEV-ONLY: fill title/price/condition in one tap so QA can skip the
             manual form-fill + keypad-dismiss dance. Never in release builds. */}
-        {__DEV__ && (
-          <TouchableOpacity
-            style={styles.devFillButton}
-            onPress={handleDevFillItem}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Fill edit form with test values (dev only)"
-            testID="dev-fill-item"
-          >
-            <Text style={styles.devFillButtonText}>Dev: Fill Item (Title/Price/Condition)</Text>
-          </TouchableOpacity>
-        )}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.devFillButton}
+              onPress={handleDevFillItem}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Fill edit form with test values (dev only)"
+              testID="dev-fill-item"
+            >
+              <Text style={styles.devFillButtonText}>Dev: Fill Item (Title/Price/Condition)</Text>
+            </TouchableOpacity>
+          )}
 
-        {/* Title */}
-        <Text style={styles.label}>Title *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., LEGO Star Wars Set"
-          value={title}
-          onChangeText={setTitle}
-          maxLength={100}
-          accessibilityLabel="Title"
-          testID="edit-listing-title-input"
-        />
-        <Text style={styles.hint}>{title.length}/100 characters</Text>
-
-        {/* Description */}
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Describe your item..."
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={4}
-          maxLength={1000}
-          accessibilityLabel="Description"
-          testID="edit-listing-description-input"
-        />
-
-        {/* Price */}
-        <View style={styles.field} onLayout={(e) => setPriceFieldY(e.nativeEvent.layout.y)}>
-          <Text style={styles.label}>Price ($) *</Text>
+          {/* Title */}
+          <Text style={styles.label}>Title *</Text>
           <TextInput
-            ref={priceInputRef}
             style={styles.input}
-            placeholder="0.00"
-            value={priceText}
-            onChangeText={setPriceText}
-            keyboardType="decimal-pad"
-            accessibilityLabel="Price"
-            testID="edit-listing-price-input"
+            placeholder="e.g., LEGO Star Wars Set"
+            value={title}
+            onChangeText={setTitle}
+            maxLength={100}
+            accessibilityLabel="Title"
+            testID="edit-listing-title-input"
           />
-        </View>
+          <Text style={styles.hint}>{title.length}/100 characters</Text>
 
-        {/* Category */}
-        <Text style={styles.label}>Category *</Text>
-        {categories.length === 0 ? (
-          <Text style={styles.errorText}>No active categories found. Please contact support.</Text>
-        ) : (
-          <View style={styles.categoryButtons}>
-            {categories.map((category) => (
+          {/* Description */}
+          <Text style={styles.label}>Description</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Describe your item..."
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+            maxLength={1000}
+            accessibilityLabel="Description"
+            testID="edit-listing-description-input"
+          />
+
+          {/* Price */}
+
+          <View style={styles.field} onLayout={(e) => setPriceFieldY(e.nativeEvent.layout.y)}>
+            <Text style={styles.label}>Price ($) *</Text>
+            <TextInput
+              ref={priceInputRef}
+              style={styles.input}
+              placeholder="0.00"
+              value={priceText}
+              onChangeText={setPriceText}
+              keyboardType="decimal-pad"
+              accessibilityLabel="Price"
+              testID="edit-listing-price-input"
+            />
+          </View>
+
+          {/* Category */}
+          <Text style={styles.label}>Category *</Text>
+          {categories.length === 0 ? (
+            <Text style={styles.errorText}>
+              No active categories found. Please contact support.
+            </Text>
+          ) : (
+            <View style={styles.categoryButtons}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  accessible
+                  accessibilityRole="button"
+                  key={category.id}
+                  style={[
+                    styles.categoryButton,
+                    categoryId === category.id && styles.categoryButtonActive,
+                  ]}
+                  onPress={() => setCategoryId(category.id)}
+                  testID={`edit-listing-category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  <Text
+                    style={[
+                      styles.categoryButtonText,
+                      categoryId === category.id && styles.categoryButtonTextActive,
+                    ]}
+                  >
+                    {category.icon ? `${category.icon} ` : ''}
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Condition */}
+          <Text style={styles.label}>Condition *</Text>
+          <View style={styles.conditionButtons}>
+            {(['new', 'like_new', 'good', 'fair', 'worn'] as ListingCondition[]).map((c) => (
               <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryButton,
-                  categoryId === category.id && styles.categoryButtonActive,
-                ]}
-                onPress={() => setCategoryId(category.id)}
-                testID={`edit-listing-category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}
+                key={c}
+                style={[styles.conditionButton, condition === c && styles.conditionButtonActive]}
+                onPress={() => setCondition(c)}
+                accessible
+                // BP-53 (RN 0.81 iOS/Fabric): use "button" + state so it surfaces
+                // on the iOS accessibility tree.
+                accessibilityRole="button"
+                accessibilityLabel={`Condition: ${c.replace('_', ' ')}`}
+                accessibilityState={{ selected: condition === c, checked: condition === c }}
+                testID={`edit-listing-condition-${c}`}
               >
                 <Text
                   style={[
-                    styles.categoryButtonText,
-                    categoryId === category.id && styles.categoryButtonTextActive,
+                    styles.conditionButtonText,
+                    condition === c && styles.conditionButtonTextActive,
                   ]}
                 >
-                  {category.icon ? `${category.icon} ` : ''}
-                  {category.name}
+                  {c.replace('_', ' ').toUpperCase()}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-        )}
 
-        {/* Condition */}
-        <Text style={styles.label}>Condition *</Text>
-        <View style={styles.conditionButtons}>
-          {(['new', 'like_new', 'good', 'fair', 'worn'] as ListingCondition[]).map((c) => (
-            <TouchableOpacity
-              key={c}
-              style={[styles.conditionButton, condition === c && styles.conditionButtonActive]}
-              onPress={() => setCondition(c)}
-              accessible
-              // BP-53 (RN 0.81 iOS/Fabric): use "button" + state so it surfaces
-              // on the iOS accessibility tree.
-              accessibilityRole="button"
-              accessibilityLabel={`Condition: ${c.replace('_', ' ')}`}
-              accessibilityState={{ selected: condition === c, checked: condition === c }}
-              testID={`edit-listing-condition-${c}`}
-            >
-              <Text
-                style={[
-                  styles.conditionButtonText,
-                  condition === c && styles.conditionButtonTextActive,
-                ]}
-              >
-                {c.replace('_', ' ').toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {isOtherCategory && (
-          <>
-            <Text style={styles.label}>Custom Category Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Board Games"
-              value={requestedCategoryName}
-              onChangeText={setRequestedCategoryName}
-              maxLength={100}
-            />
-          </>
-        )}
-
-        <Text style={styles.label}>Brand</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., Nike"
-          value={brand}
-          onChangeText={setBrand}
-          maxLength={100}
-        />
-
-        <View style={styles.v3SectionSpacer}>
-          <ColorPicker selectedColors={colors} onChange={setColors} />
-        </View>
-
-        <AgeGroupSelector value={ageGroup} onChange={setAgeGroup} />
-
-        <GenderSelector value={gender} onChange={setGender} />
-
-        {/* Listing Photos */}
-        <Text style={styles.label}>Photos</Text>
-        <ImagePickerGrid
-          images={images}
-          onImagesChange={setImages}
-          uploading={loading || syncingImages}
-          maxImages={5}
-          testID="edit-listing-image-picker"
-        />
-        <Text style={styles.hint}>Add up to 5 photos. The first photo is the cover image.</Text>
-
-        {/* V2: Swap Points Payment Preference */}
-        <View style={styles.spSection}>
-          <Text style={styles.sectionTitle}>Payment Preference</Text>
-
-          {canAcceptSP ? (
+          {isOtherCategory && (
             <>
-              <View style={styles.spToggleRow}>
-                <View style={styles.spToggleLabel}>
-                  <Text style={styles.label}>Accept Swap Points?</Text>
-                  <Text style={styles.hint}>Allow buyers to pay with Swap Points</Text>
-                </View>
-                <Switch
-                  value={acceptsSwapPoints}
-                  onValueChange={setAcceptsSwapPoints}
-                  trackColor={{ false: '#ccc', true: '#34C759' }}
-                  thumbColor="#fff"
-                />
-              </View>
-              {acceptsSwapPoints && (
-                <View style={styles.spEligibleBadge}>
-                  <Text style={styles.spEligibleText}>✓ SP Eligible</Text>
-                </View>
-              )}
+              <Text style={styles.label}>Custom Category Name *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., Board Games"
+                value={requestedCategoryName}
+                onChangeText={setRequestedCategoryName}
+                maxLength={100}
+              />
             </>
-          ) : (
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>ℹ️ Subscribe to Kids Club+ to accept Swap Points</Text>
-            </View>
           )}
-        </View>
 
-        {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.saveButton, (loading || syncingImages) && styles.saveButtonDisabled]}
-          onPress={handleSaveChanges}
-          disabled={loading || syncingImages}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Save changes"
-          accessibilityState={{ disabled: loading || syncingImages }}
-          testID="edit-listing-save-button"
-        >
-          {loading || syncingImages ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color="#fff" />
-              <Text style={styles.saveButtonText}>
-                {syncingImages ? 'Saving photos...' : 'Saving...'}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
+          <Text style={styles.label}>Brand</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Nike"
+            value={brand}
+            onChangeText={setBrand}
+            maxLength={100}
+          />
 
-        <TouchableOpacity
-          style={[styles.deleteLinkButton, (loading || syncingImages) && styles.saveButtonDisabled]}
-          onPress={handleDeleteListing}
-          disabled={loading || syncingImages}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Delete listing"
-          accessibilityState={{ disabled: loading || syncingImages }}
-          testID="edit-listing-delete-button"
-        >
-          <Text style={styles.deleteLinkText}>Delete Listing</Text>
-        </TouchableOpacity>
+          <View style={styles.v3SectionSpacer}>
+            <ColorPicker selectedColors={colors} onChange={setColors} />
+          </View>
 
-        {/* Cancel Button */}
+          <AgeGroupSelector value={ageGroup} onChange={setAgeGroup} />
+
+          <GenderSelector value={gender} onChange={setGender} />
+
+          {/* Listing Photos */}
+          <Text style={styles.label}>Photos</Text>
+          <ImagePickerGrid
+            images={images}
+            onImagesChange={setImages}
+            uploading={loading || syncingImages}
+            maxImages={5}
+            testID="edit-listing-image-picker"
+          />
+          <Text style={styles.hint}>Add up to 5 photos. The first photo is the cover image.</Text>
+
+          {/* V2: Swap Points Payment Preference */}
+          <View style={styles.spSection}>
+            <Text style={styles.sectionTitle}>Payment Preference</Text>
+
+            {canAcceptSP ? (
+              <>
+                <View style={styles.spToggleRow}>
+                  <View style={styles.spToggleLabel}>
+                    <Text style={styles.label}>Accept Swap Points?</Text>
+                    <Text style={styles.hint}>Allow buyers to pay with Swap Points</Text>
+                  </View>
+                  <Switch
+                    value={acceptsSwapPoints}
+                    onValueChange={setAcceptsSwapPoints}
+                    trackColor={{ false: '#ccc', true: '#34C759' }}
+                    thumbColor="#fff"
+                  />
+                </View>
+                {acceptsSwapPoints && (
+                  <View style={styles.spEligibleBadge}>
+                    <Text style={styles.spEligibleText}>✓ SP Eligible</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  ℹ️ Subscribe to Kids Club+ to accept Swap Points
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Save Button */}
+          <TouchableOpacity
+            style={[styles.saveButton, (loading || syncingImages) && styles.saveButtonDisabled]}
+            onPress={handleSaveChanges}
+            disabled={loading || syncingImages}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Save changes"
+            accessibilityState={{ disabled: loading || syncingImages }}
+            testID="edit-listing-save-button"
+          >
+            {loading || syncingImages ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.saveButtonText}>
+                  {syncingImages ? 'Saving photos...' : 'Saving...'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.deleteLinkButton,
+              (loading || syncingImages) && styles.saveButtonDisabled,
+            ]}
+            onPress={handleDeleteListing}
+            disabled={loading || syncingImages}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Delete listing"
+            accessibilityState={{ disabled: loading || syncingImages }}
+            testID="edit-listing-delete-button"
+          >
+            <Text style={styles.deleteLinkText}>Delete Listing</Text>
+          </TouchableOpacity>
+
+          {/* Cancel Button */}
           <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>

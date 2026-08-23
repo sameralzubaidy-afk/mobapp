@@ -1,5 +1,6 @@
 import { supabase } from './client';
 import type { Session, User } from '@supabase/supabase-js';
+import { captureException } from '../errorReporter';
 
 // ============================================================================
 // REFERRAL CODE FUNCTIONS (Moved from referral.ts to break circular dependency)
@@ -91,7 +92,9 @@ export const processReferralCode = async (
       console.warn('⚠️ Referral code not applied:', data.error);
     }
   } catch (error) {
-    console.error('❌ Process referral code exception:', error);
+    captureException(error, {
+      tags: { service: 'supabaseAuth', action: 'process_referral_exception' },
+    });
   }
 };
 
@@ -135,7 +138,9 @@ export const signUp = async (
     });
 
     if (authError) {
-      console.error('Auth signup error:', authError);
+      captureException(authError, {
+        tags: { service: 'supabaseAuth', action: 'signup_error' },
+      });
       return { user: null, error: authError };
     }
 
@@ -157,7 +162,9 @@ export const signUp = async (
       .maybeSingle();
 
     if (profileCheckError) {
-      console.error('Profile check error:', profileCheckError);
+      captureException(profileCheckError, {
+        tags: { service: 'supabaseAuth', action: 'profile_check' },
+      });
     }
 
     if (!profileData) {
@@ -181,7 +188,9 @@ export const signUp = async (
         // Check if it's a duplicate error (someone else created it)
         if (profileError.code === '23505') {
         } else {
-          console.error('Manual profile creation failed:', profileError);
+          captureException(profileError, {
+            tags: { service: 'supabaseAuth', action: 'manual_profile_creation' },
+          });
           return {
             user: null,
             error: new Error('Failed to create user profile. Please contact support.'),
@@ -207,7 +216,9 @@ export const signUp = async (
 
     return { user: authData.user, error: null };
   } catch (e: any) {
-    console.error('Signup exception:', e);
+    captureException(e, {
+      tags: { service: 'supabaseAuth', action: 'signup_exception' },
+    });
     return { user: null, error: e };
   }
 };
@@ -296,10 +307,12 @@ export const updateUserMetadata = async (
 };
 
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => {
-  const { data: sub } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
-    // pass session (Session | null) directly
-    callback(event, session);
-  });
+  const { data: sub } = supabase.auth.onAuthStateChange(
+    (event: string, session: Session | null) => {
+      // pass session (Session | null) directly
+      callback(event, session);
+    }
+  );
 
   return () => sub?.subscription.unsubscribe();
 };

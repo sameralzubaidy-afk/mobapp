@@ -148,6 +148,8 @@ export default function FavoritesScreen() {
               </View>
             </View>
             <TouchableOpacity
+              accessible
+              accessibilityRole="button"
               onPress={() => handleRemove(item.listingId)}
               style={styles.trash}
               testID={`favorite-remove-${item.listingId}`}
@@ -164,7 +166,13 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyTitle: { ...theme.typography.h2, marginTop: 16, color: theme.textColors.primary },
-  emptySub: { ...theme.typography.body, color: theme.textColors.secondary, textAlign: 'center', marginTop: 8, marginBottom: 24 },
+  emptySub: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+  },
   listContent: { padding: 16, paddingBottom: 100 },
   row: {
     flexDirection: 'row',

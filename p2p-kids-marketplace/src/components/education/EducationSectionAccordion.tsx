@@ -2,14 +2,7 @@
 // MODULE-18 EDU-005: Accordion component for education sections
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  LayoutAnimation,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, LayoutAnimation } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { EducationSection } from '../../types/education';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
@@ -75,11 +68,9 @@ export function EducationSectionAccordion({
   });
 
   return (
-    <View
-      style={styles.container}
-      testID={testID || `section-accordion-${section.section_type}`}
-    >
+    <View style={styles.container} testID={testID || `section-accordion-${section.section_type}`}>
       <TouchableOpacity
+        accessible
         style={styles.header}
         onPress={toggleExpanded}
         accessibilityRole="button"
@@ -101,7 +92,10 @@ export function EducationSectionAccordion({
           accessibilityLabel={section.body}
         >
           {section.image_url && (
-            <View style={styles.imagePlaceholder} testID={`${testID || section.section_type}-image`}>
+            <View
+              style={styles.imagePlaceholder}
+              testID={`${testID || section.section_type}-image`}
+            >
               <Text style={styles.imagePlaceholderText}>📚 Image</Text>
             </View>
           )}

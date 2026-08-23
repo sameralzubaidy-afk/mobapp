@@ -165,6 +165,7 @@ export default function PhoneVerificationModal({
             </Text>
             {!required && (
               <TouchableOpacity
+                accessible
                 onPress={handleClose}
                 style={styles.closeButton}
                 accessibilityRole="button"
@@ -207,6 +208,7 @@ export default function PhoneVerificationModal({
                 )}
 
                 <TouchableOpacity
+                  accessible
                   style={[styles.primaryButton, isSending && styles.disabledButton]}
                   onPress={handleSendCode}
                   disabled={isSending || phone.length < 10}
@@ -230,7 +232,6 @@ export default function PhoneVerificationModal({
                   We sent a 6-digit code to{'\n'}
                   <Text style={styles.phone}>{phone}</Text>
                 </Text>
-
                 <View style={styles.codeContainer}>
                   {[0, 1, 2, 3, 4, 5].map((index) => (
                     <TextInput
@@ -251,18 +252,18 @@ export default function PhoneVerificationModal({
                     />
                   ))}
                 </View>
-
                 {error && (
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={16} color="#DC2626" />
                     <Text style={styles.errorText}>{error}</Text>
                   </View>
                 )}
-
+                accessible
                 {/* Resend Timer */}
                 <View style={styles.resendContainer}>
                   {canResend ? (
                     <TouchableOpacity
+                      accessible
                       onPress={handleResend}
                       accessibilityRole="button"
                       accessibilityLabel="Resend code"
@@ -274,9 +275,9 @@ export default function PhoneVerificationModal({
                     <Text style={styles.timerText}>Resend code in {resendCountdown}s</Text>
                   )}
                 </View>
-
                 {/* Manual Verify Button (backup if auto-verify fails) */}
                 <TouchableOpacity
+                  accessible
                   style={[
                     styles.primaryButton,
                     (isVerifying || code.length < 6) && styles.disabledButton,
@@ -293,7 +294,6 @@ export default function PhoneVerificationModal({
                     <Text style={styles.primaryButtonText}>Verify</Text>
                   )}
                 </TouchableOpacity>
-
                 {/* DEV-ONLY: auto-fill + verify the fixed dev bypass code in one
                     tap, so QA never has to type the 6 digits one at a time (the
                     auto-advance input drops bulk-pasted characters). Never
@@ -315,9 +315,9 @@ export default function PhoneVerificationModal({
                     </Text>
                   </TouchableOpacity>
                 )}
-
                 {/* Back to Phone */}
                 <TouchableOpacity
+                  accessible
                   onPress={() => {
                     setCode('');
                     reset();

@@ -67,6 +67,7 @@ export const TextInput: React.FC<TextInputProps> = ({
             style={styles.eyeButton}
             onPress={() => setIsPasswordVisible((previous) => !previous)}
             disabled={!editable}
+            accessible
             testID={testID ? `${testID}-toggle-button` : undefined}
             accessibilityRole="button"
             accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}

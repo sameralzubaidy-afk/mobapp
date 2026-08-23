@@ -12,6 +12,7 @@
 
 import { supabase } from './supabase';
 import { trackEvent } from './analytics';
+import { captureException } from './errorReporter';
 
 /**
  * Result of node assignment during signup
@@ -83,7 +84,9 @@ export const assignNodeByZipCode = async (
     });
 
     if (error) {
-      console.error('❌ resolve_active_node_for_signup error:', error);
+      captureException(error, {
+        tags: { service: 'location', action: 'resolve_active_node' },
+      });
       throw error;
     }
 
@@ -134,7 +137,9 @@ export const assignNodeByZipCode = async (
 
     return result;
   } catch (error: any) {
-    console.error('❌ assignNodeByZipCode error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'assign_node' },
+    });
     throw error;
   }
 };
@@ -171,7 +176,9 @@ export const getZipCodeCoordinates = async (
       longitude: parseFloat(place.longitude),
     };
   } catch (error) {
-    console.error('❌ ZIP code lookup error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'zip_lookup' },
+    });
     return null;
   }
 };
@@ -200,7 +207,9 @@ export const incrementNodeMemberCount = async (nodeId: string): Promise<void> =>
       throw error;
     }
   } catch (error) {
-    console.error('❌ Increment node member count error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'increment_member_count' },
+    });
     // Don't throw - this is non-critical for signup flow
   }
 };
@@ -229,7 +238,9 @@ export const decrementNodeMemberCount = async (nodeId: string): Promise<void> =>
       throw error;
     }
   } catch (error) {
-    console.error('❌ Decrement node member count error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'decrement_member_count' },
+    });
     // Don't throw - this is non-critical
   }
 };
@@ -257,7 +268,9 @@ export const checkZipCodeHasActiveNode = async (zipCode: string): Promise<boolea
 
     return !!data;
   } catch (error) {
-    console.error('❌ checkZipCodeHasActiveNode error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'check_zip_has_active_node' },
+    });
     return false;
   }
 };
@@ -283,7 +296,9 @@ export const getUserPreferredRadius = async (userId: string): Promise<number> =>
 
     return data?.preferred_radius_miles ?? 10;
   } catch (error) {
-    console.error('❌ getUserPreferredRadius error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'get_preferred_radius' },
+    });
     return 10;
   }
 };
@@ -327,7 +342,9 @@ export const saveUserPreferredRadius = async (
       }
     }
   } catch (error) {
-    console.error('❌ saveUserPreferredRadius error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'save_preferred_radius' },
+    });
     throw error;
   }
 };
@@ -361,7 +378,9 @@ export const calculateDistanceBetweenNodes = async (
 
     return data as number | null;
   } catch (error) {
-    console.error('❌ calculateDistanceBetweenNodes error:', error);
+    captureException(error, {
+      tags: { service: 'location', action: 'calculate_distance' },
+    });
     return null;
   }
 };

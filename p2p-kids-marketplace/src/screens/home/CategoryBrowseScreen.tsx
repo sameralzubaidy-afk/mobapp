@@ -8,26 +8,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  RefreshControl
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { fetchListingsByCategory } from '../../services/discovery';
 import { CategoryResult } from '../../types/discovery';
 import { trackEvent } from '../../services/analytics';
 import { ItemCard } from '../../components/molecules';
+import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
-import {
-  TShirt,
-  Sneaker,
-  Backpack,
-  GameController,
-  BookOpen,
-} from 'phosphor-react-native';
+import { TShirt, Sneaker, Backpack, GameController, BookOpen } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type ParamList = {
@@ -79,7 +68,9 @@ export default function CategoryBrowseScreen() {
         result_count: data.length,
       });
     } catch (error) {
-      console.error('[CategoryBrowseScreen] Error loading listings:', error);
+      captureException(error, {
+        tags: { screen: 'CategoryBrowseScreen', action: 'load_listings' },
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -120,9 +111,7 @@ export default function CategoryBrowseScreen() {
     <View style={styles.emptyState}>
       <Text style={styles.emptyIcon}>🔍</Text>
       <Text style={styles.emptyTitle}>No items found</Text>
-      <Text style={styles.emptyText}>
-        Be the first to list something in {category}!
-      </Text>
+      <Text style={styles.emptyText}>Be the first to list something in {category}!</Text>
     </View>
   );
 

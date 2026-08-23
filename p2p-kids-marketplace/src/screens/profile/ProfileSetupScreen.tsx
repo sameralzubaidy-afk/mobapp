@@ -15,6 +15,7 @@ import {
   Modal,
 } from 'react-native';
 import { setupUserProfile, uploadProfileAvatar } from '@/services/profile';
+import { captureException } from '@/services/errorReporter';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { upsertZipWaitlist } from '@/services/waitlist';
 import type { ProfileSetupData } from '@/types/profile.types';
@@ -69,7 +70,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
       setIsWaitlistPromptVisible(false);
       setIsWaitlistConfirmedVisible(true);
     } catch (error) {
-      console.error('❌ [NODE-003] Waitlist error:', error);
+      captureException(error, {
+        tags: { screen: 'ProfileSetupScreen', action: 'waitlist_error' },
+      });
       setIsWaitlistPromptVisible(false);
       Alert.alert('Info', 'Could not add to waitlist, but you can still use the app!', [
         {
@@ -100,7 +103,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
           setState('');
         }
       } catch (error) {
-        console.error('ZIP lookup error:', error);
+        captureException(error, {
+          tags: { screen: 'ProfileSetupScreen', action: 'zip_lookup' },
+        });
         setCity('');
         setState('');
       }
@@ -155,7 +160,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         setLocalImageUri(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Image picker error:', error);
+      captureException(error, {
+        tags: { screen: 'ProfileSetupScreen', action: 'image_picker' },
+      });
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
@@ -188,7 +195,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         setUploadingImage(false);
 
         if (uploadError) {
-          console.error('Avatar upload error:', uploadError);
+          captureException(uploadError, {
+            tags: { screen: 'ProfileSetupScreen', action: 'avatar_upload' },
+          });
           Alert.alert('Warning', 'Profile will be created without avatar. You can add it later.');
         } else {
           uploadedAvatarUrl = url;
@@ -243,7 +252,10 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         ]);
       }
     } catch (error: any) {
-      console.error('Profile setup error:', error);
+      captureException(error, {
+        tags: { screen: 'ProfileSetupScreen', action: 'profile_setup' },
+        extra: { message: error?.message },
+      });
       Alert.alert('Error', error.message || 'Failed to create profile. Please try again.');
     } finally {
       setLoading(false);
@@ -271,6 +283,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
           onPress={handlePickImage}
           disabled={uploadingImage}
           testID="avatar-upload-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Avatar upload button"
         >
           {localImageUri ? (
             <Image source={{ uri: localImageUri }} style={styles.avatarImage} />
@@ -370,6 +385,9 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         onPress={handleSubmit}
         disabled={loading}
         testID="complete-setup-button"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Complete setup button"
       >
         {loading ? (
           <ActivityIndicator size="small" color="#FFFFFF" />

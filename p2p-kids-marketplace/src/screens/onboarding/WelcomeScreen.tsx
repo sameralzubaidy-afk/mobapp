@@ -1,8 +1,17 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Image,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/config/supabase';
+import { captureException, captureMessage } from '@/services/errorReporter';
 import { AuthContext } from '@/contexts/AuthContext';
 
 export default function WelcomeScreen() {
@@ -19,7 +28,7 @@ export default function WelcomeScreen() {
   const handleGetStarted = async () => {
     try {
       if (!userId) {
-        console.error('[WelcomeScreen] ❌ No userId found in params or session');
+        captureMessage('[WelcomeScreen] No userId found in params or session', 'warning');
         return;
       }
 
@@ -38,7 +47,9 @@ export default function WelcomeScreen() {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('[WelcomeScreen] ❌ Supabase update error:', error);
+        captureException(error, {
+          tags: { screen: 'WelcomeScreen', action: 'mark_onboarding_complete' },
+        });
         throw error;
       }
 
@@ -58,7 +69,9 @@ export default function WelcomeScreen() {
         '[WelcomeScreen] 🎉 Session refresh triggered. RootNavigator should switch to HomeStack.'
       );
     } catch (error: any) {
-      console.error('[WelcomeScreen] ❌ Error completing onboarding:', error);
+      captureException(error, {
+        tags: { screen: 'WelcomeScreen', action: 'complete_onboarding' },
+      });
       Alert.alert('Error', error.message || 'Failed to finish onboarding. Please try again.');
     } finally {
       setLoading(false);
@@ -78,16 +91,26 @@ export default function WelcomeScreen() {
 
         {/* Title */}
         <Text style={styles.title} testID="welcome-headline">
+          accessible accessibilityRole="button" accessibilityLabel="Welcome get started button"
           Welcome to a safe, neighborhood marketplace built exclusively for local families.
         </Text>
 
         {/* Description */}
         <Text style={styles.description} testID="welcome-description">
-          Join a trusted community where you can easily buy and sell pre-loved items with people you know and count on.
+          Join a trusted community where you can easily buy and sell pre-loved items with people you
+          know and count on.
         </Text>
 
         {/* Get Started Button */}
-        <TouchableOpacity style={styles.button} onPress={handleGetStarted} disabled={loading} testID="welcome-get-started-button">
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleGetStarted}
+          disabled={loading}
+          testID="welcome-get-started-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Get Started"
+        >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (

@@ -1,20 +1,14 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/PlanComparisonScreen.tsx
  * MODULE-15.1 FLOW-12 Screen 2: Plan Comparison
- * 
+ *
  * TASK: Redesign PlanComparisonScreen — VISUAL ONLY
  * DO NOT CHANGE: feature data, plan selection handler, navigation
  * ONLY CHANGE: StyleSheet, icons → Phosphor
  */
 
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Crown, CrownSimple, CheckCircle, X } from 'phosphor-react-native';
@@ -25,6 +19,7 @@ import {
 } from '@/services/adminConfig';
 import { TIER_COMPARISON_ROWS } from '@/constants/subscriptionPlans';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
+import { captureException } from '@/services/errorReporter';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -52,7 +47,9 @@ export default function PlanComparisonScreen() {
         setTrialDays(trial || 30);
         setActiveMemberFlatCents(memberFeeCents);
       } catch (err) {
-        console.error('[PlanComparisonScreen] Failed to load config:', err);
+        captureException(err, {
+          tags: { screen: 'PlanComparisonScreen', action: 'load_config' },
+        });
       } finally {
         setLoading(false);
       }
@@ -135,7 +132,8 @@ export default function PlanComparisonScreen() {
         {/* Value Prop Banner */}
         <View style={styles.valueProposition}>
           <Text style={styles.valuePropText}>
-            💡 <Text style={styles.valuePropBold}>Kids Club+</Text> members save an average of $45/month
+            💡 <Text style={styles.valuePropBold}>Kids Club+</Text> members save an average of
+            $45/month
           </Text>
         </View>
 
@@ -144,7 +142,10 @@ export default function PlanComparisonScreen() {
           <View style={[styles.colHeader, styles.featureNameCol]} />
 
           {/* Free Column Header */}
-          <View style={[styles.colHeader, styles.planCol, styles.colHeaderFree]} testID="header-free">
+          <View
+            style={[styles.colHeader, styles.planCol, styles.colHeaderFree]}
+            testID="header-free"
+          >
             <CrownSimple size={20} color="#6B6B6B" weight="regular" />
             <Text style={styles.colHeaderText}>Free</Text>
             <Text style={styles.colHeaderPrice}>$0</Text>
@@ -190,7 +191,8 @@ export default function PlanComparisonScreen() {
             <View style={styles.benefitItem}>
               <CheckCircle size={20} color="#5DBB8E" weight="fill" />
               <Text style={styles.benefitItemText}>
-                <Text style={styles.benefitBold}>Trade with PIPs</Text> — help others save while saving yourself
+                <Text style={styles.benefitBold}>Trade with PIPs</Text> — help others save while
+                saving yourself
               </Text>
             </View>
             <View style={styles.benefitItem}>
@@ -202,7 +204,8 @@ export default function PlanComparisonScreen() {
             <View style={styles.benefitItem}>
               <CheckCircle size={20} color="#5DBB8E" weight="fill" />
               <Text style={styles.benefitItemText}>
-                <Text style={styles.benefitBold}>{trialDays}-day free trial</Text> — try risk-free, cancel anytime
+                <Text style={styles.benefitBold}>{trialDays}-day free trial</Text> — try risk-free,
+                cancel anytime
               </Text>
             </View>
           </View>
@@ -216,6 +219,9 @@ export default function PlanComparisonScreen() {
               style={[styles.ctaButton, styles.ctaButtonFree]}
               onPress={() => handleChoosePlan('free')}
               testID="choose-free"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Choose free"
             >
               <Text style={styles.ctaButtonTextFree}>Free Plan</Text>
             </TouchableOpacity>
@@ -227,6 +233,9 @@ export default function PlanComparisonScreen() {
               style={[styles.ctaButton, styles.ctaButtonKidsClub]}
               onPress={() => handleChoosePlan('kids_club_plus')}
               testID="choose-kids-club-plus"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Choose kids club plus"
             >
               <Text style={styles.ctaButtonText} numberOfLines={1} adjustsFontSizeToFit>
                 Start {trialDays}-day Trial

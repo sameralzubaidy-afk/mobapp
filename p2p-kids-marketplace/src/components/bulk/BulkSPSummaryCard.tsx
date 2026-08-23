@@ -115,6 +115,7 @@ export function BulkSPSummaryCard({
             accessibilityLabel="What are Swap Points? Tap to learn more"
             accessibilityRole="button"
             testID="sp-info-icon"
+            accessible
           >
             <View style={styles.infoIcon}>
               <Info size={12} color="#FFFFFF" weight="bold" />
@@ -163,6 +164,7 @@ export function BulkSPSummaryCard({
             accessibilityLabel="Upgrade to Kids Club Plus to earn Swap Points"
             accessibilityRole="button"
             testID="upgrade-cta"
+            accessible
           >
             <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
           </TouchableOpacity>
@@ -188,6 +190,7 @@ export function BulkSPSummaryCard({
           accessibilityLabel="What are Swap Points? Tap to learn more"
           accessibilityRole="button"
           testID="sp-info-icon"
+          accessible
         >
           <View style={styles.infoIcon}>
             <Info size={12} color="#FFFFFF" weight="bold" />
@@ -245,6 +248,7 @@ export function BulkSPSummaryCard({
           accessibilityLabel={showBreakdown ? 'Hide breakdown' : 'Show breakdown'}
           accessibilityRole="button"
           testID="breakdown-toggle"
+          accessible
         >
           <View style={styles.breakdownToggleRow}>
             {showBreakdown ? (
@@ -292,6 +296,7 @@ export function BulkSPSummaryCard({
           accessibilityLabel="Upgrade to Kids Club Plus to earn Swap Points"
           accessibilityRole="button"
           testID="upgrade-cta"
+          accessible
         >
           <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
         </TouchableOpacity>

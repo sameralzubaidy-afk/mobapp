@@ -30,12 +30,10 @@ import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 // TFV2-012A: replaced initiateTradeV2 + processTradePayment with createTradeOfferWithHold (D-30)
 import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
+import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
-import {
-  getPaymentMethod,
-  type PaymentMethodInfo,
-} from '@/services/subscription';
+import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { calculateCategorySP } from '@/services/categoryService';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
@@ -217,10 +215,7 @@ export default function TradeInitiationScreen() {
 
     try {
       setLoading(true);
-      const [itemData, config] = await Promise.all([
-        getItemById(itemId),
-        getAdminConfig(),
-      ]);
+      const [itemData, config] = await Promise.all([getItemById(itemId), getAdminConfig()]);
 
       if (!itemData) {
         Alert.alert('Error', 'Item not found');
@@ -257,7 +252,9 @@ export default function TradeInitiationScreen() {
         setMaxSpPercentage(fallbackPercent);
       }
     } catch (error) {
-      console.error('❌ Error fetching trade data:', error);
+      captureException(error, {
+        tags: { screen: 'TradeInitiationScreen', action: 'fetch_trade_data' },
+      });
       Alert.alert('Error', 'Failed to load trade details');
     } finally {
       setLoading(false);
@@ -327,14 +324,10 @@ export default function TradeInitiationScreen() {
     }
 
     if (cashAmountCents > 0 && paymentInputMode === 'saved' && !savedPaymentMethod?.id) {
-      Alert.alert(
-        'Payment Method Required',
-        'No saved card is available. Please add a new card.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Add Payment Method', onPress: () => navigation.navigate('PaymentMethods') },
-        ]
-      );
+      Alert.alert('Payment Method Required', 'No saved card is available. Please add a new card.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Add Payment Method', onPress: () => navigation.navigate('PaymentMethods') },
+      ]);
       return;
     }
 
@@ -411,7 +404,8 @@ export default function TradeInitiationScreen() {
         // D-30: max pending offers per seller (cap is admin-configurable)
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
           setOfferLimitMessage(
-            offerResult.error || 'You have reached the offer limit for this seller. Cancel one to make a new offer.'
+            offerResult.error ||
+              'You have reached the offer limit for this seller. Cancel one to make a new offer.'
           );
           setShowOfferLimitModal(true);
           return;
@@ -426,7 +420,10 @@ export default function TradeInitiationScreen() {
           return;
         }
 
-        Alert.alert('Offer Failed', offerResult.error || 'Could not submit your offer. Please try again.');
+        Alert.alert(
+          'Offer Failed',
+          offerResult.error || 'Could not submit your offer. Please try again.'
+        );
         return;
       }
 
@@ -457,7 +454,10 @@ export default function TradeInitiationScreen() {
         listingType: item?.accepts_swap_points ? 'accept_sp' : 'cash_only',
       });
     } catch (error: any) {
-      console.error('[TradeInitiationScreen] handleInitiateTrade error:', error);
+      captureException(error, {
+        tags: { screen: 'TradeInitiationScreen', action: 'initiate_trade' },
+        extra: { message: error?.message },
+      });
       Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
@@ -541,6 +541,7 @@ export default function TradeInitiationScreen() {
                   accessibilityLabel="What are Swap Points? Tap to learn more"
                   accessibilityRole="button"
                   testID="trade-sp-info-icon"
+                  accessible
                   style={styles.infoIcon}
                 >
                   <Text style={styles.infoIconText}>i</Text>
@@ -638,14 +639,16 @@ export default function TradeInitiationScreen() {
 
             <View style={styles.breakdownRow}>
               <View>
-                <Text style={styles.breakdownLabel}>{buyerFeeInfo?.label ?? 'Safety & Platform Fee'}</Text>
+                <Text style={styles.breakdownLabel}>
+                  {buyerFeeInfo?.label ?? 'Safety & Platform Fee'}
+                </Text>
                 <Text style={styles.feeSubtext}>
                   {buyerFeeInfo?.feeState === 'active_member'
                     ? 'Membership rate'
                     : buyerFeeInfo?.feeState === 'first_trade_completed' ||
-                      buyerFeeInfo?.feeState === 'subsequent_free'
-                    ? 'Applies after your first completed trade'
-                    : 'First-trade rate'}
+                        buyerFeeInfo?.feeState === 'subsequent_free'
+                      ? 'Applies after your first completed trade'
+                      : 'First-trade rate'}
                 </Text>
               </View>
               <Text style={styles.breakdownValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
@@ -798,6 +801,9 @@ export default function TradeInitiationScreen() {
               onPress={handleConfirmPurchase}
               disabled={submitting}
               testID="confirm-trade-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Confirm trade button"
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" />

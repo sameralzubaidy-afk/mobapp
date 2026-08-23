@@ -64,46 +64,49 @@ export function SPCalculator({
     }
   };
 
-  const handleCalculate = useCallback(async (priceInput: string, categoryId: string) => {
-    const priceNum = parseFloat(priceInput);
-    if (!categoryId || !priceInput || isNaN(priceNum) || priceNum <= 0 || priceNum > 10000) {
-      setSellResult(null);
-      setBuyResult(null);
-      setHasAttemptedCalculation(false);
-      onCalculate?.(null, null);
-      return;
-    }
+  const handleCalculate = useCallback(
+    async (priceInput: string, categoryId: string) => {
+      const priceNum = parseFloat(priceInput);
+      if (!categoryId || !priceInput || isNaN(priceNum) || priceNum <= 0 || priceNum > 10000) {
+        setSellResult(null);
+        setBuyResult(null);
+        setHasAttemptedCalculation(false);
+        onCalculate?.(null, null);
+        return;
+      }
 
-    try {
-      setLoading(true);
-      // Calculate BOTH sell and buy simultaneously
-      const [sellCalc, buyCalc] = await Promise.all([
-        calculateSP(priceNum, categoryId, 'sell'),
-        calculateSP(priceNum, categoryId, 'buy'),
-      ]);
+      try {
+        setLoading(true);
+        // Calculate BOTH sell and buy simultaneously
+        const [sellCalc, buyCalc] = await Promise.all([
+          calculateSP(priceNum, categoryId, 'sell'),
+          calculateSP(priceNum, categoryId, 'buy'),
+        ]);
 
-      // Type narrowing: sellCalc is SellSPCalculation, buyCalc is BuySPCalculation
-      setSellResult(sellCalc as SellSPCalculation | null);
-      setBuyResult(buyCalc as BuySPCalculation | null);
-      onCalculate?.(sellCalc, buyCalc);
-      setHasAttemptedCalculation(true);
+        // Type narrowing: sellCalc is SellSPCalculation, buyCalc is BuySPCalculation
+        setSellResult(sellCalc as SellSPCalculation | null);
+        setBuyResult(buyCalc as BuySPCalculation | null);
+        onCalculate?.(sellCalc, buyCalc);
+        setHasAttemptedCalculation(true);
 
-      // Fire-and-forget analytics to avoid blocking UI rendering.
-      void trackEducationEvent('calculator_use', {
-        mode,
-        category_id: categoryId,
-        price_bucket: getPriceBucket(priceNum),
-      });
-    } catch (error) {
-      console.error('[SPCalculator] Calculate error:', error);
-      setSellResult(null);
-      setBuyResult(null);
-      setHasAttemptedCalculation(true);
-      onCalculate?.(null, null);
-    } finally {
-      setLoading(false);
-    }
-  }, [mode, onCalculate]);
+        // Fire-and-forget analytics to avoid blocking UI rendering.
+        void trackEducationEvent('calculator_use', {
+          mode,
+          category_id: categoryId,
+          price_bucket: getPriceBucket(priceNum),
+        });
+      } catch (error) {
+        console.error('[SPCalculator] Calculate error:', error);
+        setSellResult(null);
+        setBuyResult(null);
+        setHasAttemptedCalculation(true);
+        onCalculate?.(null, null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [mode, onCalculate]
+  );
 
   // Load categories on mount, and re-fetch when refreshKey changes (screen
   // focus / pull-to-refresh) so admin rate changes are picked up without a
@@ -179,6 +182,7 @@ export function SPCalculator({
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Category</Text>
         <TouchableOpacity
+          accessible
           style={[styles.categoryButton, !isEditable && styles.readonlyContainer]}
           onPress={() => {
             if (isEditable) {
@@ -190,7 +194,9 @@ export function SPCalculator({
           accessibilityLabel="Category"
           accessibilityRole="button"
         >
-          <Text style={[styles.categoryButtonText, !selectedCategory && styles.categoryPlaceholder]}>
+          <Text
+            style={[styles.categoryButtonText, !selectedCategory && styles.categoryPlaceholder]}
+          >
             {selectedCategory ? selectedCategory.name : 'Select a category'}
           </Text>
         </TouchableOpacity>

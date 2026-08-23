@@ -30,6 +30,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
+import { captureException } from '@/services/errorReporter';
 import {
   getSubscriptionSummary,
   cancelSubscription,
@@ -37,10 +38,7 @@ import {
   resubscribe,
   SubscriptionSummary,
 } from '@/services/subscription';
-import {
-  getGracePeriodDays,
-  getActiveMemberFeeCents,
-} from '@/services/adminConfig';
+import { getGracePeriodDays, getActiveMemberFeeCents } from '@/services/adminConfig';
 import { formatPrice } from '@/utils/formatPrice';
 import { PaymentMethodSection } from '@/components/subscription/PaymentMethodSection';
 import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
@@ -150,7 +148,9 @@ export default function ManageKidsClubScreen() {
       setActiveMemberFlatCents(memberFeeCents);
       await fetchPaymentMethodStatus(summary);
     } catch (error) {
-      console.error('[ManageKidsClub] Error fetching subscription:', error);
+      captureException(error, {
+        tags: { screen: 'ManageKidsClubScreen', action: 'fetch_subscription' },
+      });
       Alert.alert('Error', 'Failed to load subscription details');
     } finally {
       setLoading(false);
@@ -206,7 +206,9 @@ export default function ManageKidsClubScreen() {
         Alert.alert('Cancellation Failed', result.message || 'Please try again later');
       }
     } catch (error) {
-      console.error('[ManageKidsClub] Cancellation error:', error);
+      captureException(error, {
+        tags: { screen: 'ManageKidsClubScreen', action: 'cancel' },
+      });
       Alert.alert('Error', 'Failed to cancel subscription. Please try again.');
     } finally {
       setCancelling(false);
@@ -272,7 +274,9 @@ export default function ManageKidsClubScreen() {
 
       Alert.alert('Renewal Failed', result.message || 'Please try again later.');
     } catch (error) {
-      console.error('[ManageKidsClub] Renewal error:', error);
+      captureException(error, {
+        tags: { screen: 'ManageKidsClubScreen', action: 'renew' },
+      });
       Alert.alert('Error', 'Failed to renew subscription. Please try again.');
     } finally {
       setRenewing(false);
@@ -346,7 +350,12 @@ export default function ManageKidsClubScreen() {
         <View style={styles.card}>
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Status</Text>
-            <View style={[styles.statusBadge, (styles as Record<string, unknown>)[`badge_${subscription.status}`] as object]}>
+            <View
+              style={[
+                styles.statusBadge,
+                (styles as Record<string, unknown>)[`badge_${subscription.status}`] as object,
+              ]}
+            >
               <Text style={styles.statusBadgeText}>
                 {subscription.status === 'trial'
                   ? 'Free Trial'

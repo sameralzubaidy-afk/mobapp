@@ -242,7 +242,6 @@ export default function NotificationPreferencesScreen({ navigation: _navigation 
   return (
     <ScreenLayout variant="detail" title="Notification Preferences">
       <View style={styles.container}>
-
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.sectionDescription}>
             Choose how you want to be notified for different types of activity in the marketplace.
@@ -266,70 +265,68 @@ export default function NotificationPreferencesScreen({ navigation: _navigation 
               const CategoryIcon = iconMeta.Icon;
 
               return (
-              <View
-                key={pref.category}
-                testID={`category-section-${pref.category}`}
-                style={[styles.categoryCard, CARD_SHADOW]}
-              >
-                <View style={styles.categoryHeader}>
-                  <View
-                    style={[styles.categoryIconContainer, { backgroundColor: iconMeta.bg }]}
-                  >
-                    <CategoryIcon size={20} color={iconMeta.color} weight="fill" />
+                <View
+                  key={pref.category}
+                  testID={`category-section-${pref.category}`}
+                  style={[styles.categoryCard, CARD_SHADOW]}
+                >
+                  <View style={styles.categoryHeader}>
+                    <View style={[styles.categoryIconContainer, { backgroundColor: iconMeta.bg }]}>
+                      <CategoryIcon size={20} color={iconMeta.color} weight="fill" />
+                    </View>
+                    <Text style={styles.categoryTitle}>{CATEGORY_LABELS[pref.category]}</Text>
                   </View>
-                  <Text style={styles.categoryTitle}>{CATEGORY_LABELS[pref.category]}</Text>
+
+                  <View style={styles.settingsList}>
+                    <View style={styles.settingItem}>
+                      <View style={styles.settingTextContainer}>
+                        <Text style={styles.settingLabel}>Push Notifications</Text>
+                        <Text style={styles.settingSublabel}>Receive alerts on your device</Text>
+                      </View>
+                      <Switch
+                        testID={`toggle-${pref.category}-push`}
+                        value={pref.push_enabled}
+                        onValueChange={(val) => handleToggle(pref.category, 'push_enabled', val)}
+                        disabled={updating !== null}
+                        trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+                        thumbColor="#FFFFFF"
+                        ios_backgroundColor="#E0E0E0"
+                      />
+                    </View>
+
+                    <View style={styles.settingItem}>
+                      <View style={styles.settingTextContainer}>
+                        <Text style={styles.settingLabel}>In-App Notifications</Text>
+                        <Text style={styles.settingSublabel}>Show badges inside the app</Text>
+                      </View>
+                      <Switch
+                        testID={`toggle-${pref.category}-in_app`}
+                        value={pref.in_app_enabled}
+                        onValueChange={(val) => handleToggle(pref.category, 'in_app_enabled', val)}
+                        disabled={updating !== null}
+                        trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+                        thumbColor="#FFFFFF"
+                        ios_backgroundColor="#E0E0E0"
+                      />
+                    </View>
+
+                    <View style={[styles.settingItem, { borderBottomWidth: 0 }]}>
+                      <View style={styles.settingTextContainer}>
+                        <Text style={styles.settingLabel}>Email Notifications</Text>
+                        <Text style={styles.settingSublabel}>Send updates to your email</Text>
+                      </View>
+                      <Switch
+                        testID={`toggle-${pref.category}-email`}
+                        value={pref.email_enabled}
+                        onValueChange={(val) => handleToggle(pref.category, 'email_enabled', val)}
+                        disabled={updating !== null}
+                        trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+                        thumbColor="#FFFFFF"
+                        ios_backgroundColor="#E0E0E0"
+                      />
+                    </View>
+                  </View>
                 </View>
-
-                <View style={styles.settingsList}>
-                  <View style={styles.settingItem}>
-                    <View style={styles.settingTextContainer}>
-                      <Text style={styles.settingLabel}>Push Notifications</Text>
-                      <Text style={styles.settingSublabel}>Receive alerts on your device</Text>
-                    </View>
-                    <Switch
-                      testID={`toggle-${pref.category}-push`}
-                      value={pref.push_enabled}
-                      onValueChange={(val) => handleToggle(pref.category, 'push_enabled', val)}
-                      disabled={updating !== null}
-                      trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
-                      thumbColor="#FFFFFF"
-                      ios_backgroundColor="#E0E0E0"
-                    />
-                  </View>
-
-                  <View style={styles.settingItem}>
-                    <View style={styles.settingTextContainer}>
-                      <Text style={styles.settingLabel}>In-App Notifications</Text>
-                      <Text style={styles.settingSublabel}>Show badges inside the app</Text>
-                    </View>
-                    <Switch
-                      testID={`toggle-${pref.category}-in_app`}
-                      value={pref.in_app_enabled}
-                      onValueChange={(val) => handleToggle(pref.category, 'in_app_enabled', val)}
-                      disabled={updating !== null}
-                      trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
-                      thumbColor="#FFFFFF"
-                      ios_backgroundColor="#E0E0E0"
-                    />
-                  </View>
-
-                  <View style={[styles.settingItem, { borderBottomWidth: 0 }]}>
-                    <View style={styles.settingTextContainer}>
-                      <Text style={styles.settingLabel}>Email Notifications</Text>
-                      <Text style={styles.settingSublabel}>Send updates to your email</Text>
-                    </View>
-                    <Switch
-                      testID={`toggle-${pref.category}-email`}
-                      value={pref.email_enabled}
-                      onValueChange={(val) => handleToggle(pref.category, 'email_enabled', val)}
-                      disabled={updating !== null}
-                      trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
-                      thumbColor="#FFFFFF"
-                      ios_backgroundColor="#E0E0E0"
-                    />
-                  </View>
-                </View>
-              </View>
               );
             })
           )}
@@ -396,6 +393,9 @@ export default function NotificationPreferencesScreen({ navigation: _navigation 
 
                     <TouchableOpacity
                       testID="quiet-hours-save-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Quiet hours save button"
                       style={[styles.saveButton, savingQuietHours && styles.saveButtonDisabled]}
                       onPress={handleSaveQuietHours}
                       disabled={savingQuietHours}

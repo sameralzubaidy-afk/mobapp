@@ -98,6 +98,8 @@ export function BulkIntroSheet({ forceVisible, onDismiss }: BulkIntroSheetProps)
             onPress={dismiss}
             accessibilityLabel="Dismiss bulk listing intro"
             testID="bulk-intro-dismiss"
+            accessible
+            accessibilityRole="button"
           >
             <Text style={styles.dismissText}>Got it</Text>
           </TouchableOpacity>

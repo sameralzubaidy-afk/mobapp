@@ -3,14 +3,7 @@
 // Transaction history with tabs, type-based icons, and color-coded amounts
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-  StyleSheet
-} from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   Storefront,
@@ -21,6 +14,7 @@ import {
   Coins,
 } from 'phosphor-react-native';
 import { getLedgerHistory, type SPLedgerEntry } from '@/services/sp/wallet';
+import { captureException, captureMessage } from '@/services/errorReporter';
 import { supabase } from '@/config/supabase';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -44,14 +38,16 @@ export default function SpTransactionHistoryScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        console.error('[SpTransactionHistory] User not authenticated');
+        captureMessage('[SpTransactionHistory] User not authenticated', 'warning');
         return;
       }
 
       const history = await getLedgerHistory(user.id, 50);
       setTransactions(history);
     } catch (error) {
-      console.error('[SpTransactionHistory] Load error:', error);
+      captureException(error, {
+        tags: { screen: 'SpTransactionHistoryScreen', action: 'load_history' },
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -107,16 +103,20 @@ export default function SpTransactionHistoryScreen() {
         <View style={styles.tabsContainer}>
           <TouchableOpacity
             testID="sp-history-tab-all"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sp history tab all"
             style={styles.tabButton}
             onPress={() => setActiveTab('all')}
           >
-            <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
-              All
-            </Text>
+            <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>All</Text>
             {activeTab === 'all' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
           <TouchableOpacity
             testID="sp-history-tab-earned"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sp history tab earned"
             style={styles.tabButton}
             onPress={() => setActiveTab('earned')}
           >
@@ -127,6 +127,9 @@ export default function SpTransactionHistoryScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             testID="sp-history-tab-spent"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sp history tab spent"
             style={styles.tabButton}
             onPress={() => setActiveTab('spent')}
           >
@@ -154,7 +157,9 @@ export default function SpTransactionHistoryScreen() {
                 <View style={styles.txIconCircle}>{getTransactionIcon(tx.transaction_type)}</View>
                 <View style={styles.txContent}>
                   <Text style={styles.txTitle}>
-                    {tx.transaction_type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                    {tx.transaction_type
+                      .replace(/_/g, ' ')
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </Text>
                   <Text style={styles.txDate}>
                     {new Date(tx.created_at).toLocaleDateString()} at{' '}

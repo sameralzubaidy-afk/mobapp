@@ -74,6 +74,9 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
           onPress={onSingleItem}
           activeOpacity={0.7}
           testID="sell-option-list-one-item"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Sell option list one item"
         >
           <Text style={styles.sheetOptionTitle}>List One Item</Text>
           <Text style={styles.sheetOptionSubtitle}>Snap a photo or choose from your library</Text>
@@ -85,6 +88,9 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
           onPress={onBulkUpload}
           activeOpacity={0.7}
           testID="sell-option-bulk-upload"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Sell option bulk upload"
         >
           <View style={styles.sheetOptionRow}>
             <Package size={20} color="#1A1A1A" weight="regular" />
@@ -140,8 +146,10 @@ function TabItem({ Icon, label, active = false, onPress, badgeCount }: TabItemPr
 }
 
 // ─── Active tab helper ────────────────────────────────────────────────────────
+// Exported so the route→tab mapping can be unit-tested directly (all branches),
+// in addition to being exercised through the rendered component.
 
-function computeActiveTab(state: NavigationState | undefined): string | null {
+export function computeActiveTab(state: NavigationState | undefined): string | null {
   if (!state) return null;
 
   const route = state.routes[state.index];
@@ -333,8 +341,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     // Floating margins — the pill does NOT span the full device width.
     borderRadius: borderRadius.pill, // uniform on every corner
-    paddingTop: 6,
-    paddingBottom: 10,
+    // Balanced vertical padding (spacing.sm each) so the icon+label block is
+    // vertically centered inside the pill, not pushed toward the top edge.
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
     backgroundColor: 'transparent', // outer wrapper is never opaque — only the pill (barBackground) is
     ...shadows.level2, // drop shadow on the container — not clipped by any parent
   },

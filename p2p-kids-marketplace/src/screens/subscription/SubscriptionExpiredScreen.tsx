@@ -1,31 +1,25 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/SubscriptionExpiredScreen.tsx
  * MODULE-15.1 FLOW-12 Screen 8: Subscription Expired
- * 
+ *
  * TASK: Redesign SubscriptionExpiredScreen — VISUAL ONLY
  * DO NOT CHANGE: renew handler, continue free handler, plan/date params
  * ONLY CHANGE: StyleSheet, icons → Phosphor
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
-import { 
-  WarningCircle, 
-  CheckCircle, 
-  CaretRight, 
+import {
+  WarningCircle,
+  CheckCircle,
+  CaretRight,
   XCircle,
   ClockCounterClockwise,
   SealCheck,
-  TrendUp
+  TrendUp,
 } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -37,20 +31,20 @@ const BENEFITS = [
     icon: SealCheck,
     title: 'Trade with PIPs',
     description: 'Use your points to buy items and save cash.',
-    color: '#5DBB8E'
+    color: '#5DBB8E',
   },
   {
     icon: TrendUp,
     title: 'Reduced Fees',
     description: 'Save significantly on every transaction fee.',
-    color: '#4A90E2'
+    color: '#4A90E2',
   },
   {
     icon: ClockCounterClockwise,
     title: 'Keep Your Points',
     description: 'Your earned PIPs never expire. They are waiting for you!',
-    color: '#F5A623'
-  }
+    color: '#F5A623',
+  },
 ];
 
 export default function SubscriptionExpiredScreen() {
@@ -62,7 +56,7 @@ export default function SubscriptionExpiredScreen() {
     ? new Date(route.params.expiredDate).toLocaleDateString(undefined, {
         month: 'long',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
       })
     : 'recently';
 
@@ -76,10 +70,7 @@ export default function SubscriptionExpiredScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Subscription Expired">
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.iconContainer}>
             <XCircle size={64} color="#FF6B6B" weight="fill" />
@@ -102,10 +93,12 @@ export default function SubscriptionExpiredScreen() {
 
         <View style={styles.benefitsContainer}>
           <Text style={styles.benefitsTitle}>What you're missing out on:</Text>
-          
+
           {BENEFITS.map((benefit, index) => (
             <View key={index} style={styles.benefitCard}>
-              <View style={[styles.benefitIconContainer, { backgroundColor: benefit.color + '15' }]}>
+              <View
+                style={[styles.benefitIconContainer, { backgroundColor: benefit.color + '15' }]}
+              >
                 <benefit.icon size={24} color={benefit.color} weight="duotone" />
               </View>
               <View style={styles.benefitTextContent}>
@@ -119,13 +112,17 @@ export default function SubscriptionExpiredScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Don't let your benefits slip away. Renew now to continue enjoying the full Kids Marketplace experience.
+            Don't let your benefits slip away. Renew now to continue enjoying the full Kids
+            Marketplace experience.
           </Text>
 
           <TouchableOpacity
             style={styles.renewButton}
             onPress={handleRenew}
             testID="renew-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Renew button"
             activeOpacity={0.8}
           >
             <Text style={styles.renewButtonText}>Renew Plan</Text>
@@ -136,6 +133,9 @@ export default function SubscriptionExpiredScreen() {
             style={styles.continueLink}
             onPress={handleContinueFree}
             testID="continue-free-link"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Continue free link"
           >
             <Text style={styles.continueLinkText}>Continue with Free Plan</Text>
           </TouchableOpacity>

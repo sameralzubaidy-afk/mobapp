@@ -115,6 +115,8 @@ export default function DisclaimerModal({
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Liability Disclaimer</Text>
           <Pressable
+            accessible
+            accessibilityRole="button"
             onPress={onCancel}
             testID={`${testID}-close-button`}
             accessibilityLabel="Close disclaimer"
@@ -132,13 +134,18 @@ export default function DisclaimerModal({
               color="#5DBB8E"
               testID={`${testID}-loading`}
             />
+
             <Text style={styles.loadingText}>Loading disclaimer...</Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={styles.errorText}>{error}</Text>
-            <Pressable style={styles.retryButton} onPress={fetchDisclaimer} testID={`${testID}-retry-button`}>
+            <Pressable
+              style={styles.retryButton}
+              onPress={fetchDisclaimer}
+              testID={`${testID}-retry-button`}
+            >
               <Text style={styles.retryButtonText}>Retry</Text>
             </Pressable>
           </View>
@@ -176,6 +183,8 @@ export default function DisclaimerModal({
             {/* Footer with checkbox and buttons */}
             <View style={styles.footer}>
               <Pressable
+                accessible
+                accessibilityRole="button"
                 style={styles.checkbox}
                 onPress={() => setAccepted(!accepted)}
                 testID={`${testID}-checkbox`}
@@ -190,6 +199,8 @@ export default function DisclaimerModal({
 
               <View style={styles.buttonRow}>
                 <Pressable
+                  accessible
+                  accessibilityRole="button"
                   style={[styles.button, styles.cancelButton]}
                   onPress={onCancel}
                   testID={`${testID}-cancel-button`}
@@ -197,7 +208,10 @@ export default function DisclaimerModal({
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </Pressable>
+
                 <Pressable
+                  accessible
+                  accessibilityRole="button"
                   style={[styles.button, styles.acceptButton, !accepted && styles.buttonDisabled]}
                   onPress={handleAcceptPress}
                   disabled={!accepted}

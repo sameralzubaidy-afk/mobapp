@@ -39,15 +39,7 @@ import { TrialReminderBanner } from '../../components/TrialReminderBanner';
 import { LoadingSpinner } from '@/components/ui';
 
 // Phosphor Icons — Whisk Design System
-import {
-  Coins,
-  CreditCard,
-  Handshake,
-  Heart,
-  List,
-  Sparkle,
-  TrendUp,
-} from 'phosphor-react-native';
+import { Coins, CreditCard, Handshake, Heart, List, Sparkle, TrendUp } from 'phosphor-react-native';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -61,10 +53,10 @@ function _getGreeting(): string {
 
 // ─── Quick Action tile config ──────────────────────────────────────────────────
 const QUICK_ACTIONS = [
-  { key: 'favorites',  label: 'Favorites',   Icon: Heart,           route: 'Favorites' },
-  { key: 'myTrades',   label: 'My Trades',   Icon: Handshake,       route: 'TradeList' },
-  { key: 'myListings', label: 'My Listings', Icon: List,            route: 'MyListings' },
-  { key: 'payouts',    label: 'Payouts',     Icon: CreditCard,      route: 'PayoutSettings' },
+  { key: 'favorites', label: 'Favorites', Icon: Heart, route: 'Favorites' },
+  { key: 'myTrades', label: 'My Trades', Icon: Handshake, route: 'TradeList' },
+  { key: 'myListings', label: 'My Listings', Icon: List, route: 'MyListings' },
+  { key: 'payouts', label: 'Payouts', Icon: CreditCard, route: 'PayoutSettings' },
 ] as const;
 
 // ─── Transaction status label ──────────────────────────────────────────────────
@@ -73,7 +65,7 @@ function txStatusLabel(status: string): string {
     pending: 'PENDING',
     active: 'ACTIVE',
     in_progress: 'IN PROGRESS',
-    payment_processing: 'IN PROGRESS', /* D-30: payment_processing deprecated */
+    payment_processing: 'IN PROGRESS' /* D-30: payment_processing deprecated */,
     payment_failed: 'PAYMENT FAILED',
     completed: 'COMPLETED',
     cancelled: 'CANCELLED',
@@ -88,7 +80,7 @@ function txStatusColor(status: string): string {
     pending: '#FF9500',
     active: '#5DBB8E',
     in_progress: '#5DBB8E',
-    payment_processing: '#FF9500', /* D-30: deprecated, kept for legacy data */
+    payment_processing: '#FF9500' /* D-30: deprecated, kept for legacy data */,
     payment_failed: '#E85D75',
     completed: '#34C759',
     cancelled: '#8E8E93',
@@ -122,7 +114,9 @@ export default function UserDashboardScreen() {
   const [drafts, setDrafts] = useState<ItemDraft[]>([]);
   const [isDraftBannerDismissed, setIsDraftBannerDismissed] = useState(false);
   // ID verification CTA
-  const [idVerifStatus, setIdVerifStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('approved');
+  const [idVerifStatus, setIdVerifStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>(
+    'approved'
+  );
   const [isIdCtaDismissed, setIsIdCtaDismissed] = useState(false);
   // Action Items section: show all toggle
   const [showAllCtas, setShowAllCtas] = useState(false);
@@ -240,7 +234,13 @@ export default function UserDashboardScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [refreshSession, refetchSubscription, loadSubscriptionTimeline, loadRecentTrade, loadIdVerificationStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    refreshSession,
+    refetchSubscription,
+    loadSubscriptionTimeline,
+    loadRecentTrade,
+    loadIdVerificationStatus,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render guards ──────────────────────────────────────────────────────────
   // Guard skipped during pull-to-refresh (refreshing=true) to prevent blank screen flash.
@@ -270,23 +270,32 @@ export default function UserDashboardScreen() {
 
   const subBadgeColor = (() => {
     switch (subscription.status) {
-      case 'trial': return '#FF9500';
-      case 'active': return '#34C759';
+      case 'trial':
+        return '#FF9500';
+      case 'active':
+        return '#34C759';
       case 'grace_period':
-      case 'grace': return '#E85D75';
-      default: return '#8E8E93';
+      case 'grace':
+        return '#E85D75';
+      default:
+        return '#8E8E93';
     }
   })();
 
   const subBadgeLabel = (() => {
     switch (subscription.status) {
-      case 'trial': return 'Kids Club+ Trial';
-      case 'active': return 'Kids Club+ Active';
+      case 'trial':
+        return 'Kids Club+ Trial';
+      case 'active':
+        return 'Kids Club+ Active';
       case 'grace_period':
-      case 'grace': return 'Grace Period';
+      case 'grace':
+        return 'Grace Period';
       case 'cancelled':
-      case 'canceled': return 'Canceled';
-      default: return 'Free Plan';
+      case 'canceled':
+        return 'Canceled';
+      default:
+        return 'Free Plan';
     }
   })();
 
@@ -298,313 +307,342 @@ export default function UserDashboardScreen() {
   // ── JSX ────────────────────────────────────────────────────────────────────
   return (
     <View testID="dashboard-screen" style={{ flex: 1 }}>
-    <ScreenLayout variant="main" style={styles.container}>
-      {/* ── Home Composer Bar (persistent, directly below header) ─────────── */}
-      <ComposerBar />
+      <ScreenLayout variant="main" style={styles.container}>
+        {/* ── Home Composer Bar (persistent, directly below header) ─────────── */}
+        <ComposerBar />
 
-      {/* ── Scrollable Content ─────────────────────────────────────────────── */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />}
-      >
-        {/* ── SP Balance Strip ──────────────────────────────────────────── */}
-        {subscription.canSpendSP ? (
-          <TouchableOpacity
-            style={styles.spStrip}
-            testID="sp-strip"
-            onPress={() => navigation.navigate('SpWallet')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.spStripLeft}>
-              <Coins size={20} color="#FFFFFF" weight="fill" />
-              <Text style={styles.spBalance}>{wallet.available} SP</Text>
-            </View>
-            <Text style={styles.spEarnMore}>Earn More →</Text>
-          </TouchableOpacity>
-        ) : (
-          /* Free users: upgrade nudge strip */
-          <TouchableOpacity
-            style={[styles.spStrip, styles.spStripFree]}
-            testID="sp-strip"
-            onPress={() => navigation.navigate('JoinKidsClub')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.spStripLeft}>
-              <TrendUp size={20} color="#FFFFFF" weight="bold" />
-              <Text style={styles.spBalance}>Unlock Swap Points</Text>
-            </View>
-            <Text style={styles.spEarnMore}>Upgrade →</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* ── Quick Actions Grid ──────────────────────────────────────────── */}
-        <View style={styles.actionsGrid}>
-          {QUICK_ACTIONS.map(({ key, label, Icon, route }) => (
-            <TouchableOpacity
-              key={key}
-              testID={`action-tile-${key}`}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              style={styles.actionTile}
-              onPress={() => navigation.navigate(route as any)}
-              activeOpacity={0.75}
-            >
-              <View style={styles.actionIconWrap}>
-                <Icon size={26} color="#5DBB8E" weight="regular" />
-              </View>
-              <Text style={styles.actionLabel}>{label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Subscription Alerts (always shown when relevant) ──────────── */}
-        <TrialReminderBanner />
-        <PaymentFailureBanner subscription={subscriptionSummary} loading={subscriptionLoading} />
-
-        {/* ── Action Items Section ──────────────────────────────────────── */}
-        {(() => {
-          const graceDaysRemaining =
-            (subscription.status === 'grace' || subscription.status === 'grace_period') &&
-            graceEndDate
-              ? Math.ceil((new Date(graceEndDate).getTime() - Date.now()) / 86_400_000)
-              : 0;
-
-          // Build ordered list of active CTA items (priority: ID verif > SP > drafts)
-          type CtaItem = { key: string; node: React.ReactNode };
-          const allCtas: CtaItem[] = [];
-
-          if (
-            !isIdCtaDismissed &&
-            (idVerifStatus === 'none' || idVerifStatus === 'rejected')
-          ) {
-            allCtas.push({
-              key: 'id_verification',
-              node: (
-                <IDVerificationCTABanner
-                  status={idVerifStatus as 'none' | 'rejected'}
-                  onVerify={() => navigation.navigate('IDVerificationUpload')}
-                  onDismiss={() => setIsIdCtaDismissed(true)}
-                />
-              ),
-            });
+        {/* ── Scrollable Content ─────────────────────────────────────────────── */}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
           }
-
-          if (graceDaysRemaining > 0) {
-            allCtas.push({
-              key: 'grace_period',
-              node: (
-                <GracePeriodBanner
-                  gracePeriodEndsAt={graceEndDate!}
-                  daysRemaining={graceDaysRemaining}
-                />
-              ),
-            });
-          }
-
-          if (!isDraftBannerDismissed && drafts.length > 0) {
-            allCtas.push({
-              key: 'drafts',
-              node: (
-                <ResumeDraftBanner
-                  drafts={drafts}
-                  onResume={(draftId, isBulk) =>
-                    navigation.navigate(isBulk ? 'BulkListingCreate' : 'ItemCreate', { draftId })
-                  }
-                  onDismiss={() => setIsDraftBannerDismissed(true)}
-                />
-              ),
-            });
-          }
-
-          if (allCtas.length === 0) return null;
-
-          const MAX_VISIBLE = 3;
-          const visibleCtas = showAllCtas ? allCtas : allCtas.slice(0, MAX_VISIBLE);
-          const hiddenCount = allCtas.length - MAX_VISIBLE;
-
-          return (
-            <View style={styles.actionItemsSection}>
-              <Text style={styles.actionItemsTitle}>Action Items</Text>
-              {visibleCtas.map((cta) => (
-                <View key={cta.key} style={styles.ctaItemWrap}>
-                  {cta.node}
-                </View>
-              ))}
-              {!showAllCtas && hiddenCount > 0 && (
-                <TouchableOpacity
-                  style={styles.showAllBtn}
-                  onPress={() => setShowAllCtas(true)}
-                  testID="action-items-show-all"
-                >
-                  <Text style={styles.showAllText}>
-                    Show {hiddenCount} more action{hiddenCount > 1 ? 's' : ''}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {showAllCtas && allCtas.length > MAX_VISIBLE && (
-                <TouchableOpacity
-                  style={styles.showAllBtn}
-                  onPress={() => setShowAllCtas(false)}
-                  testID="action-items-show-less"
-                >
-                  <Text style={styles.showAllText}>Show less</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        })()}
-
-        {/* ── Browse Categories ─────────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <Text style={styles.sectionTitle}>Browse Categories</Text>
-          <CategorySelector showTitle={false} />
-        </View>
-
-        {/* ── Recommended for You ──────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Recommended for You</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Discover')} testID="dashboard-see-all-discover" accessible accessibilityRole="button" accessibilityLabel="See All">
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          <RecommendationsCarousel limit={10} showTitle={false} />
-        </View>
-
-        {/* ── Subscription Card ────────────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => navigation.navigate('MySubscription' as any)}
-          activeOpacity={0.8}
-          testID="dashboard-subscription-card"
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Subscription"
         >
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Subscription</Text>
-            <View style={[styles.subBadge, { backgroundColor: subBadgeColor }]}>
-              <Text style={styles.subBadgeText}>{subBadgeLabel}</Text>
-            </View>
-          </View>
-
-          {subscription.canSpendSP && (
-            <View style={styles.spUnlockedBadge}>
-              <Sparkle size={16} color="#5DBB8E" weight="fill" />
-              <Text style={styles.spUnlockedText}>SP Wallet Unlocked</Text>
-            </View>
-          )}
-
-          {isFreeUser && (
+          {/* ── SP Balance Strip ──────────────────────────────────────────── */}
+          {subscription.canSpendSP ? (
             <TouchableOpacity
-              style={styles.upgradeBtn}
-              onPress={() => navigation.navigate('JoinKidsClub')}
-              testID="dashboard-upgrade-kids-club-button"
+              style={styles.spStrip}
+              testID="sp-strip"
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Upgrade to Kids Club+"
+              accessibilityLabel="Sp strip"
+              onPress={() => navigation.navigate('SpWallet')}
+              activeOpacity={0.85}
             >
-              <Text style={styles.upgradeBtnText}>Upgrade to Kids Club+</Text>
+              <View style={styles.spStripLeft}>
+                <Coins size={20} color="#FFFFFF" weight="fill" />
+                <Text style={styles.spBalance}>{wallet.available} SP</Text>
+              </View>
+              <Text style={styles.spEarnMore}>Earn More →</Text>
+            </TouchableOpacity>
+          ) : (
+            /* Free users: upgrade nudge strip */
+            <TouchableOpacity
+              style={[styles.spStrip, styles.spStripFree]}
+              testID="sp-strip"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sp strip"
+              onPress={() => navigation.navigate('JoinKidsClub')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.spStripLeft}>
+                <TrendUp size={20} color="#FFFFFF" weight="bold" />
+                <Text style={styles.spBalance}>Unlock Swap Points</Text>
+              </View>
+              <Text style={styles.spEarnMore}>Upgrade →</Text>
             </TouchableOpacity>
           )}
-        </TouchableOpacity>
 
-
-
-        {/* ── Latest Trade ─────────────────────────────────────────────── */}
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Latest Trade</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('TradeList' as any)} testID="dashboard-view-all-trades" accessible accessibilityRole="button" accessibilityLabel="View All">
-            <Text style={styles.seeAll}>View All →</Text>
-          </TouchableOpacity>
-        </View>
-        {recentTrade ? (
-          <View style={styles.card}>
-            <View style={styles.tradeRow}>
-              <View style={styles.tradeInfo}>
-                <Text style={styles.tradeItemTitle} numberOfLines={1}>
-                  {recentTrade.title}
-                </Text>
-                <View
-                  style={[
-                    styles.tradeStatusBadge,
-                    { backgroundColor: txStatusColor(recentTrade.status) + '22' },
-                  ]}
-                >
-                  <Text
-                    style={[styles.tradeStatusText, { color: txStatusColor(recentTrade.status) }]}
-                  >
-                    {txStatusLabel(recentTrade.status)}
-                  </Text>
-                </View>
-              </View>
+          {/* ── Quick Actions Grid ──────────────────────────────────────────── */}
+          <View style={styles.actionsGrid}>
+            {QUICK_ACTIONS.map(({ key, label, Icon, route }) => (
               <TouchableOpacity
-                style={styles.viewTimelineBtn}
-                onPress={() =>
-                  navigation.navigate('TradeTimeline', { tradeId: recentTrade.id })
-                }
-                testID="dashboard-view-timeline"
+                key={key}
+                testID={`action-tile-${key}`}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="View Timeline"
+                accessibilityLabel={label}
+                style={styles.actionTile}
+                onPress={() => navigation.navigate(route as any)}
+                activeOpacity={0.75}
               >
-                <Text style={styles.viewTimelineBtnText}>View Timeline</Text>
+                <View style={styles.actionIconWrap}>
+                  <Icon size={26} color="#5DBB8E" weight="regular" />
+                </View>
+                <Text style={styles.actionLabel}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* ── Subscription Alerts (always shown when relevant) ──────────── */}
+          <TrialReminderBanner />
+          <PaymentFailureBanner subscription={subscriptionSummary} loading={subscriptionLoading} />
+
+          {/* ── Action Items Section ──────────────────────────────────────── */}
+          {(() => {
+            const graceDaysRemaining =
+              (subscription.status === 'grace' || subscription.status === 'grace_period') &&
+              graceEndDate
+                ? Math.ceil((new Date(graceEndDate).getTime() - Date.now()) / 86_400_000)
+                : 0;
+
+            // Build ordered list of active CTA items (priority: ID verif > SP > drafts)
+            type CtaItem = { key: string; node: React.ReactNode };
+            const allCtas: CtaItem[] = [];
+
+            if (!isIdCtaDismissed && (idVerifStatus === 'none' || idVerifStatus === 'rejected')) {
+              allCtas.push({
+                key: 'id_verification',
+                node: (
+                  <IDVerificationCTABanner
+                    status={idVerifStatus as 'none' | 'rejected'}
+                    onVerify={() => navigation.navigate('IDVerificationUpload')}
+                    onDismiss={() => setIsIdCtaDismissed(true)}
+                  />
+                ),
+              });
+            }
+
+            if (graceDaysRemaining > 0) {
+              allCtas.push({
+                key: 'grace_period',
+                node: (
+                  <GracePeriodBanner
+                    gracePeriodEndsAt={graceEndDate!}
+                    daysRemaining={graceDaysRemaining}
+                  />
+                ),
+              });
+            }
+
+            if (!isDraftBannerDismissed && drafts.length > 0) {
+              allCtas.push({
+                key: 'drafts',
+                node: (
+                  <ResumeDraftBanner
+                    drafts={drafts}
+                    onResume={(draftId, isBulk) =>
+                      navigation.navigate(isBulk ? 'BulkListingCreate' : 'ItemCreate', { draftId })
+                    }
+                    onDismiss={() => setIsDraftBannerDismissed(true)}
+                  />
+                ),
+              });
+            }
+
+            if (allCtas.length === 0) return null;
+
+            const MAX_VISIBLE = 3;
+            const visibleCtas = showAllCtas ? allCtas : allCtas.slice(0, MAX_VISIBLE);
+            const hiddenCount = allCtas.length - MAX_VISIBLE;
+
+            return (
+              <View style={styles.actionItemsSection}>
+                <Text style={styles.actionItemsTitle}>Action Items</Text>
+                {visibleCtas.map((cta) => (
+                  <View key={cta.key} style={styles.ctaItemWrap}>
+                    {cta.node}
+                  </View>
+                ))}
+                {!showAllCtas && hiddenCount > 0 && (
+                  <TouchableOpacity
+                    style={styles.showAllBtn}
+                    onPress={() => setShowAllCtas(true)}
+                    testID="action-items-show-all"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Action items show all"
+                  >
+                    <Text style={styles.showAllText}>
+                      Show {hiddenCount} more action{hiddenCount > 1 ? 's' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {showAllCtas && allCtas.length > MAX_VISIBLE && (
+                  <TouchableOpacity
+                    style={styles.showAllBtn}
+                    onPress={() => setShowAllCtas(false)}
+                    testID="action-items-show-less"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Action items show less"
+                  >
+                    <Text style={styles.showAllText}>Show less</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })()}
+
+          {/* ── Browse Categories ─────────────────────────────────────────── */}
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Browse Categories</Text>
+            <CategorySelector showTitle={false} />
+          </View>
+
+          {/* ── Recommended for You ──────────────────────────────────────── */}
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Recommended for You</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Discover')}
+                testID="dashboard-see-all-discover"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="See All"
+              >
+                <Text style={styles.seeAll}>See All</Text>
               </TouchableOpacity>
             </View>
+            <RecommendationsCarousel limit={10} showTitle={false} />
           </View>
-        ) : (
-          <View style={styles.emptyTradeCard}>
-            <Text style={styles.emptyTradeText}>No active trades right now</Text>
-          </View>
-        )}
 
+          {/* ── Subscription Card ────────────────────────────────────────── */}
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation.navigate('MySubscription' as any)}
+            activeOpacity={0.8}
+            testID="dashboard-subscription-card"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Subscription"
+          >
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardTitle}>Subscription</Text>
+              <View style={[styles.subBadge, { backgroundColor: subBadgeColor }]}>
+                <Text style={styles.subBadgeText}>{subBadgeLabel}</Text>
+              </View>
+            </View>
 
+            {subscription.canSpendSP && (
+              <View style={styles.spUnlockedBadge}>
+                <Sparkle size={16} color="#5DBB8E" weight="fill" />
+                <Text style={styles.spUnlockedText}>SP Wallet Unlocked</Text>
+              </View>
+            )}
 
-        <View style={{ height: 32 }} />
-      </ScrollView>
+            {isFreeUser && (
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                onPress={() => navigation.navigate('JoinKidsClub')}
+                testID="dashboard-upgrade-kids-club-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Upgrade to Kids Club+"
+              >
+                <Text style={styles.upgradeBtnText}>Upgrade to Kids Club+</Text>
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
 
-      {/* ── Sell Options Sheet ───────────────────────────────────────── */}
-      <Modal
-        transparent
-        animationType="slide"
-        visible={sellSheetVisible}
-        onRequestClose={() => setSellSheetVisible(false)}
-        testID="sell-options-sheet"
-      >
-        <Pressable style={styles.sheetOverlay} onPress={() => setSellSheetVisible(false)} testID="sell-options-backdrop" accessible accessibilityRole="button" accessibilityLabel="Close">
-          <View style={styles.sheetContainer}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Sell</Text>
+          {/* ── Latest Trade ─────────────────────────────────────────────── */}
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Latest Trade</Text>
             <TouchableOpacity
-              style={styles.sheetButton}
-              onPress={() => {
-                setSellSheetVisible(false);
-                navigation.navigate('ItemCreate' as any, { showPhotoSourcePrompt: true });
-              }}
-              testID="sell-option-list-one-item"
+              onPress={() => navigation.navigate('TradeList' as any)}
+              testID="dashboard-view-all-trades"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="View All"
             >
-              <Text style={styles.sheetButtonTitle}>List One Item</Text>
-              <Text style={styles.sheetButtonMeta}>Snap a photo or choose from your library</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.sheetButton}
-              onPress={() => {
-                setSellSheetVisible(false);
-                navigation.navigate('BulkListingCreate' as any, { showPhotoSourcePrompt: true });
-              }}
-              testID="sell-option-bulk-upload"
-            >
-              <Text style={styles.sheetButtonTitle}>Bulk Upload</Text>
-              <Text style={styles.sheetButtonMeta}>List several items at once</Text>
+              <Text style={styles.seeAll}>View All →</Text>
             </TouchableOpacity>
           </View>
-        </Pressable>
-      </Modal>
+          {recentTrade ? (
+            <View style={styles.card}>
+              <View style={styles.tradeRow}>
+                <View style={styles.tradeInfo}>
+                  <Text style={styles.tradeItemTitle} numberOfLines={1}>
+                    {recentTrade.title}
+                  </Text>
+                  <View
+                    style={[
+                      styles.tradeStatusBadge,
+                      { backgroundColor: txStatusColor(recentTrade.status) + '22' },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.tradeStatusText, { color: txStatusColor(recentTrade.status) }]}
+                    >
+                      {txStatusLabel(recentTrade.status)}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.viewTimelineBtn}
+                  onPress={() => navigation.navigate('TradeTimeline', { tradeId: recentTrade.id })}
+                  testID="dashboard-view-timeline"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="View Timeline"
+                >
+                  <Text style={styles.viewTimelineBtnText}>View Timeline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.emptyTradeCard}>
+              <Text style={styles.emptyTradeText}>No active trades right now</Text>
+            </View>
+          )}
 
-    </ScreenLayout>
+          <View style={{ height: 32 }} />
+        </ScrollView>
+
+        {/* ── Sell Options Sheet ───────────────────────────────────────── */}
+        <Modal
+          transparent
+          animationType="slide"
+          visible={sellSheetVisible}
+          onRequestClose={() => setSellSheetVisible(false)}
+          testID="sell-options-sheet"
+        >
+          <Pressable
+            style={styles.sheetOverlay}
+            onPress={() => setSellSheetVisible(false)}
+            testID="sell-options-backdrop"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <View style={styles.sheetContainer}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Sell</Text>
+              <TouchableOpacity
+                style={styles.sheetButton}
+                onPress={() => {
+                  setSellSheetVisible(false);
+                  navigation.navigate('ItemCreate' as any, { showPhotoSourcePrompt: true });
+                }}
+                testID="sell-option-list-one-item"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Sell option list one item"
+              >
+                <Text style={styles.sheetButtonTitle}>List One Item</Text>
+                <Text style={styles.sheetButtonMeta}>Snap a photo or choose from your library</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sheetButton}
+                onPress={() => {
+                  setSellSheetVisible(false);
+                  navigation.navigate('BulkListingCreate' as any, { showPhotoSourcePrompt: true });
+                }}
+                testID="sell-option-bulk-upload"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Sell option bulk upload"
+              >
+                <Text style={styles.sheetButtonTitle}>Bulk Upload</Text>
+                <Text style={styles.sheetButtonMeta}>List several items at once</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Modal>
+      </ScreenLayout>
     </View>
   );
 }

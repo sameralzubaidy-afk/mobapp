@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase/client';
+import { captureException } from '@/services/errorReporter';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 
@@ -85,7 +86,9 @@ export default function ResetPasswordScreen() {
             refresh_token,
           });
           if (setErr) {
-            console.error('Failed to set session from deep link:', setErr);
+            captureException(setErr, {
+              tags: { screen: 'ResetPasswordScreen', action: 'set_session_deep_link' },
+            });
             setLinkError(
               'Failed to set auth session from reset link. Please request a new reset email.'
             );
@@ -96,7 +99,9 @@ export default function ResetPasswordScreen() {
       } catch (e: any) {
         // A malformed/unsupported URL must never leave the parent stuck on a
         // blank form — surface a friendly state instead of failing silently.
-        console.error('Error parsing initial URL for reset token:', e);
+        captureException(e, {
+          tags: { screen: 'ResetPasswordScreen', action: 'parse_initial_url' },
+        });
         if (isMounted) {
           setLinkError(
             'This reset link could not be opened. Please request a new password reset email.'
@@ -151,7 +156,9 @@ export default function ResetPasswordScreen() {
             refresh_token,
           });
           if (setErr) {
-            console.error('Failed to set session from params:', setErr);
+            captureException(setErr, {
+              tags: { screen: 'ResetPasswordScreen', action: 'set_session_params' },
+            });
             setLinkError(
               'Failed to set auth session from reset link. Please request a new reset email.'
             );
@@ -161,7 +168,9 @@ export default function ResetPasswordScreen() {
         })();
       }
     } catch (e) {
-      console.error('Failed to handle route params in ResetPasswordScreen', e);
+      captureException(e, {
+        tags: { screen: 'ResetPasswordScreen', action: 'handle_route_params' },
+      });
     }
   }, [route.params]);
 
@@ -220,7 +229,9 @@ export default function ResetPasswordScreen() {
       } as any);
 
       if (error) {
-        console.error('Password update error:', error);
+        captureException(error, {
+          tags: { screen: 'ResetPasswordScreen', action: 'update_password' },
+        });
 
         Alert.alert(
           'Reset Failed',
@@ -243,7 +254,9 @@ export default function ResetPasswordScreen() {
         ]);
       }
     } catch (error: any) {
-      console.error('Password reset exception:', error);
+      captureException(error, {
+        tags: { screen: 'ResetPasswordScreen', action: 'reset_password_exception' },
+      });
 
       Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     } finally {

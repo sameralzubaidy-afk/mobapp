@@ -6,18 +6,13 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Crown, CrownSimple, CheckCircle } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getSubscriptionPrice, getTrialDays } from '@/services/adminConfig';
+import { captureException } from '@/services/errorReporter';
 import {
   TIER_COMPARISON_ROWS,
   TIER_ID_FREE,
@@ -53,14 +48,13 @@ export default function UpgradePlanScreen() {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const [price, trial] = await Promise.all([
-          getSubscriptionPrice(true),
-          getTrialDays(true),
-        ]);
+        const [price, trial] = await Promise.all([getSubscriptionPrice(true), getTrialDays(true)]);
         setMonthlyPrice(price || 0);
         setTrialDays(trial || 30);
       } catch (error) {
-        console.error('[UpgradePlanScreen] Failed to load config:', error);
+        captureException(error, {
+          tags: { screen: 'UpgradePlanScreen', action: 'load_config' },
+        });
         setMonthlyPrice(0);
         setTrialDays(30);
       } finally {
@@ -154,7 +148,12 @@ export default function UpgradePlanScreen() {
 
               <View style={styles.planIconContainer}>
                 {isFree ? (
-                  <CrownSimple size={24} color="#6B6B6B" weight="regular" testID={`icon-${plan.id}`} />
+                  <CrownSimple
+                    size={24}
+                    color="#6B6B6B"
+                    weight="regular"
+                    testID={`icon-${plan.id}`}
+                  />
                 ) : (
                   <Crown size={24} color="#5DBB8E" weight="fill" testID={`icon-${plan.id}`} />
                 )}
@@ -165,7 +164,10 @@ export default function UpgradePlanScreen() {
               </Text>
 
               <View style={styles.priceRow}>
-                <Text style={[styles.price, isKidsClub && styles.priceKidsClub]} testID={`price-${plan.id}`}>
+                <Text
+                  style={[styles.price, isKidsClub && styles.priceKidsClub]}
+                  testID={`price-${plan.id}`}
+                >
                   ${plan.price.toFixed(2)}
                 </Text>
                 <Text style={styles.billingPeriod}>{plan.billingPeriod}</Text>
@@ -181,7 +183,9 @@ export default function UpgradePlanScreen() {
                       color={feature.included ? (isKidsClub ? '#5DBB8E' : '#6B6B6B') : '#E0E0E0'}
                       weight={feature.included ? 'fill' : 'regular'}
                     />
-                    <Text style={[styles.featureText, !feature.included && styles.featureTextDisabled]}>
+                    <Text
+                      style={[styles.featureText, !feature.included && styles.featureTextDisabled]}
+                    >
                       {feature.text}
                     </Text>
                   </View>
@@ -189,6 +193,8 @@ export default function UpgradePlanScreen() {
               </View>
 
               <TouchableOpacity
+                accessible
+                accessibilityRole="button"
                 style={[
                   styles.ctaButton,
                   isFree && styles.ctaButtonFree,
@@ -199,12 +205,19 @@ export default function UpgradePlanScreen() {
                 disabled={isCurrent || isDowngrade}
                 testID={`cta-button-${plan.id}`}
               >
-                <Text style={[styles.ctaButtonText, (isCurrent || isDowngrade) && styles.ctaButtonTextDisabled]} numberOfLines={1} adjustsFontSizeToFit>
+                <Text
+                  style={[
+                    styles.ctaButtonText,
+                    (isCurrent || isDowngrade) && styles.ctaButtonTextDisabled,
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {isCurrent
                     ? 'Current Plan'
                     : isDowngrade
-                    ? 'Downgrade'
-                    : `Start ${trialDays}-day Trial`}
+                      ? 'Downgrade'
+                      : `Start ${trialDays}-day Trial`}
                 </Text>
               </TouchableOpacity>
             </View>

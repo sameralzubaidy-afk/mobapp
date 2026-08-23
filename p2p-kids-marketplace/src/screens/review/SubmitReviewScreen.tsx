@@ -19,6 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/hooks/useAuth';
 import { submitReview, canReviewUser, skipReview } from '@/services/review';
+import { captureException } from '@/services/errorReporter';
 import { StarRating } from '@/components/StarRating';
 // import { logEvent } from '@/services/analytics'; // TODO: uncomment when analytics service is available
 import { LoadingSpinner } from '@/components/ui';
@@ -108,7 +109,9 @@ export function SubmitReviewScreen() {
         Alert.alert('Error', result.error || 'Failed to submit review. Please try again.');
       }
     } catch (error) {
-      console.error('Submit review error:', error);
+      captureException(error, {
+        tags: { screen: 'SubmitReviewScreen', action: 'submit_review' },
+      });
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setSubmitting(false);
@@ -138,7 +141,9 @@ export function SubmitReviewScreen() {
       console.log('[handleSkip] Navigating back after skip');
       navigation.goBack();
     } catch (error) {
-      console.error('[handleSkip] Error during skip:', error);
+      captureException(error, {
+        tags: { screen: 'SubmitReviewScreen', action: 'skip' },
+      });
       // Even if there's an error, navigate back
       navigation.goBack();
     }
@@ -174,76 +179,88 @@ export function SubmitReviewScreen() {
           <Text style={styles.title}>Review {revieweeName}</Text>
           <Text style={styles.subtitle}>Share your experience with this trade</Text>
 
-        {/* Rating Section */}
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            Rating <Text style={styles.required}>*</Text>
-          </Text>
-          <StarRating rating={rating} onRatingChange={setRating} editable size={40} />
-        </View>
-
-        {/* Comment Section */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Comment (optional)</Text>
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Share your experience with this trade..."
-            placeholderTextColor="#9CA3AF"
-            value={comment}
-            onChangeText={setComment}
-            multiline
-            maxLength={500}
-            textAlignVertical="top"
-            testID="comment-input"
-          />
-          <Text style={styles.charCount} testID="char-count">
-            {comment.length}/500 characters
-          </Text>
-        </View>
-
-        {/* Anonymous Option */}
-        <TouchableOpacity
-          style={styles.anonymousToggle}
-          onPress={() => setIsAnonymous(!isAnonymous)}
-          testID="anonymous-checkbox"
-          activeOpacity={0.7}
-        >
-          <View style={[styles.checkbox, isAnonymous && styles.checkboxChecked]}>
-            {isAnonymous && <Text style={styles.checkmark}>✓</Text>}
+          {/* Rating Section */}
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              Rating <Text style={styles.required}>*</Text>
+            </Text>
+            <StarRating rating={rating} onRatingChange={setRating} editable size={40} />
           </View>
-          <Text style={styles.anonymousLabel}>Post anonymously</Text>
-        </TouchableOpacity>
 
-        {/* Submit Button */}
-        <TouchableOpacity
-          style={[styles.submitButton, (rating === 0 || submitting) && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={submitting}
-          testID="submit-review-button"
-          activeOpacity={0.8}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.submitButtonText}>Submit Review</Text>
-          )}
-        </TouchableOpacity>
+          {/* Comment Section */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Comment (optional)</Text>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Share your experience with this trade..."
+              placeholderTextColor="#9CA3AF"
+              value={comment}
+              onChangeText={setComment}
+              multiline
+              maxLength={500}
+              textAlignVertical="top"
+              testID="comment-input"
+            />
+            <Text style={styles.charCount} testID="char-count">
+              {comment.length}/500 characters
+            </Text>
+          </View>
 
-        {/* Skip Button - TASK REVIEW-004 */}
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkip}
-          disabled={submitting}
-          testID="skip-review-button"
-          activeOpacity={0.7}
-        >
-          <Text style={styles.skipButtonText}>Skip for Now</Text>
-        </TouchableOpacity>
+          {/* Anonymous Option */}
+          <TouchableOpacity
+            style={styles.anonymousToggle}
+            onPress={() => setIsAnonymous(!isAnonymous)}
+            testID="anonymous-checkbox"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Anonymous checkbox"
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, isAnonymous && styles.checkboxChecked]}>
+              {isAnonymous && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.anonymousLabel}>Post anonymously</Text>
+          </TouchableOpacity>
 
-        {/* Info Note */}
-        <Text style={styles.note}>You can edit your review within 24 hours of submission.</Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              (rating === 0 || submitting) && styles.submitButtonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={submitting}
+            testID="submit-review-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Submit review button"
+            activeOpacity={0.8}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.submitButtonText}>Submit Review</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Skip Button - TASK REVIEW-004 */}
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleSkip}
+            disabled={submitting}
+            testID="skip-review-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Skip review button"
+            activeOpacity={0.7}
+          >
+            <Text style={styles.skipButtonText}>Skip for Now</Text>
+          </TouchableOpacity>
+
+          {/* Info Note */}
+          <Text style={styles.note}>You can edit your review within 24 hours of submission.</Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenLayout>
   );
 }

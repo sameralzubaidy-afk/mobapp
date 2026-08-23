@@ -15,11 +15,12 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { getBillingHistory } from '@/services/billingHistory';
+import { captureException } from '@/services/errorReporter';
 import type { BillingHistory } from '@/types/billingHistory.types';
 import { formatPrice } from '@/utils/formatPrice';
 import { LoadingSpinner } from '@/components/ui';
@@ -45,7 +46,7 @@ function formatAmount(cents: number, currency: string): string {
   if (currency === 'usd') {
     return formatPrice(cents);
   }
-  
+
   // For other currencies, always show 2 decimals
   const symbol = currency.toUpperCase();
   return `${symbol}${(cents / 100).toFixed(2)}`;
@@ -102,7 +103,9 @@ export default function BillingHistoryScreen() {
         setBillingRecords(result);
         setHasMore(result.length >= 50);
       } catch (error) {
-        console.error('[BillingHistory] Error fetching history:', error);
+        captureException(error, {
+          tags: { screen: 'BillingHistoryScreen', action: 'fetch_history' },
+        });
         Alert.alert('Error', 'Failed to load billing history. Please try again.');
       } finally {
         setLoading(false);
@@ -153,7 +156,6 @@ export default function BillingHistoryScreen() {
   if (billingRecords.length === 0) {
     return (
       <ScreenLayout variant="detail" title="Billing History">
-
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No Billing History</Text>
           <Text style={styles.emptyStateText}>
@@ -168,7 +170,6 @@ export default function BillingHistoryScreen() {
   // Main render
   return (
     <ScreenLayout variant="detail" title="Billing History">
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

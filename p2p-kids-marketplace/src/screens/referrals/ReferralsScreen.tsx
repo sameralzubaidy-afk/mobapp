@@ -7,13 +7,29 @@ import {
   Alert,
   Share,
   StyleSheet,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Gift, Copy, ShareNetwork, Coins, Users, CheckCircle, UserCircle, Storefront, Notebook, Info } from 'phosphor-react-native';
-import { ReferralCodeServiceV2, type Referral, type ReferralStats } from '@/services/referralCodeV2';
+import {
+  Gift,
+  Copy,
+  ShareNetwork,
+  Coins,
+  Users,
+  CheckCircle,
+  UserCircle,
+  Storefront,
+  Notebook,
+  Info,
+} from 'phosphor-react-native';
+import {
+  ReferralCodeServiceV2,
+  type Referral,
+  type ReferralStats,
+} from '@/services/referralCodeV2';
 import { ReferralRewardsService } from '@/services/referralRewards';
 import { useAuth } from '@/hooks/useAuth';
+import { captureException } from '@/services/errorReporter';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LoadingSpinner } from '@/components/ui';
@@ -65,7 +81,9 @@ export const ReferralsScreen: React.FC = () => {
       setHistory(historyData);
       setRewardsConfig(config);
     } catch (error) {
-      console.error('Failed to load referral data:', error);
+      captureException(error, {
+        tags: { screen: 'ReferralsScreen', action: 'load_data' },
+      });
       Alert.alert('Error', 'Failed to load referral data');
     } finally {
       setIsLoading(false);
@@ -97,7 +115,9 @@ export const ReferralsScreen: React.FC = () => {
       await Clipboard.setStringAsync(referralCode);
       Alert.alert('Copied!', 'Referral code copied to clipboard');
     } catch (error) {
-      console.error('Failed to copy referral code:', error);
+      captureException(error, {
+        tags: { screen: 'ReferralsScreen', action: 'copy_code' },
+      });
       Alert.alert('Error', 'Unable to copy referral code. Please try again.');
     }
   };
@@ -129,7 +149,9 @@ export const ReferralsScreen: React.FC = () => {
         title: 'Join Kids Club+',
       });
     } catch (error) {
-      console.error('Failed to share:', error);
+      captureException(error, {
+        tags: { screen: 'ReferralsScreen', action: 'share' },
+      });
     }
   };
 
@@ -167,17 +189,26 @@ export const ReferralsScreen: React.FC = () => {
     <View style={styles.historyRow} testID={`history-item-${item.id}`}>
       <View style={styles.historyLeading}>
         <View style={styles.avatar}>
-           <UserCircle size={36} color="#6B6B6B" weight="fill" />
+          <UserCircle size={36} color="#6B6B6B" weight="fill" />
         </View>
         <View style={styles.historyTextContainer}>
-          <Text style={styles.historyName} testID={`history-name-${item.id}`}>{getReferralDisplayName(item)}</Text>
-          <Text style={styles.historyDate} testID={`history-date-${item.id}`}>Joined {new Date(item.created_at).toLocaleDateString()}</Text>
+          <Text style={styles.historyName} testID={`history-name-${item.id}`}>
+            {getReferralDisplayName(item)}
+          </Text>
+          <Text style={styles.historyDate} testID={`history-date-${item.id}`}>
+            Joined {new Date(item.created_at).toLocaleDateString()}
+          </Text>
         </View>
       </View>
       <View style={styles.historyTrailing}>
-        {item.status === 'completed' && <CheckCircle size={16} color="#5DBB8E" weight="fill" testID={`check-icon-${item.id}`} />}
-        <Text style={[styles.historyReward, item.status === 'pending' && { color: '#6B6B6B' }]} testID={`history-reward-${item.id}`}>
-           +{rewardsConfig.referrer_sp || 0} SP
+        {item.status === 'completed' && (
+          <CheckCircle size={16} color="#5DBB8E" weight="fill" testID={`check-icon-${item.id}`} />
+        )}
+        <Text
+          style={[styles.historyReward, item.status === 'pending' && { color: '#6B6B6B' }]}
+          testID={`history-reward-${item.id}`}
+        >
+          +{rewardsConfig.referrer_sp || 0} SP
         </Text>
       </View>
     </View>
@@ -186,7 +217,9 @@ export const ReferralsScreen: React.FC = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer} testID="empty-state">
       <Users size={64} color="#E0E0E0" weight="fill" />
-      <Text style={styles.emptyText} testID="empty-text">No referrals yet — share your code!</Text>
+      <Text style={styles.emptyText} testID="empty-text">
+        No referrals yet — share your code!
+      </Text>
     </View>
   );
 
@@ -206,12 +239,15 @@ export const ReferralsScreen: React.FC = () => {
   return (
     <ScreenLayout variant="detail" title="Referrals">
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
         {/* Hero Card */}
         <View style={styles.heroCard} testID="hero-card">
           <Gift size={32} color="#FFFFFF" weight="fill" />
-          <Text style={styles.heroTitle} testID="hero-title">Refer Friends, Earn SP</Text>
-          <Text style={styles.heroSubtext} testID="hero-subtext">Share your code and get rewards when they join.</Text>
+          <Text style={styles.heroTitle} testID="hero-title">
+            Refer Friends, Earn SP
+          </Text>
+          <Text style={styles.heroSubtext} testID="hero-subtext">
+            Share your code and get rewards when they join.
+          </Text>
         </View>
 
         {/* Active Programs Section */}
@@ -225,17 +261,20 @@ export const ReferralsScreen: React.FC = () => {
         ) : (
           <View style={styles.activeProgramsCard} testID="active-programs-card">
             <Text style={styles.activeProgramsTitle}>Active Rewards</Text>
-            <Text style={styles.activeProgramsSubtext}>Your friends earn these bonuses when they join:</Text>
+            <Text style={styles.activeProgramsSubtext}>
+              Your friends earn these bonuses when they join:
+            </Text>
 
             {isProgramPaused && (
               <View style={styles.programPausedBanner} testID="program-paused-banner">
                 <Info size={16} color="#A16207" weight="fill" />
                 <Text style={styles.programPausedText}>
-                  Referral program is paused globally right now. Rewards shown below are configured but currently not being awarded.
+                  Referral program is paused globally right now. Rewards shown below are configured
+                  but currently not being awarded.
                 </Text>
               </View>
             )}
-            
+
             {rewardsConfig.first_trade_enabled && (
               <View style={styles.programRow} testID="trade-bonus-row">
                 <View style={styles.programIcon}>
@@ -243,7 +282,9 @@ export const ReferralsScreen: React.FC = () => {
                 </View>
                 <View style={styles.programContent}>
                   <Text style={styles.programLabel}>First Trade Bonus</Text>
-                  <Text style={styles.programDetail}>+{rewardsConfig.referee_sp} SP when they complete their first trade</Text>
+                  <Text style={styles.programDetail}>
+                    +{rewardsConfig.referee_sp} SP when they complete their first trade
+                  </Text>
                 </View>
                 <View style={styles.programBadge}>
                   <Coins size={14} color="#F59E0B" weight="fill" />
@@ -259,7 +300,9 @@ export const ReferralsScreen: React.FC = () => {
                 </View>
                 <View style={styles.programContent}>
                   <Text style={styles.programLabel}>First Listing Bonus</Text>
-                  <Text style={styles.programDetail}>+{rewardsConfig.referee_listing_sp} SP when their first listing is approved</Text>
+                  <Text style={styles.programDetail}>
+                    +{rewardsConfig.referee_listing_sp} SP when their first listing is approved
+                  </Text>
                 </View>
                 <View style={styles.programBadge}>
                   <Coins size={14} color="#F59E0B" weight="fill" />
@@ -273,7 +316,8 @@ export const ReferralsScreen: React.FC = () => {
               <Text style={styles.yourEarningAmount}>
                 {rewardsConfig.first_trade_enabled && `${rewardsConfig.referrer_sp} SP per trade`}
                 {rewardsConfig.first_trade_enabled && rewardsConfig.first_listing_enabled && ' • '}
-                {rewardsConfig.first_listing_enabled && `${rewardsConfig.referrer_listing_sp} SP per listing`}
+                {rewardsConfig.first_listing_enabled &&
+                  `${rewardsConfig.referrer_listing_sp} SP per listing`}
               </Text>
             </View>
           </View>
@@ -283,26 +327,34 @@ export const ReferralsScreen: React.FC = () => {
         <View style={styles.spStrip} testID="sp-earned-strip">
           <Coins size={20} color="#F59E0B" weight="fill" />
           <Text style={styles.spStripText} testID="sp-earned-text">
-            You've earned <Text style={styles.spStripBold}>{stats.total_sp_earned}</Text> SP from referrals
+            You've earned <Text style={styles.spStripBold}>{stats.total_sp_earned}</Text> SP from
+            referrals
           </Text>
         </View>
 
         {/* Code Box */}
         <View style={styles.codeContainer} testID="code-container">
-          <Text style={styles.codeText} testID="referral-code-text">{referralCode}</Text>
-          <TouchableOpacity onPress={handleCopyCode} testID="copy-btn" accessibilityLabel="Copy referral code">
+          <Text style={styles.codeText} testID="referral-code-text">
+            {referralCode}
+          </Text>
+          <TouchableOpacity
+            onPress={handleCopyCode}
+            testID="copy-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Copy referral code"
+          >
             <Copy size={20} color="#5DBB8E" weight="bold" />
           </TouchableOpacity>
         </View>
 
         {/* Share Button */}
-        <TouchableOpacity 
-          style={[
-            styles.shareButton, 
-            isShareDisabled && styles.shareButtonDisabled
-          ]} 
-          onPress={handleShareLink} 
-          testID="share-btn" 
+        <TouchableOpacity
+          style={[styles.shareButton, isShareDisabled && styles.shareButtonDisabled]}
+          onPress={handleShareLink}
+          testID="share-btn"
+          accessible
+          accessibilityRole="button"
           accessibilityLabel="Share referral code"
           disabled={isShareDisabled}
         >
@@ -310,7 +362,9 @@ export const ReferralsScreen: React.FC = () => {
           <Text style={styles.shareButtonText}>Share</Text>
         </TouchableOpacity>
 
-        <Text style={styles.historyTitle} testID="history-title">Referral History</Text>
+        <Text style={styles.historyTitle} testID="history-title">
+          Referral History
+        </Text>
         <FlatList
           data={history}
           keyExtractor={(item) => item.id}
@@ -411,7 +465,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#1A1A1A',
     letterSpacing: 4,
-    fontFamily: 'Courier', 
+    fontFamily: 'Courier',
   },
   shareButton: {
     backgroundColor: '#5DBB8E',

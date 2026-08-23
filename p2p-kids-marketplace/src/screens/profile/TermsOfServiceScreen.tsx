@@ -14,6 +14,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getTOSService } from '../../services/tos';
+import { captureException } from '@/services/errorReporter';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -54,7 +55,9 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
 
       setPolicy(currentPolicy);
     } catch (error) {
-      console.error('Error loading TOS:', error);
+      captureException(error, {
+        tags: { screen: 'TermsOfServiceScreen', action: 'load_tos' },
+      });
       Alert.alert('Error', 'Failed to load Terms of Service');
     } finally {
       setLoading(false);
@@ -80,7 +83,9 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
         Alert.alert('Success', 'You have accepted the Terms of Service');
       }
     } catch (error) {
-      console.error('Error accepting TOS:', error);
+      captureException(error, {
+        tags: { screen: 'TermsOfServiceScreen', action: 'accept_tos' },
+      });
       Alert.alert('Error', 'Failed to record acceptance. Please try again.');
     } finally {
       setAccepting(false);
@@ -110,7 +115,6 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
 
   return (
     <ScreenLayout variant="detail" title="Terms of Service">
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -134,6 +138,9 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
             onPress={handleAccept}
             disabled={accepting}
             testID="accept-tos-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Accept tos button"
           >
             {accepting ? (
               <ActivityIndicator color="#fff" />
@@ -147,6 +154,9 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
             onPress={() => navigation.goBack()}
             disabled={accepting}
             testID="decline-tos-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Decline tos button"
           >
             <Text style={styles.declineButtonText}>Decline</Text>
           </TouchableOpacity>

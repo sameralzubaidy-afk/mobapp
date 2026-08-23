@@ -182,6 +182,7 @@ export default function AccountLinkingPrompt({
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
+              accessible
               style={[styles.primaryButton, isLinking && styles.disabledButton]}
               onPress={handleLink}
               disabled={isLinking || (hasPassword && !password)}
@@ -197,6 +198,7 @@ export default function AccountLinkingPrompt({
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessible
               style={styles.secondaryButton}
               onPress={handleDismiss}
               disabled={isLinking}

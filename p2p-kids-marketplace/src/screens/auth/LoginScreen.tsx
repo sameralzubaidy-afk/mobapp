@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '@/services/auth';
+import { captureException } from '@/services/errorReporter';
 import { AuthError } from '@/types/user';
 import { useAuth } from '@/hooks/useAuth';
 import { Button, Modal, TextInput } from '@/components/ui';
@@ -120,7 +121,19 @@ export default function LoginScreen() {
       // Update auth context - this triggers automatic navigation to Home via RootNavigator
       setSession(session);
     } catch (error: any) {
-      console.error('Login error:', error);
+      // Report to Sentry instead of console.error — a raw console.error on a
+      // dev/staging build makes RN LogBox render a duplicate, internals-leaking
+      // red banner (AuthError) stacked under the branded "Login Failed" modal
+      // (QA: Group A+B+D 2026-08-23, finding #4 — incl. the PROFILE_NOT_FOUND
+      // 'User profile not found' branch reconfirmed live).
+      captureException(error, {
+        tags: { screen: 'LoginScreen', action: 'login' },
+        extra: {
+          hasEmail: !!email,
+          authCode: (error as any)?.code,
+          authStatus: (error as any)?.status,
+        },
+      });
 
       let errorMessage = 'Login failed. Please check your credentials.';
 
@@ -167,6 +180,9 @@ export default function LoginScreen() {
               style={styles.backButton}
               onPress={() => navigation.goBack()}
               testID="login-back-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Back"
             >
               <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>

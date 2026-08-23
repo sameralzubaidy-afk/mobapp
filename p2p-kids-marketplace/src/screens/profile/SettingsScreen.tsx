@@ -27,6 +27,7 @@ import {
   CreditCard,
 } from 'phosphor-react-native';
 import { sendTestPushNotification } from '../../services/pushDelivery';
+import { captureException } from '@/services/errorReporter';
 import { useAuth } from '../../hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -75,7 +76,9 @@ export default function SettingsScreen({ navigation }: any) {
         Alert.alert('Notification Queued', 'The notification was queued for delivery.');
       }
     } catch (error) {
-      console.error('[SettingsScreen] Test push notification error:', error);
+      captureException(error, {
+        tags: { screen: 'SettingsScreen', action: 'test_push' },
+      });
       Alert.alert('Error', 'An unexpected error occurred while sending the test notification.');
     } finally {
       setTestingPush(false);
@@ -92,7 +95,9 @@ export default function SettingsScreen({ navigation }: any) {
           try {
             await logout();
           } catch (error) {
-            console.error('[SettingsScreen] Sign out error:', error);
+            captureException(error, {
+              tags: { screen: 'SettingsScreen', action: 'sign_out' },
+            });
             Alert.alert('Error', 'Failed to sign out. Please try again.');
           }
         },
@@ -122,9 +127,7 @@ export default function SettingsScreen({ navigation }: any) {
         {
           id: 'test-push-notification',
           title: 'Test Push Notification',
-          icon: testingPush
-            ? null
-            : <PaperPlaneTilt size={20} color="#5DBB8E" weight="regular" />,
+          icon: testingPush ? null : <PaperPlaneTilt size={20} color="#5DBB8E" weight="regular" />,
           onPress: handleTestPushNotification,
           testID: 'settings-test-push-notification-button',
           loading: testingPush,
@@ -211,6 +214,7 @@ export default function SettingsScreen({ navigation }: any) {
   // ── render helpers ───────────────────────────────────────────────────────────
   const renderRow = (row: SettingsRow) => (
     <TouchableOpacity
+      accessible
       key={row.id}
       style={styles.settingsRow}
       onPress={row.isSwitch ? undefined : row.onPress}
@@ -220,11 +224,7 @@ export default function SettingsScreen({ navigation }: any) {
       accessibilityRole={row.isSwitch ? 'none' : 'button'}
     >
       <View style={styles.rowIconWrap}>
-        {row.loading ? (
-          <ActivityIndicator size="small" color="#5DBB8E" />
-        ) : (
-          row.icon
-        )}
+        {row.loading ? <ActivityIndicator size="small" color="#5DBB8E" /> : row.icon}
       </View>
       <Text style={[styles.rowLabel, row.destructive && styles.rowLabelDestructive]}>
         {row.title}
@@ -245,18 +245,18 @@ export default function SettingsScreen({ navigation }: any) {
 
   return (
     <ScreenLayout variant="detail" title="Settings">
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         testID="settings-scroll"
       >
         {sections.map((section) => (
-          <View key={section.title} testID={`settings-section-${section.title.toLowerCase().replace(/\s+/g, '-')}`}>
+          <View
+            key={section.title}
+            testID={`settings-section-${section.title.toLowerCase().replace(/\s+/g, '-')}`}
+          >
             <Text style={styles.sectionHeader}>{section.title}</Text>
-            <View style={styles.sectionGroup}>
-              {section.data.map(renderRow)}
-            </View>
+            <View style={styles.sectionGroup}>{section.data.map(renderRow)}</View>
           </View>
         ))}
       </ScrollView>

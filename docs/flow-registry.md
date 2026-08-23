@@ -4,6 +4,21 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ## Flows
 
+### CROSS-CUTTING SWEEPS (2026-08-23) — console.error → errorReporter + BP-53 AX audit
+- **SWEEP-A-CONSOLE-ERROR-REPORTER (2026-08-23):** Repo-wide sweep routing raw `console.error` in user-facing error branches through `captureException`/`captureMessage` (errorReporter/Sentry). Third recurrence of the LogBox-leak class (QA Group A+B+D finding #4; the stale `[phoneService] send-phone-otp invoke error` console.error caused the A07 forced-relaunch).
+  - Scope: ALL live `src/screens/**` (excl `.old.tsx`, dead root `screens/LoginScreen.tsx`/`screens/SignupScreen.tsx`, tests) + auth/onboarding/phone/verification services (`auth.ts`, `phone.ts`, `phoneService.ts`, `passwordService.ts`, `verification.ts`, `location.ts`, `waitlist.ts`, `supabase/auth.ts`). ~80 files.
+  - Pattern mirrored from `screens/auth/ForgotPasswordScreen.tsx` (commit `f421923c`): `captureException(error, { tags: { screen, action }, extra })`; non-error diagnostics use `captureMessage(msg, 'warning')`.
+  - Verified effective: `EXPO_PUBLIC_SENTRY_DSN` is set in `.env.local`/`.env.staging` and `initErrorReporter()` runs in `App.tsx`, so captured errors go to Sentry (no dev LogBox banner).
+  - Intentionally retained: JSDoc example in `passwordService.ts:133`; `console.log`/`console.warn` instrumentation (not part of the leak class).
+  - Regression: Tier 0 only (no DB/API/contract change). `yarn typecheck` PASS; `yarn lint` no NEW errors (20 pre-existing unrelated errors unchanged); `yarn test` 3398 pass / 0 fail (updated `ReferralsScreen.test.tsx` share-error assertion to the corrected `captureException` behavior per BP-57).
+- **SWEEP-B-BP53-AX (2026-08-23):** Third recurrence of the BP-53 testID-accessibility class. Repo-wide audit: every `TouchableOpacity`/`Pressable` with a `testID` gets `accessible` + `accessibilityRole="button"` + `accessibilityLabel` (mirroring `ui/Button.tsx`), so QA testIDs surface on the iOS AX tree.
+  - Named QA gaps fixed: `login-back-button` (LoginScreen), `signup-back-button` (SignupScreen), Profile utility rows `profile-billing-history`/`profile-settings`/`profile-admin-dashboard`/`profile-help-support`/`profile-logout`.
+  - App-wide: all literal-testID buttons across screens + components now carry all three props; dynamic-testID controls (e.g. `category-chip-${id}`) carry `accessible` + `accessibilityRole="button"` (label is provided by visible children — a fabricated label would be wrong). ~110 files.
+  - Intentionally non-button (flagged, NOT "fixed" into buttons): `BadgeCelebrationModal` `celebration-overlay` (modal backdrop) + `celebration-content` (content container). The node chip is a plain `View`, not a touchable.
+  - Known scanner limitation: 46 dynamic-testID sites are flagged by the heuristic scanner only for missing `accessibilityLabel`; these have `accessible`+`accessibilityRole` and child-text labels — complete for QA-surfacing purposes.
+  - Regression: Tier 0 only. `yarn typecheck` PASS; `yarn lint` no NEW errors; `yarn test` PASS. (Scripted insertion passes were run, all JSX corruption detected via typecheck + JSX-text scan and repaired; Prettier applied to all 139 changed files.)
+- Impacted flows: FLOW-01 (auth locators + console.error), FLOW-02 (onboarding/profile), FLOW-04 (listings), FLOW-06 (discovery), FLOW-07 (cart), FLOW-08 (trade), FLOW-10 (SP wallet), FLOW-12 (subscription), FLOW-14 (messaging), FLOW-17 (notifications), FLOW-21 (ID badge), FLOW-22 (payouts), FLOW-25 (settings/legal).
+
 ### FLOW-00: Infrastructure & Environment Health
 - Purpose: App boots; Metro reachable; Supabase env present.
 - Smoke: (manual)
@@ -539,6 +554,33 @@ This file is the canonical registry of end-to-end flows and their required regre
       - **Tier 2 live-DB verification (2026-08-21, staging `drntwgporzabmxdqykrp`): PASS** — migration `20260821000005_backfill_approved_at_for_available_items.sql` applied; pre-check found 137 `available` items with `approved_at=NULL`; post-verify `still_missing = 0`; status distribution intact (`available` 1214/1214 with `approved_at`; `pending` 80, `sold` 161, `paused` 451, `flagged`/`needs_edits`/`rejected`/`deleted` untouched as expected — only `available` rows were backfilled, `approved_by` left NULL for seed/legacy approvals).
     - Regression: Tier 0 for all; Fix 4 also Tier 1 (admin `/listings` flows). No backend contract changes (Fix 5 is data-only backfill + seed).
     - Known gaps / not done yet: Fix 2 on-device modal + Fix 4 staging sequence pending as above. Fix 5 migration APPLIED to staging (verified 2026-08-21).
+  - **BOTTOM-NAV-PADDING-CENTER (2026-08-23, AUTH-TC-P04 follow-up):** Persistent pill nav — balanced internal vertical padding so icon+label content is vertically centered (was pushed toward the top edge)
+    - Scope: `p2p-kids-marketplace/src/components/organisms/PersistentTabBar/index.tsx` ONLY (border-radius, shadow, tab order, FAB, badges untouched — out of scope)
+    - Root cause (investigated before any code change, ground-truthed on the running iPhone 17 Pro Max sim, iOS 26.1):
+      - **Horizontal margin + bottom safe-area were ALREADY correct at HEAD** — `bar` uses `left/right: componentSpacing.pageMargin` (16px) and inline `bottom: insets.bottom + spacing.sm`; on-device screenshot shows visible symmetric side gaps + a bottom gap above the home indicator. The PM's "edge-to-edge" report predates commit `9ed159fd` which re-applied the margins (added `05a43fd2`, temporarily lost, re-added `9ed159fd`). No change made here — the code and running app already match the acceptance criteria.
+      - **Real defect:** `bar.paddingTop: 6` vs `paddingBottom: 10` — unequal padding pushed the icon+label block ~2pt toward the pill's top edge; the raised FAB amplifies the top-heavy appearance.
+    - Fix: `paddingTop: spacing.sm` (8) + `paddingBottom: spacing.sm` (8) — balanced, preserves the pill's 16pt total vertical padding (pill height, safe-area, and margins identical to before).
+    - Validation:
+      - Tier 0: `yarn typecheck` PASS; `npx eslint src/components/organisms/PersistentTabBar/index.tsx` 0 errors (full-suite `yarn lint` has 104 pre-existing errors — none in this file).
+      - `npx jest src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx` — 4/4 PASS (renders the REAL PersistentTabBar: all five tabs mount, hidden on ItemCreate).
+      - **On-device (2026-08-23, Metro-served fresh bundle): PASS** — content now visually centered in the pill; margins / bottom gap / pill shape / shadow unchanged. Evidence: `temp/bottomnav-padding-before-2026-08-23.png` (before) / `temp/bottomnav-padding-after-2026-08-23.png` (after).
+    - Regression: Tier 0 only (zero-logic UI padding change — no smoke-script addition required per the flow-registry scope note for UI-only changes).
+  - **MENU-BAR-TEST-COVERAGE (2026-08-23, AUTH-TC-P04–P10):** Added unit + integration + E2E coverage for the global bottom "menu bar" (PersistentTabBar) — previously only the onboarding gate-mount wiring was tested
+    - Scope (new files + one export):
+      - `p2p-kids-marketplace/src/components/organisms/PersistentTabBar/index.tsx` — exported `computeActiveTab` (route→active-tab mapping) so every branch is unit-testable; no behavior change.
+      - `p2p-kids-marketplace/src/components/organisms/PersistentTabBar/__tests__/PersistentTabBar.test.tsx` (NEW, 21 unit tests) — `computeActiveTab` all branches (Home/HomeDash, Discover, trade screens, Cart/CartCheckout, stack walk-back, null cases) + component: 5 tabs render/labels, active-tab selected state, tab→route navigation, analytics event, hidden on ItemCreate, Trades/Basket badges (count + 99+ cap + zero), Sell sheet open/Cancel/List-One-Item/Bulk-Upload.
+      - `p2p-kids-marketplace/src/navigation/__tests__/AppNavigatorTabBarNavigation.test.tsx` (NEW, 7 integration tests) — REAL NavigationContainer + stack with stub screens: tab presses focus the real route AND flip the active-tab selected state; Sell sheet → ItemCreate navigates and HIDES the pill on that route.
+      - `p2p-kids-marketplace/.maestro/menu-bar-navigation.yaml` (NEW, E2E) — logs in as test-buyer, asserts all 5 tabs + left-to-right order (`rightOf`), no Inbox tab (P05), Trades→"My Trades"/Active/History (P06), Basket→"Trade Basket" (P09), Discover search, Home dashboard, Sell FAB sheet open + Cancel (P10).
+    - Notes / decisions:
+      - Login is inlined in the Maestro flow (not `helpers/tfv2-login-buyer.yaml`) because that helper uses the bare `id:` form in `scrollUntilVisible`, which Maestro 2.6.1 rejects ("Config Field Required: element"); this flow uses the valid `element:` wrapper so it runs standalone. The shared helper issue is pre-existing (affects the whole trade-flow suite) and was NOT changed here — flagged for a separate infra pass.
+      - Integration test does NOT mock `react-native-safe-area-context` (the real module is needed by `@react-navigation/stack`'s SafeAreaProviderCompat, matching the onboarding test); unit test mocks it per component-test convention.
+    - Validation:
+      - `npx jest src/components/organisms/PersistentTabBar/__tests__/PersistentTabBar.test.tsx` — 21/21 PASS.
+      - `npx jest src/navigation/__tests__/AppNavigatorTabBarNavigation.test.tsx` — 7/7 PASS.
+      - `npx jest src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx` — 4/4 PASS (existing wiring test unaffected by the export).
+      - **On-device E2E (2026-08-23, iPhone 17 Pro Max sim, iOS 26.1): PASS** — `~/.maestro/bin/maestro test .maestro/menu-bar-navigation.yaml` all 40+ assertions COMPLETED.
+      - Tier 0: `yarn typecheck` PASS; scoped eslint on changed files PASS (see BOTTOM-NAV entry for pre-existing full-suite note).
+    - Regression: Tier 0 + targeted Jest + on-device Maestro E2E. No production logic changed (only `export` added).
 
     - Expected behavior:
       - Admin can filter results by exact category, including uncategorized.

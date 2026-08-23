@@ -37,6 +37,7 @@ import { getUserFriendlyAiError } from '../utils/aiErrorFormat';
 import { createListing, uploadListingImages } from '../services/listing';
 import { getAdminConfig } from '../services/adminConfig';
 import { getSubscriptionSummary } from '../services/subscription';
+import { captureException } from '@/services/errorReporter';
 import { uploadPhotoBatch } from '../services/photoService';
 import {
   getCategories,
@@ -226,7 +227,10 @@ export default function ItemCreateScreen() {
         setAcceptsSwapPoints(false);
       }
     } catch (err: any) {
-      console.error('[ItemCreateScreen] loadSubscription error:', err);
+      captureException(err, {
+        tags: { screen: 'ItemCreateScreen', action: 'load_subscription' },
+        extra: { message: err?.message },
+      });
       setCanAcceptSP(false);
     } finally {
       setCheckingSubscription(false);
@@ -452,7 +456,10 @@ export default function ItemCreateScreen() {
       setCategories(cats);
       // TODO: Load recent categories from AsyncStorage
     } catch (err: any) {
-      console.error('[ItemCreateScreen] Load categories error:', err);
+      captureException(err, {
+        tags: { screen: 'ItemCreateScreen', action: 'load_categories' },
+        extra: { message: err?.message },
+      });
     }
   };
 
@@ -541,10 +548,16 @@ export default function ItemCreateScreen() {
         }
 
         if (result.errors.length > 0) {
-          console.error('[ItemCreateScreen] Photo upload errors:', result.errors);
+          captureException(new Error('Photo upload errors'), {
+            tags: { screen: 'ItemCreateScreen', action: 'photo_upload_errors' },
+            extra: { errors: result.errors },
+          });
         }
       } catch (err: any) {
-        console.error('[ItemCreateScreen] Upload photos error:', err);
+        captureException(err, {
+          tags: { screen: 'ItemCreateScreen', action: 'upload_photos' },
+          extra: { message: err?.message },
+        });
       }
     },
     [sellerId]
@@ -570,7 +583,10 @@ export default function ItemCreateScreen() {
         // Upload photos in background
         void uploadPhotos(newPhotos);
       } catch (err: any) {
-        console.error('[ItemCreateScreen] Add photos error:', err);
+        captureException(err, {
+          tags: { screen: 'ItemCreateScreen', action: 'add_photos' },
+          extra: { message: err?.message },
+        });
         Alert.alert('Error', 'Failed to add photos');
       }
     },
@@ -837,7 +853,9 @@ export default function ItemCreateScreen() {
           return; // Block publish - modal will call handlePublish again on success
         }
       } catch (err) {
-        console.error('[ItemCreateScreen] Phone check error:', err);
+        captureException(err, {
+          tags: { screen: 'ItemCreateScreen', action: 'phone_check' },
+        });
         // Graceful fallback: allow publish if the check itself fails
       }
     }
@@ -927,7 +945,10 @@ export default function ItemCreateScreen() {
       dispatch({ type: 'PUBLISH_SUCCESS' });
       setShowSubmitReviewModal(true);
     } catch (err: any) {
-      console.error('[ItemCreateScreen] Submit for review error:', err);
+      captureException(err, {
+        tags: { screen: 'ItemCreateScreen', action: 'submit_for_review' },
+        extra: { message: err?.message },
+      });
       const errorMsg = err.message || 'Failed to submit item for review';
       setError(errorMsg);
       dispatch({ type: 'PUBLISH_ERROR' });
@@ -1063,6 +1084,8 @@ export default function ItemCreateScreen() {
               onPress={retryAI}
               accessibilityRole="button"
               testID="ai-retry-button"
+              accessible
+              accessibilityLabel="Ai retry button"
             >
               <Text style={styles.aiRetryButtonText}>Try Again</Text>
             </TouchableOpacity>
@@ -1203,6 +1226,9 @@ export default function ItemCreateScreen() {
                     style={styles.spUpgradeButton}
                     onPress={() => navigation.navigate('JoinKidsClub')}
                     testID="sp-upgrade-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Sp upgrade button"
                   >
                     <Text style={styles.spUpgradeButtonText}>Upgrade Now</Text>
                   </TouchableOpacity>
@@ -1297,6 +1323,9 @@ export default function ItemCreateScreen() {
                 setShowPhotoSourceModal(false);
               }}
               testID="item-photo-source-camera"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Item photo source camera"
             >
               <Text style={styles.photoSourceOptionText}>Take Photo</Text>
             </TouchableOpacity>
@@ -1309,6 +1338,9 @@ export default function ItemCreateScreen() {
                 setShowPhotoSourceModal(false);
               }}
               testID="item-photo-source-library"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Item photo source library"
             >
               <Text style={styles.photoSourceOptionText}>Photo Library</Text>
             </TouchableOpacity>
@@ -1320,6 +1352,9 @@ export default function ItemCreateScreen() {
                 setShowPhotoSourceModal(false);
               }}
               testID="item-photo-source-cancel"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Item photo source cancel"
             >
               <Text style={styles.photoSourceCancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -1409,6 +1444,7 @@ export default function ItemCreateScreen() {
               accessibilityRole="button"
               accessibilityLabel="Update Price"
               testID="price-adjustment-update-btn"
+              accessible
             >
               <Text style={styles.priceAdjButtonText}>Update Price</Text>
             </TouchableOpacity>
@@ -1450,6 +1486,8 @@ export default function ItemCreateScreen() {
               onPress={handleContinueWithoutAI}
               accessibilityRole="button"
               testID="ai-continue-manual-button"
+              accessible
+              accessibilityLabel="Ai continue manual button"
             >
               <Text style={styles.aiContinueButtonText}>Continue Without AI</Text>
             </TouchableOpacity>

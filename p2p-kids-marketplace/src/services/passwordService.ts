@@ -2,6 +2,7 @@
 // Password management service for social users (password fallback)
 
 import { supabase } from './supabase/client';
+import { captureException } from './errorReporter';
 import { COMMON_PASSWORDS } from '@/data/common-passwords';
 
 /**
@@ -45,13 +46,17 @@ export async function canSetPassword(userId: string): Promise<boolean> {
     });
 
     if (error) {
-      console.error('[passwordService] canSetPassword RPC error:', error);
+      captureException(error, {
+        tags: { service: 'passwordService', action: 'can_set_password_rpc' },
+      });
       return false; // Graceful fallback: assume cannot set password
     }
 
     return data === true;
   } catch (err) {
-    console.error('[passwordService] canSetPassword exception:', err);
+    captureException(err, {
+      tags: { service: 'passwordService', action: 'can_set_password_exception' },
+    });
     return false;
   }
 }
@@ -140,7 +145,9 @@ export async function setPasswordForSocialUser(
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error('[passwordService] Failed to get current user:', userError);
+      captureException(userError, {
+        tags: { service: 'passwordService', action: 'get_current_user' },
+      });
       return {
         success: false,
         error: 'Not authenticated',
@@ -175,7 +182,9 @@ export async function setPasswordForSocialUser(
     });
 
     if (updateError) {
-      console.error('[passwordService] updateUser error:', updateError);
+      captureException(updateError, {
+        tags: { service: 'passwordService', action: 'update_user' },
+      });
       return {
         success: false,
         error: updateError.message || 'Failed to set password',
@@ -187,7 +196,9 @@ export async function setPasswordForSocialUser(
     return { success: true };
   } catch (err) {
     const error = err as Error;
-    console.error('[passwordService] setPasswordForSocialUser exception:', error);
+    captureException(error, {
+      tags: { service: 'passwordService', action: 'set_password_exception' },
+    });
     return {
       success: false,
       error: error.message || 'Unexpected error setting password',

@@ -12,7 +12,15 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { EnvelopeSimple, Info, Key, GoogleLogo, FacebookLogo, AppleLogo, Link as LinkIcon } from 'phosphor-react-native';
+import {
+  EnvelopeSimple,
+  Info,
+  Key,
+  GoogleLogo,
+  FacebookLogo,
+  AppleLogo,
+  Link as LinkIcon,
+} from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getLinkedProviders,
@@ -20,6 +28,7 @@ import {
   countLoginMethods,
 } from '@/services/accountService';
 import { initiateSocialLogin } from '@/services/oauthService';
+import { captureException } from '@/services/errorReporter';
 import PasswordReauthModal from '@/components/auth/PasswordReauthModal';
 import type { OAuthProvider, LinkedProvider } from '@/types/auth-v3';
 import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors';
@@ -59,7 +68,9 @@ export default function LinkedAccountsScreen({ navigation }: any) {
       const hasPasswordMethod = count > providers.length;
       setHasPassword(hasPasswordMethod);
     } catch (error) {
-      console.error('[LinkedAccounts] Failed to load linked accounts:', error);
+      captureException(error, {
+        tags: { screen: 'LinkedAccountsScreen', action: 'load_linked_accounts' },
+      });
       Alert.alert('Error', 'Failed to load linked accounts. Please try again.');
     } finally {
       setLoading(false);
@@ -82,7 +93,9 @@ export default function LinkedAccountsScreen({ navigation }: any) {
         await performLinking(provider);
       }
     } catch (error) {
-      console.error('[LinkedAccounts] Link error:', error);
+      captureException(error, {
+        tags: { screen: 'LinkedAccountsScreen', action: 'link_error' },
+      });
       setLinkingProvider(null);
     }
   };
@@ -155,7 +168,9 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                 Alert.alert('Success', `${provider} account unlinked successfully`);
                 await loadLinkedAccounts();
               } catch (error) {
-                console.error('[LinkedAccounts] Unlink error:', error);
+                captureException(error, {
+                  tags: { screen: 'LinkedAccountsScreen', action: 'unlink_error' },
+                });
 
                 if (error instanceof LastLoginMethodError) {
                   Alert.alert(
@@ -173,17 +188,23 @@ export default function LinkedAccountsScreen({ navigation }: any) {
         ]
       );
     } catch (error) {
-      console.error('[LinkedAccounts] Unlink error:', error);
+      captureException(error, {
+        tags: { screen: 'LinkedAccountsScreen', action: 'unlink_exception' },
+      });
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     }
   };
 
   const getProviderIcon = (provider: OAuthProvider) => {
     switch (provider) {
-      case 'google':   return GoogleLogo;
-      case 'facebook': return FacebookLogo;
-      case 'apple':    return AppleLogo;
-      default:         return LinkIcon;
+      case 'google':
+        return GoogleLogo;
+      case 'facebook':
+        return FacebookLogo;
+      case 'apple':
+        return AppleLogo;
+      default:
+        return LinkIcon;
     }
   };
 
@@ -267,6 +288,9 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                   style={styles.actionButton}
                   onPress={() => Alert.alert('Coming Soon', 'Set password feature coming soon')}
                   testID="set-password-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Set password button"
                 >
                   <Text style={styles.actionButtonText}>Set Password</Text>
                 </TouchableOpacity>
@@ -288,10 +312,12 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                   <View style={styles.providerIconContainer}>
                     {isLinking || isUnlinking ? (
                       <ActivityIndicator size="small" color="#4A7C59" />
-                    ) : (() => {
-                      const ProviderIcon = getProviderIcon(provider);
-                      return <ProviderIcon size={24} color="#4A7C59" weight="regular" />;
-                    })()}
+                    ) : (
+                      (() => {
+                        const ProviderIcon = getProviderIcon(provider);
+                        return <ProviderIcon size={24} color="#4A7C59" weight="regular" />;
+                      })()
+                    )}
                   </View>
                   <View style={styles.providerInfo}>
                     <Text style={styles.providerName}>{getProviderName(provider)}</Text>
@@ -301,6 +327,8 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                   </View>
                   {!isLinking && !isUnlinking && (
                     <TouchableOpacity
+                      accessible
+                      accessibilityRole="button"
                       style={[styles.actionButton, linked && styles.actionButtonDanger]}
                       onPress={() =>
                         linked ? handleUnlinkAccount(provider) : handleLinkAccount(provider)

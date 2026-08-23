@@ -177,6 +177,7 @@ export function BrandAutocompleteInput({
           <View style={styles.suggestionsList} testID={`${testID}-suggestions-list`}>
             {suggestions.map((item, index) => (
               <TouchableOpacity
+                accessible
                 key={`${item}-${index}`}
                 style={styles.suggestionItem}
                 onPress={() => handleSelectSuggestion(item)}

@@ -31,6 +31,7 @@ import { useUserStore } from '@/stores/userStore';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getListingById } from '@/services/listing';
+import { captureException } from '@/services/errorReporter';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import { hasActiveOfferForItem, hasActiveTradeBetween, getSellerRating } from '@/services/trade';
@@ -205,7 +206,9 @@ export default function ItemDetailScreen() {
       const vStatus = await idBadgeService.getVerificationStatus(listing.seller_id);
       setSellerVerificationStatus(vStatus?.status || null);
     } catch (err) {
-      console.error('[ItemDetailScreen] Error loading trade status/rating:', err);
+      captureException(err, {
+        tags: { screen: 'ItemDetailScreen', action: 'load_trade_status_rating' },
+      });
     } finally {
       setLoadingSellerInfo(false);
     }
@@ -217,7 +220,10 @@ export default function ItemDetailScreen() {
       setError(null);
 
       if (!listing_id || listing_id === 'undefined') {
-        console.error('[ItemDetailScreen] ❌ Missing listing_id route param', route.params);
+        captureException(new Error('Missing listing_id route param'), {
+          tags: { screen: 'ItemDetailScreen', action: 'missing_listing_param' },
+          extra: { routeParams: route.params },
+        });
         setError('Listing not found');
         setListing(null);
         return;
@@ -226,7 +232,9 @@ export default function ItemDetailScreen() {
       const data = await getListingById(listing_id);
 
       if (!data) {
-        console.error('[ItemDetailScreen] ❌ Listing fetch returned null');
+        captureException(new Error('Listing fetch returned null'), {
+          tags: { screen: 'ItemDetailScreen', action: 'listing_fetch_null' },
+        });
         setError('Listing not found');
         setListing(null);
         return;
@@ -242,7 +250,9 @@ export default function ItemDetailScreen() {
         accepts_swap_points: data.accepts_swap_points,
       });
     } catch (err) {
-      console.error('[ItemDetailScreen] ❌ Fatal error loading listing:', err);
+      captureException(err, {
+        tags: { screen: 'ItemDetailScreen', action: 'load_listing_fatal' },
+      });
       setError('Failed to load listing');
     } finally {
       setLoading(false);
@@ -270,7 +280,9 @@ export default function ItemDetailScreen() {
       setBuyerIsSubscriber(sub.is_subscriber);
       setBuyerCanSpendSP(sub.can_spend_sp);
     } catch (err) {
-      console.error('[ItemDetailScreen] ❌ Error loading buyer subscription:', err);
+      captureException(err, {
+        tags: { screen: 'ItemDetailScreen', action: 'load_buyer_subscription' },
+      });
       setBuyerIsSubscriber(false);
       setBuyerCanSpendSP(false);
     } finally {
@@ -317,7 +329,9 @@ export default function ItemDetailScreen() {
       // Navigate to trade offer screen (FLOW-08) through TradeInitiation route.
       navigation.navigate('TradeInitiation', { itemId: String(listing.id) });
     } catch (err) {
-      console.error('[ItemDetailScreen] Failed to navigate to TradeInitiation:', err);
+      captureException(err, {
+        tags: { screen: 'ItemDetailScreen', action: 'navigate_trade_initiation' },
+      });
       Alert.alert('Error', 'Unable to open checkout right now. Please try again.');
     } finally {
       setCheckingActiveTrade(false);
@@ -362,7 +376,9 @@ export default function ItemDetailScreen() {
         // Navigate to chat with trade ID (MODULE-07)
         navigation.navigate('Chat', { tradeId: data.id });
       } catch (err) {
-        console.error('[ItemDetailScreen] Error finding trade:', err);
+        captureException(err, {
+          tags: { screen: 'ItemDetailScreen', action: 'find_trade' },
+        });
         Alert.alert('Error', 'Failed to open messaging. Please try again.');
       }
     };
@@ -554,11 +570,15 @@ export default function ItemDetailScreen() {
           {/* Item Info Section */}
           <View style={styles.section}>
             {/* Title */}
-            <Text style={styles.itemTitle} testID="item-detail-title">{listing.title}</Text>
+            <Text style={styles.itemTitle} testID="item-detail-title">
+              {listing.title}
+            </Text>
 
             {/* Price & SP Earn Badge */}
             <View style={styles.priceRow}>
-              <Text style={styles.itemPrice} testID="item-detail-price">${listing.price.toFixed(2)}</Text>
+              <Text style={styles.itemPrice} testID="item-detail-price">
+                ${listing.price.toFixed(2)}
+              </Text>
             </View>
 
             {/* SP Accepted Badge (below price if not subscriber) */}
@@ -818,12 +838,16 @@ export default function ItemDetailScreen() {
                       });
                     }}
                     testID="more-from-seller-cta"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="More from seller cta"
                     activeOpacity={0.7}
                   >
                     <SquaresFour size={18} color="#2D6A4F" weight="fill" />
                     <View style={styles.moreFromSellerCtaTextWrap}>
                       <Text style={styles.moreFromSellerCtaTitle}>
-                        This seller has {sellerOtherCount} more item{sellerOtherCount !== 1 ? 's' : ''}
+                        This seller has {sellerOtherCount} more item
+                        {sellerOtherCount !== 1 ? 's' : ''}
                       </Text>
                       <Text style={styles.moreFromSellerCtaSubtext}>
                         Add more to bundle into one trade
@@ -867,6 +891,9 @@ export default function ItemDetailScreen() {
               style={styles.useSpLockedChip}
               onPress={() => navigation.navigate('JoinKidsClub')}
               testID="use-sp-locked-chip"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Use sp locked chip"
             >
               <Lock size={14} color="#6B7280" weight="bold" />
               <Text style={styles.useSpLockedText}>Use SP 🔒</Text>
@@ -876,11 +903,14 @@ export default function ItemDetailScreen() {
           <View style={styles.bottomActionRow}>
             {/* CART-014: Hide button for own listings; show "View Cart" when already in cart */}
             {/* SINGLE-LISTING: Hide "Add" when seller has only 1 listing (sellerOtherCount === 0) */}
-            {user?.id !== listing?.seller_id && (
-              inCart ? (
+            {user?.id !== listing?.seller_id &&
+              (inCart ? (
                 <Pressable
                   style={styles.addToCartButton}
                   testID="view-cart-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="View cart button"
                   onPress={() => navigation.navigate('Cart')}
                 >
                   <ShoppingCart size={20} color="#5DBB8E" weight="fill" />
@@ -890,6 +920,9 @@ export default function ItemDetailScreen() {
                 <Pressable
                   style={styles.addToCartCompactButton}
                   testID="add-to-cart-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Add to cart button"
                   onPress={async () => {
                     if (!listing?.id) return;
                     trackEvent('cart_item_added_attempt', { item_id: listing.id });
@@ -902,7 +935,7 @@ export default function ItemDetailScreen() {
                       if ((r.data as any)?.cross_node_warning) {
                         setToastMessage('Added to Trade Basket');
                         setToastSubtitle(
-                          "This item is from a different ZIP code area. You and the seller will need to coordinate a meetup location.",
+                          'This item is from a different ZIP code area. You and the seller will need to coordinate a meetup location.'
                         );
                       } else {
                         setToastMessage('Added to Trade Basket');
@@ -957,14 +990,16 @@ export default function ItemDetailScreen() {
                   <ShoppingCart size={20} color="#5DBB8E" weight="regular" />
                   <Text style={styles.addToCartCompactText}>Add</Text>
                 </Pressable>
-              ) : null
-            )}
+              ) : null)}
 
             <Pressable
               style={[styles.buyNowButton, (loading || checkingActiveTrade) && { opacity: 0.7 }]}
               onPress={handleMakeOffer}
               disabled={loading || checkingActiveTrade}
               testID="request-to-buy-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Request to buy button"
             >
               {checkingActiveTrade ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />

@@ -8,16 +8,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { WarningCircle } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
+import { captureException } from '@/services/errorReporter';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -58,7 +53,10 @@ export default function LiabilityDisclaimerScreen() {
         setError('No published liability disclaimer available.');
       }
     } catch (err: any) {
-      console.error('[LiabilityDisclaimerScreen] Error fetching disclaimer:', err);
+      captureException(err, {
+        tags: { screen: 'LiabilityDisclaimerScreen', action: 'load_disclaimer' },
+        extra: { message: err?.message },
+      });
       setError('Failed to load disclaimer. Please try again.');
     } finally {
       setLoading(false);
@@ -92,7 +90,6 @@ export default function LiabilityDisclaimerScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Disclaimer">
-
       <ScrollView contentContainerStyle={styles.scrollContent} testID="disclaimer-content">
         {/* Centered WarningCircle icon */}
         <View style={styles.iconContainer}>

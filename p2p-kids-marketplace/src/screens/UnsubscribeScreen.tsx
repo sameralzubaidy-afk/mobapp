@@ -8,15 +8,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { supabase } from '../config/supabase';
+import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -55,7 +51,9 @@ export default function UnsubscribeScreen() {
       });
 
       if (rpcError) {
-        console.error('[UnsubscribeScreen] Error processing unsubscribe:', rpcError);
+        captureException(rpcError, {
+          tags: { screen: 'UnsubscribeScreen', action: 'process_unsubscribe' },
+        });
         setError('Failed to process unsubscribe request. The link may be invalid or expired.');
         setLoading(false);
         return;
@@ -68,7 +66,9 @@ export default function UnsubscribeScreen() {
         setError(data?.error || 'Failed to unsubscribe');
       }
     } catch (err) {
-      console.error('[UnsubscribeScreen] Exception:', err);
+      captureException(err, {
+        tags: { screen: 'UnsubscribeScreen', action: 'exception' },
+      });
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -106,7 +106,14 @@ export default function UnsubscribeScreen() {
           <Text style={styles.note}>
             You can manage your notification preferences anytime in the app settings.
           </Text>
-          <TouchableOpacity style={styles.button} onPress={handleGoHome} testID="go-home-button">
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleGoHome}
+            testID="go-home-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Go to Home"
+          >
             <Text style={styles.buttonText}>Go to Home</Text>
           </TouchableOpacity>
         </View>
@@ -124,7 +131,14 @@ export default function UnsubscribeScreen() {
           Unable to Unsubscribe
         </Text>
         <Text style={styles.errorMessage}>{error}</Text>
-        <TouchableOpacity style={styles.button} onPress={handleGoHome} testID="go-home-button">
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleGoHome}
+          testID="go-home-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Go to Home"
+        >
           <Text style={styles.buttonText}>Go to Home</Text>
         </TouchableOpacity>
       </View>

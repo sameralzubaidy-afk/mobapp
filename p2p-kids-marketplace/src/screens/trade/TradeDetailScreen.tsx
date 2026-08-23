@@ -14,14 +14,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
@@ -29,6 +22,7 @@ import { supabase } from '@/config/supabase';
 import { Trade } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
+import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
@@ -98,7 +92,9 @@ export default function TradeDetailScreen() {
         }
       }
     } catch (error) {
-      console.error('❌ Error fetching trade:', error);
+      captureException(error, {
+        tags: { screen: 'TradeDetailScreen', action: 'fetch_trade' },
+      });
       showNotif('Error', 'Failed to load trade details', 'decline');
     } finally {
       setLoading(false);
@@ -137,8 +133,20 @@ export default function TradeDetailScreen() {
     }, [fetchTrade])
   );
 
-  const showNotif = (title: string, message: string, variant?: 'accept' | 'decline' | 'default', onConfirm?: () => void) => {
-    setNotifModal({ visible: true, title, message, variant: variant || 'default', confirmLabel: 'OK', onConfirm });
+  const showNotif = (
+    title: string,
+    message: string,
+    variant?: 'accept' | 'decline' | 'default',
+    onConfirm?: () => void
+  ) => {
+    setNotifModal({
+      visible: true,
+      title,
+      message,
+      variant: variant || 'default',
+      confirmLabel: 'OK',
+      onConfirm,
+    });
   };
 
   const handleComplete = async () => {
@@ -155,7 +163,9 @@ export default function TradeDetailScreen() {
         // Optimistically update local trade state so user sees updated status immediately
         if (isSeller) {
           setTrade((prev) =>
-            prev ? ({ ...prev, seller_marked_completed_at: new Date().toISOString() } as Trade) : prev
+            prev
+              ? ({ ...prev, seller_marked_completed_at: new Date().toISOString() } as Trade)
+              : prev
           );
         } else {
           setTrade((prev) =>
@@ -232,15 +242,25 @@ export default function TradeDetailScreen() {
           console.warn('[TradeDetail] refreshSession after cancel failed', e);
         }
 
-        showNotif('Trade Cancelled', 'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
-          setNotifModal(null);
-          navigation.goBack();
-        });
+        showNotif(
+          'Trade Cancelled',
+          'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
+          'default',
+          () => {
+            setNotifModal(null);
+            navigation.goBack();
+          }
+        );
       } else {
-        showNotif('Cancellation Failed', result.error || 'Failed to cancel trade. Please try again.', 'decline', () => {
-          setNotifModal(null);
-          setShowCancellationModal(true);
-        });
+        showNotif(
+          'Cancellation Failed',
+          result.error || 'Failed to cancel trade. Please try again.',
+          'decline',
+          () => {
+            setNotifModal(null);
+            setShowCancellationModal(true);
+          }
+        );
       }
     } catch (error: any) {
       showNotif('Error', error.message || 'An unexpected error occurred', 'decline', () => {
@@ -326,7 +346,8 @@ export default function TradeDetailScreen() {
     tradeId
   );
   // ✅ PART 3 FIX: Allow actions for both 'pending' AND 'in_progress' status
-  const canAction = (trade.status === 'pending' || trade.status === 'in_progress') && (isBuyer || isSeller);
+  const canAction =
+    (trade.status === 'pending' || trade.status === 'in_progress') && (isBuyer || isSeller);
   const reviewButtonVisible = trade.status === 'completed' && (isBuyer || isSeller);
   const reviewButtonLabel = hasReviewed
     ? 'Already Reviewed'
@@ -335,14 +356,18 @@ export default function TradeDetailScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Trade Details">
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.statusLabel}>Status</Text>
-          <View style={[styles.statusBadge, (styles as any)[`status_${trade.status}`]]} testID="trade-status-badge">
+          <View
+            style={[styles.statusBadge, (styles as any)[`status_${trade.status}`]]}
+            testID="trade-status-badge"
+          >
             {/* ✅ PART 3 FIX: Show user-friendly status labels */}
             <Text style={styles.statusText}>
-              {trade.status === 'pending' ? 'AWAITING SELLER' : trade.status.replace('_', ' ').toUpperCase()}
+              {trade.status === 'pending'
+                ? 'AWAITING SELLER'
+                : trade.status.replace('_', ' ').toUpperCase()}
             </Text>
           </View>
         </View>
@@ -377,30 +402,41 @@ export default function TradeDetailScreen() {
           {/* MODULE-15.3-PART3 TAX-011: sales tax row — buyer only, seller does not see tax.
               In-progress: live preview via useTaxCalculation.
               Completed: stored tax from trade row (applied via applyTaxToTrade). */}
-          {isBuyer && (trade.status === 'completed' ? (
-            <TaxBreakdownRow
-              taxAmountCents={trade.tax_amount_cents ?? 0}
-              taxRate={trade.tax_rate_applied ?? 0}
-              jurisdiction={trade.tax_jurisdiction}
-              loading={false}
-              alwaysShow={!!trade.tax_amount_cents}
-              isTaxExempt={detailTaxPreview.isTaxExempt}
-              testID="detail-payment-tax-row"
-            />
-          ) : (
-            <TaxBreakdownRow
-              taxAmountCents={detailTaxPreview.taxAmountCents}
-              taxRate={detailTaxPreview.taxRate}
-              jurisdiction={detailTaxPreview.jurisdiction}
-              loading={detailTaxPreview.loading}
-              isTaxExempt={detailTaxPreview.isTaxExempt}
-              testID="detail-payment-tax-preview"
-            />
-          ))}
+          {isBuyer &&
+            (trade.status === 'completed' ? (
+              <TaxBreakdownRow
+                taxAmountCents={trade.tax_amount_cents ?? 0}
+                taxRate={trade.tax_rate_applied ?? 0}
+                jurisdiction={trade.tax_jurisdiction}
+                loading={false}
+                alwaysShow={!!trade.tax_amount_cents}
+                isTaxExempt={detailTaxPreview.isTaxExempt}
+                testID="detail-payment-tax-row"
+              />
+            ) : (
+              <TaxBreakdownRow
+                taxAmountCents={detailTaxPreview.taxAmountCents}
+                taxRate={detailTaxPreview.taxRate}
+                jurisdiction={detailTaxPreview.jurisdiction}
+                loading={detailTaxPreview.loading}
+                isTaxExempt={detailTaxPreview.isTaxExempt}
+                testID="detail-payment-tax-preview"
+              />
+            ))}
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>
-              ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents + (isBuyer ? (trade.status === 'completed' ? (trade.tax_amount_cents ?? 0) : detailTaxPreview.taxAmountCents) : 0)) / 100).toFixed(2)}
+              $
+              {(
+                (trade.cash_amount_cents +
+                  trade.buyer_transaction_fee_cents +
+                  (isBuyer
+                    ? trade.status === 'completed'
+                      ? (trade.tax_amount_cents ?? 0)
+                      : detailTaxPreview.taxAmountCents
+                    : 0)) /
+                100
+              ).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -417,6 +453,9 @@ export default function TradeDetailScreen() {
               onPress={handleComplete}
               disabled={submitting || (isSeller && !!trade.seller_marked_completed_at)}
               testID="mark-completed-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Mark completed button"
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" />
@@ -434,6 +473,9 @@ export default function TradeDetailScreen() {
               onPress={handleCancel}
               disabled={submitting}
               testID="cancel-trade-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Cancel trade button"
             >
               <Text style={[styles.buttonText, styles.cancelButtonText]}>Cancel Trade</Text>
             </Pressable>
@@ -442,12 +484,7 @@ export default function TradeDetailScreen() {
 
         {isBuyer && trade.status === 'in_progress' && trade.seller_marked_completed_at && (
           <View style={[styles.infoBox, styles.sellerCompletedBox]}>
-            <Info
-              size={20}
-              color="#065f46"
-              weight="regular"
-              style={{ marginRight: 8 }}
-            />
+            <Info size={20} color="#065f46" weight="regular" style={{ marginRight: 8 }} />
             <Text style={styles.sellerCompletedText}>
               The seller has marked this trade as completed. Please confirm if you have received the
               item.
@@ -460,10 +497,11 @@ export default function TradeDetailScreen() {
             {/* Show review status info */}
             <View style={styles.reviewStatusInfo}>
               <View style={styles.reviewStatusRow}>
-                {hasReviewed
-                  ? <CheckCircle size={20} color="#10B981" weight="regular" />
-                  : <CircleDashed size={20} color="#9CA3AF" weight="regular" />
-                }
+                {hasReviewed ? (
+                  <CheckCircle size={20} color="#10B981" weight="regular" />
+                ) : (
+                  <CircleDashed size={20} color="#9CA3AF" weight="regular" />
+                )}
                 <Text
                   style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
                 >
@@ -471,10 +509,11 @@ export default function TradeDetailScreen() {
                 </Text>
               </View>
               <View style={styles.reviewStatusRow}>
-                {otherUserReviewed
-                  ? <CheckCircle size={20} color="#10B981" weight="regular" />
-                  : <CircleDashed size={20} color="#9CA3AF" weight="regular" />
-                }
+                {otherUserReviewed ? (
+                  <CheckCircle size={20} color="#10B981" weight="regular" />
+                ) : (
+                  <CircleDashed size={20} color="#9CA3AF" weight="regular" />
+                )}
                 <Text
                   style={[
                     styles.reviewStatusText,
@@ -496,6 +535,9 @@ export default function TradeDetailScreen() {
               onPress={handleReviewPress}
               disabled={isReviewButtonDisabled}
               testID="review-trade-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Review trade button"
             >
               <Star size={20} color="#fff" weight="fill" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>{reviewButtonLabel}</Text>
@@ -539,7 +581,7 @@ export default function TradeDetailScreen() {
           message={notifModal.message}
           confirmLabel={notifModal.confirmLabel || 'OK'}
           variant={notifModal.variant || 'default'}
-          onConfirm={() => notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null)}
+          onConfirm={() => (notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null))}
           onCancel={() => setNotifModal(null)}
           hideCancel
         />

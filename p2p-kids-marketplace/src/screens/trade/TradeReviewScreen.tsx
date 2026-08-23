@@ -1,11 +1,11 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeReviewScreen.tsx
  * @deprecated Use ReviewOfferScreen instead.
- * 
+ *
  * ⚠️ This screen is DEPRECATED. It directly updates DB to payment_processing
  *    instead of calling the transactions-update Edge Function, which means
  *    Stripe PaymentIntent is never captured and the trade gets stuck.
- * 
+ *
  *    🛡️ Safety redirect: on mount, navigates to ReviewOffer.
  *    Remove this file entirely once all old notification payloads are expired.
  */
@@ -28,6 +28,7 @@ import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { Modal, LoadingSpinner } from '@/components/ui';
 import { sendTradeNotificationPush } from '@/services/tradeNotifications';
+import { captureException } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeReviewRouteProp = RouteProp<RootStackParamList, 'TradeReview'>;
@@ -62,7 +63,9 @@ export default function TradeReviewScreen() {
       if (error) throw error;
       setTrade(data);
     } catch (error) {
-      console.error('Error fetching trade:', error);
+      captureException(error, {
+        tags: { screen: 'TradeReviewScreen', action: 'fetch_trade' },
+      });
       Alert.alert('Error', 'Failed to load trade details');
       navigation.goBack();
     } finally {
@@ -102,7 +105,9 @@ export default function TradeReviewScreen() {
         .single();
 
       if (error || !updatedTrade) {
-        throw new Error(error?.message || 'Unable to accept this trade. It may already be updated.');
+        throw new Error(
+          error?.message || 'Unable to accept this trade. It may already be updated.'
+        );
       }
 
       const buyerUserId = trade?.buyer_id;
@@ -161,7 +166,9 @@ export default function TradeReviewScreen() {
         .single();
 
       if (error || !updatedTrade) {
-        throw new Error(error?.message || 'Unable to decline this trade. It may already be updated.');
+        throw new Error(
+          error?.message || 'Unable to decline this trade. It may already be updated.'
+        );
       }
 
       Alert.alert('Declined', 'Trade offer declined');
@@ -186,11 +193,7 @@ export default function TradeReviewScreen() {
 
   const listing = trade.listing;
   const rawSpAmount =
-    trade.sp_amount ??
-    trade.swap_points_used ??
-    trade.sp_used ??
-    trade.swap_points_amount ??
-    0;
+    trade.sp_amount ?? trade.swap_points_used ?? trade.sp_used ?? trade.swap_points_amount ?? 0;
   const spAmount = Number.isFinite(Number(rawSpAmount)) ? Number(rawSpAmount) : 0;
   const rawCashCents = trade.cash_amount_cents ?? trade.cash_cents ?? trade.offer_cash_cents ?? 0;
   const cashAmount = Number.isFinite(Number(rawCashCents)) ? Number(rawCashCents) / 100 : 0;
@@ -252,6 +255,9 @@ export default function TradeReviewScreen() {
           onPress={handleAccept}
           disabled={submitting}
           testID="accept-trade-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Accept trade button"
         >
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" />
@@ -266,6 +272,9 @@ export default function TradeReviewScreen() {
           onPress={handleDecline}
           disabled={submitting}
           testID="decline-trade-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Decline trade button"
         >
           <Text style={styles.declineText}>Decline</Text>
         </Pressable>

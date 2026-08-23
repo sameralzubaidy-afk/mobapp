@@ -2,15 +2,9 @@
 // MODULE-15.1 FLOW-19: LeaderboardScreen — Pass It Up design system
 
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { getBadgeLeaderboard, LeaderboardEntry } from '../../services/badges';
+import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -40,7 +34,10 @@ const LeaderboardScreen = ({ navigation: _navigation }: any) => {
       setLeaderboard(data);
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
-      console.error('[LeaderboardScreen] Error loading leaderboard:', errorMsg);
+      captureException(err, {
+        tags: { screen: 'LeaderboardScreen', action: 'load_leaderboard' },
+        extra: { message: errorMsg },
+      });
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -103,7 +100,6 @@ const LeaderboardScreen = ({ navigation: _navigation }: any) => {
 
   return (
     <ScreenLayout variant="detail" title="Leaderboard">
-
       <View style={styles.descriptionContainer}>
         <Text style={styles.description}>Top traders ranked by total badges earned 🏆</Text>
       </View>

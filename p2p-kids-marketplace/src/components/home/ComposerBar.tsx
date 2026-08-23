@@ -65,6 +65,7 @@ export default function ComposerBar() {
         accessibilityRole="button"
         accessibilityLabel="What are you selling today?"
         testID="composer-bar"
+        accessible
       >
         {/* Camera shortcut — opens New Item straight to the camera */}
         <TouchableOpacity
@@ -74,6 +75,7 @@ export default function ComposerBar() {
           accessibilityRole="button"
           accessibilityLabel="List an item with your camera"
           testID="composer-camera-button"
+          accessible
         >
           <Camera size={20} color={colors.neutral[700]} weight="regular" />
         </TouchableOpacity>
@@ -104,6 +106,7 @@ export default function ComposerBar() {
           accessibilityRole="button"
           accessibilityLabel="Create listing"
           testID="composer-add-button"
+          accessible
         >
           <Plus size={22} color={colors.neutral.white} weight="bold" />
         </TouchableOpacity>

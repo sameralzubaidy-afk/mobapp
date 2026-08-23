@@ -2,18 +2,8 @@
 // MODULE-15.1 FLOW-19: Help & Support menu — two entry points
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
-import {
-  Question,
-  ChartLine,
-  ChatCircle,
-  CaretRight,
-} from 'phosphor-react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Question, ChartLine, ChatCircle, CaretRight } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 interface Props {
@@ -57,6 +47,7 @@ export default function HelpSupportMenuScreen({ navigation }: Props) {
             const Icon = item.icon;
             return (
               <TouchableOpacity
+                accessible
                 key={item.id}
                 style={styles.menuCard}
                 onPress={() => navigation.navigate(item.route)}

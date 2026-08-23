@@ -25,6 +25,7 @@ export function GroupingHelpTooltip({
   return (
     <Modal
       visible={visible}
+      accessibilityRole="button"
       animationType="fade"
       transparent
       onRequestClose={onClose}
@@ -33,6 +34,7 @@ export function GroupingHelpTooltip({
       {/* Overlay is non-accessible so it does not swallow the whole AX tree;
           it only catches outside taps to dismiss. */}
       <TouchableOpacity
+        accessibilityRole="button"
         style={styles.overlay}
         activeOpacity={1}
         onPress={onClose}

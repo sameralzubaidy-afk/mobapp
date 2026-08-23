@@ -24,21 +24,22 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <View style={styles.container} testID={testID}>
       {icon && <View testID={`${testID}-icon`}>{icon}</View>}
-      
+
       <Text style={styles.title} testID={`${testID}-title`}>
         {title}
       </Text>
-      
+
       {subtitle && (
         <Text style={styles.subtitle} testID={`${testID}-subtitle`}>
           {subtitle}
         </Text>
       )}
-      
+
       {actionLabel && onAction && (
         <TouchableOpacity
           style={styles.actionBtn}
           onPress={onAction}
+          accessible
           testID={`${testID}-action-button`}
           accessibilityLabel={actionLabel}
           accessibilityRole="button"

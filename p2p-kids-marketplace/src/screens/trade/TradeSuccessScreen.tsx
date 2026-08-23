@@ -14,12 +14,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
@@ -50,7 +45,7 @@ function buildCompletionCTA(
   spAmountDollars: number,
   navigation: any,
   feeSavingsCents: number,
-  tradeStatus: 'initiated' | 'completed' = 'initiated',
+  tradeStatus: 'initiated' | 'completed' = 'initiated'
 ): CompletionCTA {
   if (isBuyer) {
     if (!isSubscriber) {
@@ -142,11 +137,10 @@ export default function TradeSuccessScreen() {
   // Derive subscription status from the actual session (not route params)
   // Callers only pass { tradeId } — without this, all users default to 'free'
   const subscriptionStatus: 'free' | 'subscriber' =
-    session?.subscription_status && session.subscription_status !== 'free'
-      ? 'subscriber'
-      : 'free';
+    session?.subscription_status && session.subscription_status !== 'free' ? 'subscriber' : 'free';
   const spUsed: number = (route.params as any)?.spUsed ?? 0;
-  const listingType: 'cash_only' | 'accept_sp' | 'donate' = (route.params as any)?.listingType ?? 'cash_only';
+  const listingType: 'cash_only' | 'accept_sp' | 'donate' =
+    (route.params as any)?.listingType ?? 'cash_only';
   const totalSpToSeller: number = (route.params as any)?.totalSpToSeller ?? 0;
   const spPendingReleaseDays: number = (route.params as any)?.spPendingReleaseDays ?? 3;
   // Fallback to session available_points if route param not provided (e.g. from TradeDetailScreen completion flow)
@@ -178,7 +172,8 @@ export default function TradeSuccessScreen() {
         if (cancelled) return;
         const activeMemberFlatCents = Number(config.buyer_fee_active_member_cents ?? 149);
         const paidFeeCents = Number(
-          (trade as { buyer_transaction_fee_cents?: number } | null)?.buyer_transaction_fee_cents ?? 0
+          (trade as { buyer_transaction_fee_cents?: number } | null)?.buyer_transaction_fee_cents ??
+            0
         );
         setFeeSavingsCents(Math.max(0, paidFeeCents - activeMemberFlatCents));
       } catch {
@@ -257,18 +252,23 @@ export default function TradeSuccessScreen() {
               spAmountDollars,
               navigation,
               feeSavingsCents,
-              tradeStatus,
+              tradeStatus
             );
             return (
               <View style={styles.ctaGroup}>
                 {/* CTA contextual message */}
-                <Text style={styles.ctaMessage} testID="cta-message">{cta.message}</Text>
+                <Text style={styles.ctaMessage} testID="cta-message">
+                  {cta.message}
+                </Text>
 
                 {/* Primary CTA button */}
                 <Pressable
                   style={styles.primaryButton}
                   onPress={cta.onPress}
                   testID="cta-primary-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Cta primary button"
                 >
                   <Text style={styles.primaryButtonText}>{cta.ctaLabel}</Text>
                 </Pressable>
@@ -285,6 +285,9 @@ export default function TradeSuccessScreen() {
                       })
                     }
                     testID="rate-seller-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Rate seller button"
                   >
                     <Text style={styles.secondaryButtonText}>Rate Seller</Text>
                   </Pressable>
@@ -295,6 +298,9 @@ export default function TradeSuccessScreen() {
                   style={styles.secondaryButton}
                   onPress={() => navigation.navigate('TradeDetail', { tradeId })}
                   testID="cta-view-trade-details-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Cta view trade details button"
                 >
                   <Text style={styles.secondaryButtonText}>View Trade Details</Text>
                 </Pressable>
@@ -304,6 +310,9 @@ export default function TradeSuccessScreen() {
                   style={styles.secondaryButton}
                   onPress={() => navigation.navigate('TradeList')}
                   testID="cta-view-trades-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Cta view trades button"
                 >
                   <Text style={styles.secondaryButtonText}>View My Trades</Text>
                 </Pressable>
@@ -317,6 +326,9 @@ export default function TradeSuccessScreen() {
               style={[styles.primaryButton, styles.primaryButtonError]}
               onPress={handlePrimaryAction}
               testID="primary-action-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Primary action button"
             >
               <Text style={styles.primaryButtonText}>Try Again</Text>
             </Pressable>
@@ -329,6 +341,9 @@ export default function TradeSuccessScreen() {
           style={styles.backHomeButton}
           onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Home' }] })}
           testID="back-home-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Back home button"
         >
           <Text style={styles.backHomeButtonText}>Back to Home</Text>
         </Pressable>
@@ -446,4 +461,3 @@ const styles = StyleSheet.create({
     color: '#5DBB8E',
   },
 });
-

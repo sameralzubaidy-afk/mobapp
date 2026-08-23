@@ -3,16 +3,10 @@
 // Shows available balance, pending SP, earning history, and expiring batches
 
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
-  TouchableOpacity
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getWalletSummary } from '@/services/sp/wallet';
+import { captureException } from '@/services/errorReporter';
 import { getLedgerHistory, SPLedgerEntry } from '@/services/sp/wallet';
 import { getExpiringBatches, SPBatch } from '@/services/sp/wallet';
 import { useAuth } from '@/hooks/useAuth';
@@ -59,7 +53,9 @@ export default function SpWalletScreen() {
       const expiring = await getExpiringBatches(user.id, 30);
       setExpiringBatches(expiring);
     } catch (error) {
-      console.error('Load wallet data error:', error);
+      captureException(error, {
+        tags: { screen: 'SpWalletScreen', action: 'load_wallet' },
+      });
     } finally {
       setLoading(false);
     }
@@ -101,7 +97,9 @@ export default function SpWalletScreen() {
 
       {walletSummary.wallet_state === 'grace_period' && (
         <View style={styles.graceBanner}>
-          <Text style={styles.graceText}>⏳ Grace Period Active - You can still spend existing SP</Text>
+          <Text style={styles.graceText}>
+            ⏳ Grace Period Active - You can still spend existing SP
+          </Text>
         </View>
       )}
     </View>

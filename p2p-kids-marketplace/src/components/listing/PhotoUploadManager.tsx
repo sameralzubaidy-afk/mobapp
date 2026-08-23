@@ -94,6 +94,7 @@ export function PhotoUploadManager({
           </View>
         )}
         <TouchableOpacity
+          accessible
           style={styles.removeButton}
           onPress={() => onRemovePhoto(item.photo.id)}
           accessibilityLabel={`Remove photo ${item.photoIndex + 1}`}
@@ -110,7 +111,9 @@ export function PhotoUploadManager({
     <View style={styles.container} testID={testID}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>Photos *</Text>
-        <Text style={styles.photoCount}>({photos.length}/{maxPhotos} photos)</Text>
+        <Text style={styles.photoCount}>
+          ({photos.length}/{maxPhotos} photos)
+        </Text>
       </View>
       <Text style={styles.subtitle}>
         Add up to {maxPhotos} photos. First photo will be your cover image.

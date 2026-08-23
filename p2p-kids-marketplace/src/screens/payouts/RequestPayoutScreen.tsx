@@ -26,6 +26,7 @@ import {
   type SellerBalance,
 } from '@/services/sellerBalance';
 import { listPayoutMethods } from '@/services/payoutMethods';
+import { captureException } from '@/services/errorReporter';
 import type { SellerPayoutMethod } from '@/types/payout.types';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -53,7 +54,10 @@ export default function RequestPayoutScreen() {
       setPrimaryMethod(methodsData.primary_method ?? methodsData.methods?.[0] ?? null);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load data');
-      console.error('[RequestPayout] loadData error:', err);
+      captureException(err, {
+        tags: { screen: 'RequestPayoutScreen', action: 'load_data' },
+        extra: { message: err?.message },
+      });
     } finally {
       setLoading(false);
     }
@@ -67,9 +71,7 @@ export default function RequestPayoutScreen() {
   // Amount entered as SP (integer, 1 SP = 1 cent)
   const enteredSP = parseInt(amountInput, 10);
   const enteredCents = isNaN(enteredSP) ? 0 : enteredSP;
-  const feeCents = primaryMethod
-    ? calculatePayoutFee(primaryMethod.method_type, enteredCents)
-    : 0;
+  const feeCents = primaryMethod ? calculatePayoutFee(primaryMethod.method_type, enteredCents) : 0;
   const netCents = Math.max(enteredCents - feeCents, 0);
 
   const isValidAmount = enteredCents > 0 && enteredCents <= availableCents;
@@ -98,9 +100,7 @@ export default function RequestPayoutScreen() {
       case 'venmo':
         return method.venmo_handle ?? 'Venmo';
       case 'bank_ach':
-        return method.bank_account_last4
-          ? `Bank ••••${method.bank_account_last4}`
-          : 'Bank Account';
+        return method.bank_account_last4 ? `Bank ••••${method.bank_account_last4}` : 'Bank Account';
       default:
         return 'Payment Method';
     }
@@ -133,21 +133,32 @@ export default function RequestPayoutScreen() {
           ]
         );
       } else if (response.action_required === 'add_payout_method') {
-        Alert.alert('Payout Method Required', 'Please add a verified payout method to request a payout.', [
-          { text: 'Add Method', onPress: () => navigation.navigate('PayoutSettings') },
-          { text: 'Cancel', style: 'cancel' },
-        ]);
+        Alert.alert(
+          'Payout Method Required',
+          'Please add a verified payout method to request a payout.',
+          [
+            { text: 'Add Method', onPress: () => navigation.navigate('PayoutSettings') },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
       } else if (response.action_required === 'verify_payout_method') {
-        Alert.alert('Verification Required', 'Your payout method needs to be verified before withdrawing.', [
-          { text: 'Verify', onPress: () => navigation.navigate('PayoutSettings') },
-          { text: 'Cancel', style: 'cancel' },
-        ]);
+        Alert.alert(
+          'Verification Required',
+          'Your payout method needs to be verified before withdrawing.',
+          [
+            { text: 'Verify', onPress: () => navigation.navigate('PayoutSettings') },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
       } else {
         setError(response.error ?? 'Payout request failed. Please try again.');
       }
     } catch (err: any) {
       setError(err.message ?? 'An unexpected error occurred');
-      console.error('[RequestPayout] handleConfirm error:', err);
+      captureException(err, {
+        tags: { screen: 'RequestPayoutScreen', action: 'handle_confirm' },
+        extra: { message: err?.message },
+      });
     } finally {
       setSubmitting(false);
     }
@@ -194,8 +205,8 @@ export default function RequestPayoutScreen() {
           {balance && balance.pending_balance_cents > 0 && availableCents === 0 && (
             <View style={styles.pendingNote} testID="pending-buffer-note">
               <Text style={styles.pendingNoteText}>
-                Your recent earnings are pending their payout release date and aren't
-                withdrawable yet. Check My Earnings for the release date.
+                Your recent earnings are pending their payout release date and aren't withdrawable
+                yet. Check My Earnings for the release date.
               </Text>
             </View>
           )}
@@ -226,6 +237,9 @@ export default function RequestPayoutScreen() {
               {amountInput.length > 0 && (
                 <TouchableOpacity
                   testID="clear-amount-btn"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear amount btn"
                   onPress={() => setAmountInput('')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
@@ -250,22 +264,20 @@ export default function RequestPayoutScreen() {
             <Text style={styles.fieldLabel}>Payout To</Text>
             <TouchableOpacity
               testID="bank-selector"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bank selector"
               style={styles.bankRow}
               onPress={() => navigation.navigate('PayoutSettings')}
               activeOpacity={0.7}
             >
               <Bank size={20} color="#5DBB8E" weight="regular" />
               <Text
-                style={[
-                  styles.bankRowText,
-                  !primaryMethod && styles.bankRowPlaceholder,
-                ]}
+                style={[styles.bankRowText, !primaryMethod && styles.bankRowPlaceholder]}
                 testID="bank-selector-text"
                 numberOfLines={1}
               >
-                {primaryMethod
-                  ? getMethodDisplayName(primaryMethod)
-                  : 'Add payout method'}
+                {primaryMethod ? getMethodDisplayName(primaryMethod) : 'Add payout method'}
               </Text>
               <CaretRight size={16} color="#999999" weight="regular" />
             </TouchableOpacity>
@@ -300,18 +312,16 @@ export default function RequestPayoutScreen() {
         <View style={styles.bottomActions}>
           {/* Fee note */}
           <Text style={styles.feeNote} testID="fee-note">
-            {primaryMethod
-              ? getFeeDescription(primaryMethod)
-              : 'Add a payout method to continue'}
+            {primaryMethod ? getFeeDescription(primaryMethod) : 'Add a payout method to continue'}
           </Text>
 
           {/* Confirm button — green pill */}
           <TouchableOpacity
             testID="confirm-payout-btn"
-            style={[
-              styles.confirmBtn,
-              !canSubmit && styles.confirmBtnDisabled,
-            ]}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Confirm payout btn"
+            style={[styles.confirmBtn, !canSubmit && styles.confirmBtnDisabled]}
             onPress={handleConfirm}
             disabled={!canSubmit}
             activeOpacity={0.85}

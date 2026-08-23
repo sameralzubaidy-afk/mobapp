@@ -66,7 +66,8 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
             Something went wrong
           </Text>
           <Text testID="error-boundary-subtitle" style={styles.subtitle}>
-            We hit an unexpected error. You can try again, or restart the app if the problem persists.
+            We hit an unexpected error. You can try again, or restart the app if the problem
+            persists.
           </Text>
 
           {__DEV__ && this.state.error ? (
@@ -80,6 +81,7 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
 
           <Pressable
             testID="error-boundary-retry"
+            accessible
             accessibilityRole="button"
             accessibilityLabel="Try again"
             onPress={this.reset}

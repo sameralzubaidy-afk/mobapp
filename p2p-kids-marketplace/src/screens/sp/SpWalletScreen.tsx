@@ -3,14 +3,7 @@
 // Premium SP wallet with gold accents, hero balance card, quick actions
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-  StyleSheet
-} from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@/navigation/types';
@@ -32,6 +25,7 @@ import {
   type SPWallet,
   type PendingSPRelease,
 } from '@/services/sp/wallet';
+import { captureException, captureMessage } from '@/services/errorReporter';
 import { getSPExpirationDays, getSPReleaseDays } from '@/services/adminConfig';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -61,7 +55,7 @@ export default function SpWalletScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        console.error('[SpWallet] User not authenticated');
+        captureMessage('[SpWallet] User not authenticated', 'warning');
         return;
       }
 
@@ -73,7 +67,9 @@ export default function SpWalletScreen() {
         const releaseDaysVal = await getSPReleaseDays();
         setReleaseDays(releaseDaysVal);
       } catch (error) {
-        console.error('[SpWallet] Error fetching SP config:', error);
+        captureException(error, {
+          tags: { screen: 'SpWalletScreen', action: 'fetch_sp_config' },
+        });
       }
 
       // Load wallet
@@ -89,7 +85,9 @@ export default function SpWalletScreen() {
       const releases = await getPendingSPReleases(user.id);
       setPendingReleases(releases);
     } catch (error) {
-      console.error('[SpWallet] Load error:', error);
+      captureException(error, {
+        tags: { screen: 'SpWalletScreen', action: 'load_wallet' },
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -165,6 +163,9 @@ export default function SpWalletScreen() {
             <TouchableOpacity
               style={styles.actionBtn}
               testID="sp-wallet-shop-btn"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sp wallet shop btn"
               onPress={() => navigation.navigate('Discover')}
             >
               <MagnifyingGlass size={24} color="#5DBB8E" weight="regular" />
@@ -173,6 +174,9 @@ export default function SpWalletScreen() {
             <TouchableOpacity
               style={styles.actionBtn}
               testID="sp-wallet-sell-btn"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sp wallet sell btn"
               onPress={() => navigation.navigate('ItemCreate')}
             >
               <Tag size={24} color="#F59E0B" weight="regular" />
@@ -181,6 +185,9 @@ export default function SpWalletScreen() {
             <TouchableOpacity
               style={styles.actionBtn}
               testID="sp-wallet-history-btn"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sp wallet history btn"
               onPress={() => navigation.navigate('SpTransactionHistory')}
             >
               <Receipt size={24} color="#1A1A1A" weight="regular" />
@@ -194,6 +201,9 @@ export default function SpWalletScreen() {
             <TouchableOpacity
               style={styles.earnRow}
               testID="sp-wallet-earn-sell-btn"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sp wallet earn sell btn"
               onPress={() => navigation.navigate('ItemCreate')}
               activeOpacity={0.7}
             >
@@ -205,6 +215,9 @@ export default function SpWalletScreen() {
             <TouchableOpacity
               style={styles.earnRow}
               testID="sp-wallet-earn-refer-btn"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Sp wallet earn refer btn"
               onPress={() => navigation.navigate('ReferralDashboard')}
               activeOpacity={0.7}
             >
@@ -226,7 +239,9 @@ export default function SpWalletScreen() {
               <Info size={18} color="#5DBB8E" weight="regular" />
               <View>
                 <Text style={styles.learnLabel}>How Trading Works</Text>
-                <Text style={styles.learnSublabel}>Tap here to learn more about how to use and earn points</Text>
+                <Text style={styles.learnSublabel}>
+                  Tap here to learn more about how to use and earn points
+                </Text>
               </View>
               <View style={styles.spacer} />
               <CaretRight size={16} color="#5DBB8E" weight="regular" />
@@ -265,25 +280,27 @@ export default function SpWalletScreen() {
           </View>
 
           {/* Pending Release Summary Note */}
-          {pendingReleases.length > 0 && (() => {
-            const totalPending = pendingReleases.reduce((sum, r) => sum + r.sp_amount, 0);
-            
-            return (
-              <View style={styles.pendingReleaseNote}>
-                <View style={styles.pendingReleaseNoteIcon}>
-                  <Text style={styles.pendingReleaseNoteIconText}>⏳</Text>
+          {pendingReleases.length > 0 &&
+            (() => {
+              const totalPending = pendingReleases.reduce((sum, r) => sum + r.sp_amount, 0);
+
+              return (
+                <View style={styles.pendingReleaseNote}>
+                  <View style={styles.pendingReleaseNoteIcon}>
+                    <Text style={styles.pendingReleaseNoteIconText}>⏳</Text>
+                  </View>
+                  <View style={styles.pendingReleaseNoteContent}>
+                    <Text style={styles.pendingReleaseNoteTitle}>
+                      {totalPending} SP Pending Release
+                    </Text>
+                    <Text style={styles.pendingReleaseNoteText}>
+                      Your pending SPs will be released individually, {releaseDays} days after each
+                      trade you complete.
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.pendingReleaseNoteContent}>
-                  <Text style={styles.pendingReleaseNoteTitle}>
-                    {totalPending} SP Pending Release
-                  </Text>
-                  <Text style={styles.pendingReleaseNoteText}>
-                    Your pending SPs will be released individually, {releaseDays} days after each trade you complete.
-                  </Text>
-                </View>
-              </View>
-            );
-          })()}
+              );
+            })()}
 
           {/* Expiring Soon Alert */}
           {expiringSoonTotal > 0 && (
@@ -677,4 +694,3 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
-

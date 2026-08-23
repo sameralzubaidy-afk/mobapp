@@ -1,15 +1,9 @@
 import React, { useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  StyleSheet
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
+import { captureException } from '@/services/errorReporter';
 import { CaretRight } from 'phosphor-react-native';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
@@ -66,7 +60,9 @@ export default function FeatureHighlightsScreen() {
       console.log('[ONBOARDING] Tutorials finished/skipped, navigating to Welcome screen');
       (navigation as any).navigate('Welcome', { userId });
     } catch (error) {
-      console.error('❌ Tutorial navigation error:', error);
+      captureException(error, {
+        tags: { screen: 'FeatureHighlightsScreen', action: 'tutorial_navigation' },
+      });
     }
   };
 
@@ -111,7 +107,6 @@ export default function FeatureHighlightsScreen() {
                 {feature.description}
               </Text>
             </View>
-
             {/* Pagination Dots */}
             <View
               style={styles.paginationContainer}
@@ -128,19 +123,25 @@ export default function FeatureHighlightsScreen() {
                 />
               ))}
             </View>
-
             {/* Action Button */}
+            accessible accessibilityRole="button"
             {index === features.length - 1 ? (
               <TouchableOpacity
+                accessible
+                accessibilityRole="button"
                 style={styles.button}
                 onPress={handleGetStarted}
-                testID={index === currentIndex ? 'get-started-button' : `get-started-button-${index}`}
+                testID={
+                  index === currentIndex ? 'get-started-button' : `get-started-button-${index}`
+                }
               >
                 <Text style={styles.buttonText}>Get Started</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.skipContainer}>
                 <TouchableOpacity
+                  accessible
+                  accessibilityRole="button"
                   style={styles.nextButton}
                   onPress={() => handleNext(index)}
                   testID={index === currentIndex ? 'next-button' : `next-button-${index}`}

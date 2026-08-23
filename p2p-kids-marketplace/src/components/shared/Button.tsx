@@ -3,14 +3,7 @@
 // Design: pill-shaped (borderRadius = height/2), 52px primary, 48px medium, 40px small
 
 import React from 'react';
-import {
-  Pressable,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ViewStyle,
-  TextStyle,
-} from 'react-native';
+import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'large' | 'medium' | 'small';
@@ -47,10 +40,12 @@ export function Button({
       onPress={onPress}
       disabled={disabled || loading}
       testID={testID}
+      accessible
       style={({ pressed }) => [
         styles.base,
         { height, borderRadius: height / 2 },
         styles[variant],
+
         (disabled || loading) && styles.disabled,
         pressed && styles.pressed,
         style,
@@ -60,10 +55,7 @@ export function Button({
       accessibilityState={{ disabled: disabled || loading }}
     >
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'primary' ? '#FFFFFF' : '#5DBB8E'}
-        />
+        <ActivityIndicator size="small" color={variant === 'primary' ? '#FFFFFF' : '#5DBB8E'} />
       ) : (
         <>
           {icon && <>{icon}</>}

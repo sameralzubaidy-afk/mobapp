@@ -2,17 +2,10 @@
 // TASK FLOW-15: UI Redesign - Badges with Phosphor icons
 
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  Modal
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Modal } from 'react-native';
 import { Medal, Lock } from 'phosphor-react-native';
 import { getUserBadges, getAllBadges } from '../../services/badges';
+import { captureException } from '@/services/errorReporter';
 import { UserBadge, Badge } from '../../types/badge';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui';
@@ -46,7 +39,9 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
       setUserBadges(uBadges);
       setAllBadges(aBadges);
     } catch (error) {
-      console.error('Error loading badges screen:', error);
+      captureException(error, {
+        tags: { screen: 'BadgesScreen', action: 'load_badges' },
+      });
     } finally {
       setLoading(false);
     }
@@ -71,15 +66,9 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
         {item.icon_url ? (
           <Image source={{ uri: item.icon_url }} style={styles.badgeImage} resizeMode="contain" />
         ) : (
-          <Medal
-            size={28}
-            color={earned ? '#F59E0B' : '#CCCCCC'}
-            weight="regular"
-          />
+          <Medal size={28} color={earned ? '#F59E0B' : '#CCCCCC'} weight="regular" />
         )}
-        <Text style={earned ? styles.earnedBadgeLabel : styles.lockedBadgeLabel}>
-          {item.name}
-        </Text>
+        <Text style={earned ? styles.earnedBadgeLabel : styles.lockedBadgeLabel}>{item.name}</Text>
       </TouchableOpacity>
     );
   };
@@ -94,7 +83,6 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
 
   return (
     <ScreenLayout variant="detail" title="My Badges">
-
       <FlatList
         data={allBadges}
         renderItem={renderBadgeItem}
@@ -122,17 +110,16 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
             )}
             <Text style={styles.modalTitle}>{selectedBadge?.name}</Text>
             <Text style={styles.modalDescription}>
-              {selectedBadge?.earned ? selectedBadge.description : selectedBadge?.description || 'Keep going to unlock this badge!'}
+              {selectedBadge?.earned
+                ? selectedBadge.description
+                : selectedBadge?.description || 'Keep going to unlock this badge!'}
             </Text>
             {selectedBadge?.earned && selectedBadge?.userBadgeInfo && (
               <Text style={styles.modalUnlockDate}>
                 Unlocked: {new Date(selectedBadge.userBadgeInfo.awarded_at).toLocaleDateString()}
               </Text>
             )}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>

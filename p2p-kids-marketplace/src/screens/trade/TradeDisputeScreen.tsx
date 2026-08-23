@@ -1,9 +1,9 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeDisputeScreen.tsx
  * TASK FLOW-08-05: Trade Dispute Screen - Whisk Design System
- * 
+ *
  * NEW SCREEN - For filing disputes on problematic trades
- * 
+ *
  * Features:
  * - Red alert banner with WarningCircle icon
  * - Reason selector chips (red when selected)
@@ -123,8 +123,8 @@ export default function TradeDisputeScreen() {
               // D-26: Call open-dispute EF — does NOT cancel the trade
               const { data, error } = await supabase.functions.invoke('open-dispute', {
                 body: {
-                  trade_id:    tradeId,
-                  reason:      selectedReason,
+                  trade_id: tradeId,
+                  reason: selectedReason,
                   description: description.trim(),
                 },
               });
@@ -178,6 +178,8 @@ export default function TradeDisputeScreen() {
               const isSelected = selectedReason === reason.id;
               return (
                 <Pressable
+                  accessible
+                  accessibilityRole="button"
                   key={reason.id}
                   style={[styles.reasonCard, isSelected && styles.reasonCardSelected]}
                   onPress={() => toggleReason(reason.id)}
@@ -223,6 +225,9 @@ export default function TradeDisputeScreen() {
           onPress={handleSubmit}
           disabled={!isFormValid || submitting}
           testID="submit-dispute-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Submit dispute button"
         >
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" />
@@ -240,6 +245,9 @@ export default function TradeDisputeScreen() {
           onPress={() => navigation.goBack()}
           disabled={submitting}
           testID="cancel-dispute-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Cancel dispute button"
         >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>

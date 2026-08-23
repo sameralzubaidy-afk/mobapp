@@ -175,7 +175,14 @@ const BadgeCelebrationModal: React.FC<BadgeCelebrationModalProps> = ({
             </Text>
 
             {/* Close Button */}
-            <Pressable style={styles.button} onPress={onClose} testID="celebration-close-button">
+            <Pressable
+              style={styles.button}
+              onPress={onClose}
+              testID="celebration-close-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Awesome!"
+            >
               <Text style={styles.buttonText}>Awesome!</Text>
             </Pressable>
           </Pressable>

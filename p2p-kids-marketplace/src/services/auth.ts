@@ -5,6 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
 import { AuthSession, LoginInput, UserProfile, AuthError } from '../types/user';
 import { ReferralCodeServiceV2 } from './referralCodeV2';
+import { captureException } from './errorReporter';
 import { isAtLeast18 } from '../utils/age';
 
 type SignupPolicyType = 'terms_of_service' | 'privacy_policy';
@@ -295,7 +296,9 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
     );
 
     if (subError) {
-      console.error('[enrollInTrialSubscription] ❌ Subscription RPC error:', subError);
+      captureException(subError, {
+        tags: { service: 'auth', action: 'enroll_subscription_rpc' },
+      });
       throw new AuthError(
         `Failed to create trial subscription: ${subError.message}`,
         'SUBSCRIPTION_CREATION_FAILED',
@@ -309,7 +312,9 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
     });
 
     if (walletError) {
-      console.error('[enrollInTrialSubscription] ❌ Wallet RPC error:', walletError);
+      captureException(walletError, {
+        tags: { service: 'auth', action: 'enroll_wallet_rpc' },
+      });
       throw new AuthError(
         `Failed to initialize SP wallet: ${walletError.message}`,
         'WALLET_CREATION_FAILED',
@@ -432,8 +437,9 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
       wallet_state: 'inactive', // ADMIN-V2-003
     };
 
-    const normalizedUserId =
-      ((profile as UserProfile).user_id || (profile as UserProfile).id || userId) as string;
+    const normalizedUserId = ((profile as UserProfile).user_id ||
+      (profile as UserProfile).id ||
+      userId) as string;
 
     // Step 5: Build enriched session
     const session: AuthSession = {
@@ -588,7 +594,9 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
           | 'inactive') || 'inactive', // ADMIN-V2-003
     };
   } catch (error) {
-    console.error('Failed to build session:', error);
+    captureException(error, {
+      tags: { service: 'auth', action: 'build_session' },
+    });
     return null;
   }
 }

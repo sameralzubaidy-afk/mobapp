@@ -22,7 +22,7 @@ import {
   StyleSheet,
   RefreshControl,
   ScrollView,
-  Modal
+  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { DotsThree, PencilSimple, Storefront, Trash, Receipt } from 'phosphor-react-native';
@@ -32,6 +32,7 @@ import { getActiveDrafts, deleteDraft } from '../../services/draftService';
 import { Listing, ListingSummary, ItemDraft } from '../../types/listing';
 import { ListingImage } from '../../components/atoms';
 import { LoadingSpinner } from '@/components/ui';
+import { captureException } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type StatusFilter = 'all' | 'pending' | 'needs_edits' | 'rejected' | 'available' | 'sold';
@@ -65,7 +66,9 @@ export default function MyListingsScreen({ navigation }: any) {
       setSummary(summaryData);
       setDrafts(draftsData);
     } catch (error) {
-      console.error('[MyListings] loadListings error:', error);
+      captureException(error, {
+        tags: { screen: 'MyListingsScreen', action: 'load_listings' },
+      });
       Alert.alert('Error', 'Failed to load your listings');
     } finally {
       setLoading(false);
@@ -115,7 +118,10 @@ export default function MyListingsScreen({ navigation }: any) {
               setShowSuccessModal(true);
               loadListings(); // Reload listings
             } catch (error: any) {
-              console.error('[MyListings] handleDeleteListing error:', error);
+              captureException(error, {
+                tags: { screen: 'MyListingsScreen', action: 'delete_listing' },
+                extra: { message: error?.message },
+              });
               Alert.alert('Error', error.message || 'Failed to delete listing');
             }
           },
@@ -159,7 +165,9 @@ export default function MyListingsScreen({ navigation }: any) {
               await deleteDraft(draft.id);
               setDrafts((prev) => prev.filter((d) => d.id !== draft.id));
             } catch (error) {
-              console.error('[MyListings] handleDiscardDraft error:', error);
+              captureException(error, {
+                tags: { screen: 'MyListingsScreen', action: 'discard_draft' },
+              });
               Alert.alert('Error', 'Failed to discard draft');
             }
           },
@@ -256,7 +264,9 @@ export default function MyListingsScreen({ navigation }: any) {
             <View style={styles.listingInfo}>
               <Text style={styles.listingTitle}>{item.title}</Text>
               <Text style={styles.listingPrice}>${item.price.toFixed(2)}</Text>
-              <Text style={styles.listingDateText}>{new Date(item.created_at).toLocaleDateString()}</Text>
+              <Text style={styles.listingDateText}>
+                {new Date(item.created_at).toLocaleDateString()}
+              </Text>
             </View>
 
             <View style={[styles.statusBadge, statusStyles.badge]}>
@@ -279,15 +289,24 @@ export default function MyListingsScreen({ navigation }: any) {
 
         {isActive && (
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.iconActionButton} onPress={() => handleEditListing(item)}>
+            <TouchableOpacity
+              style={styles.iconActionButton}
+              onPress={() => handleEditListing(item)}
+            >
               <PencilSimple size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconActionButton} onPress={() => handleDeleteListing(item)}>
+            <TouchableOpacity
+              style={styles.iconActionButton}
+              onPress={() => handleDeleteListing(item)}
+            >
               <Trash size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconActionButton} onPress={() => handleOpenListing(item)}>
+            <TouchableOpacity
+              style={styles.iconActionButton}
+              onPress={() => handleOpenListing(item)}
+            >
               <DotsThree size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
           </View>
@@ -306,6 +325,8 @@ export default function MyListingsScreen({ navigation }: any) {
     return (
       <View style={styles.draftCard} testID={`draft-card-${item.id}`}>
         <TouchableOpacity
+          accessible
+          accessibilityRole="button"
           activeOpacity={0.85}
           onPress={() => handleResumeDraft(item)}
           style={styles.draftContent}
@@ -324,6 +345,8 @@ export default function MyListingsScreen({ navigation }: any) {
 
           <View style={styles.draftActions}>
             <TouchableOpacity
+              accessible
+              accessibilityRole="button"
               style={styles.resumeButton}
               onPress={() => handleResumeDraft(item)}
               testID={`draft-resume-${item.id}`}
@@ -331,6 +354,8 @@ export default function MyListingsScreen({ navigation }: any) {
               <Text style={styles.resumeButtonText}>Resume</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              accessible
+              accessibilityRole="button"
               style={styles.discardButton}
               onPress={() => handleDiscardDraft(item)}
               testID={`draft-discard-${item.id}`}
@@ -402,6 +427,9 @@ export default function MyListingsScreen({ navigation }: any) {
               style={[styles.tab, selectedTab === 'listings' && styles.tabActive]}
               onPress={() => setSelectedTab('listings')}
               testID="tab-listings"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Tab listings"
             >
               <Text style={[styles.tabText, selectedTab === 'listings' && styles.tabTextActive]}>
                 Listings ({listings.length})
@@ -411,6 +439,9 @@ export default function MyListingsScreen({ navigation }: any) {
               style={[styles.tab, selectedTab === 'drafts' && styles.tabActive]}
               onPress={() => setSelectedTab('drafts')}
               testID="tab-drafts"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Tab drafts"
             >
               <Text style={[styles.tabText, selectedTab === 'drafts' && styles.tabTextActive]}>
                 Drafts ({drafts.length})
@@ -440,6 +471,8 @@ export default function MyListingsScreen({ navigation }: any) {
                     ] as StatusFilter[]
                   ).map((status) => (
                     <TouchableOpacity
+                      accessible
+                      accessibilityRole="button"
                       key={status}
                       style={[
                         styles.filterButton,
@@ -477,6 +510,9 @@ export default function MyListingsScreen({ navigation }: any) {
                       style={styles.createButton}
                       onPress={() => navigation.navigate('ItemCreate')}
                       testID="create-first-listing-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Create first listing button"
                     >
                       <Text style={styles.createButtonText}>Create Listing</Text>
                     </TouchableOpacity>
@@ -523,7 +559,14 @@ export default function MyListingsScreen({ navigation }: any) {
           )}
 
           {/* LISTING-V3-007: FAB with Bottom Sheet */}
-          <TouchableOpacity style={styles.fab} onPress={handleFABPress} testID="fab-button">
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={handleFABPress}
+            testID="fab-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Add item"
+          >
             <Text style={styles.fabText}>+</Text>
           </TouchableOpacity>
 
@@ -540,6 +583,9 @@ export default function MyListingsScreen({ navigation }: any) {
               activeOpacity={1}
               onPress={() => setIsFABSheetVisible(false)}
               testID="modal-overlay"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Modal overlay"
             >
               <View style={styles.bottomSheet}>
                 <View style={styles.sheetHandle} />
@@ -549,6 +595,9 @@ export default function MyListingsScreen({ navigation }: any) {
                   style={styles.sheetOption}
                   onPress={handleCreateSingle}
                   testID="sheet-option-single"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Sheet option single"
                 >
                   <Text style={styles.sheetOptionIcon}>📝</Text>
                   <View style={styles.sheetOptionContent}>
@@ -563,6 +612,9 @@ export default function MyListingsScreen({ navigation }: any) {
                   style={styles.sheetOption}
                   onPress={handleCreateBulk}
                   testID="sheet-option-bulk"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Sheet option bulk"
                 >
                   <Text style={styles.sheetOptionIcon}>📦</Text>
                   <View style={styles.sheetOptionContent}>
@@ -577,6 +629,9 @@ export default function MyListingsScreen({ navigation }: any) {
                   style={styles.sheetCancel}
                   onPress={() => setIsFABSheetVisible(false)}
                   testID="sheet-cancel"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Sheet cancel"
                 >
                   <Text style={styles.sheetCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -602,13 +657,15 @@ export default function MyListingsScreen({ navigation }: any) {
                   style={styles.successModalButton}
                   onPress={handleSuccessModalClose}
                   testID="my-listings-success-ok"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="My listings success ok"
                 >
                   <Text style={styles.successModalButtonText}>Done</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </Modal>
-
         </View>
       </View>
     </ScreenLayout>

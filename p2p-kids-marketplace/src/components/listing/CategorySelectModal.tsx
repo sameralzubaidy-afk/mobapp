@@ -78,6 +78,7 @@ export function CategorySelectModal({
 
     return (
       <TouchableOpacity
+        accessible
         style={styles.categoryItem}
         onPress={() => {
           onSelect(item);
@@ -130,6 +131,7 @@ export function CategorySelectModal({
             accessibilityLabel="Close category selection"
             accessibilityRole="button"
             testID="close-modal"
+            accessible
           >
             <Text style={styles.closeButton}>×</Text>
           </TouchableOpacity>
@@ -153,6 +155,8 @@ export function CategorySelectModal({
             <View style={styles.recentList}>
               {recent.map((cat) => (
                 <TouchableOpacity
+                  accessible
+                  accessibilityRole="button"
                   key={cat.id}
                   style={styles.recentChip}
                   onPress={() => onSelect(cat)}
@@ -200,6 +204,9 @@ export function CategorySelectModal({
                   setCustomCategory('');
                 }}
                 testID="cancel-other"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Cancel other"
               >
                 <Text style={styles.otherCancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -211,6 +218,9 @@ export function CategorySelectModal({
                 onPress={handleSelectOther}
                 disabled={customCategory.trim().length === 0}
                 testID="submit-other"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Submit other"
               >
                 <Text style={styles.otherSubmitText}>Submit</Text>
               </TouchableOpacity>
@@ -225,6 +235,7 @@ export function CategorySelectModal({
             accessibilityLabel="Select other category not in list"
             accessibilityRole="button"
             testID="other-button"
+            accessible
           >
             <Text style={styles.otherButtonText}>+ Other (Custom Category)</Text>
           </TouchableOpacity>

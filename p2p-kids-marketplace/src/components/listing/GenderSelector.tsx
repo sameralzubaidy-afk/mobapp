@@ -44,6 +44,7 @@ export function GenderSelector({
           return (
             <TouchableOpacity
               key={optionKey}
+              accessible
               style={[styles.pill, isSelected && styles.pillSelected]}
               onPress={() => onChange(option.value)}
               accessibilityLabel={`Gender: ${option.label}`}

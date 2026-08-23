@@ -26,6 +26,7 @@ import { Button, Modal, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 import { useAuth } from '@/hooks/useAuth';
+import { captureException } from '@/services/errorReporter';
 import { getAllTestUsers, TestUser } from '@/utils/testUsers';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
@@ -329,7 +330,15 @@ export default function SignupScreen() {
       status: error?.status,
       code: error?.code,
     };
-    console.error('Signup error:', debugInfo, error);
+    // Report to Sentry instead of console.error — a raw console.error on a
+    // dev/staging build makes RN LogBox render a duplicate, internals-leaking
+    // red banner (AuthError) stacked under the branded "Signup Failed" modal
+    // (QA: Group A+B+D 2026-08-23, finding #4 — reconfirmed live as
+    // "Signup error: ...AuthError").
+    captureException(error, {
+      tags: { screen: 'SignupScreen', action: 'signup' },
+      extra: debugInfo,
+    });
 
     // Show user-friendly error message
     let errorMessage = 'Signup failed. Please try again.';
@@ -420,6 +429,9 @@ export default function SignupScreen() {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
             testID="signup-back-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Signup back button"
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>

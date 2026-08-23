@@ -44,6 +44,8 @@ export function PhotoGroupingView({
                 accessibilityLabel={`Drag photo ${photoIndex} of ${totalPhotos} in item ${groupIndex + 1}`}
                 accessibilityHint="Moves this photo left within the current item group"
                 testID={`drag-handle-${group.groupId}-${item.id}`}
+                accessible
+                accessibilityRole="button"
               >
                 <Text style={styles.smallButtonText}>◀</Text>
               </TouchableOpacity>
@@ -60,6 +62,8 @@ export function PhotoGroupingView({
                 accessibilityLabel={`Drag photo ${photoIndex} of ${totalPhotos} in item ${groupIndex + 1}`}
                 accessibilityHint="Moves this photo right within the current item group"
                 testID={`drag-handle-next-${group.groupId}-${item.id}`}
+                accessible
+                accessibilityRole="button"
               >
                 <Text style={styles.smallButtonText}>▶</Text>
               </TouchableOpacity>
@@ -71,6 +75,8 @@ export function PhotoGroupingView({
               accessibilityLabel="Set cover photo"
               accessibilityHint="Sets this photo as the primary image for the item"
               testID={`set-cover-${group.groupId}-${item.id}`}
+              accessible
+              accessibilityRole="button"
             >
               <Text style={styles.smallButtonText}>Cover</Text>
             </TouchableOpacity>
@@ -83,6 +89,8 @@ export function PhotoGroupingView({
                   }
                   style={styles.moveButton}
                   testID={`move-prev-${group.groupId}-${item.id}`}
+                  accessible
+                  accessibilityRole="button"
                 >
                   <Text style={styles.moveButtonText}>← Item {groupIndex}</Text>
                 </TouchableOpacity>
@@ -94,6 +102,8 @@ export function PhotoGroupingView({
                   }
                   style={styles.moveButton}
                   testID={`move-next-${group.groupId}-${item.id}`}
+                  accessible
+                  accessibilityRole="button"
                 >
                   <Text style={styles.moveButtonText}>Item {groupIndex + 2} →</Text>
                 </TouchableOpacity>
@@ -135,6 +145,9 @@ export function PhotoGroupingView({
         style={styles.confirmButton}
         onPress={onConfirmGrouping}
         testID="confirm-grouping-button"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Confirm grouping button"
       >
         <Text style={styles.confirmButtonText}>Confirm Grouping</Text>
       </TouchableOpacity>

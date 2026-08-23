@@ -16,12 +16,13 @@ import {
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../hooks/useAuth';
 import { getSellerPayouts } from '../../services/payoutService';
+import { captureException } from '@/services/errorReporter';
 import type { SellerPayout } from '../../types/payout.types';
 import type { RootStackParamList } from '../../navigation/types';
 import { LoadingSpinner } from '@/components/ui';
@@ -79,7 +80,10 @@ export default function SellerEarningsScreen() {
       setPayouts(enriched);
     } catch (err: any) {
       setError(err.message || 'Failed to load earnings');
-      console.error('Error loading payouts:', err);
+      captureException(err, {
+        tags: { screen: 'SellerEarningsScreen', action: 'load_payouts' },
+        extra: { message: err?.message },
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -226,6 +230,9 @@ export default function SellerEarningsScreen() {
           style={styles.actionButton}
           onPress={() => navigation.navigate('PayoutSettings', { showNoMethodModal: true })}
           testID="set-up-payout-method-btn"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Set up payout method btn"
         >
           <Text style={styles.actionButtonText}>Set Up Payout Method</Text>
         </TouchableOpacity>
@@ -301,6 +308,9 @@ export default function SellerEarningsScreen() {
               onPress={handleLoadMore}
               disabled={loadingMore}
               testID="earnings-load-more"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Earnings load more"
             >
               {loadingMore ? (
                 <ActivityIndicator size="small" color="#5DBB8E" />
@@ -311,7 +321,12 @@ export default function SellerEarningsScreen() {
           ) : null
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#5DBB8E']} tintColor="#5DBB8E" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#5DBB8E']}
+            tintColor="#5DBB8E"
+          />
         }
         contentContainerStyle={styles.listContent}
       />

@@ -39,6 +39,7 @@ import {
   ProfileStats,
   resolveAvatarUrl,
 } from '@/services/profile';
+import { captureException } from '@/services/errorReporter';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BadgeShowcase } from '@/components/BadgeShowcase';
@@ -157,7 +158,9 @@ export default function ProfileScreen({ route }: any) {
         setReviewStats(statsResult.stats);
       }
     } catch (error) {
-      console.error('Load reviews error:', error);
+      captureException(error, {
+        tags: { screen: 'ProfileScreen', action: 'load_reviews' },
+      });
     } finally {
       setLoadingReviews(false);
     }
@@ -249,7 +252,9 @@ export default function ProfileScreen({ route }: any) {
           })(),
         ]);
       } catch (error: any) {
-        console.error('Load profile error:', error);
+        captureException(error, {
+          tags: { screen: 'ProfileScreen', action: 'load_profile' },
+        });
         if (showFullScreenLoader) {
           Alert.alert('Error', 'Failed to load profile. Please try again.');
         } else {
@@ -306,7 +311,9 @@ export default function ProfileScreen({ route }: any) {
       // Use AuthContext logout which properly clears session and updates context
       await contextLogout();
     } catch (error: any) {
-      console.error('Logout error:', error);
+      captureException(error, {
+        tags: { screen: 'ProfileScreen', action: 'logout' },
+      });
       Alert.alert('Error', 'Failed to logout. Please try again.');
       setLoggingOut(false);
     }
@@ -381,7 +388,14 @@ export default function ProfileScreen({ route }: any) {
             {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
 
             {/* Edit Profile Action Label (moved up for intuition) */}
-            <TouchableOpacity style={styles.editLink} onPress={handleEditProfile} testID="avatar-upload-button">
+            <TouchableOpacity
+              style={styles.editLink}
+              onPress={handleEditProfile}
+              testID="avatar-upload-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Edit basic info"
+            >
               <PencilSimple size={14} color="#5DBB8E" weight="bold" />
               <Text style={styles.editLinkText}>Edit basic info</Text>
             </TouchableOpacity>
@@ -500,6 +514,9 @@ export default function ProfileScreen({ route }: any) {
                 verificationStatus?.status === 'pending' && styles.pendingCard,
               ]}
               testID="id-verification-menu-item"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Id verification menu item"
               onPress={() => navigation.navigate('IDVerificationUpload')}
             >
               <View
@@ -550,6 +567,9 @@ export default function ProfileScreen({ route }: any) {
               style={styles.utilityRow}
               onPress={() => navigation.navigate('TransactionHistory')}
               testID="profile-billing-history"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Billing History"
             >
               <Receipt size={20} color="#6B6B6B" weight="regular" />
               <Text style={styles.utilityText}>Billing History</Text>
@@ -560,6 +580,9 @@ export default function ProfileScreen({ route }: any) {
               style={styles.utilityRow}
               onPress={() => navigation.navigate('Settings')}
               testID="profile-settings"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="App Settings"
             >
               <Gear size={20} color="#6B6B6B" weight="regular" />
               <Text style={styles.utilityText}>App Settings</Text>
@@ -571,6 +594,9 @@ export default function ProfileScreen({ route }: any) {
               style={styles.utilityRow}
               onPress={() => navigation.navigate('AdminDashboard')}
               testID="profile-admin-dashboard"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Admin Dashboard"
             >
               <Buildings size={20} color="#92400E" weight="regular" />
               <Text style={[styles.utilityText, { color: '#92400E' }]}>Admin Dashboard</Text>
@@ -581,6 +607,9 @@ export default function ProfileScreen({ route }: any) {
               style={styles.utilityRow}
               onPress={() => navigation.navigate('HelpSupport')}
               testID="profile-help-support"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Help & Support"
             >
               <Question size={20} color="#6B6B6B" weight="regular" />
               <Text style={styles.utilityText}>Help & Support</Text>
@@ -592,6 +621,9 @@ export default function ProfileScreen({ route }: any) {
               onPress={handleLogout}
               disabled={loggingOut}
               testID="profile-logout"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Logout"
             >
               <SignOut size={20} color="#EF4444" weight="regular" />
               <Text style={[styles.utilityText, { color: '#EF4444' }]}>Logout</Text>

@@ -21,13 +21,7 @@ import {
   UIManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  ShieldCheck,
-  MapPin,
-  NavigationArrow,
-  Prohibit,
-  SunDim,
-} from 'phosphor-react-native';
+import { ShieldCheck, MapPin, NavigationArrow, Prohibit, SunDim } from 'phosphor-react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -69,7 +63,7 @@ export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
 
   // Load persisted collapsed state
   React.useEffect(() => {
-    AsyncStorage.getItem(storageKey).then(val => {
+    AsyncStorage.getItem(storageKey).then((val) => {
       if (val === 'true') setCollapsed(true);
     });
   }, [storageKey]);
@@ -93,6 +87,9 @@ export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
         onPress={expand}
         activeOpacity={0.7}
         testID="safe-meetup-toggle"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Safe meetup toggle"
       >
         <ShieldCheck size={20} color="#5DBB8E" weight="fill" />
         <Text style={styles.collapsedText}>Trade Smart, Trade Safe</Text>
@@ -110,9 +107,7 @@ export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
         </View>
         <View style={styles.headerTextWrap}>
           <Text style={styles.headerTitle}>Trade Smart, Trade Safe</Text>
-          <Text style={styles.headerSub}>
-            Smart traders meet where people are around
-          </Text>
+          <Text style={styles.headerSub}>Smart traders meet where people are around</Text>
         </View>
       </View>
 
@@ -139,6 +134,9 @@ export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
         style={styles.ctaButton}
         onPress={dismiss}
         testID="safe-meetup-cta"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Safe meetup cta"
         activeOpacity={0.8}
       >
         <ShieldCheck size={18} color="#FFFFFF" weight="fill" style={{ marginRight: 8 }} />

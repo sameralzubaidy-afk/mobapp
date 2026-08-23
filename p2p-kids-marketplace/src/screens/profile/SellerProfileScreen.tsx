@@ -12,7 +12,14 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Star, ShieldCheck, MapPin, IdentificationCard, CaretDown, CaretUp } from 'phosphor-react-native';
+import {
+  Star,
+  ShieldCheck,
+  MapPin,
+  IdentificationCard,
+  CaretDown,
+  CaretUp,
+} from 'phosphor-react-native';
 import Avatar from '@/components/atoms/Avatar';
 import { LoadingSpinner } from '@/components/ui';
 import { getUserProfile } from '@/services/profile';
@@ -21,6 +28,7 @@ import { idBadgeService, IDVerificationStatus } from '@/services/idBadge';
 import { supabase } from '@/services/supabase/client';
 import { UserBadge } from '@/types/badge';
 import { getReviewStats, getUserReviews, ReviewStats, Review } from '@/services/review';
+import { captureException } from '@/services/errorReporter';
 import { ReviewCard } from '@/components/ReviewCard';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -29,7 +37,9 @@ const isUuid = (value: string): boolean =>
 
 export default function SellerProfileScreen({ navigation: _navigation, route }: any) {
   const userId = route?.params?.userId;
-  const routeVerificationStatus = String(route?.params?.sellerVerificationStatus ?? '').toLowerCase();
+  const routeVerificationStatus = String(
+    route?.params?.sellerVerificationStatus ?? ''
+  ).toLowerCase();
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any | null>(null);
@@ -38,7 +48,8 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [completedTradesCount, setCompletedTradesCount] = useState(0);
   const [badges, setBadges] = useState<UserBadge[]>([]);
-  const [idVerificationStatus, setIdVerificationStatus] = useState<IDVerificationStatus['status']>('none');
+  const [idVerificationStatus, setIdVerificationStatus] =
+    useState<IDVerificationStatus['status']>('none');
   const [badgesExpanded, setBadgesExpanded] = useState(false);
 
   const profileVerificationStatus = String(
@@ -46,7 +57,9 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
   ).toLowerCase();
   const hasVerificationBadge = badges.some((userBadge) => {
     const badgeName = String(userBadge?.badge?.name ?? '').toLowerCase();
-    return badgeName.includes('verified') || badgeName.includes('identity') || badgeName.includes('id');
+    return (
+      badgeName.includes('verified') || badgeName.includes('identity') || badgeName.includes('id')
+    );
   });
   const isIdentityVerified =
     routeVerificationStatus === 'approved' ||
@@ -92,11 +105,11 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
       setLoading(false);
 
       const candidateIds = Array.from(
-        new Set([
-          userId,
-          String(resolvedProfile.user_id || ''),
-          String(resolvedProfile.id || ''),
-        ].filter(Boolean))
+        new Set(
+          [userId, String(resolvedProfile.user_id || ''), String(resolvedProfile.id || '')].filter(
+            Boolean
+          )
+        )
       );
 
       const reviewBundles = await Promise.all(
@@ -215,11 +228,15 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
 
           setBadges(badgeResult);
         } catch (secondaryLoadError) {
-          console.error('Load seller profile secondary data error:', secondaryLoadError);
+          captureException(secondaryLoadError, {
+            tags: { screen: 'SellerProfileScreen', action: 'load_secondary' },
+          });
         }
       })();
     } catch (error) {
-      console.error('Load seller profile error:', error);
+      captureException(error, {
+        tags: { screen: 'SellerProfileScreen', action: 'load_profile' },
+      });
     } finally {
       setLoading(false);
     }
@@ -280,30 +297,35 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
           </View>
 
           {/* Rating Summary - FLOW-15 */}
-            <View style={styles.ratingRow}>
-              {reviewStats && reviewStats.total_reviews > 0 ? (
-                <>
-                  <View style={styles.starRow}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        size={16}
-                        color={star <= Math.round(reviewStats.average_rating) ? '#F59E0B' : '#E0E0E0'}
-                        weight={star <= Math.round(reviewStats.average_rating) ? 'fill' : 'regular'}
-                      />
-                    ))}
-                  </View>
-                  <Text style={styles.ratingNumber}>{reviewStats.average_rating.toFixed(1)}</Text>
-                  <Text style={styles.reviewCount}>({reviewStats.total_reviews} reviews)</Text>
-                </>
-              ) : (
-                <Text style={styles.noReviewsText}>No ratings yet</Text>
-              )}
-            </View>
+          <View style={styles.ratingRow}>
+            {reviewStats && reviewStats.total_reviews > 0 ? (
+              <>
+                <View style={styles.starRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      size={16}
+                      color={star <= Math.round(reviewStats.average_rating) ? '#F59E0B' : '#E0E0E0'}
+                      weight={star <= Math.round(reviewStats.average_rating) ? 'fill' : 'regular'}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.ratingNumber}>{reviewStats.average_rating.toFixed(1)}</Text>
+                <Text style={styles.reviewCount}>({reviewStats.total_reviews} reviews)</Text>
+              </>
+            ) : (
+              <Text style={styles.noReviewsText}>No ratings yet</Text>
+            )}
+          </View>
 
           {/* Trust Indicators Section */}
           <View style={styles.trustSection}>
-            <View style={[styles.promoCard, isIdentityVerified ? styles.verifiedCard : styles.unverifiedCard]}>
+            <View
+              style={[
+                styles.promoCard,
+                isIdentityVerified ? styles.verifiedCard : styles.unverifiedCard,
+              ]}
+            >
               <View
                 style={[
                   styles.promoIconContainer,
@@ -317,7 +339,9 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
                 />
               </View>
               <View style={styles.promoContent}>
-                <Text style={[styles.promoTitle, { color: isIdentityVerified ? '#10B981' : '#B45309' }]}>
+                <Text
+                  style={[styles.promoTitle, { color: isIdentityVerified ? '#10B981' : '#B45309' }]}
+                >
                   {isIdentityVerified ? 'Identity Verified' : 'Identity Not Verified'}
                 </Text>
                 <Text style={styles.promoSubtitle}>
@@ -330,7 +354,7 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
               </View>
             </View>
 
-            {(badges.length > 0) && (
+            {badges.length > 0 && (
               <View style={styles.badgesWrapper}>
                 <TouchableOpacity
                   style={styles.badgesToggleRow}
@@ -350,14 +374,16 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
                     {badges.map((userBadge) => (
                       <View key={userBadge.id} style={styles.trustBadgeRow}>
                         <ShieldCheck size={20} color="#5DBB8E" weight="fill" />
-                        <Text style={styles.trustBadgeText}>{userBadge.badge?.name || 'Earned Badge'}</Text>
+                        <Text style={styles.trustBadgeText}>
+                          {userBadge.badge?.name || 'Earned Badge'}
+                        </Text>
                       </View>
                     ))}
                   </View>
                 )}
               </View>
             )}
-            
+
             {!isIdentityVerified && badges.length === 0 && (
               <Text style={styles.noTrustText}>No trust indicators yet</Text>
             )}
@@ -386,9 +412,7 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
                       stars as keyof typeof reviewStats.rating_breakdown
                     ];
                   const percentage =
-                    reviewStats.total_reviews > 0
-                      ? (count / reviewStats.total_reviews) * 100
-                      : 0;
+                    reviewStats.total_reviews > 0 ? (count / reviewStats.total_reviews) * 100 : 0;
 
                   return (
                     <View key={stars} style={styles.breakdownRow}>

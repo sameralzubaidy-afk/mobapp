@@ -113,6 +113,7 @@ export function ConditionGuideOverlay({
             accessibilityLabel="Close condition guide"
             accessibilityRole="button"
             testID="close-guide"
+            accessible
           >
             <Text style={styles.closeButton}>×</Text>
           </TouchableOpacity>
@@ -155,6 +156,7 @@ export function ConditionGuideOverlay({
           accessibilityLabel="Close guide"
           accessibilityRole="button"
           testID="done-button"
+          accessible
         >
           <Text style={styles.doneButtonText}>Got It</Text>
         </TouchableOpacity>

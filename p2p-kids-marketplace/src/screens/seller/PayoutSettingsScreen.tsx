@@ -25,6 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { supabase } from '../../services/supabase/client';
+import { captureException } from '@/services/errorReporter';
 import {
   listPayoutMethods,
   createPayoutMethod,
@@ -34,10 +35,7 @@ import {
   checkPayoutEligibility,
   syncStripeConnectStatus,
 } from '../../services/payoutMethods';
-import type {
-  SellerPayoutMethod,
-  PayoutMethodType,
-} from '../../types/payout.types';
+import type { SellerPayoutMethod, PayoutMethodType } from '../../types/payout.types';
 import {
   getSellerBalance,
   formatBalanceForDisplay,
@@ -104,7 +102,10 @@ function getProviderColor(methodType: string): string {
 }
 
 /** Return badge styling based on status message */
-function getStatusBadgeStyle(statusMessage: string, isPrimary: boolean): { bg: string; border: string; text: string } {
+function getStatusBadgeStyle(
+  statusMessage: string,
+  isPrimary: boolean
+): { bg: string; border: string; text: string } {
   if (isPrimary) {
     return { bg: '#E8F5F0', border: '#5DBB8E', text: '#5DBB8E' };
   }
@@ -147,7 +148,9 @@ export default function PayoutSettingsScreen() {
   const [adminPayoutConfig, setAdminPayoutConfig] = useState<AdminPayoutConfig | null>(null);
 
   // Bottom sheet state
-  const [selectedMethodForSheet, setSelectedMethodForSheet] = useState<SellerPayoutMethod | null>(null);
+  const [selectedMethodForSheet, setSelectedMethodForSheet] = useState<SellerPayoutMethod | null>(
+    null
+  );
   const [showMethodSheet, setShowMethodSheet] = useState(false);
 
   const [_eligibility, setEligibility] = useState({
@@ -200,7 +203,9 @@ export default function PayoutSettingsScreen() {
       const payoutConfig = await getAdminPayoutConfig();
       setAdminPayoutConfig(payoutConfig);
     } catch (error) {
-      console.error('Failed to load payout data:', error);
+      captureException(error, {
+        tags: { screen: 'PayoutSettingsScreen', action: 'load_payout_data' },
+      });
       Alert.alert('Error', 'Failed to load payout data. Please try again.');
     } finally {
       setLoading(false);
@@ -230,7 +235,9 @@ export default function PayoutSettingsScreen() {
       const payoutsData = await getRecentPayouts(newLimit);
       setRecentPayouts(payoutsData);
     } catch (error) {
-      console.error('Failed to load more payouts:', error);
+      captureException(error, {
+        tags: { screen: 'PayoutSettingsScreen', action: 'load_more_payouts' },
+      });
       Alert.alert('Error', 'Failed to load more payouts. Please try again.');
     } finally {
       setLoadingMore(false);
@@ -247,7 +254,9 @@ export default function PayoutSettingsScreen() {
       Alert.alert('Success', 'Primary payout method updated');
       loadPayoutMethods();
     } catch (error) {
-      console.error('Failed to set primary method:', error);
+      captureException(error, {
+        tags: { screen: 'PayoutSettingsScreen', action: 'set_primary_method' },
+      });
       Alert.alert('Error', 'Failed to update primary method. Please try again.');
     }
   };
@@ -264,7 +273,9 @@ export default function PayoutSettingsScreen() {
             Alert.alert('Success', 'Payout method deleted');
             loadPayoutMethods();
           } catch (error) {
-            console.error('Failed to delete method:', error);
+            captureException(error, {
+              tags: { screen: 'PayoutSettingsScreen', action: 'delete_method' },
+            });
             Alert.alert('Error', String(error) || 'Failed to delete payout method');
           }
         },
@@ -328,7 +339,9 @@ export default function PayoutSettingsScreen() {
         Alert.alert('Withdrawal Failed', result.error || 'Unable to process withdrawal');
       }
     } catch (error) {
-      console.error('Withdrawal error:', error);
+      captureException(error, {
+        tags: { screen: 'PayoutSettingsScreen', action: 'withdrawal' },
+      });
       Alert.alert('Error', 'Failed to process withdrawal. Please try again.');
     } finally {
       setWithdrawing(false);
@@ -405,6 +418,9 @@ export default function PayoutSettingsScreen() {
             style={styles.requestPayoutBtn}
             onPress={handleWithdrawClick}
             testID="request-payout-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Withdraw Now"
           >
             <ArrowDown size={16} color="#5DBB8E" />
             <Text style={styles.requestPayoutBtnText}>Withdraw Now</Text>
@@ -428,18 +444,16 @@ export default function PayoutSettingsScreen() {
 
               // Extract provider name from label like "PayPal (email)" or "Stripe (acct_****)"
               const parenIdx = display.label.indexOf('(');
-              const providerName = parenIdx > 0 ? display.label.slice(0, parenIdx).trim() : display.label;
-              const accountIdentifier = parenIdx > 0 ? display.label.slice(parenIdx).replace(/[()]/g, '') : '';
+              const providerName =
+                parenIdx > 0 ? display.label.slice(0, parenIdx).trim() : display.label;
+              const accountIdentifier =
+                parenIdx > 0 ? display.label.slice(parenIdx).replace(/[()]/g, '') : '';
 
               // Badge styling
               const badgeStyle = getStatusBadgeStyle(display.status_message, method.is_primary);
 
               return (
-                <View
-                  key={method.id}
-                  style={styles.methodCard}
-                  testID={`method-card-${method.id}`}
-                >
+                <View key={method.id} style={styles.methodCard} testID={`method-card-${method.id}`}>
                   {/* Left: icon + info — tap opens bottom sheet */}
                   <TouchableOpacity
                     style={styles.methodCardBody}
@@ -449,7 +463,9 @@ export default function PayoutSettingsScreen() {
                     }}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.providerIconCircle, { backgroundColor: providerColor + '18' }]}>
+                    <View
+                      style={[styles.providerIconCircle, { backgroundColor: providerColor + '18' }]}
+                    >
                       {providerIcon}
                     </View>
                     <View style={styles.methodCardInfo}>
@@ -460,9 +476,19 @@ export default function PayoutSettingsScreen() {
                         {accountIdentifier}
                       </Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: badgeStyle.bg, borderColor: badgeStyle.border }]}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: badgeStyle.bg, borderColor: badgeStyle.border },
+                      ]}
+                    >
                       {method.is_primary && (
-                        <CheckCircle size={12} color={badgeStyle.text} weight="fill" style={{ marginRight: 3 }} />
+                        <CheckCircle
+                          size={12}
+                          color={badgeStyle.text}
+                          weight="fill"
+                          style={{ marginRight: 3 }}
+                        />
                       )}
                       <Text style={[styles.statusBadgeText, { color: badgeStyle.text }]}>
                         {display.status_message}
@@ -473,6 +499,8 @@ export default function PayoutSettingsScreen() {
                   {/* Right: radio button + kebab */}
                   <View style={styles.methodCardActions}>
                     <TouchableOpacity
+                      accessible
+                      accessibilityRole="button"
                       style={styles.radioBtn}
                       onPress={() => {
                         if (isUnverifiedStatus) {
@@ -489,8 +517,8 @@ export default function PayoutSettingsScreen() {
                         isUnverifiedStatus
                           ? `Cannot set as primary — ${display.status_message}`
                           : method.is_primary
-                          ? 'Current primary method'
-                          : 'Set as primary'
+                            ? 'Current primary method'
+                            : 'Set as primary'
                       }
                     >
                       {method.is_primary ? (
@@ -508,6 +536,8 @@ export default function PayoutSettingsScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
+                      accessible
+                      accessibilityRole="button"
                       style={styles.kebabBtn}
                       onPress={() => {
                         setSelectedMethodForSheet(method);
@@ -525,6 +555,9 @@ export default function PayoutSettingsScreen() {
               style={styles.addAnotherCard}
               onPress={handleAddMethod}
               testID="add-another-method-row"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Add another method row"
             >
               <Plus size={18} color="#5DBB8E" />
               <Text style={styles.addAnotherText}>Add Another Method</Text>
@@ -535,6 +568,9 @@ export default function PayoutSettingsScreen() {
             style={styles.addMethodCardEmpty}
             onPress={handleAddMethod}
             testID="add-bank-row"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Add bank row"
           >
             <Plus size={20} color="#5DBB8E" />
             <Text style={styles.addBankText}>Add Bank Account</Text>
@@ -580,9 +616,7 @@ export default function PayoutSettingsScreen() {
           onSetPrimary={async (methodId) => {
             setShowMethodSheet(false);
             setSelectedMethodForSheet(null);
-            const display = formatPayoutMethodDisplay(
-              methods.find((m) => m.id === methodId)!
-            );
+            const display = formatPayoutMethodDisplay(methods.find((m) => m.id === methodId)!);
             const isUnverified =
               display.status_message === 'Verification pending' ||
               display.status_message === 'Onboarding required' ||
@@ -638,7 +672,9 @@ export default function PayoutSettingsScreen() {
                         Alert.alert('Deleted', 'Payout method removed successfully.');
                         loadPayoutMethods();
                       } catch (error) {
-                        console.error('Failed to delete method:', error);
+                        captureException(error, {
+                          tags: { screen: 'PayoutSettingsScreen', action: 'delete_method' },
+                        });
                         Alert.alert('Error', String(error) || 'Failed to delete payout method');
                       }
                     },
@@ -767,6 +803,9 @@ function NoMethodModal({ onClose, onAddMethod }: NoMethodModalProps) {
           style={styles.noMethodAddBtn}
           onPress={onAddMethod}
           testID="no-method-add-btn"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Add Payout Method"
         >
           <Plus size={18} color="#FFFFFF" />
           <Text style={styles.noMethodAddBtnText}>Add Payout Method</Text>
@@ -1012,7 +1051,9 @@ function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModa
                           );
                         }
                       } catch (err) {
-                        console.error('Failed to open URL:', err);
+                        captureException(err, {
+                          tags: { screen: 'PayoutSettingsScreen', action: 'open_url' },
+                        });
                         Alert.alert(
                           'Stripe Onboarding',
                           'Please open this URL in your browser to complete setup:\n\n' + url,
@@ -1027,7 +1068,9 @@ function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModa
               ]
             );
           } catch (error) {
-            console.error('Failed to create Stripe Connect account:', error);
+            captureException(error, {
+              tags: { screen: 'PayoutSettingsScreen', action: 'create_stripe_connect' },
+            });
             Alert.alert('Error', String(error) || 'Failed to create Stripe account');
           }
           break;
@@ -1064,7 +1107,9 @@ function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModa
           Alert.alert('Error', 'Unsupported payout method type');
       }
     } catch (error) {
-      console.error('Failed to add payout method:', error);
+      captureException(error, {
+        tags: { screen: 'PayoutSettingsScreen', action: 'add_payout_method' },
+      });
       Alert.alert('Error', String(error) || 'Failed to add payout method');
     } finally {
       setSubmitting(false);
@@ -1200,30 +1245,36 @@ function PayoutMethodBottomSheet({
   const providerColor = getProviderColor(method.method_type);
 
   return (
-    <Modal
-      transparent
-      animationType="slide"
-      visible={true}
-      onRequestClose={onClose}
-    >
+    <Modal transparent animationType="slide" visible={true} onRequestClose={onClose}>
       <TouchableOpacity
         style={styles.sheetOverlay}
         activeOpacity={1}
         onPress={onClose}
         testID="sheet-overlay"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Sheet overlay"
       >
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => {}}
           style={styles.sheetContainer}
           testID="sheet-container"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Sheet container"
         >
           {/* Handle bar */}
           <View style={styles.sheetHandle} />
 
           {/* Method info header */}
           <View style={styles.sheetHeader}>
-            <View style={[styles.providerIconCircle, { backgroundColor: providerColor + '18', width: 36, height: 36, borderRadius: 18 }]}>
+            <View
+              style={[
+                styles.providerIconCircle,
+                { backgroundColor: providerColor + '18', width: 36, height: 36, borderRadius: 18 },
+              ]}
+            >
               {providerIcon}
             </View>
             <View style={styles.sheetHeaderTextWrap}>
@@ -1236,22 +1287,18 @@ function PayoutMethodBottomSheet({
 
           {/* Set as Primary */}
           <TouchableOpacity
-            style={[
-              styles.sheetOption,
-              isUnverifiedStatus && styles.sheetOptionDisabled,
-            ]}
+            style={[styles.sheetOption, isUnverifiedStatus && styles.sheetOptionDisabled]}
             onPress={() => {
               if (isUnverifiedStatus) return;
               onSetPrimary(method.id);
             }}
             disabled={isUnverifiedStatus}
             testID="sheet-set-primary"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sheet set primary"
           >
-            <Check
-              size={20}
-              color={isUnverifiedStatus ? '#CCCCCC' : '#5DBB8E'}
-              weight="bold"
-            />
+            <Check size={20} color={isUnverifiedStatus ? '#CCCCCC' : '#5DBB8E'} weight="bold" />
             <View style={styles.sheetOptionTextWrap}>
               <Text
                 style={[
@@ -1274,6 +1321,9 @@ function PayoutMethodBottomSheet({
             style={styles.sheetOption}
             onPress={() => onEditDetails(method.id)}
             testID="sheet-edit-details"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sheet edit details"
           >
             <PencilSimple size={20} color="#6B6B6B" weight="bold" />
             <Text style={styles.sheetOptionText}>Edit Details</Text>
@@ -1290,6 +1340,9 @@ function PayoutMethodBottomSheet({
               }
             }}
             testID="sheet-delete-method"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sheet delete method"
           >
             <Trash size={20} color="#E85D75" weight="bold" />
             <Text style={styles.sheetDeleteText}>Delete Method</Text>
@@ -1300,6 +1353,9 @@ function PayoutMethodBottomSheet({
             style={styles.sheetCancelBtn}
             onPress={onClose}
             testID="sheet-cancel"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sheet cancel"
           >
             <Text style={styles.sheetCancelText}>Cancel</Text>
           </TouchableOpacity>

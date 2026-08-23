@@ -27,19 +27,20 @@ const OfflineScreen: React.FC<OfflineScreenProps> = ({ onRetry }) => {
     <SafeAreaView style={styles.container} testID="offline-screen">
       <View style={styles.content}>
         <WifiX size={64} color="#E0E0E0" testID="offline-icon" />
-        
+
         <Text style={styles.heading} testID="offline-heading">
           No Internet Connection
         </Text>
-        
+
         <Text style={styles.subtext} testID="offline-subtext">
           Check your connection and try again
         </Text>
-        
+
         <TouchableOpacity
           style={styles.retryBtn}
           onPress={handleRetry}
           testID="retry-button"
+          accessible
           accessibilityLabel="Try again"
           accessibilityRole="button"
         >

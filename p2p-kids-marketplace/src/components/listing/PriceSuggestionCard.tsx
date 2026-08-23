@@ -104,6 +104,7 @@ export function PriceSuggestionCard({
             accessibilityLabel="Show pricing FAQ"
             accessibilityRole="button"
             testID="pricing-faq"
+            accessible
           >
             <Text style={styles.faqButton}>?</Text>
           </TouchableOpacity>
@@ -140,6 +141,7 @@ export function PriceSuggestionCard({
 
               return (
                 <TouchableOpacity
+                  accessible
                   key={tier.tier}
                   style={[styles.tierCard, isSelected && styles.tierCardSelected]}
                   onPress={() => onSelectTier(tier.tier)}

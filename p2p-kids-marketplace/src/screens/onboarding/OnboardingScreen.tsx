@@ -11,6 +11,7 @@ import {
   markOnboardingSkipped,
   trackEducationEvent,
 } from '../../services/educationAnalyticsService';
+import { captureException, captureMessage } from '@/services/errorReporter';
 import { AuthContext } from '../../contexts/AuthContext';
 
 /**
@@ -66,7 +67,7 @@ export default function OnboardingScreen(): React.JSX.Element {
    */
   const handleComplete = async () => {
     if (!userId) {
-      console.error('[OnboardingScreen] No userId available');
+      captureMessage('[OnboardingScreen] No userId available', 'warning');
       return;
     }
 
@@ -80,7 +81,9 @@ export default function OnboardingScreen(): React.JSX.Element {
       // Navigate to Home inside authenticated stack.
       navigateToHome();
     } catch (error) {
-      console.error('[OnboardingScreen] Complete error:', error);
+      captureException(error, {
+        tags: { screen: 'OnboardingScreen', action: 'complete' },
+      });
       // Navigate anyway (don't block user)
       navigateToHome();
     }
@@ -94,7 +97,7 @@ export default function OnboardingScreen(): React.JSX.Element {
    */
   const handleSkip = async () => {
     if (!userId) {
-      console.error('[OnboardingScreen] No userId available');
+      captureMessage('[OnboardingScreen] No userId available', 'warning');
       return;
     }
 
@@ -108,7 +111,9 @@ export default function OnboardingScreen(): React.JSX.Element {
       // Navigate to Home inside authenticated stack.
       navigateToHome();
     } catch (error) {
-      console.error('[OnboardingScreen] Skip error:', error);
+      captureException(error, {
+        tags: { screen: 'OnboardingScreen', action: 'skip' },
+      });
       // Navigate anyway (don't block user)
       navigateToHome();
     }

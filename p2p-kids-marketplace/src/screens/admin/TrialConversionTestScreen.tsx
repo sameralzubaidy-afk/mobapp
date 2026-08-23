@@ -6,20 +6,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  LoadingSpinner } from '@/components/ui'; import { View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert
-} from 'react-native';
+import { LoadingSpinner } from '@/components/ui';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import {
   getTrialStatus,
   hasTrialExpired,
   triggerTrialConversion,
   TrialStatus,
 } from '../../services/subscriptions/trialConversion';
+import { captureException } from '@/services/errorReporter';
 
 export default function TrialConversionTestScreen() {
   const [loading, setLoading] = useState(false);
@@ -40,7 +35,9 @@ export default function TrialConversionTestScreen() {
       setIsExpired(expired);
       setLastRefresh(new Date());
     } catch (error) {
-      console.error('[TrialConversionTest] Error loading status:', error);
+      captureException(error, {
+        tags: { screen: 'TrialConversionTestScreen', action: 'load_status' },
+      });
       Alert.alert('Error', 'Failed to load trial status');
     } finally {
       setLoading(false);
@@ -60,7 +57,9 @@ export default function TrialConversionTestScreen() {
         Alert.alert('Conversion Failed', result.error || 'Unknown error');
       }
     } catch (error) {
-      console.error('[TrialConversionTest] Error triggering conversion:', error);
+      captureException(error, {
+        tags: { screen: 'TrialConversionTestScreen', action: 'trigger_conversion' },
+      });
       Alert.alert('Error', 'Failed to trigger conversion');
     } finally {
       setLoading(false);

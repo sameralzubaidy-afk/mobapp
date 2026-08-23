@@ -4,6 +4,7 @@
 import { supabase } from './supabase/client';
 import { sendVerificationCode } from './aws/sns';
 import { isTestOTPCode, bypassOTPVerification } from './devTestingService';
+import { captureException } from './errorReporter';
 
 /**
  * Generate a random 6-digit verification code
@@ -33,7 +34,9 @@ export const sendPhoneVerificationCode = async (
       .gte('created_at', oneHourAgo);
 
     if (countError) {
-      console.error('Rate limit check error:', countError);
+      captureException(countError, {
+        tags: { service: 'verification', action: 'rate_limit_check' },
+      });
       throw countError;
     }
 
@@ -59,7 +62,9 @@ export const sendPhoneVerificationCode = async (
     });
 
     if (insertError) {
-      console.error('Insert verification code error:', insertError);
+      captureException(insertError, {
+        tags: { service: 'verification', action: 'insert_code' },
+      });
       throw insertError;
     }
 
@@ -76,7 +81,9 @@ export const sendPhoneVerificationCode = async (
     return { success: true };
   } catch (error) {
     const err = error as Error;
-    console.error('Send verification code error:', err);
+    captureException(err, {
+      tags: { service: 'verification', action: 'send_code' },
+    });
     return {
       success: false,
       error: err.message || 'Failed to send verification code',
@@ -115,7 +122,9 @@ export const verifyPhoneCode = async (
       .maybeSingle();
 
     if (fetchError) {
-      console.error('Fetch verification code error:', fetchError);
+      captureException(fetchError, {
+        tags: { service: 'verification', action: 'fetch_code' },
+      });
       throw fetchError;
     }
 
@@ -164,7 +173,9 @@ export const verifyPhoneCode = async (
       .eq('id', codeRow.id);
 
     if (verifyError) {
-      console.error('Mark code verified error:', verifyError);
+      captureException(verifyError, {
+        tags: { service: 'verification', action: 'mark_verified' },
+      });
       throw verifyError;
     }
 
@@ -177,8 +188,9 @@ export const verifyPhoneCode = async (
     });
 
     if (rpcError) {
-      console.error('❌ RPC error:', rpcError);
-      console.error('❌ Error details:', JSON.stringify(rpcError, null, 2));
+      captureException(rpcError, {
+        tags: { service: 'verification', action: 'verify_phone_rpc' },
+      });
       throw rpcError;
     }
 
@@ -187,7 +199,9 @@ export const verifyPhoneCode = async (
     if (rpcResult && rpcResult.success) {
       return { success: true };
     } else {
-      console.error('❌ Verification failed:', rpcResult?.message || 'Unknown error');
+      captureException(new Error(rpcResult?.message || 'Unknown error'), {
+        tags: { service: 'verification', action: 'verification_failed' },
+      });
       return {
         success: false,
         error: rpcResult?.message || 'Failed to verify phone',
@@ -195,7 +209,9 @@ export const verifyPhoneCode = async (
     }
   } catch (error) {
     const err = error as Error;
-    console.error('Verify phone code error:', err);
+    captureException(err, {
+      tags: { service: 'verification', action: 'verify_code_exception' },
+    });
     return {
       success: false,
       error: err.message || 'Failed to verify code',

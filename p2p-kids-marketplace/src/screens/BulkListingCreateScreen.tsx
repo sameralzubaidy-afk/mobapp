@@ -39,6 +39,7 @@ import {
   updateItemDraft,
 } from '../services/draftService';
 import { getSubscriptionSummary } from '../services/subscription';
+import { captureException } from '@/services/errorReporter';
 import { getCategories } from '../services/categoryService';
 import { getConfigValue } from '../services/adminConfig';
 import { computePhotoHash, findDuplicateIndices } from '../utils/photoHash';
@@ -442,7 +443,9 @@ export default function BulkListingCreateScreen() {
             }
           }
         } catch (error) {
-          console.error('[BulkListingCreateScreen] restore draft error:', error);
+          captureException(error, {
+            tags: { screen: 'BulkListingCreateScreen', action: 'restore_draft' },
+          });
           if (!cancelled) {
             attemptedRestoreRef.current = true;
           }
@@ -474,7 +477,10 @@ export default function BulkListingCreateScreen() {
       const summary = await getSubscriptionSummary(session.user.id);
       setCanAcceptSP(summary.can_spend_sp);
     } catch (err) {
-      console.error('[BulkListingCreateScreen] loadSubscription error:', err);
+      captureException(err, {
+        tags: { screen: 'BulkListingCreateScreen', action: 'load_subscription' },
+        extra: { message: err instanceof Error ? err.message : String(err) },
+      });
       setCanAcceptSP(false);
     } finally {
       setCheckingSubscription(false);
@@ -1455,7 +1461,9 @@ export default function BulkListingCreateScreen() {
           return; // Block publish - modal will call handlePublish again on success
         }
       } catch (err) {
-        console.error('[BulkListingCreateScreen] Phone check error:', err);
+        captureException(err, {
+          tags: { screen: 'BulkListingCreateScreen', action: 'phone_check' },
+        });
         // Graceful fallback: allow publish if the check itself fails
       }
     }
@@ -1636,6 +1644,8 @@ export default function BulkListingCreateScreen() {
                   style={styles.headerActionBtn}
                   accessibilityLabel="Add an empty item without photos"
                   testID="bulk-add-empty-item"
+                  accessible
+                  accessibilityRole="button"
                 >
                   <Text style={styles.headerActionText}>+ Add item</Text>
                 </TouchableOpacity>
@@ -1644,6 +1654,8 @@ export default function BulkListingCreateScreen() {
                   style={styles.headerActionBtn}
                   accessibilityLabel="Reset grouping so each photo becomes its own item"
                   testID="bulk-reset-grouping"
+                  accessible
+                  accessibilityRole="button"
                 >
                   <Text style={styles.headerActionText}>Reset</Text>
                 </TouchableOpacity>
@@ -1676,6 +1688,8 @@ export default function BulkListingCreateScreen() {
               disabled={processingAI || groups.length === 0}
               accessibilityLabel="Confirm grouping and run AI auto-fill"
               testID="bulk-confirm-grouping"
+              accessible
+              accessibilityRole="button"
             >
               <Text style={styles.confirmBtnText}>
                 {processingAI ? 'Analyzing…' : 'Looks good — run AI auto-fill'}
@@ -1696,6 +1710,8 @@ export default function BulkListingCreateScreen() {
                 disabled={processingAI}
                 accessibilityLabel="Go back to grouping step"
                 testID="bulk-edit-grouping"
+                accessible
+                accessibilityRole="button"
               >
                 <Text style={styles.headerActionText}>Edit grouping</Text>
               </TouchableOpacity>
@@ -1834,6 +1850,9 @@ export default function BulkListingCreateScreen() {
                 setShowPhotoSourceModal(false);
               }}
               testID="bulk-photo-source-camera"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bulk photo source camera"
             >
               <Text style={styles.photoSourceOptionText}>Take Photo</Text>
             </TouchableOpacity>
@@ -1845,6 +1864,9 @@ export default function BulkListingCreateScreen() {
                 setShowPhotoSourceModal(false);
               }}
               testID="bulk-photo-source-library"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bulk photo source library"
             >
               <Text style={styles.photoSourceOptionText}>Photo Library</Text>
             </TouchableOpacity>
@@ -1857,6 +1879,9 @@ export default function BulkListingCreateScreen() {
                 setPendingPhotoSourceTargetGroupId(undefined);
               }}
               testID="bulk-photo-source-cancel"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bulk photo source cancel"
             >
               <Text style={styles.photoSourceCancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -1893,6 +1918,8 @@ export default function BulkListingCreateScreen() {
               onPress={handleContinueWithoutAI}
               accessibilityRole="button"
               testID="bulk-ai-continue-manual-button"
+              accessible
+              accessibilityLabel="Bulk ai continue manual button"
             >
               <Text style={styles.aiContinueButtonText}>Continue Without AI</Text>
             </TouchableOpacity>
@@ -1927,6 +1954,9 @@ export default function BulkListingCreateScreen() {
                 navigation.navigate('MyListings');
               }}
               testID="bulk-submit-review-go-my-items"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bulk submit review go my items"
             >
               <Text style={styles.submitModalPrimaryButtonText}>Go To My Items</Text>
             </TouchableOpacity>
@@ -1938,6 +1968,9 @@ export default function BulkListingCreateScreen() {
                 navigation.navigate('Home');
               }}
               testID="bulk-submit-review-go-dashboard"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Bulk submit review go dashboard"
             >
               <Text style={styles.submitModalSecondaryButtonText}>Go To Dashboard</Text>
             </TouchableOpacity>

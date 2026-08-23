@@ -40,10 +40,7 @@ export function IDVerificationCTABanner({
   const ctaLabel = isRejected ? 'Resubmit ID' : 'Verify Now';
 
   return (
-    <View
-      style={[styles.container, { borderLeftColor: accentColor }]}
-      testID={testID}
-    >
+    <View style={[styles.container, { borderLeftColor: accentColor }]} testID={testID}>
       <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
         <IdentificationCard size={20} color={accentColor} weight="fill" />
       </View>
@@ -57,6 +54,8 @@ export function IDVerificationCTABanner({
         </Text>
         <View style={styles.actions}>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={styles.ctaBtn}
             onPress={onVerify}
             accessibilityLabel={ctaLabel}
@@ -65,6 +64,8 @@ export function IDVerificationCTABanner({
             <Text style={styles.ctaBtnText}>{ctaLabel}</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             onPress={onDismiss}
             accessibilityLabel="Dismiss, maybe later"
             testID={`${testID}-maybe-later`}
@@ -142,4 +143,3 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
   },
 });
-

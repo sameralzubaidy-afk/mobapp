@@ -9,7 +9,7 @@
  * - Navigate to chat screen on tap
  * - Real-time updates when new messages arrive
  * - Pull-to-refresh
- * 
+ *
  * MODULE-15.1 FLOW-14 UI REDESIGN:
  * - Whisk-inspired design system (#5DBB8E green)
  * - Pill-shaped search bar with MagnifyingGlass Phosphor icon
@@ -32,7 +32,13 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { getConversations, markAsRead, Conversation, Message } from '@/services/chat';
-import { MagnifyingGlass, ChatCircleSlash, ArrowsLeftRight, ShieldCheck } from 'phosphor-react-native';
+import { captureException, captureMessage } from '@/services/errorReporter';
+import {
+  MagnifyingGlass,
+  ChatCircleSlash,
+  ArrowsLeftRight,
+  ShieldCheck,
+} from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import Avatar from '@/components/atoms/Avatar';
@@ -145,19 +151,14 @@ export default function ConversationsListScreen() {
             ...existing,
             last_message_content:
               message.content?.trim() ||
-              (message.message_type === 'image'
-                ? '📷 Photo'
-                : existing.last_message_content),
+              (message.message_type === 'image' ? '📷 Photo' : existing.last_message_content),
             last_message_time: message.created_at || existing.last_message_time,
             // Unread only counts the counterparty's messages (mirrors getConversations).
-            unread_count: isOwnMessage
-              ? existing.unread_count
-              : existing.unread_count + 1,
+            unread_count: isOwnMessage ? existing.unread_count : existing.unread_count + 1,
           };
           nextList.sort(
             (a, b) =>
-              new Date(b.last_message_time).getTime() -
-              new Date(a.last_message_time).getTime()
+              new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
           );
           setConversations(nextList);
           conversationsRef.current = nextList;
@@ -177,7 +178,7 @@ export default function ConversationsListScreen() {
 
   const loadConversations = async (reset = true, silent = false) => {
     if (!userId) {
-      console.error('[ConversationsListScreen] No userId available');
+      captureMessage('[ConversationsListScreen] No userId available', 'warning');
       setLoading(false);
       return;
     }
@@ -207,8 +208,7 @@ export default function ConversationsListScreen() {
         // Keep newest-first by last message time across pages.
         merged.sort(
           (a, b) =>
-            new Date(b.last_message_time).getTime() -
-            new Date(a.last_message_time).getTime()
+            new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
         );
         setConversations(merged);
         conversationsRef.current = merged;
@@ -223,7 +223,9 @@ export default function ConversationsListScreen() {
         ')'
       );
     } catch (error) {
-      console.error('[ConversationsListScreen] Error loading conversations:', error);
+      captureException(error, {
+        tags: { screen: 'ConversationsListScreen', action: 'load_conversations' },
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -283,6 +285,8 @@ export default function ConversationsListScreen() {
   const renderConversationCard = ({ item }: { item: Conversation }) => {
     return (
       <TouchableOpacity
+        accessible
+        accessibilityRole="button"
         testID={`conversation-${item.id}`}
         style={styles.conversationCard}
         onPress={() => handleConversationPress(item)}
@@ -349,7 +353,6 @@ export default function ConversationsListScreen() {
 
   return (
     <ScreenLayout variant="tab" title="Messages">
-
       {/* Pill-shaped search bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
@@ -381,6 +384,9 @@ export default function ConversationsListScreen() {
           {!searchQuery.trim() && (
             <TouchableOpacity
               testID="browse-items-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Browse items button"
               style={styles.browseButton}
               onPress={() => navigation.navigate('Discover')}
             >
@@ -403,6 +409,9 @@ export default function ConversationsListScreen() {
                   onPress={loadMoreConversations}
                   disabled={loadingMore}
                   testID="conversations-load-more"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Conversations load more"
                 >
                   {loadingMore ? (
                     <ActivityIndicator size="small" color="#5DBB8E" />

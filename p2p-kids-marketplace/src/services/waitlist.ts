@@ -11,6 +11,7 @@
 
 import { supabase } from './supabase/client';
 import { trackEvent } from './analytics';
+import { captureException } from './errorReporter';
 
 /**
  * Result of waitlist opt-in
@@ -64,7 +65,9 @@ export const upsertZipWaitlist = async (params: {
       .single();
 
     if (error) {
-      console.error('❌ Waitlist upsert error:', error.message, error);
+      captureException(error, {
+        tags: { service: 'waitlist', action: 'upsert_error' },
+      });
       throw error;
     }
 
@@ -89,7 +92,9 @@ export const upsertZipWaitlist = async (params: {
     };
   } catch (error) {
     const err = error as Error;
-    console.error('❌ upsertZipWaitlist error:', err.message, err);
+    captureException(err, {
+      tags: { service: 'waitlist', action: 'upsert_zip_exception' },
+    });
     throw err;
   }
 };
@@ -119,7 +124,9 @@ export const isUserOnWaitlist = async (userId: string, requestedZip: string): Pr
     return !!data;
   } catch (error) {
     const err = error as Error;
-    console.error('❌ isUserOnWaitlist error:', err.message);
+    captureException(err, {
+      tags: { service: 'waitlist', action: 'is_on_waitlist' },
+    });
     return false;
   }
 };
@@ -154,16 +161,26 @@ export const getUserWaitlistEntries = async (
       return [];
     }
 
-    return (data || []).map((row: { id: string; requested_zip: string; assigned_node_id: string | null; status: string; created_at: string }) => ({
-      id: row.id,
-      requestedZip: row.requested_zip,
-      assignedNodeId: row.assigned_node_id,
-      status: row.status as 'pending' | 'notified' | 'joined',
-      createdAt: row.created_at,
-    }));
+    return (data || []).map(
+      (row: {
+        id: string;
+        requested_zip: string;
+        assigned_node_id: string | null;
+        status: string;
+        created_at: string;
+      }) => ({
+        id: row.id,
+        requestedZip: row.requested_zip,
+        assignedNodeId: row.assigned_node_id,
+        status: row.status as 'pending' | 'notified' | 'joined',
+        createdAt: row.created_at,
+      })
+    );
   } catch (error) {
     const err = error as Error;
-    console.error('❌ getUserWaitlistEntries error:', err.message);
+    captureException(err, {
+      tags: { service: 'waitlist', action: 'get_entries' },
+    });
     return [];
   }
 };
@@ -198,14 +215,18 @@ export const addToWaitlist = async (
     });
 
     if (error) {
-      console.error('Waitlist insert error:', error.message);
+      captureException(error, {
+        tags: { service: 'waitlist', action: 'insert_error' },
+      });
       return { success: false, error: new Error(error.message) };
     }
 
     return { success: true, error: null };
   } catch (error) {
     const err = error as Error;
-    console.error('Waitlist exception:', err.message);
+    captureException(err, {
+      tags: { service: 'waitlist', action: 'insert_exception' },
+    });
     return { success: false, error: err };
   }
 };
@@ -227,14 +248,18 @@ export const checkWaitlistStatus = async (
       .maybeSingle();
 
     if (error) {
-      console.error('Waitlist check error:', error.message);
+      captureException(error, {
+        tags: { service: 'waitlist', action: 'check_error' },
+      });
       return { exists: false, error: new Error(error.message) };
     }
 
     return { exists: !!data, error: null };
   } catch (error) {
     const err = error as Error;
-    console.error('Waitlist check exception:', err.message);
+    captureException(err, {
+      tags: { service: 'waitlist', action: 'check_exception' },
+    });
     return { exists: false, error: err };
   }
 };

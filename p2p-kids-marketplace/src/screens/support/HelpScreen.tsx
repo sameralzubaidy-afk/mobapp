@@ -13,11 +13,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import {
-  MagnifyingGlass,
-  Question,
-  CaretRight,
-} from 'phosphor-react-native';
+import { MagnifyingGlass, Question, CaretRight } from 'phosphor-react-native';
 import { fetchPublishedFaqs, type FAQ } from '../../services/faqService';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -64,11 +60,7 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
   };
 
   return (
-    <ScreenLayout
-      variant="detail"
-      title="Help & Support"
-      onBack={() => navigation.goBack()}
-    >
+    <ScreenLayout variant="detail" title="Help & Support" onBack={() => navigation.goBack()}>
       <View style={styles.container} testID="help-screen">
         {/* Search Bar */}
         <View style={styles.searchWrapper}>
@@ -99,6 +91,7 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
                 styles.chip,
                 selectedCategory === category ? styles.chipActive : styles.chipInactive,
               ]}
+              accessible
               onPress={() => setSelectedCategory(category)}
               testID={`category-chip-${category.toLowerCase().replace(/\s/g, '-')}`}
               accessibilityRole="button"
@@ -129,8 +122,10 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
               ref={faqListRef}
               data={filteredFAQs}
               keyExtractor={(item) => item.id}
+              accessible
               renderItem={({ item }) => (
                 <TouchableOpacity
+                  accessible
                   style={styles.faqRow}
                   onPress={() => handleFAQPress(item)}
                   testID={`faq-row-${item.id}`}
@@ -142,15 +137,17 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
                   <CaretRight size={16} color="#999999" />
                 </TouchableOpacity>
               )}
-              ListEmptyComponent={(
+              ListEmptyComponent={
                 <View style={styles.emptyState} testID="empty-state">
                   <Question size={64} color="#E0E0E0" />
                   <Text style={styles.emptyTitle}>No results found</Text>
                   <Text style={styles.emptySubtitle}>Try a different search or category</Text>
                 </View>
-              )}
+              }
               style={styles.faqList}
-              contentContainerStyle={filteredFAQs.length === 0 ? styles.emptyContainer : styles.listContent}
+              contentContainerStyle={
+                filteredFAQs.length === 0 ? styles.emptyContainer : styles.listContent
+              }
               keyboardShouldPersistTaps="handled"
               testID="faq-list"
             />
@@ -278,11 +275,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyState: {    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 80 },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',

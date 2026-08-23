@@ -55,6 +55,7 @@ export function CategoryFilterChip({
 
   return (
     <TouchableOpacity
+      accessible
       style={[styles.chip, selected && styles.chipSelected]}
       onPress={handlePress}
       activeOpacity={0.7}

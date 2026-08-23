@@ -16,6 +16,7 @@ import {
   invalidateConfigCache,
 } from '@/services/adminConfig';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
+import { captureException, captureMessage } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -51,9 +52,9 @@ export function SubscriptionPaymentScreen() {
         setMonthlyPriceDollars(price);
       } else {
         // If admin_config is not set, show 0 and log error
-        console.error(
-          '[SubscriptionPaymentScreen] Invalid subscription price from admin_config:',
-          price
+        captureMessage(
+          `[SubscriptionPaymentScreen] Invalid subscription price from admin_config: ${String(price)}`,
+          'warning'
         );
         setMonthlyPriceDollars(0);
       }
@@ -66,7 +67,9 @@ export function SubscriptionPaymentScreen() {
 
       setActiveMemberFlatCents(memberFeeCents);
     } catch (error) {
-      console.error('[SubscriptionPaymentScreen] Failed to load pricing config:', error);
+      captureException(error, {
+        tags: { screen: 'SubscriptionPaymentScreen', action: 'load_pricing_config' },
+      });
       // Show 0 to indicate configuration error
       setMonthlyPriceDollars(0);
       setTrialDays(DEFAULT_TRIAL_DAYS);

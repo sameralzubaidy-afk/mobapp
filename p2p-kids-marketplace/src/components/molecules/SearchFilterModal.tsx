@@ -375,6 +375,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
           </View>
 
           {/* Section 1: Location (ZIP + Radius) */}
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>LOCATION</Text>
 
@@ -424,6 +425,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                 const isSelected = !!draft.categoryIds?.includes(category.id);
                 return (
                   <TouchableOpacity
+                    accessible
+                    accessibilityRole="button"
                     key={category.id}
                     onPress={() => toggleCategory(category.id)}
                     style={[styles.pill, isSelected && styles.pillSelected]}
@@ -448,6 +451,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                 const isSelected = draft.ageGroup === option.value;
                 return (
                   <TouchableOpacity
+                    accessible
+                    accessibilityRole="button"
                     key={option.value}
                     onPress={() => selectAgeGroup(option.value)}
                     style={[styles.pill, isSelected && styles.pillSelected]}
@@ -472,6 +477,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
               accessibilityRole="button"
               accessibilityState={{ expanded: moreFiltersOpen }}
               testID="filter-more-filters-toggle"
+              accessible
+              accessibilityLabel="Filter more filters toggle"
             >
               <Text style={styles.moreFiltersTitle}>
                 More Filters (Condition, Gender, Color, Brand, Price Range)
@@ -494,6 +501,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                       const isSelected = draft.condition === option.value;
                       return (
                         <TouchableOpacity
+                          accessible
+                          accessibilityRole="button"
                           key={option.value}
                           onPress={() => selectCondition(option.value)}
                           style={[styles.pill, isSelected && styles.pillSelected]}
@@ -518,6 +527,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                       const isSelected = draft.gender === option.value;
                       return (
                         <TouchableOpacity
+                          accessible
+                          accessibilityRole="button"
                           key={option.label}
                           onPress={() => selectGender(option.value)}
                           style={[styles.pill, isSelected && styles.pillSelected]}
@@ -542,6 +553,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                       const isSelected = !!draft.colors?.includes(color.id);
                       return (
                         <TouchableOpacity
+                          accessible
+                          accessibilityRole="button"
                           key={color.id}
                           onPress={() => toggleColor(color.id)}
                           style={[styles.colorChip, isSelected && styles.colorChipSelected]}
@@ -578,6 +591,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                       <View style={styles.brandDropdown}>
                         {brandSuggestions.map((brand, index) => (
                           <Pressable
+                            accessible
+                            accessibilityRole="button"
                             key={`${brand}-${index}`}
                             onPress={() => selectBrand(brand)}
                             style={styles.brandSuggestion}
@@ -601,6 +616,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                         draft.minPrice === preset.min && draft.maxPrice === preset.max;
                       return (
                         <TouchableOpacity
+                          accessible
+                          accessibilityRole="button"
                           key={preset.id}
                           onPress={() => selectPricePreset(preset)}
                           style={[styles.pill, isSelected && styles.pillSelected]}

@@ -258,6 +258,8 @@ export function BulkItemCard({
 
           <Text style={styles.fieldLabel}>Category *</Text>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={styles.select}
             onPress={onOpenCategoryPicker}
             testID={`bulk-item-category-${index}`}
@@ -346,6 +348,8 @@ export function BulkItemCard({
               <View style={styles.upgradePanel}>
                 <Text style={styles.paymentHint}>Subscribe to Kids Club+ to enable Accept SP.</Text>
                 <TouchableOpacity
+                  accessible
+                  accessibilityRole="button"
                   style={styles.upgradeButton}
                   onPress={onUpgradePress}
                   testID={`bulk-item-sp-upgrade-${index}`}

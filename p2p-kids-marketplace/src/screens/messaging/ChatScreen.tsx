@@ -75,6 +75,7 @@ import {
   markTradeMessagesAsRead,
 } from '@/services/chat';
 import { idBadgeService } from '@/services/idBadge';
+import { captureException, captureMessage } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type ChatScreenRouteProp = RouteProp<{ Chat: { tradeId: string } }, 'Chat'>;
@@ -152,12 +153,14 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!tradeId) return;
     const key = `safety_shown_${tradeId}`;
-    AsyncStorage.getItem(key).then((val) => {
-      if (!val) {
-        setSafetyModalVisible(true);
-        AsyncStorage.setItem(key, '1').catch(() => {});
-      }
-    }).catch(() => {});
+    AsyncStorage.getItem(key)
+      .then((val) => {
+        if (!val) {
+          setSafetyModalVisible(true);
+          AsyncStorage.setItem(key, '1').catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, [tradeId]);
 
   // MSG-009: Animate typing dots when indicator shows
@@ -201,7 +204,9 @@ export default function ChatScreen() {
         .single();
 
       if (error) {
-        console.error('[ChatScreen] Error fetching trade:', error);
+        captureException(error, {
+          tags: { screen: 'ChatScreen', action: 'fetch_trade' },
+        });
       } else {
         const tradeData = data as any;
         setTrade(tradeData);
@@ -226,7 +231,9 @@ export default function ChatScreen() {
         }
       }
     } catch (error) {
-      console.error('[ChatScreen] Unexpected error fetching trade:', error);
+      captureException(error, {
+        tags: { screen: 'ChatScreen', action: 'fetch_trade_unexpected' },
+      });
     } finally {
       setLoadingTrade(false);
     }
@@ -335,26 +342,34 @@ export default function ChatScreen() {
         console.log('[ChatScreen] Calculated typingMap:', typingMap);
         setTypingUsers(typingMap);
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }: { key: string; newPresences: unknown[] }) => {
-        console.log('[ChatScreen] Typing presence join:', key, newPresences);
-        setTypingUsers((prev) => {
-          const next = { ...prev };
-          newPresences.forEach((p: any) => {
-            if (p.user_id) next[p.user_id] = !!p.is_typing;
+      .on(
+        'presence',
+        { event: 'join' },
+        ({ key, newPresences }: { key: string; newPresences: unknown[] }) => {
+          console.log('[ChatScreen] Typing presence join:', key, newPresences);
+          setTypingUsers((prev) => {
+            const next = { ...prev };
+            newPresences.forEach((p: any) => {
+              if (p.user_id) next[p.user_id] = !!p.is_typing;
+            });
+            return next;
           });
-          return next;
-        });
-      })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }: { key: string; leftPresences: unknown[] }) => {
-        console.log('[ChatScreen] Typing presence leave:', key, leftPresences);
-        setTypingUsers((prev) => {
-          const next = { ...prev };
-          leftPresences.forEach((p: any) => {
-            if (p.user_id) next[p.user_id] = false;
+        }
+      )
+      .on(
+        'presence',
+        { event: 'leave' },
+        ({ key, leftPresences }: { key: string; leftPresences: unknown[] }) => {
+          console.log('[ChatScreen] Typing presence leave:', key, leftPresences);
+          setTypingUsers((prev) => {
+            const next = { ...prev };
+            leftPresences.forEach((p: any) => {
+              if (p.user_id) next[p.user_id] = false;
+            });
+            return next;
           });
-          return next;
-        });
-      });
+        }
+      );
 
     typingChannel.subscribe((status: string) => {
       console.log('[ChatScreen] Typing channel status:', status);
@@ -391,7 +406,9 @@ export default function ChatScreen() {
         }, 50);
       }
     } catch (error) {
-      console.error('[ChatScreen.loadMessages] Error:', error);
+      captureException(error, {
+        tags: { screen: 'ChatScreen', action: 'load_messages' },
+      });
       setMessages([]);
     } finally {
       setLoading(false);
@@ -487,8 +504,9 @@ export default function ChatScreen() {
 
     // Character limit is now enforced in handleInputChange, but keep this as a safety check
     if (messageText.length > MESSAGE_CHAR_LIMIT) {
-      console.error(
-        `[ChatScreen.handleSend] ⚠️ SAFETY CHECK TRIGGERED: Message exceeds ${MESSAGE_CHAR_LIMIT} chars (${messageText.length} chars)`
+      captureMessage(
+        `[ChatScreen.handleSend] ⚠️ SAFETY CHECK TRIGGERED: Message exceeds ${MESSAGE_CHAR_LIMIT} chars (${messageText.length} chars)`,
+        'warning'
       );
       Alert.alert(
         'Message Too Long',
@@ -520,7 +538,9 @@ export default function ChatScreen() {
       });
 
       if (!result.success) {
-        console.error('[ChatScreen] Send failed:', result.error);
+        captureException(result.error, {
+          tags: { screen: 'ChatScreen', action: 'send_failed' },
+        });
         Alert.alert('Error', result.error || 'Failed to send message');
         setInputText(messageText); // Restore input on error
       } else {
@@ -531,7 +551,9 @@ export default function ChatScreen() {
         }
       }
     } catch (error: any) {
-      console.error('[ChatScreen.handleSend] Error:', error);
+      captureException(error, {
+        tags: { screen: 'ChatScreen', action: 'handle_send' },
+      });
       Alert.alert('Error', 'Failed to send message');
       setInputText(messageText);
     } finally {
@@ -564,7 +586,9 @@ export default function ChatScreen() {
         await handleSendImage(imageAsset.uri);
       }
     } catch (error) {
-      console.error('[ChatScreen.handleImagePicker] Error:', error);
+      captureException(error, {
+        tags: { screen: 'ChatScreen', action: 'handle_image_picker' },
+      });
       Alert.alert('Error', 'Failed to select image');
     }
   };
@@ -585,7 +609,9 @@ export default function ChatScreen() {
       });
 
       if (!result.success) {
-        console.error('[ChatScreen.handleSendImage] Send failed:', result.error);
+        captureException(result.error, {
+          tags: { screen: 'ChatScreen', action: 'send_image_failed' },
+        });
         Alert.alert('Error', result.error || 'Failed to upload image');
       } else {
         console.log('[ChatScreen.handleSendImage] Image sent successfully:', result.message?.id);
@@ -594,7 +620,9 @@ export default function ChatScreen() {
         }
       }
     } catch (error: any) {
-      console.error('[ChatScreen.handleSendImage] Error:', error);
+      captureException(error, {
+        tags: { screen: 'ChatScreen', action: 'handle_send_image' },
+      });
       Alert.alert('Error', error?.message || 'Failed to upload image');
     } finally {
       setSendingImage(false);
@@ -646,7 +674,8 @@ export default function ChatScreen() {
     return (
       <View style={styles.deliveryStatusContainer}>
         {statusIcon(
-          message.delivery_status || (message.read_at ? 'read' : message.delivered_at ? 'delivered' : 'sent')
+          message.delivery_status ||
+            (message.read_at ? 'read' : message.delivered_at ? 'delivered' : 'sent')
         )}
       </View>
     );
@@ -778,6 +807,9 @@ export default function ChatScreen() {
           <TouchableOpacity
             onPress={() => navigation.navigate('TradeTimeline', { tradeId })}
             testID="view-trade-link"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="View trade link"
           >
             <Text style={styles.viewTradeLink}>View Trade</Text>
           </TouchableOpacity>
@@ -789,6 +821,9 @@ export default function ChatScreen() {
         style={styles.safetyBanner}
         onPress={() => setSafetyModalVisible(true)}
         testID="safety-banner"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Safety banner"
         activeOpacity={0.7}
       >
         <ShieldCheck size={18} color="#5DBB8E" weight="fill" />
@@ -900,18 +935,31 @@ export default function ChatScreen() {
         )}
 
         {/* Input bar: #F7F7F7 bg strip */}
-        <View style={[styles.inputContainer, !isTradeActive && styles.inputContainerFrozen]} testID="message-input-bar">
+        <View
+          style={[styles.inputContainer, !isTradeActive && styles.inputContainerFrozen]}
+          testID="message-input-bar"
+        >
           {/* PaperClip icon (20px, #6B6B6B) — disabled when trade frozen */}
           <TouchableOpacity
             testID="image-picker-button"
-            style={[styles.iconButton, ((sending || sendingImage) || !isTradeActive) && styles.buttonDisabled]}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Image picker button"
+            style={[
+              styles.iconButton,
+              (sending || sendingImage || !isTradeActive) && styles.buttonDisabled,
+            ]}
             onPress={handleImagePicker}
             disabled={sending || sendingImage || !isTradeActive}
           >
             {sendingImage ? (
               <ActivityIndicator size="small" color="#6B6B6B" />
             ) : (
-              <PaperclipHorizontal size={20} color={isTradeActive ? '#6B6B6B' : '#CCCCCC'} weight="regular" />
+              <PaperclipHorizontal
+                size={20}
+                color={isTradeActive ? '#6B6B6B' : '#CCCCCC'}
+                weight="regular"
+              />
             )}
           </TouchableOpacity>
 
@@ -933,6 +981,9 @@ export default function ChatScreen() {
           {/* Smiley icon (20px, #6B6B6B) - placeholder for future emoji picker */}
           <TouchableOpacity
             testID="emoji-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Emoji button"
             style={[styles.iconButton, !isTradeActive && styles.buttonDisabled]}
             onPress={() => {
               /* Future: show emoji picker */
@@ -945,17 +996,27 @@ export default function ChatScreen() {
           {/* TFV2-021: Quick replies toggle (MapPin icon) */}
           <TouchableOpacity
             testID="quick-replies-toggle"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Quick replies toggle"
             style={[styles.iconButton, !isTradeActive && styles.buttonDisabled]}
             onPress={() => setQuickRepliesVisible((v) => !v)}
             disabled={sending || sendingImage || !isTradeActive}
           >
-            <MapPin size={20} color={quickRepliesVisible ? '#5DBB8E' : isTradeActive ? '#6B6B6B' : '#CCCCCC'} weight={quickRepliesVisible ? 'fill' : 'regular'} />
+            <MapPin
+              size={20}
+              color={quickRepliesVisible ? '#5DBB8E' : isTradeActive ? '#6B6B6B' : '#CCCCCC'}
+              weight={quickRepliesVisible ? 'fill' : 'regular'}
+            />
           </TouchableOpacity>
 
           {/* PaperPlaneRight send icon (24px, #5DBB8E) - only visible when input has text AND trade is active */}
           {isTradeActive && inputText.trim().length > 0 && (
             <TouchableOpacity
               testID="send-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Send button"
               style={[styles.sendButton, (sending || sendingImage) && styles.sendButtonDisabled]}
               onPress={handleSend}
               disabled={sending || sendingImage}
@@ -982,6 +1043,9 @@ export default function ChatScreen() {
             style={styles.imageViewerHeader}
             onPress={() => setImageViewerVisible(false)}
             testID="close-image-viewer"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Close image viewer"
           >
             <X size={28} color="white" weight="bold" />
           </Pressable>
@@ -1055,9 +1119,21 @@ export default function ChatScreen() {
             {/* Tips */}
             <View style={styles.safetyTipsList}>
               {[
-                { icon: '📍', title: 'Meet where others can see you', desc: 'Police station lots, storefronts, or busy malls' },
-                { icon: '📱', title: 'Drop a pin before you leave', desc: 'Share your live location with someone you trust' },
-                { icon: '🚫', title: 'Cancel anytime — no explanation needed', desc: 'If something feels off, trust that instinct' },
+                {
+                  icon: '📍',
+                  title: 'Meet where others can see you',
+                  desc: 'Police station lots, storefronts, or busy malls',
+                },
+                {
+                  icon: '📱',
+                  title: 'Drop a pin before you leave',
+                  desc: 'Share your live location with someone you trust',
+                },
+                {
+                  icon: '🚫',
+                  title: 'Cancel anytime — no explanation needed',
+                  desc: 'If something feels off, trust that instinct',
+                },
                 { icon: '☀️', title: 'Daytime only', desc: 'Avoid evenings and low-traffic hours' },
               ].map((tip, i) => (
                 <View key={i} style={styles.safetyTipRow}>
@@ -1075,6 +1151,9 @@ export default function ChatScreen() {
               style={styles.safetyModalBtn}
               onPress={() => setSafetyModalVisible(false)}
               testID="safety-modal-confirm"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Safety modal confirm"
               activeOpacity={0.8}
             >
               <ShieldCheck size={18} color="#FFFFFF" weight="fill" style={{ marginRight: 8 }} />

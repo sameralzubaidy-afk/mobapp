@@ -183,6 +183,7 @@ export default function OnboardingCarousel({
           accessibilityLabel="Skip onboarding"
           accessibilityRole="button"
           testID="skip-button"
+          accessible
         >
           <Text style={styles.skipButtonText}>Skip</Text>
         </TouchableOpacity>
@@ -195,6 +196,7 @@ export default function OnboardingCarousel({
             accessibilityLabel="Get Started"
             accessibilityRole="button"
             testID="onboarding-get-started-button"
+            accessible
           >
             <Text style={styles.getStartedButtonText}>Get Started</Text>
           </TouchableOpacity>

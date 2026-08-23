@@ -33,6 +33,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { Button } from '@/components/ui';
 import { colors } from '@/theme';
 import ScreenLayout from '@/components/ScreenLayout';
+import { captureException } from '@/services/errorReporter';
 import {
   getCartItems,
   checkoutCart,
@@ -45,7 +46,11 @@ import {
 import { useSubscriptionStatus } from '@/hooks/useAuth';
 import { calculateTax, isTaxExemptCategory } from '@/services/tax';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
-import { getBuyerFeeForCheckout, getChargeOneFeePerBundle, type BuyerFeeInfo } from '@/services/adminConfig';
+import {
+  getBuyerFeeForCheckout,
+  getChargeOneFeePerBundle,
+  type BuyerFeeInfo,
+} from '@/services/adminConfig';
 import { trackEvent } from '@/services/analytics';
 import { supabase } from '@/config/supabase';
 import { getBuyerSpBalance } from '@/services/spWalletService';
@@ -445,7 +450,10 @@ export default function CartCheckoutScreen() {
         }
       }
     } catch (err: any) {
-      console.error('[CartCheckoutScreen] handleAddNewCard error:', err);
+      captureException(err, {
+        tags: { screen: 'CartCheckoutScreen', action: 'add_new_card' },
+        extra: { message: err?.message },
+      });
       Alert.alert('Error', err.message || 'An unexpected error occurred');
     } finally {
       setAddingNewCard(false);
@@ -579,7 +587,9 @@ export default function CartCheckoutScreen() {
         screen: 'cart_checkout',
         reason: 'unexpected_error',
       });
-      console.error('[CartCheckoutScreen] Checkout error:', e);
+      captureException(e, {
+        tags: { screen: 'CartCheckoutScreen', action: 'checkout' },
+      });
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
@@ -662,6 +672,8 @@ export default function CartCheckoutScreen() {
               >
                 {/* Item header: thumbnail + title + price — FLOW-07: tap -> item detail (back returns to checkout) */}
                 <TouchableOpacity
+                  accessible
+                  accessibilityRole="button"
                   style={styles.itemRow}
                   activeOpacity={0.7}
                   onPress={() => handleOpenItemDetail(item)}
@@ -844,6 +856,9 @@ export default function CartCheckoutScreen() {
                   onPress={handleAddNewCard}
                   disabled={addingNewCard}
                   testID="add-new-card-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Add new card button"
                 >
                   {addingNewCard || paymentSheetLoading ? (
                     <View style={styles.addCardButtonLoadingRow}>
@@ -866,6 +881,9 @@ export default function CartCheckoutScreen() {
                   onPress={handleAddNewCard}
                   disabled={addingNewCard}
                   testID="replace-card-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Replace card button"
                 >
                   {addingNewCard || paymentSheetLoading ? (
                     <View style={styles.addCardButtonLoadingRow}>

@@ -13,26 +13,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  FlatList,
-  Alert
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, FlatList, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { Button } from '@/components/ui';
 import { theme } from '@/theme';
-import {
-  Plus,
-  CheckCircle,
-  Tag,
-} from 'phosphor-react-native';
+import { Plus, CheckCircle, Tag } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
+import { captureException } from '@/services/errorReporter';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type BundleBuilderRouteProp = RouteProp<RootStackParamList, 'BundleBuilder'>;
@@ -65,7 +54,9 @@ export default function BundleBuilderScreen() {
       // For now, show empty list
       setAvailableItems([]);
     } catch (error) {
-      console.error('[BundleBuilderScreen] Load error:', error);
+      captureException(error, {
+        tags: { screen: 'BundleBuilderScreen', action: 'load_seller_items' },
+      });
       Alert.alert('Error', 'Failed to load seller items');
     } finally {
       setLoading(false);
@@ -73,7 +64,7 @@ export default function BundleBuilderScreen() {
   };
 
   const toggleItemSelection = (itemId: string) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(itemId)) {
         newSet.delete(itemId);
@@ -86,14 +77,14 @@ export default function BundleBuilderScreen() {
 
   const calculateBundleTotal = () => {
     return availableItems
-      .filter(item => selectedItems.has(item.id))
+      .filter((item) => selectedItems.has(item.id))
       .reduce((sum, item) => sum + item.price, 0);
   };
 
   const calculateSavings = () => {
     const selectedCount = selectedItems.size;
     if (selectedCount < 2) return 0;
-    
+
     // Example bundle discount: 10% off for 2+ items, 15% off for 3+ items
     const discountPercent = selectedCount >= 3 ? 15 : 10;
     const total = calculateBundleTotal();
@@ -116,22 +107,16 @@ export default function BundleBuilderScreen() {
     Alert.alert(
       'Bundle Added',
       `${selectedItems.size} item(s) added to your trade basket with ${getSavingsPercentage()}% discount!`,
-      [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]
+      [{ text: 'OK', onPress: () => navigation.goBack() }]
     );
   };
 
   const _handleClose = () => {
     if (selectedItems.size > 0) {
-      Alert.alert(
-        'Discard Bundle?',
-        'Are you sure you want to discard your bundle selection?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() }
-        ]
-      );
+      Alert.alert('Discard Bundle?', 'Are you sure you want to discard your bundle selection?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
+      ]);
     } else {
       navigation.goBack();
     }
@@ -142,6 +127,8 @@ export default function BundleBuilderScreen() {
 
     return (
       <TouchableOpacity
+        accessible
+        accessibilityRole="button"
         style={styles.itemCard}
         onPress={() => toggleItemSelection(item.id)}
         testID={`bundle-item-${item.id}`}
@@ -152,7 +139,7 @@ export default function BundleBuilderScreen() {
           style={styles.itemImage}
           testID={`bundle-item-image-${item.id}`}
         />
-        
+
         {/* Selection Overlay */}
         {isSelected && (
           <View style={styles.selectedOverlay} testID={`bundle-item-selected-${item.id}`}>
@@ -206,7 +193,7 @@ export default function BundleBuilderScreen() {
         <FlatList
           data={availableItems}
           renderItem={renderItem}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.gridContent}
@@ -222,12 +209,10 @@ export default function BundleBuilderScreen() {
             <Text style={styles.itemCountChip} testID="bundle-item-count">
               {selectedItems.size} {selectedItems.size === 1 ? 'item' : 'items'}
             </Text>
-            
+
             {getSavingsPercentage() > 0 && (
               <View style={styles.savingsBadge} testID="bundle-savings-badge">
-                <Text style={styles.savingsText}>
-                  Save {getSavingsPercentage()}%
-                </Text>
+                <Text style={styles.savingsText}>Save {getSavingsPercentage()}%</Text>
               </View>
             )}
           </View>

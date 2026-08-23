@@ -32,6 +32,7 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
     <View style={styles.container}>
       <Pressable
         testID="discover-sort-button"
+        accessible
         accessibilityRole="button"
         accessibilityLabel={`Sort by ${selectedLabel}`}
         accessibilityState={{ expanded: isOpen }}
@@ -55,6 +56,7 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
                 accessibilityState={{ selected: isSelected }}
                 style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
                 onPress={() => handleSelect(option.value)}
+                accessible
               >
                 <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                   {option.label}

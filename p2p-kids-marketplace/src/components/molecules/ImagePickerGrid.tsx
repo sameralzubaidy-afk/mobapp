@@ -195,6 +195,8 @@ export default function ImagePickerGrid({
                 testID={`${testID}-remove-${index}`}
                 style={styles.deleteButton}
                 onPress={() => removeImage(index)}
+                accessible
+                accessibilityRole="button"
                 disabled={uploading}
               >
                 <Text style={styles.deleteText}>×</Text>
@@ -206,6 +208,8 @@ export default function ImagePickerGrid({
                   {index > 0 && (
                     <TouchableOpacity
                       testID={`${testID}-move-left-${index}`}
+                      accessible
+                      accessibilityRole="button"
                       style={styles.reorderButton}
                       onPress={() => moveImage(index, index - 1)}
                       disabled={uploading}
@@ -216,6 +220,8 @@ export default function ImagePickerGrid({
                   {index < images.length - 1 && (
                     <TouchableOpacity
                       testID={`${testID}-move-right-${index}`}
+                      accessible
+                      accessibilityRole="button"
                       style={styles.reorderButton}
                       onPress={() => moveImage(index, index + 1)}
                       disabled={uploading}
@@ -233,6 +239,8 @@ export default function ImagePickerGrid({
       {/* Add Photo Button */}
       {images.length < maxImages && !uploading && (
         <TouchableOpacity
+          accessible
+          accessibilityRole="button"
           testID={`${testID}-add-photo`}
           style={styles.addPhotoButton}
           onPress={handleAddPhotoPress}
@@ -267,12 +275,16 @@ export default function ImagePickerGrid({
                 setShowPhotoSourceModal(false);
                 pickFromCamera();
               }}
+              accessible
+              accessibilityRole="button"
               testID={`${testID}-source-camera`}
             >
               <Text style={styles.modalOptionText}>📸 Take Photo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessible
+              accessibilityRole="button"
               style={styles.modalOption}
               onPress={() => {
                 setShowPhotoSourceModal(false);
@@ -284,6 +296,8 @@ export default function ImagePickerGrid({
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessible
+              accessibilityRole="button"
               style={styles.modalCancelButton}
               onPress={() => setShowPhotoSourceModal(false)}
               testID={`${testID}-source-cancel`}

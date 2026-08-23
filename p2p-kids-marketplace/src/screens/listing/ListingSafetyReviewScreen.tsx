@@ -8,7 +8,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -429,6 +429,9 @@ export default function ListingSafetyReviewScreen() {
                 onPress={() => setShowRemoveConfirmModal(false)}
                 disabled={submitting}
                 testID="safety-remove-cancel"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Safety remove cancel"
               >
                 <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -437,6 +440,9 @@ export default function ListingSafetyReviewScreen() {
                 onPress={handleConfirmRemoveListing}
                 disabled={submitting}
                 testID="safety-remove-confirm"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Safety remove confirm"
               >
                 <Text style={styles.modalDangerButtonText}>Remove</Text>
               </TouchableOpacity>
@@ -463,6 +469,9 @@ export default function ListingSafetyReviewScreen() {
               style={styles.modalPrimaryButton}
               onPress={handleRemoveSuccessClose}
               testID="safety-remove-success-ok"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Safety remove success ok"
             >
               <Text style={styles.modalPrimaryButtonText}>Done</Text>
             </TouchableOpacity>

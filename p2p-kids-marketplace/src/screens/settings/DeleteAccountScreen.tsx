@@ -24,6 +24,7 @@ import {
 import { Trash, X, Lock } from 'phosphor-react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '@/config/supabase';
+import { captureException } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
 
 const CONSEQUENCES = [
@@ -71,7 +72,9 @@ export default function DeleteAccountScreen({ navigation }: any) {
         return;
       }
     } catch (err: any) {
-      console.error('[DeleteAccountScreen] Re-auth error:', err);
+      captureException(err, {
+        tags: { screen: 'DeleteAccountScreen', action: 'reauth' },
+      });
       Alert.alert('Error', 'Could not verify your password. Please try again.');
       setLoading(false);
       return;
@@ -100,11 +103,15 @@ export default function DeleteAccountScreen({ navigation }: any) {
               }
               await logout();
             } catch (err: any) {
-              console.error('[DeleteAccountScreen] Delete error:', JSON.stringify(err));
+              captureException(err, {
+                tags: { screen: 'DeleteAccountScreen', action: 'delete_account' },
+              });
               const errMsg =
-                err?.message ||
-                (err?.code ? `Error code: ${err.code}` : 'Unknown error');
-              Alert.alert('Error', `Failed to delete account.\n${errMsg}\n\nPlease contact support.`);
+                err?.message || (err?.code ? `Error code: ${err.code}` : 'Unknown error');
+              Alert.alert(
+                'Error',
+                `Failed to delete account.\n${errMsg}\n\nPlease contact support.`
+              );
             } finally {
               setLoading(false);
             }
@@ -136,7 +143,8 @@ export default function DeleteAccountScreen({ navigation }: any) {
 
           {/* Warning text */}
           <Text style={styles.warningText}>
-            Once deleted, your account cannot be recovered. Please read the following before proceeding:
+            Once deleted, your account cannot be recovered. Please read the following before
+            proceeding:
           </Text>
 
           {/* Consequences list */}
@@ -172,6 +180,8 @@ export default function DeleteAccountScreen({ navigation }: any) {
             onPress={handleDelete}
             disabled={loading}
             testID="delete-account-button"
+            accessible
+            accessibilityLabel="Delete account button"
             accessibilityRole="button"
           >
             {loading ? (
@@ -186,6 +196,8 @@ export default function DeleteAccountScreen({ navigation }: any) {
             onPress={() => navigation.goBack()}
             disabled={loading}
             testID="cancel-delete-button"
+            accessible
+            accessibilityLabel="Cancel delete button"
             accessibilityRole="button"
           >
             <Text style={styles.cancelText}>Cancel</Text>

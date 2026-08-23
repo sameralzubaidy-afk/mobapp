@@ -24,6 +24,7 @@ import { getTrialStatus, TrialStatus } from '../../services/subscriptions/trialC
 import { getSubscriptionPrice, getTrialDays } from '../../services/adminConfig';
 import { openJoinKidsClubWeb } from '../../utils/subscriptionWeb';
 import { formatDollarAmount } from '@/utils/formatPrice';
+import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<any>;
@@ -57,7 +58,9 @@ export default function ContinueKidsClubScreen() {
       setMonthlyPrice(subscriptionPriceMonthly);
       setTrialDays(trialPeriodDays);
     } catch (error) {
-      console.error('[ContinueKidsClub] Error loading status:', error);
+      captureException(error, {
+        tags: { screen: 'ContinueKidsClubScreen', action: 'load_status' },
+      });
       Alert.alert('Error', 'Failed to load trial status');
     } finally {
       setLoadingStatus(false);
@@ -77,7 +80,9 @@ export default function ContinueKidsClubScreen() {
       // There is NO in-app payment collection.
       await openJoinKidsClubWeb();
     } catch (error) {
-      console.error('[ContinueKidsClub] Error opening web checkout:', error);
+      captureException(error, {
+        tags: { screen: 'ContinueKidsClubScreen', action: 'open_web_checkout' },
+      });
     } finally {
       setLoading(false);
     }
@@ -160,6 +165,9 @@ export default function ContinueKidsClubScreen() {
         <TouchableOpacity
           style={[styles.primaryButton, loading && styles.disabledButton]}
           testID="subscribe-cta-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Subscribe"
           onPress={handleContinueWithPayment}
           disabled={loading}
         >

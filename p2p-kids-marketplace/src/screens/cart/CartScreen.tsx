@@ -24,6 +24,7 @@ import {
   SavedCartSummary,
 } from '@/services/cartService';
 import { getMaskedSellerListings } from '@/services/listing';
+import { captureException } from '@/services/errorReporter';
 import { supabase } from '@/config/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -96,7 +97,9 @@ export default function CartScreen() {
         console.warn('[CartScreen] Load warning:', result.error.message);
       }
     } catch (error) {
-      console.error('[CartScreen] Load error:', error);
+      captureException(error, {
+        tags: { screen: 'CartScreen', action: 'load_cart' },
+      });
       Alert.alert('Error', 'Failed to load cart items');
     } finally {
       setLoading(false);
@@ -401,6 +404,9 @@ export default function CartScreen() {
           style={styles.favoritesLink}
           onPress={() => navigation.navigate('Favorites')}
           testID="cart-favorites-link"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Cart favorites link"
         >
           <Text style={styles.favoritesLinkText}>View Favorites →</Text>
         </TouchableOpacity>
@@ -427,6 +433,9 @@ export default function CartScreen() {
                 }}
                 activeOpacity={0.7}
                 testID="cart-min-value-browse-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Cart min value browse button"
               >
                 <SquaresFour size={16} color="#FFFFFF" weight="fill" />
                 <Text style={styles.minValueBrowseButtonText}>
@@ -461,6 +470,8 @@ export default function CartScreen() {
                   Switch
                 </Button>
                 <TouchableOpacity
+                  accessible
+                  accessibilityRole="button"
                   onPress={() => handleDeleteSaved(sc.cartId)}
                   testID={`saved-cart-delete-${sc.cartId}`}
                   style={{ padding: 8 }}
@@ -491,6 +502,8 @@ export default function CartScreen() {
             <View key={item.id} style={styles.itemRow} testID={`cart-item-${item.id}`}>
               {/* FLOW-07: Tap thumbnail + title area -> open item detail (back returns to basket) */}
               <TouchableOpacity
+                accessible
+                accessibilityRole="button"
                 style={styles.itemTapTarget}
                 activeOpacity={0.7}
                 onPress={() => handleOpenItemDetail(item)}
@@ -538,6 +551,8 @@ export default function CartScreen() {
 
               {/* Remove Button */}
               <TouchableOpacity
+                accessible
+                accessibilityRole="button"
                 onPress={() => handleRemoveItem(item.id)}
                 style={styles.trashButton}
                 testID={`cart-item-remove-${item.id}`}
@@ -553,7 +568,7 @@ export default function CartScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
             <Text style={styles.summaryValue} testID="cart-subtotal">
-              ${calculateSubtotal().toFixed(2)}
+              accessible accessibilityRole="button" ${calculateSubtotal().toFixed(2)}
             </Text>
           </View>
 
@@ -611,6 +626,9 @@ export default function CartScreen() {
             style={styles.clearBasketRow}
             onPress={handleClearCart}
             testID="clear-basket-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Clear basket button"
           >
             <Trash size={16} color={theme.colors.error[500]} weight="regular" />
             <Text style={styles.clearBasketText}>Clear Basket</Text>
@@ -644,6 +662,9 @@ export default function CartScreen() {
               onPress={() => setShowMoreFromSellerBanner(false)}
               hitSlop={8}
               testID="cart-more-from-seller-dismiss"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Cart more from seller dismiss"
             >
               <X size={16} color="#6B7280" weight="bold" />
             </TouchableOpacity>
@@ -704,6 +725,9 @@ export default function CartScreen() {
             });
           }}
           testID="bundle-cta-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Make offer"
         >
           <Package size={20} color="#5DBB8E" weight="fill" />
           <View style={styles.bundleCtaTextWrap}>

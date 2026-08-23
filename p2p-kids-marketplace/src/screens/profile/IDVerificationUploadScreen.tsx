@@ -14,13 +14,9 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import {
-  IdentificationCard,
-  Camera,
-  CheckCircle,
-  Clock,
-} from 'phosphor-react-native';
+import { IdentificationCard, Camera, CheckCircle, Clock } from 'phosphor-react-native';
 import { idBadgeService, IDVerificationStatus } from '@/services/idBadge';
+import { captureException } from '@/services/errorReporter';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { LoadingSpinner } from '@/components/ui';
 import * as ImagePicker from 'expo-image-picker';
@@ -72,7 +68,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
       if (submitLabel) setSubmitButtonLabel(submitLabel);
       setVerificationStatus(status);
     } catch (error) {
-      console.error('Error loading ID verification status:', error);
+      captureException(error, {
+        tags: { screen: 'IDVerificationUploadScreen', action: 'load_status' },
+      });
     } finally {
       setLoading(false);
     }
@@ -218,6 +216,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
           </View>
           <TouchableOpacity
             testID="id-verification-back-profile-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Id verification back profile btn"
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -247,6 +248,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
             <Image source={{ uri: state.selectedImage }} style={styles.image} />
             <TouchableOpacity
               testID="id-verification-change-image-btn"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Id verification change image btn"
               style={styles.changeButton}
               onPress={() => setState((prev) => ({ ...prev, selectedImage: null }))}
             >
@@ -256,6 +260,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
         ) : (
           <TouchableOpacity
             testID="id-verification-upload-area"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Id verification upload area"
             style={styles.uploadArea}
             onPress={pickImage}
             activeOpacity={0.7}
@@ -267,6 +274,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
 
         <TouchableOpacity
           testID="id-verification-take-photo-btn"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Id verification take photo btn"
           style={styles.cameraButton}
           onPress={takePhoto}
         >
@@ -281,6 +291,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
 
         <TouchableOpacity
           testID="id-verification-submit-btn"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Id verification submit btn"
           style={[
             styles.submitButton,
             state.selectedImage ? styles.submitButtonActive : styles.submitButtonDisabled,
@@ -290,10 +303,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
           accessibilityState={{ disabled: !state.selectedImage || state.uploading }}
         >
           {state.uploading ? (
-            <ActivityIndicator
-              color="#fff"
-              testID="id-verification-uploading-indicator"
-            />
+            <ActivityIndicator color="#fff" testID="id-verification-uploading-indicator" />
           ) : (
             <Text style={styles.submitButtonText}>{submitButtonLabel}</Text>
           )}
@@ -503,4 +513,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-

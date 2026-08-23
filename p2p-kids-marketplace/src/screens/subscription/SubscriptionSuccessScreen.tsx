@@ -1,20 +1,14 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/SubscriptionSuccessScreen.tsx
  * MODULE-15.1 FLOW-12 Screen 4: Subscription Success
- * 
+ *
  * TASK: Redesign SubscriptionSuccessScreen — VISUAL ONLY
  * DO NOT CHANGE: plan name from navigation params, navigation on CTA
  * ONLY CHANGE: StyleSheet, icons → Phosphor
  */
 
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Crown } from 'phosphor-react-native';
@@ -42,7 +36,7 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
   const containerOpacity = useRef(new Animated.Value(0)).current;
 
   const isRenewal = route?.params?.isRenewal ?? false;
-  
+
   const planName = 'Kids Club+';
 
   // Refresh subscription data on mount
@@ -116,7 +110,7 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
           </Text>
           <Text style={styles.subtitle}>
             {isRenewal
-              ? "Welcome back! Your subscription is active."
+              ? 'Welcome back! Your subscription is active.'
               : "Your subscription is now active. Let's get started!"}
           </Text>
         </Animated.View>
@@ -140,6 +134,9 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
             style={styles.ctaButton}
             onPress={handleStartSearching}
             testID="start-exploring-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Start exploring button"
           >
             <Text style={styles.ctaButtonText}>Start Exploring</Text>
           </TouchableOpacity>

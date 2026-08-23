@@ -18,7 +18,7 @@ type ErrorScreenRouteProp = RouteProp<{ Error: ErrorScreenParams }, 'Error'>;
 const ErrorScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<ErrorScreenRouteProp>();
-  
+
   const {
     title = 'Something Went Wrong',
     message = 'An error occurred. Please try again.',
@@ -44,30 +44,32 @@ const ErrorScreen: React.FC = () => {
     <SafeAreaView style={styles.container} testID="error-screen">
       <View style={styles.content}>
         <XCircle size={72} color="#E85D75" weight="fill" testID="error-icon" />
-        
+
         <Text style={styles.title} testID="error-title">
           {title}
         </Text>
-        
+
         <Text style={styles.message} testID="error-message">
           {message}
         </Text>
-        
+
         <TouchableOpacity
           style={styles.retryBtn}
           onPress={handleRetry}
           testID="retry-button"
+          accessible
           accessibilityLabel="Try again"
           accessibilityRole="button"
         >
           <ArrowCounterClockwise size={18} color="#FFFFFF" />
           <Text style={styles.retryBtnText}>Try Again</Text>
         </TouchableOpacity>
-        
+
         {showGoBack && (
           <TouchableOpacity
             onPress={handleGoBack}
             testID="go-back-link"
+            accessible
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >

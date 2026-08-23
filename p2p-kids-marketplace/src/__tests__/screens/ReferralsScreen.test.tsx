@@ -4,11 +4,24 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ReferralsScreen } from '@/screens/referrals/ReferralsScreen';
-import { ReferralCodeServiceV2, type ReferralStats, type Referral } from '@/services/referralCodeV2';
+import {
+  ReferralCodeServiceV2,
+  type ReferralStats,
+  type Referral,
+} from '@/services/referralCodeV2';
 import { ReferralRewardsService } from '@/services/referralRewards';
 import { useAuth } from '@/hooks/useAuth';
+import { captureException } from '@/services/errorReporter';
 
 // Mock dependencies
+jest.mock('@/services/errorReporter', () => ({
+  initErrorReporter: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  setUser: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  __resetForTests: jest.fn(),
+}));
 jest.mock('@/hooks/useAuth');
 jest.mock('@/services/referralCodeV2');
 jest.mock('@/services/referralRewards');
@@ -22,11 +35,13 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockCaptureException = captureException as jest.Mock;
 const mockGetReferralCode = ReferralCodeServiceV2.getReferralCode as jest.Mock;
 const mockGetReferralStats = ReferralCodeServiceV2.getReferralStats as jest.Mock;
 const mockGetReferralHistory = ReferralCodeServiceV2.getReferralHistory as jest.Mock;
 const mockGetReferralLink = ReferralCodeServiceV2.getReferralLink as jest.Mock;
-const mockGetConfiguredRewardAmounts = ReferralRewardsService.getConfiguredRewardAmounts as jest.Mock;
+const mockGetConfiguredRewardAmounts =
+  ReferralRewardsService.getConfiguredRewardAmounts as jest.Mock;
 const mockUseNavigation = require('@react-navigation/native').useNavigation as jest.Mock;
 const mockUseFocusEffect = require('@react-navigation/native').useFocusEffect as jest.Mock;
 const mockAlert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
@@ -267,7 +282,6 @@ describe('ReferralsScreen', () => {
   });
 
   it('INTERACTION: Share button - should handle share error gracefully', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     mockShare.mockRejectedValue(new Error('Share failed'));
 
     const { getByTestId } = render(<ReferralsScreen />);
@@ -277,11 +291,14 @@ describe('ReferralsScreen', () => {
       fireEvent.press(shareBtn);
     });
 
+    // BP-57: share errors are now reported via captureException (errorReporter)
+    // instead of a raw console.error, so assert the corrected behavior.
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to share:', expect.any(Error));
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ tags: { screen: 'ReferralsScreen', action: 'share' } })
+      );
     });
-
-    consoleErrorSpy.mockRestore();
   });
 
   // ERROR HANDLING TESTS
@@ -419,7 +436,11 @@ describe('ReferralsScreen', () => {
       expect(getByTestId('trade-bonus-row')).toBeTruthy();
       expect(getByTestId('listing-bonus-row')).toBeTruthy();
       expect(getByTestId('program-paused-banner')).toBeTruthy();
-      expect(getByText('Referral program is paused globally right now. Rewards shown below are configured but currently not being awarded.')).toBeTruthy();
+      expect(
+        getByText(
+          'Referral program is paused globally right now. Rewards shown below are configured but currently not being awarded.'
+        )
+      ).toBeTruthy();
     });
   });
 

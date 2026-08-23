@@ -25,20 +25,19 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import {
-  CreditCard,
-  CheckCircle,
-  Lock,
-} from 'phosphor-react-native';
+import { CreditCard, CheckCircle, Lock } from 'phosphor-react-native';
 import { getPaymentMethod, PaymentMethodInfo } from '@/services/subscription';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { supabase } from '@/config/supabase';
 import { retryFailedPayment } from '@/services/paymentRetry';
 import ScreenLayout from '@/components/ScreenLayout';
+import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
 
 // ─── Helper: Attach payment method to Stripe customer via edge function ──────
-async function attachPaymentMethodToCustomer(paymentMethodId: string): Promise<{ success: boolean; error?: string }> {
+async function attachPaymentMethodToCustomer(
+  paymentMethodId: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const {
       data: { session },
@@ -58,20 +57,27 @@ async function attachPaymentMethodToCustomer(paymentMethodId: string): Promise<{
     });
 
     if (error) {
-      console.error('[PaymentMethodsScreen] Attach payment method error:', error);
+      captureException(error, {
+        tags: { screen: 'PaymentMethodsScreen', action: 'attach_error' },
+      });
       return { success: false, error: error.message || 'Failed to save payment method' };
     }
 
     if (!data?.success) {
       const errMsg = (data as any)?.error || 'Failed to save payment method';
-      console.error('[PaymentMethodsScreen] Attach payment method failed:', errMsg);
+      captureException(errMsg, {
+        tags: { screen: 'PaymentMethodsScreen', action: 'attach_failed' },
+      });
       return { success: false, error: errMsg };
     }
 
     console.log('[PaymentMethodsScreen] Payment method attached successfully');
     return { success: true };
   } catch (err: any) {
-    console.error('[PaymentMethodsScreen] Attach payment method exception:', err);
+    captureException(err, {
+      tags: { screen: 'PaymentMethodsScreen', action: 'attach_exception' },
+      extra: { message: err?.message },
+    });
     return { success: false, error: err.message || 'Failed to save payment method' };
   }
 }
@@ -92,7 +98,9 @@ export default function PaymentMethodsScreen() {
       const pm = await getPaymentMethod(forceRefresh);
       setPaymentMethod(pm);
     } catch (error) {
-      console.error('[PaymentMethodsScreen] Error fetching payment method:', error);
+      captureException(error, {
+        tags: { screen: 'PaymentMethodsScreen', action: 'fetch_payment_method' },
+      });
       setPaymentMethod(null);
     } finally {
       setLoading(false);
@@ -121,7 +129,10 @@ export default function PaymentMethodsScreen() {
         const attachResult = await attachPaymentMethodToCustomer(result.paymentMethodId);
 
         if (!attachResult.success) {
-          Alert.alert('Error', attachResult.error || 'Failed to save payment method. Please try again.');
+          Alert.alert(
+            'Error',
+            attachResult.error || 'Failed to save payment method. Please try again.'
+          );
           return;
         }
 
@@ -153,25 +164,22 @@ export default function PaymentMethodsScreen() {
             retryCode === 'NO_OPEN_INVOICE' ||
             retryCode === 'NOT_FOUND'
           ) {
-            Alert.alert(
-              'Payment Method Saved',
-              'Your card was saved successfully.'
-            );
+            Alert.alert('Payment Method Saved', 'Your card was saved successfully.');
             return;
           }
         }
 
         Alert.alert('Success', 'Payment method added successfully.');
-
       } else if (result.error) {
         const errorLower = result.error.toLowerCase();
         if (!errorLower.includes('cancel')) {
           Alert.alert('Error', result.error || 'Failed to add payment method.');
         }
       }
-
     } catch (error) {
-      console.error('[PaymentMethodsScreen] Error adding payment method:', error);
+      captureException(error, {
+        tags: { screen: 'PaymentMethodsScreen', action: 'add_payment_method' },
+      });
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setUpdating(false);
@@ -207,14 +215,18 @@ export default function PaymentMethodsScreen() {
               });
 
               if (error) {
-                console.error('[PaymentMethodsScreen] Remove error:', error);
+                captureException(error, {
+                  tags: { screen: 'PaymentMethodsScreen', action: 'remove_error' },
+                });
                 Alert.alert('Error', error.message || 'Failed to remove payment method.');
                 return;
               }
 
               if (!data?.success) {
                 const errMsg = (data as any)?.error || 'Failed to remove payment method.';
-                console.error('[PaymentMethodsScreen] Remove failed:', errMsg);
+                captureException(errMsg, {
+                  tags: { screen: 'PaymentMethodsScreen', action: 'remove_failed' },
+                });
                 Alert.alert('Error', errMsg);
                 return;
               }
@@ -222,7 +234,9 @@ export default function PaymentMethodsScreen() {
               setPaymentMethod(null);
               Alert.alert('Removed', 'Your payment method has been removed.');
             } catch (error) {
-              console.error('[PaymentMethodsScreen] Remove error:', error);
+              captureException(error, {
+                tags: { screen: 'PaymentMethodsScreen', action: 'remove_exception' },
+              });
               Alert.alert('Error', 'An unexpected error occurred. Please try again.');
             } finally {
               setUpdating(false);
@@ -232,7 +246,6 @@ export default function PaymentMethodsScreen() {
       ]
     );
   };
-
 
   // ─── Render Loading ─────────────────────────────────────────────────────────
   if (loading) {
@@ -287,7 +300,6 @@ export default function PaymentMethodsScreen() {
               <Text style={styles.expiryLabel}>Expiry Date</Text>
               <Text style={styles.expiryValue}>
                 {String(paymentMethod.exp_month).padStart(2, '0')}/{String(paymentMethod.exp_year)}
-
               </Text>
             </View>
 
@@ -305,9 +317,7 @@ export default function PaymentMethodsScreen() {
               {updating ? (
                 <View style={styles.primaryButtonLoadingRow}>
                   <ActivityIndicator size="small" color="#FFFFFF" />
-                  <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>
-                    Updating...
-                  </Text>
+                  <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Updating...</Text>
                 </View>
               ) : (
                 <Text style={styles.primaryButtonText}>Update Payment Method</Text>
@@ -336,8 +346,8 @@ export default function PaymentMethodsScreen() {
               </View>
               <Text style={styles.emptyTitle}>No Payment Method</Text>
               <Text style={styles.emptyText}>
-                Add a credit or debit card to submit offers on items. Your payment
-                information is securely stored with Stripe.
+                Add a credit or debit card to submit offers on items. Your payment information is
+                securely stored with Stripe.
               </Text>
               <TouchableOpacity
                 style={[styles.primaryButton, updating && styles.primaryButtonDisabled]}
@@ -352,9 +362,7 @@ export default function PaymentMethodsScreen() {
                 {updating ? (
                   <View style={styles.primaryButtonLoadingRow}>
                     <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>
-                      Adding...
-                    </Text>
+                    <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Adding...</Text>
                   </View>
                 ) : (
                   <Text style={styles.primaryButtonText}>Add Payment Method</Text>
@@ -372,8 +380,8 @@ export default function PaymentMethodsScreen() {
           <View style={styles.securityTextContainer}>
             <Text style={styles.securityTitle}>Secure Payments</Text>
             <Text style={styles.securityText}>
-              Your payment information is encrypted and processed securely through Stripe.
-              We never store your full card details on our servers.
+              Your payment information is encrypted and processed securely through Stripe. We never
+              store your full card details on our servers.
             </Text>
           </View>
         </View>

@@ -3,13 +3,7 @@
 // Design: 48px height, borderRadius 24, filled #F0F0F0, MagnifyingGlass icon
 
 import React from 'react';
-import {
-  View,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, ViewStyle } from 'react-native';
 import { MagnifyingGlass, X } from 'phosphor-react-native';
 
 interface SearchBarProps {
@@ -52,6 +46,7 @@ export function SearchBar({
           onPress={onClear ?? (() => onChangeText(''))}
           hitSlop={8}
           testID="search-bar-clear"
+          accessible
           accessibilityLabel="Clear search"
           accessibilityRole="button"
         >

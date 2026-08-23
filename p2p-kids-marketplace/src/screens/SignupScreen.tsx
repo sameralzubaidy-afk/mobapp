@@ -374,6 +374,9 @@ export const SignupScreen: React.FC = () => {
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             testID="signup-submit-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Signup submit button"
             onPress={handleSignup}
             disabled={loading}
           >
@@ -390,6 +393,9 @@ export const SignupScreen: React.FC = () => {
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
               testID="signup-login-link"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Signup login link"
               disabled={loading}
             >
               <Text style={styles.linkText}>Log In</Text>

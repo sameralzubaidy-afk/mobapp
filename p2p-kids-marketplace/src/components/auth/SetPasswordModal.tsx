@@ -122,6 +122,7 @@ export default function SetPasswordModal({
     >
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
+          accessible
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.container}
         >
@@ -129,6 +130,7 @@ export default function SetPasswordModal({
           <View style={styles.header}>
             <Text style={styles.title}>Set Password</Text>
             <TouchableOpacity
+              accessible
               onPress={handleClose}
               style={styles.closeButton}
               accessibilityRole="button"
@@ -243,6 +245,7 @@ export default function SetPasswordModal({
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
+              accessible
               style={[
                 styles.primaryButton,
                 (!strengthResult.valid || isSubmitting) && styles.disabledButton,

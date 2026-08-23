@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/ReviewOfferScreen.tsx
  * Review Offer Screen - Sellers can review and accept/reject offers on their listings
- * 
+ *
  * Features:
  * - Display offer details (buyer's offer amount, SP amount)
  * - Show listing details
@@ -11,15 +11,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
@@ -31,6 +23,7 @@ import ScreenLayout from '@/components/ScreenLayout';
 import { respondToOffer, acceptBundleOffers } from '@/services/tradeServiceV2';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { previewTotalSPToSeller } from '@/services/spCalculatorService';
+import { captureException } from '@/services/errorReporter';
 import { getSPReleaseDays } from '@/services/adminConfig';
 
 type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
@@ -48,9 +41,9 @@ interface OfferData {
   created_at: string;
   offer_expires_at?: string | null;
   bundle_id?: string | null;
-  seller_sp_earned?: number;   // NEW: total SP to seller (buyer SP + bonus)
-  seller_sp_bonus?: number;    // NEW: platform-funded bonus
-  sp_transferred_at?: string;  // NEW: when SP transferred (set at acceptance)
+  seller_sp_earned?: number; // NEW: total SP to seller (buyer SP + bonus)
+  seller_sp_bonus?: number; // NEW: platform-funded bonus
+  sp_transferred_at?: string; // NEW: when SP transferred (set at acceptance)
   listing: {
     title: string;
     price: number;
@@ -89,7 +82,8 @@ export default function ReviewOfferScreen() {
       setLoading(true);
       const { data, error } = await supabase
         .from('trades')
-        .select(`
+        .select(
+          `
           id,
           listing_id,
           buyer_id,
@@ -110,7 +104,8 @@ export default function ReviewOfferScreen() {
             price,
             images:item_images(url, thumbnail_url)
           )
-        `)
+        `
+        )
         .eq('id', tradeId)
         .eq('seller_id', session.user.id)
         .single();
@@ -140,13 +135,12 @@ export default function ReviewOfferScreen() {
       // ✅ FIX: Calculate total SP (buyer SP + platform bonus) for accurate display
       if (offerData.sp_amount > 0 && offerData.listing_id) {
         try {
-          const spPreview = await previewTotalSPToSeller(
-            offerData.listing_id,
-            offerData.sp_amount
-          );
+          const spPreview = await previewTotalSPToSeller(offerData.listing_id, offerData.sp_amount);
           setTotalSpToSeller(spPreview.totalSp);
         } catch (err) {
-          console.error('[ReviewOffer] Failed to calculate total SP:', err);
+          captureException(err, {
+            tags: { screen: 'ReviewOfferScreen', action: 'calculate_total_sp' },
+          });
           // Fallback to buyer SP only if calculation fails
           setTotalSpToSeller(offerData.sp_amount);
         }
@@ -160,7 +154,8 @@ export default function ReviewOfferScreen() {
         try {
           const { data: siblings } = await supabase
             .from('trades')
-            .select(`
+            .select(
+              `
               id,
               listing_id,
               buyer_id,
@@ -176,21 +171,23 @@ export default function ReviewOfferScreen() {
               seller_sp_bonus,
               sp_category_multiplier,
               listing:items(title, price, images:item_images(url, thumbnail_url))
-            `)
+            `
+            )
             .eq('bundle_id', bundleId)
             .neq('id', tradeId)
             .eq('seller_id', session.user.id);
           if (siblings) {
-            setBundleSiblings(
-              siblings.map((s: any) => ({ ...s, buyer_profile: { name: '' } }))
-            );
+            setBundleSiblings(siblings.map((s: any) => ({ ...s, buyer_profile: { name: '' } })));
           }
         } catch {
           // Non-blocking: bundle list is informational.
         }
       }
     } catch (error: any) {
-      console.error('[ReviewOffer] fetchOffer error:', error);
+      captureException(error, {
+        tags: { screen: 'ReviewOfferScreen', action: 'fetch_offer' },
+        extra: { message: error?.message },
+      });
       Alert.alert('Error', 'Failed to load offer details');
       navigation.goBack();
     } finally {
@@ -201,7 +198,11 @@ export default function ReviewOfferScreen() {
   useEffect(() => {
     fetchOffer();
     // Load admin-configured SP release days
-    getSPReleaseDays().then(setReleaseDays).catch(() => {/* keep default 3 */});
+    getSPReleaseDays()
+      .then(setReleaseDays)
+      .catch(() => {
+        /* keep default 3 */
+      });
   }, [fetchOffer]);
 
   // TFV2-012A (D-30): Accept all bundle offers via Edge Function (Stripe capture + in_progress)
@@ -213,20 +214,21 @@ export default function ReviewOfferScreen() {
   const executeAcceptBundle = async () => {
     if (!offer) return;
     const allOffers = [offer, ...bundleSiblings];
-    const pendingIds = allOffers.filter(o => o.status === 'pending').map(o => o.id);
+    const pendingIds = allOffers.filter((o) => o.status === 'pending').map((o) => o.id);
     if (pendingIds.length === 0) return;
     try {
       setAcceptingBundle(true);
       // Single EF call — processes all trades in parallel internally
       await acceptBundleOffers(pendingIds);
       setShowAcceptBundleModal(false);
-      Alert.alert(
-        'Bundle Accepted!',
-        'Payment captured. Trades are now in progress.',
-        [{ text: 'OK', onPress: () => navigation.navigate('MyListings') }]
-      );
+      Alert.alert('Bundle Accepted!', 'Payment captured. Trades are now in progress.', [
+        { text: 'OK', onPress: () => navigation.navigate('MyListings') },
+      ]);
     } catch (err: any) {
-      console.error('[ReviewOffer] handleAcceptBundle error:', err);
+      captureException(err, {
+        tags: { screen: 'ReviewOfferScreen', action: 'accept_bundle' },
+        extra: { message: err?.message },
+      });
       Alert.alert('Error', 'Failed to accept all items. Please try again.');
     } finally {
       setAcceptingBundle(false);
@@ -256,7 +258,10 @@ export default function ReviewOfferScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('[ReviewOffer] handleAccept error:', error);
+      captureException(error, {
+        tags: { screen: 'ReviewOfferScreen', action: 'accept_offer' },
+        extra: { message: error?.message },
+      });
       Alert.alert('Error', 'Failed to accept offer. Please try again.');
     } finally {
       setSubmitting(false);
@@ -274,18 +279,17 @@ export default function ReviewOfferScreen() {
       setSubmitting(true);
       setShowDeclineModal(false);
       await respondToOffer(offer.id, 'decline');
-      Alert.alert(
-        'Offer Declined',
-        'The buyer has been notified.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('MyListings'),
-          },
-        ]
-      );
+      Alert.alert('Offer Declined', 'The buyer has been notified.', [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('MyListings'),
+        },
+      ]);
     } catch (error: any) {
-      console.error('[ReviewOffer] handleDecline error:', error);
+      captureException(error, {
+        tags: { screen: 'ReviewOfferScreen', action: 'decline_offer' },
+        extra: { message: error?.message },
+      });
       Alert.alert('Error', 'Failed to decline offer. Please try again.');
     } finally {
       setSubmitting(false);
@@ -313,7 +317,6 @@ export default function ReviewOfferScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Review Offer">
-
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Show expired badge for cancelled offers */}
         {offer.status === 'cancelled' && offer.cancellation_reason === 'Offer expired' && (
@@ -321,7 +324,7 @@ export default function ReviewOfferScreen() {
             <Text style={styles.expiredBannerText}>⏱️ Expired</Text>
           </View>
         )}
-        
+
         {offer.status === 'pending' && offer.offer_expires_at ? (
           <OfferCountdownPill
             offerExpiresAt={offer.offer_expires_at}
@@ -355,7 +358,8 @@ export default function ReviewOfferScreen() {
                   const netPayout = itemPrice - itemSp;
                   // Seller earnings = buyer SP + platform bonus
                   const multiplier = (o as any).sp_category_multiplier ?? 1.0;
-                  const platformBonus = itemSp > 0 ? Math.floor(itemSp * Math.max(0, multiplier - 1)) : 0;
+                  const platformBonus =
+                    itemSp > 0 ? Math.floor(itemSp * Math.max(0, multiplier - 1)) : 0;
                   const sellerSpEarned = itemSp + platformBonus;
                   return (
                     <TouchableOpacity
@@ -372,20 +376,28 @@ export default function ReviewOfferScreen() {
                       </Text>
                       <View style={styles.bundleItemDetail}>
                         {o.status !== 'pending' && (
-                          <View style={o.status === 'cancelled' ? styles.statusBadgeCancelled : styles.statusBadgeAccepted}>
-                            <Text style={o.status === 'cancelled' ? styles.statusTextCancelled : styles.statusTextAccepted}>
+                          <View
+                            style={
+                              o.status === 'cancelled'
+                                ? styles.statusBadgeCancelled
+                                : styles.statusBadgeAccepted
+                            }
+                          >
+                            <Text
+                              style={
+                                o.status === 'cancelled'
+                                  ? styles.statusTextCancelled
+                                  : styles.statusTextAccepted
+                              }
+                            >
                               {o.status === 'cancelled' ? 'Declined' : 'Accepted'}
                             </Text>
                           </View>
                         )}
                         {sellerSpEarned > 0 && o.status === 'pending' && (
-                          <Text style={styles.bundleItemSp}>
-                            +{sellerSpEarned} SP
-                          </Text>
+                          <Text style={styles.bundleItemSp}>+{sellerSpEarned} SP</Text>
                         )}
-                        <Text style={styles.bundleItemPrice}>
-                          ${netPayout.toFixed(2)}
-                        </Text>
+                        <Text style={styles.bundleItemPrice}>${netPayout.toFixed(2)}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -393,7 +405,10 @@ export default function ReviewOfferScreen() {
                 {/* Bundle totals */}
                 {(() => {
                   const allItems = [offer, ...bundleSiblings];
-                  const totalCash = allItems.reduce((s, o) => s + ((o.cash_amount_cents ?? 0) / 100), 0);
+                  const totalCash = allItems.reduce(
+                    (s, o) => s + (o.cash_amount_cents ?? 0) / 100,
+                    0
+                  );
                   // Seller SP earned per item = sp_amount + floor(sp_amount × (multiplier - 1))
                   const totalSellerSp = allItems.reduce((s, o) => {
                     const sp = o.sp_amount ?? 0;
@@ -478,9 +493,7 @@ export default function ReviewOfferScreen() {
             </View>
             <View style={styles.payoutRow}>
               <Text style={styles.payoutLabel}>Points Earned</Text>
-              <Text style={[styles.payoutValue, styles.spDiscountText]}>
-                +{totalSpToSeller} SP
-              </Text>
+              <Text style={[styles.payoutValue, styles.spDiscountText]}>+{totalSpToSeller} SP</Text>
             </View>
             <View style={[styles.payoutRow, styles.payoutTotalRow]}>
               <Text style={styles.payoutTotalLabel}>Net Cash Payout</Text>
@@ -504,33 +517,43 @@ export default function ReviewOfferScreen() {
           <View style={styles.actionsContainer}>
             {/* Addendum E: Accept All button — only pending items */}
             {(() => {
-              const pendingCount = [offer, ...bundleSiblings].filter(o => o.status === 'pending').length;
+              const pendingCount = [offer, ...bundleSiblings].filter(
+                (o) => o.status === 'pending'
+              ).length;
               if (pendingCount <= 1) return null;
               return (
                 <TouchableOpacity
-                  style={[styles.acceptAllButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
+                  style={[
+                    styles.acceptAllButton,
+                    (submitting || acceptingBundle) && styles.buttonDisabled,
+                  ]}
                   onPress={handleAcceptBundle}
                   disabled={submitting || acceptingBundle}
                   accessibilityLabel={`Accept all ${pendingCount} items`}
                   testID="accept-bundle-button"
+                  accessible
+                  accessibilityRole="button"
                 >
                   {acceptingBundle ? (
                     <LoadingSpinner color="#FFFFFF" size={20} />
                   ) : (
-                    <Text style={styles.acceptButtonText}>
-                      Accept All {pendingCount} Items
-                    </Text>
+                    <Text style={styles.acceptButtonText}>Accept All {pendingCount} Items</Text>
                   )}
                 </TouchableOpacity>
               );
             })()}
 
             <TouchableOpacity
-              style={[styles.acceptButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
+              style={[
+                styles.acceptButton,
+                (submitting || acceptingBundle) && styles.buttonDisabled,
+              ]}
               onPress={handleAccept}
               disabled={submitting || acceptingBundle}
               accessibilityLabel="Accept trade offer"
               testID="accept-trade-button"
+              accessible
+              accessibilityRole="button"
             >
               {submitting ? (
                 <LoadingSpinner color="#FFFFFF" size={20} />
@@ -540,11 +563,16 @@ export default function ReviewOfferScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.declineButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
+              style={[
+                styles.declineButton,
+                (submitting || acceptingBundle) && styles.buttonDisabled,
+              ]}
               onPress={handleDecline}
               disabled={submitting || acceptingBundle}
               accessibilityLabel="Decline trade offer"
               testID="decline-trade-button"
+              accessible
+              accessibilityRole="button"
             >
               <Text style={styles.declineButtonText}>Decline</Text>
             </TouchableOpacity>
@@ -559,6 +587,8 @@ export default function ReviewOfferScreen() {
               onPress={() => navigation.goBack()}
               accessibilityLabel="Go back"
               testID="back-to-offers-button"
+              accessible
+              accessibilityRole="button"
             >
               <Text style={styles.expiredBackButtonText}>Back to Offers</Text>
             </TouchableOpacity>
@@ -592,7 +622,9 @@ export default function ReviewOfferScreen() {
       <TradeConfirmationModal
         visible={showAcceptBundleModal}
         title={(() => {
-          const pendingCount = offer ? [offer, ...bundleSiblings].filter(o => o.status === 'pending').length : 0;
+          const pendingCount = offer
+            ? [offer, ...bundleSiblings].filter((o) => o.status === 'pending').length
+            : 0;
           return `Accept all ${pendingCount} items?`;
         })()}
         message="Accepting will capture payment and move all trades in progress."

@@ -41,6 +41,8 @@ export function BulkPhotoUploader({
           accessibilityLabel="Pick multiple listing photos"
           accessibilityHint="Lets you take a photo or choose multiple photos from your library"
           testID="bulk-image-picker-button"
+          accessible
+          accessibilityRole="button"
         >
           <Text style={styles.pickButtonText}>Add photos from camera or library</Text>
         </TouchableOpacity>
@@ -54,6 +56,8 @@ export function BulkPhotoUploader({
           accessibilityLabel="Add more photos"
           accessibilityHint="Lets you take a photo or choose from your library"
           testID="bulk-image-picker-add-more"
+          accessible
+          accessibilityRole="button"
         >
           <Text style={styles.addMoreText}>+ Add from camera or library</Text>
         </TouchableOpacity>

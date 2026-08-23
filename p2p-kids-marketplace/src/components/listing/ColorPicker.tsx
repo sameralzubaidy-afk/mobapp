@@ -54,10 +54,12 @@ export function ColorPicker({
       <View style={styles.grid}>
         {COLOR_PALETTE.map((color) => {
           const isSelected = selectedColors.includes(color.id);
+
           const isMulticolor = color.id === 'multicolor';
 
           return (
             <TouchableOpacity
+              accessible
               key={color.id}
               style={[styles.swatch, isSelected && styles.swatchSelected]}
               onPress={() => handleToggleColor(color.id)}

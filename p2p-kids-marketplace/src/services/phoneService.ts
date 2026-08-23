@@ -3,6 +3,7 @@
 // Consolidates logic from phone.ts and verification.ts with AUTH-V3-006 requirements
 
 import { supabase } from './supabase/client';
+import { captureException } from './errorReporter';
 
 export const DEV_SMS_BYPASS_CODE = '123456';
 
@@ -64,10 +65,19 @@ function logSendOtpError(error: unknown): void {
     );
     return;
   }
-  console.error('[phoneService] send-phone-otp invoke error:', error);
+  // Report to Sentry instead of console.error — a raw console.error on a
+  // dev/staging build makes RN LogBox render a duplicate red banner (from the
+  // earlier DEV-bypass OTP auto-send) that can cover unrelated screens mid-flow
+  // (QA: Group A+B+D 2026-08-23, finding #4 / A07 forced-relaunch).
+  captureException(error, {
+    tags: { service: 'phoneService', action: 'send_phone_otp' },
+    extra: { message: error instanceof Error ? error.message : String(error) },
+  });
 }
 
-async function parseEdgeFunctionErrorPayload(error: unknown): Promise<EdgeFunctionErrorPayload | null> {
+async function parseEdgeFunctionErrorPayload(
+  error: unknown
+): Promise<EdgeFunctionErrorPayload | null> {
   const context = (error as { context?: { clone?: () => { json?: () => Promise<unknown> } } })
     ?.context;
 
@@ -146,13 +156,17 @@ export async function isPhoneRequired(userId: string): Promise<boolean> {
       .maybeSingle();
 
     if (error) {
-      console.error('[phoneService] isPhoneRequired query error:', error);
+      captureException(error, {
+        tags: { service: 'phoneService', action: 'is_phone_required_query' },
+      });
       return true; // Graceful fallback: assume verification required
     }
 
     return data?.phone_verified_at === null || data?.phone_verified_at === undefined;
   } catch (err) {
-    console.error('[phoneService] isPhoneRequired exception:', err);
+    captureException(err, {
+      tags: { service: 'phoneService', action: 'is_phone_required_exception' },
+    });
     return true; // Graceful fallback
   }
 }
@@ -186,7 +200,9 @@ export async function isPhoneRequired(userId: string): Promise<boolean> {
  * }
  * ```
  */
-export async function sendPhoneVerificationCode(phone: string): Promise<SendPhoneVerificationResult> {
+export async function sendPhoneVerificationCode(
+  phone: string
+): Promise<SendPhoneVerificationResult> {
   try {
     const {
       data: { user },
@@ -208,7 +224,10 @@ export async function sendPhoneVerificationCode(phone: string): Promise<SendPhon
       const payload = await parseEdgeFunctionErrorPayload(error);
 
       if (payload?.code === PhoneVerificationErrorCode.RATE_LIMIT_EXCEEDED) {
-        throw new OTPRateLimitError(payload.error || 'Rate limit exceeded', payload.retryAfterSeconds || 3600);
+        throw new OTPRateLimitError(
+          payload.error || 'Rate limit exceeded',
+          payload.retryAfterSeconds || 3600
+        );
       }
 
       const shouldDevBypass =
@@ -315,7 +334,9 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
         .eq('user_id', user.id);
 
       if (profileError) {
-        console.error('[phoneService] DEV bypass profile update failed:', profileError);
+        captureException(profileError, {
+          tags: { service: 'phoneService', action: 'dev_bypass_profile_update' },
+        });
         throw new Error('Failed to save verification status');
       }
 
@@ -347,7 +368,9 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
       .maybeSingle();
 
     if (fetchError) {
-      console.error('[phoneService] Failed to fetch verification code:', fetchError);
+      captureException(fetchError, {
+        tags: { service: 'phoneService', action: 'fetch_verification_code' },
+      });
       throw new Error('Verification failed');
     }
 
@@ -369,7 +392,9 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
     });
 
     if (cryptError) {
-      console.error('[phoneService] verify_otp_code RPC error:', cryptError);
+      captureException(cryptError, {
+        tags: { service: 'phoneService', action: 'verify_otp_code_rpc' },
+      });
 
       // Increment attempts even on RPC error
       await supabase
@@ -398,7 +423,9 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
       .eq('user_id', user.id);
 
     if (profileError) {
-      console.error('[phoneService] Failed to update profile:', profileError);
+      captureException(profileError, {
+        tags: { service: 'phoneService', action: 'update_profile_after_verify' },
+      });
       throw new Error('Failed to save verification status');
     }
 
@@ -416,7 +443,10 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
     console.log('[phoneService] Phone verified successfully:', phone);
   } catch (err) {
     const error = err as Error;
-    console.error('[phoneService] verifyPhoneCode failed:', error);
+    captureException(error, {
+      tags: { service: 'phoneService', action: 'verify_phone_code_exception' },
+      extra: { message: error.message },
+    });
 
     // Re-throw specific errors
     if (error instanceof OTPExpiredError) {

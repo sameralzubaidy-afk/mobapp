@@ -34,6 +34,7 @@ import {
 import { getCurrentUser } from '@/services/supabase/auth';
 import { addToWaitlist } from '@/services/waitlist';
 import { requestPhoneVerification, verifyPhoneCode } from '@/services/phone';
+import { captureException } from '@/services/errorReporter';
 import { supabase } from '@/services/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner, OTPInput } from '@/components/ui';
@@ -207,7 +208,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
           })(),
         ]);
       } catch (error: any) {
-        console.error('Load profile error:', error);
+        captureException(error, {
+          tags: { screen: 'EditProfileScreen', action: 'load_profile' },
+        });
         Alert.alert('Error', 'Failed to load profile. Please try again.');
         navigation.goBack();
       } finally {
@@ -301,7 +304,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
         setLocalImageUri(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Image picker error:', error);
+      captureException(error, {
+        tags: { screen: 'EditProfileScreen', action: 'image_picker' },
+      });
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
@@ -342,7 +347,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
         setUploadingImage(false);
 
         if (uploadError) {
-          console.error('Avatar upload error:', uploadError);
+          captureException(uploadError, {
+            tags: { screen: 'EditProfileScreen', action: 'avatar_upload' },
+          });
           const errorMsgRaw = formatErrorMessage(uploadError);
           let errorMsg = 'Failed to upload avatar.';
           if (errorMsgRaw.includes('Storage not configured')) {
@@ -422,7 +429,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
             .eq('user_id', currentUser.id);
 
           if (profileEmailUpdateError) {
-            console.warn('Failed to sync profile email after auth email update:', profileEmailUpdateError);
+            console.warn(
+              'Failed to sync profile email after auth email update:',
+              profileEmailUpdateError
+            );
           }
         }
       }
@@ -442,8 +452,8 @@ export default function EditProfileScreen({ navigation, route }: any) {
             .limit(1)
             .maybeSingle();
           if (verifiedRow && (verifiedRow as any).phone) {
-              alreadyVerified =
-                normalizePhone((verifiedRow as any).phone || '') === normalizePhone(trimmedPhone);
+            alreadyVerified =
+              normalizePhone((verifiedRow as any).phone || '') === normalizePhone(trimmedPhone);
           }
         } catch (e) {
           console.warn('Could not check verified phone records:', e);
@@ -583,13 +593,16 @@ export default function EditProfileScreen({ navigation, route }: any) {
         const deferredAvatarUri = localImageUri;
 
         void (async () => {
-          const { url, path, error: deferredUploadError } = await uploadProfileAvatar(
-            currentUser.id,
-            deferredAvatarUri
-          );
+          const {
+            url,
+            path,
+            error: deferredUploadError,
+          } = await uploadProfileAvatar(currentUser.id, deferredAvatarUri);
 
           if (deferredUploadError) {
-            console.error('Deferred avatar upload error:', deferredUploadError);
+            captureException(deferredUploadError, {
+              tags: { screen: 'EditProfileScreen', action: 'deferred_avatar_upload' },
+            });
             Alert.alert(
               'Avatar Upload Failed',
               'Profile details were saved, but avatar upload failed. Please try uploading the avatar again.'
@@ -605,7 +618,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
             );
 
             if (avatarUpdateResult.error) {
-              console.error('Deferred avatar DB update error:', avatarUpdateResult.error);
+              captureException(avatarUpdateResult.error, {
+                tags: { screen: 'EditProfileScreen', action: 'deferred_avatar_db_update' },
+              });
               return;
             }
           }
@@ -621,7 +636,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
       return;
     } catch (error: any) {
-      console.error('Profile update error:', error);
+      captureException(error, {
+        tags: { screen: 'EditProfileScreen', action: 'profile_update' },
+      });
       const errMsg =
         error instanceof Error
           ? error.message
@@ -635,7 +652,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
   // Phone verification handlers
   const handleVerifyCode = async () => {
-    if (!phoneVerification.phone || !phoneVerification.code || phoneVerification.code.length !== 6) {
+    if (
+      !phoneVerification.phone ||
+      !phoneVerification.code ||
+      phoneVerification.code.length !== 6
+    ) {
       setPhoneVerification((prev) => ({ ...prev, message: 'Please enter all 6 digits.' }));
       return;
     }
@@ -852,7 +873,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
         </View>
         <View style={[styles.inputWrapper, styles.inputDisabled]}>
           <User size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
-          <TextInput style={[styles.input, styles.inputTextDisabled]} value={displayName} editable={false} />
+          <TextInput
+            style={[styles.input, styles.inputTextDisabled]}
+            value={displayName}
+            editable={false}
+          />
         </View>
       </View>
 

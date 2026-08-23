@@ -16,6 +16,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getPrivacyPolicyService } from '../../services/privacyPolicy';
+import { captureException } from '@/services/errorReporter';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -55,7 +56,9 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
 
       setPolicy(currentPolicy);
     } catch (error) {
-      console.error('Error loading Privacy Policy:', error);
+      captureException(error, {
+        tags: { screen: 'PrivacyPolicyScreen', action: 'load_policy' },
+      });
       Alert.alert('Error', 'Failed to load Privacy Policy');
     } finally {
       setLoading(false);
@@ -81,7 +84,9 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
         Alert.alert('Success', 'You have accepted the Privacy Policy');
       }
     } catch (error) {
-      console.error('Error accepting Privacy Policy:', error);
+      captureException(error, {
+        tags: { screen: 'PrivacyPolicyScreen', action: 'accept_policy' },
+      });
       Alert.alert('Error', 'Failed to record acceptance. Please try again.');
     } finally {
       setAccepting(false);
@@ -111,7 +116,6 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
 
   return (
     <ScreenLayout variant="detail" title="Privacy Policy">
-
       <ScrollView contentContainerStyle={styles.scrollContent} testID="privacy-policy-content">
         {policy.effective_date && (
           <Text style={styles.lastUpdated} testID="privacy-policy-effective-date">
@@ -129,6 +133,9 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
             onPress={handleAccept}
             disabled={accepting}
             testID="privacy-policy-accept-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Privacy policy accept button"
           >
             {accepting ? (
               <ActivityIndicator color="#FFFFFF" />

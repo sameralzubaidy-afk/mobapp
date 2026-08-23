@@ -44,6 +44,7 @@ export function AgeGroupSelector({
           return (
             <TouchableOpacity
               key={ageGroup.value}
+              accessible
               style={[styles.pill, isSelected && styles.pillSelected]}
               onPress={() => onChange(isSelected ? null : ageGroup.value)}
               accessibilityLabel={`Age group: ${ageGroup.label}`}

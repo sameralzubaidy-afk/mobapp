@@ -1,24 +1,24 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/MySubscriptionScreen.tsx
  * MODULE-15.1 FLOW-12 Screen 5: My Subscription
- * 
+ *
  * TASK: Redesign MySubscriptionScreen — VISUAL ONLY
  * DO NOT CHANGE: subscription data fetch, cancel navigation, upgrade navigation
  * ONLY CHANGE: StyleSheet, icons → Phosphor
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Crown, CrownSimple, CheckCircle, Question, Receipt, CreditCard } from 'phosphor-react-native';
+import {
+  Crown,
+  CrownSimple,
+  CheckCircle,
+  Question,
+  Receipt,
+  CreditCard,
+} from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
 import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
@@ -63,7 +63,9 @@ export default function MySubscriptionScreen() {
   const isPaid = status === 'active' || status === 'trial';
   const planName = isPaid ? 'Kids Club+' : 'Free';
   const renewalDateSource =
-    subscription?.next_billing_date || subscription?.subscription_expires_at || subscription?.trial_ends_at;
+    subscription?.next_billing_date ||
+    subscription?.subscription_expires_at ||
+    subscription?.trial_ends_at;
   const renewalDate = formatRenewalDate(renewalDateSource);
   // "Member Since" = when the account was created (the user joined as a member),
   // not the current billing period start (which resets monthly) and not the
@@ -103,10 +105,7 @@ export default function MySubscriptionScreen() {
       >
         {/* Active Plan Card with Gradient-like feel */}
         <View
-          style={[
-            styles.planCard,
-            isPaid ? styles.planCardPaid : styles.planCardFree,
-          ]}
+          style={[styles.planCard, isPaid ? styles.planCardPaid : styles.planCardFree]}
           testID="plan-card"
         >
           <View style={styles.planCardHeader}>
@@ -114,7 +113,12 @@ export default function MySubscriptionScreen() {
               {isPaid ? (
                 <Crown size={28} color="#FFFFFF" weight="fill" testID="crown-icon" />
               ) : (
-                <CrownSimple size={28} color="#6B6B6B" weight="regular" testID="crown-simple-icon" />
+                <CrownSimple
+                  size={28}
+                  color="#6B6B6B"
+                  weight="regular"
+                  testID="crown-simple-icon"
+                />
               )}
             </View>
             <View style={styles.planCardTitleContainer}>
@@ -134,7 +138,9 @@ export default function MySubscriptionScreen() {
           <View style={styles.planCardFooter}>
             <View>
               <Text style={styles.infoLabel}>Renew Date</Text>
-              <Text style={styles.infoValue} testID="renewal-date">{renewalDate}</Text>
+              <Text style={styles.infoValue} testID="renewal-date">
+                {renewalDate}
+              </Text>
             </View>
             {isPaid && (
               <View style={styles.infoRight}>
@@ -150,6 +156,9 @@ export default function MySubscriptionScreen() {
           <TouchableOpacity
             style={styles.menuItem}
             testID="billing-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Billing button"
             onPress={handleBillingHistory}
           >
             <View style={[styles.menuIcon, { backgroundColor: '#F0F9FF' }]}>
@@ -161,6 +170,9 @@ export default function MySubscriptionScreen() {
           <TouchableOpacity
             style={styles.menuItem}
             testID="payment-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Payment button"
             onPress={handlePaymentMethod}
           >
             <View style={[styles.menuIcon, { backgroundColor: '#F5F3FF' }]}>
@@ -172,6 +184,9 @@ export default function MySubscriptionScreen() {
           <TouchableOpacity
             style={styles.menuItem}
             testID="support-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Support button"
             onPress={handleGetHelp}
           >
             <View style={[styles.menuIcon, { backgroundColor: '#FFF7ED' }]}>
@@ -186,7 +201,13 @@ export default function MySubscriptionScreen() {
           <View style={styles.benefitsContainer}>
             <View style={styles.benefitsHeader}>
               <Text style={styles.benefitsTitle}>Kids Club+ Benefits</Text>
-              <TouchableOpacity onPress={handleLearnMore} testID="benefits-learn-more-button">
+              <TouchableOpacity
+                onPress={handleLearnMore}
+                testID="benefits-learn-more-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Learn More"
+              >
                 <Text style={styles.benefitsLink}>Learn More</Text>
               </TouchableOpacity>
             </View>
@@ -209,6 +230,9 @@ export default function MySubscriptionScreen() {
             style={styles.upgradeButton}
             onPress={handleUpgrade}
             testID="upgrade-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade button"
           >
             <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
           </TouchableOpacity>
@@ -221,11 +245,15 @@ export default function MySubscriptionScreen() {
               style={styles.cancelLink}
               onPress={handleCancel}
               testID="cancel-link"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Cancel link"
             >
               <Text style={styles.cancelLinkText}>Cancel Subscription</Text>
             </TouchableOpacity>
             <Text style={styles.footerNote}>
-              You can cancel anytime. If you cancel, your benefits will remain active until the end of your current billing period.
+              You can cancel anytime. If you cancel, your benefits will remain active until the end
+              of your current billing period.
             </Text>
           </View>
         )}

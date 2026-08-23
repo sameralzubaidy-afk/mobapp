@@ -11,13 +11,7 @@
  */
 
 import React from 'react';
-import {
-  Modal as RNModal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { Modal as RNModal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface PriceAdjustmentModalProps {
   visible: boolean;
@@ -32,12 +26,7 @@ export function PriceAdjustmentModal({
   onUpdatePrice,
 }: PriceAdjustmentModalProps) {
   return (
-    <RNModal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onUpdatePrice}
-    >
+    <RNModal visible={visible} transparent animationType="fade" onRequestClose={onUpdatePrice}>
       <View style={styles.overlay}>
         <View style={styles.dialog}>
           {/* Title */}
@@ -45,9 +34,8 @@ export function PriceAdjustmentModal({
 
           {/* Body */}
           <Text style={styles.message}>
-            To keep Pass It Up full of quality items buyers can trust, listings
-            must be priced at ${minPrice.toFixed(2)} or more. Update your price
-            to publish this listing.
+            To keep Pass It Up full of quality items buyers can trust, listings must be priced at $
+            {minPrice.toFixed(2)} or more. Update your price to publish this listing.
           </Text>
 
           {/* Single action button */}
@@ -57,6 +45,7 @@ export function PriceAdjustmentModal({
             accessibilityRole="button"
             accessibilityLabel="Update Price"
             testID="price-adjustment-update-btn"
+            accessible
           >
             <Text style={styles.buttonText}>Update Price</Text>
           </TouchableOpacity>

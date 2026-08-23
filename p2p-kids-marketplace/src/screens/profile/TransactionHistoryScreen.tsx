@@ -6,17 +6,11 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  RefreshControl,
-  TouchableOpacity
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/hooks/useAuth';
 import { getBillingHistory } from '@/services/billingHistory';
+import { captureException } from '@/services/errorReporter';
 import type { BillingHistory } from '@/types/billingHistory.types';
 import { Receipt } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
@@ -40,7 +34,10 @@ export default function TransactionHistoryScreen() {
       setHistory(data);
       setError(null);
     } catch (err: any) {
-      console.error('[TransactionHistoryScreen] Error:', err);
+      captureException(err, {
+        tags: { screen: 'TransactionHistoryScreen', action: 'load_history' },
+        extra: { message: err?.message },
+      });
       setError('Failed to load billing history');
     } finally {
       setLoading(false);
@@ -101,7 +98,6 @@ export default function TransactionHistoryScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Transaction History">
-
       <View style={styles.content}>
         {loading ? (
           <LoadingSpinner />

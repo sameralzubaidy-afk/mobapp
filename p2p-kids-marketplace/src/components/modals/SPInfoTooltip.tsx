@@ -95,6 +95,7 @@ export function SPInfoTooltip({
                   accessibilityLabel="Learn more about Swap Points"
                   accessibilityRole="button"
                   testID="learn-more-button"
+                  accessible
                 >
                   <Text style={styles.learnMoreText}>Learn More About SP →</Text>
                 </TouchableOpacity>
@@ -106,6 +107,7 @@ export function SPInfoTooltip({
                 accessibilityLabel="Close tooltip"
                 accessibilityRole="button"
                 testID="close-button"
+                accessible
               >
                 <Text style={styles.closeButtonText}>Got it</Text>
               </TouchableOpacity>

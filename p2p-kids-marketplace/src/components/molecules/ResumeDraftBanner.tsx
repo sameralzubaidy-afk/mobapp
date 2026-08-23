@@ -83,13 +83,16 @@ export function ResumeDraftBanner({
       </View>
       <View style={styles.textBlock}>
         <Text style={styles.title} testID={`${testID}-title`}>
-          You have {unfinishedItemCount} unfinished listing{unfinishedItemCount > 1 ? 's' : ''}
+          accessible accessibilityRole="button" You have {unfinishedItemCount} unfinished listing
+          {unfinishedItemCount > 1 ? 's' : ''}
         </Text>
         <Text style={styles.subtitle} testID={`${testID}-subtitle`}>
           Continue where you left off
         </Text>
         <View style={styles.actions}>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={styles.resumeButton}
             onPress={handleResume}
             accessibilityLabel={`Resume ${isBulk ? 'bulk listing' : 'listing'}`}
@@ -99,6 +102,8 @@ export function ResumeDraftBanner({
             <Text style={styles.resumeButtonText}>Continue</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             onPress={onDismiss}
             accessibilityLabel="Dismiss banner"
             accessibilityHint="Hides the banner until next app launch"

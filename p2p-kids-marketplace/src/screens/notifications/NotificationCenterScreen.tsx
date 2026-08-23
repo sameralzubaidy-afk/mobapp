@@ -69,12 +69,12 @@ interface NotificationIconConfig {
 
 // ── Color palette ──────────────────────────────────────────────────────────
 const COLORS = {
-  green:  { backgroundColor: '#E8F5F0', iconColor: '#5DBB8E' },  // positive / active / new
-  red:    { backgroundColor: '#FEE2E2', iconColor: '#E85D75' },  // negative / rejected / failed
-  amber:  { backgroundColor: '#FEF3C7', iconColor: '#F59E0B' },  // warning / pending
-  gold:   { backgroundColor: '#FEF3C7', iconColor: '#D97706' },  // rewards / achievements
-  purple: { backgroundColor: '#EDE9FE', iconColor: '#7C3AED' },  // subscription / premium
-  grey:   { backgroundColor: '#F7F7F7', iconColor: '#6B6B6B' },  // neutral / system
+  green: { backgroundColor: '#E8F5F0', iconColor: '#5DBB8E' }, // positive / active / new
+  red: { backgroundColor: '#FEE2E2', iconColor: '#E85D75' }, // negative / rejected / failed
+  amber: { backgroundColor: '#FEF3C7', iconColor: '#F59E0B' }, // warning / pending
+  gold: { backgroundColor: '#FEF3C7', iconColor: '#D97706' }, // rewards / achievements
+  purple: { backgroundColor: '#EDE9FE', iconColor: '#7C3AED' }, // subscription / premium
+  grey: { backgroundColor: '#F7F7F7', iconColor: '#6B6B6B' }, // neutral / system
 };
 
 // ── Type-level icon map (checked FIRST, highest specificity) ──────────────
@@ -316,6 +316,7 @@ const NotificationItem = React.memo(function NotificationItem({
 
   return (
     <TouchableOpacity
+      accessible
       testID={`notification-item-${item.id}`}
       accessibilityRole="button"
       accessibilityLabel={item.title}
@@ -326,7 +327,12 @@ const NotificationItem = React.memo(function NotificationItem({
     >
       {/* MODULE-15.1 FLOW-17: No unread dot indicator - removed */}
       <View style={[styles.iconContainer, { backgroundColor }]}>
-        <Icon size={20} color={iconColor} weight="regular" testID={`notification-icon-${item.id}`} />
+        <Icon
+          size={20}
+          color={iconColor}
+          weight="regular"
+          testID={`notification-icon-${item.id}`}
+        />
       </View>
 
       <View style={styles.contentContainer}>
@@ -339,10 +345,7 @@ const NotificationItem = React.memo(function NotificationItem({
           {item.title}
         </Text>
 
-        <Text
-          testID={`notification-body-${item.id}`}
-          style={styles.notificationBody}
-        >
+        <Text testID={`notification-body-${item.id}`} style={styles.notificationBody}>
           {item.body}
         </Text>
 
@@ -533,17 +536,21 @@ export default function NotificationCenterScreen() {
 
   const keyExtractor = useCallback((item: UserNotification) => item.id, []);
 
-  const listHeader = unreadCount > 0 ? (
-    <View style={styles.listHeaderContainer}>
-      <TouchableOpacity
-        testID="mark-all-read-link"
-        style={styles.markAllLink}
-        onPress={handleMarkAllRead}
-      >
-        <Text style={styles.markAllLinkText}>Mark all read</Text>
-      </TouchableOpacity>
-    </View>
-  ) : null;
+  const listHeader =
+    unreadCount > 0 ? (
+      <View style={styles.listHeaderContainer}>
+        <TouchableOpacity
+          testID="mark-all-read-link"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Mark all read link"
+          style={styles.markAllLink}
+          onPress={handleMarkAllRead}
+        >
+          <Text style={styles.markAllLinkText}>Mark all read</Text>
+        </TouchableOpacity>
+      </View>
+    ) : null;
 
   const listEmpty = !isLoading ? (
     <View testID="empty-state" style={styles.emptyState}>
@@ -582,6 +589,9 @@ export default function NotificationCenterScreen() {
           <Text style={styles.emptyBody}>{error}</Text>
           <TouchableOpacity
             testID="retry-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Retry button"
             style={styles.retryButton}
             onPress={handleRefresh}
           >

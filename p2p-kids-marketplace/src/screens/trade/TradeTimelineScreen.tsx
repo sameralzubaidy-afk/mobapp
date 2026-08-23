@@ -5,7 +5,7 @@
  * Redesigned with:
  * - Phosphor icons (Clock, ArrowsLeftRight, CheckCircle, XCircle, ChatCircle)
  * - Status banners with semantic colors
- * - Vertical timeline with circle indicators  
+ * - Vertical timeline with circle indicators
  * - Green pill button for confirm, red for cancel
  * - Secondary message button
  */
@@ -31,6 +31,7 @@ import { requestTradeExtension, respondToExtension } from '@/services/tradeServi
 import { getPaymentMethod } from '@/services/subscription';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { getSPReleaseDays, getAdminConfig } from '@/services/adminConfig';
+import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
@@ -46,7 +47,11 @@ import {
   ArrowsLeftRight,
   Star,
 } from 'phosphor-react-native';
-import { CancellationReasonModal, SELLER_INPROGRESS_REASONS, BUYER_OFFER_REASONS } from '@/components/molecules/CancellationReasonModal';
+import {
+  CancellationReasonModal,
+  SELLER_INPROGRESS_REASONS,
+  BUYER_OFFER_REASONS,
+} from '@/components/molecules/CancellationReasonModal';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
@@ -128,7 +133,13 @@ export default function TradeTimelineScreen() {
     const isSeller = user?.id === currentTrade.seller_id;
     // Only navigate on transition to completed (prevStatus was tracked and not completed)
     // Skip on initial load (prevStatus === null) and when status hasn't changed
-    if (!isSeller || currentTrade.status !== 'completed' || prevStatus === null || prevStatus === 'completed') return;
+    if (
+      !isSeller ||
+      currentTrade.status !== 'completed' ||
+      prevStatus === null ||
+      prevStatus === 'completed'
+    )
+      return;
     const derivedListingType: 'cash_only' | 'accept_sp' | 'donate' =
       (currentTrade.payment_preference_snapshot as any) || 'cash_only';
     const totalSpToSeller = currentTrade.sp_earned_at_completion ?? currentTrade.sp_amount ?? 0;
@@ -149,8 +160,20 @@ export default function TradeTimelineScreen() {
     });
   };
 
-  const showNotif = (title: string, message: string, variant?: 'accept' | 'decline' | 'default', onConfirm?: () => void) => {
-    setNotifModal({ visible: true, title, message, variant: variant || 'default', confirmLabel: 'OK', onConfirm });
+  const showNotif = (
+    title: string,
+    message: string,
+    variant?: 'accept' | 'decline' | 'default',
+    onConfirm?: () => void
+  ) => {
+    setNotifModal({
+      visible: true,
+      title,
+      message,
+      variant: variant || 'default',
+      confirmLabel: 'OK',
+      onConfirm,
+    });
   };
 
   const fetchTrade = useCallback(async () => {
@@ -208,7 +231,9 @@ export default function TradeTimelineScreen() {
           const effectivePct = isSubscriber
             ? config.platform_fee_seller_discount_percentage_kids_club_plus
             : config.platform_fee_seller_percentage;
-          enrichedTrade.seller_transaction_fee_cents = Math.round(cashAmountCents * effectivePct / 100);
+          enrichedTrade.seller_transaction_fee_cents = Math.round(
+            (cashAmountCents * effectivePct) / 100
+          );
         } catch (e) {
           console.warn('[TradeTimeline] Failed to calculate fallback seller fee:', e);
           // Keep 0 — display shows -$0.00, avoids crash
@@ -250,7 +275,8 @@ export default function TradeTimelineScreen() {
         }
 
         // Fetch SP release days when trade is completed and involves SP
-        const totalSpForSeller = enrichedTrade.sp_earned_at_completion ?? enrichedTrade.sp_amount ?? 0;
+        const totalSpForSeller =
+          enrichedTrade.sp_earned_at_completion ?? enrichedTrade.sp_amount ?? 0;
         if (totalSpForSeller > 0) {
           try {
             const days = await getSPReleaseDays();
@@ -261,7 +287,9 @@ export default function TradeTimelineScreen() {
         }
       }
     } catch (error) {
-      console.error('❌ Error fetching trade:', error);
+      captureException(error, {
+        tags: { screen: 'TradeTimelineScreen', action: 'fetch_trade' },
+      });
       showNotif('Error', 'Failed to load trade', 'decline');
     } finally {
       setLoading(false);
@@ -336,7 +364,8 @@ export default function TradeTimelineScreen() {
     // to compute bundle-level totals (deal total, fees, taxes) for buyer Payment Details.
     supabase
       .from('trades')
-      .select(`
+      .select(
+        `
         id,
         listing_id,
         status,
@@ -345,7 +374,8 @@ export default function TradeTimelineScreen() {
         buyer_transaction_fee_cents,
         tax_amount_cents,
         listing:items(id, title, price)
-      `)
+      `
+      )
       .eq('bundle_id', bundleId)
       .neq('id', tradeId)
       .then(({ data: siblings }: { data: any }) => {
@@ -353,12 +383,18 @@ export default function TradeTimelineScreen() {
         setBundleSiblings(siblings || []);
       });
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [(trade as any)?.bundle_id, tradeId]);
 
   const handleComplete = async () => {
     if (hasUnresolvedDispute) {
-      showNotif('Dispute Open', 'This trade has an unresolved dispute and cannot be completed yet.', 'decline');
+      showNotif(
+        'Dispute Open',
+        'This trade has an unresolved dispute and cannot be completed yet.',
+        'decline'
+      );
       return;
     }
 
@@ -372,8 +408,7 @@ export default function TradeTimelineScreen() {
           .eq('bundle_id', bundleId)
           .neq('id', tradeId);
         const allInProgress =
-          siblings && siblings.length > 0 &&
-          siblings.every((s: any) => s.status === 'in_progress');
+          siblings && siblings.length > 0 && siblings.every((s: any) => s.status === 'in_progress');
         if (allInProgress) {
           const total = (siblings?.length ?? 0) + 1;
           const allIds = [tradeId, ...(siblings?.map((s: any) => s.id) ?? [])];
@@ -456,15 +491,25 @@ export default function TradeTimelineScreen() {
 
         // DEPRECATED(TFV2-023): Seller-facing Level 1/2/3 consequence alerts removed.
         // The backend counter and admin flag still fire silently.
-        showNotif('Trade Cancelled', 'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
-          setNotifModal(null);
-          navigation.goBack();
-        });
+        showNotif(
+          'Trade Cancelled',
+          'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
+          'default',
+          () => {
+            setNotifModal(null);
+            navigation.goBack();
+          }
+        );
       } else {
-        showNotif('Cancellation Failed', result.error || 'Failed to cancel trade. Please try again.', 'decline', () => {
-          setNotifModal(null);
-          setShowCancellationModal(true);
-        });
+        showNotif(
+          'Cancellation Failed',
+          result.error || 'Failed to cancel trade. Please try again.',
+          'decline',
+          () => {
+            setNotifModal(null);
+            setShowCancellationModal(true);
+          }
+        );
       }
     } catch (error: any) {
       showNotif('Error', error.message || 'An unexpected error occurred', 'decline');
@@ -610,12 +655,16 @@ export default function TradeTimelineScreen() {
   const isBuyer = user?.id === trade.buyer_id;
   const isSeller = user?.id === trade.seller_id;
   // D-30: Payment is pre-authorized at offer creation, captured on seller accept — no manual payment step.
-  const hasUnresolvedDispute = !!(trade as any).dispute_status && !['none', 'resolved'].includes((trade as any).dispute_status);
+  const hasUnresolvedDispute =
+    !!(trade as any).dispute_status &&
+    !['none', 'resolved'].includes((trade as any).dispute_status);
   // Compute auto-complete countdown for the seller payout card
   const autoCompleteCountdownLabel = (() => {
     if (!trade.auto_complete_at) return '';
     const baseMs = Date.parse(trade.auto_complete_at) - 72 * 60 * 60 * 1000;
-    const startIso = Number.isFinite(baseMs) ? new Date(baseMs).toISOString() : trade.auto_complete_at;
+    const startIso = Number.isFinite(baseMs)
+      ? new Date(baseMs).toISOString()
+      : trade.auto_complete_at;
     const model = createCountdownModel(trade.auto_complete_at, startIso);
     return formatCountdownLabel(model);
   })();
@@ -641,13 +690,12 @@ export default function TradeTimelineScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
-        }>
+        }
+      >
         {/* Addendum C + TC-L09: bundle context banner with expandable item list (tap-able names) */}
         {bundleSize > 1 && (
           <View style={styles.bundleBanner} testID="bundle-context-banner">
-            <Text style={styles.bundleBannerTitle}>
-              Bundle offer · {bundleSize} items
-            </Text>
+            <Text style={styles.bundleBannerTitle}>Bundle offer · {bundleSize} items</Text>
             <TouchableOpacity
               onPress={() => setShowBundleList((v) => !v)}
               accessibilityLabel="Toggle bundle item list"
@@ -672,9 +720,7 @@ export default function TradeTimelineScreen() {
                     </Text>
                     <View style={styles.bundleItemDetail}>
                       {(trade as any).sp_amount > 0 && (
-                        <Text style={styles.bundleItemSp}>
-                          +{(trade as any).sp_amount} SP
-                        </Text>
+                        <Text style={styles.bundleItemSp}>+{(trade as any).sp_amount} SP</Text>
                       )}
                       <Text style={styles.bundleItemPrice}>
                         ${((trade as any).cash_amount_cents / 100).toFixed(2)}
@@ -698,9 +744,7 @@ export default function TradeTimelineScreen() {
                       </Text>
                       <View style={styles.bundleItemDetail}>
                         {sibling.sp_amount > 0 && (
-                          <Text style={styles.bundleItemSp}>
-                            +{sibling.sp_amount} SP
-                          </Text>
+                          <Text style={styles.bundleItemSp}>+{sibling.sp_amount} SP</Text>
                         )}
                         <Text style={styles.bundleItemPrice}>
                           ${(sibling.cash_amount_cents / 100).toFixed(2)}
@@ -711,51 +755,59 @@ export default function TradeTimelineScreen() {
                 })}
                 {/* BUNDLE-TOTAL (2026-07-30): aggregated totals at bottom of expanded bundle item list.
                     Shows buyer the full deal total, total platform fees, and total tax across all items. */}
-                {isBuyer && (() => {
-                  const bundleCashCents = (trade.cash_amount_cents ?? 0) +
-                    bundleSiblings.reduce((s, o) => s + (o.cash_amount_cents ?? 0), 0);
-                  const bundleFeeCents = (trade.buyer_transaction_fee_cents ?? 0) +
-                    bundleSiblings.reduce((s, o) => s + (o.buyer_transaction_fee_cents ?? 0), 0);
-                  const bundleTaxCents = (trade.tax_amount_cents ?? 0) +
-                    bundleSiblings.reduce((s, o) => s + (o.tax_amount_cents ?? 0), 0);
-                  return (
-                    <View style={styles.bundleTotalsSection}>
-                      <View style={styles.bundleTotalSeparator} />
-                      <View style={styles.bundleTotalRow}>
-                        <Text style={styles.bundleTotalLabel}>Items Total:</Text>
-                        <Text style={styles.bundleTotalValue}>
-                          ${(bundleCashCents / 100).toFixed(2)}
-                        </Text>
-                      </View>
-                      <View style={styles.bundleTotalRow}>
-                        <Text style={styles.bundleTotalLabel}>Platform Fee:</Text>
-                        <Text style={styles.bundleTotalValue}>
-                          ${(bundleFeeCents / 100).toFixed(2)}
-                        </Text>
-                      </View>
-                      {bundleTaxCents > 0 && (
+                {isBuyer &&
+                  (() => {
+                    const bundleCashCents =
+                      (trade.cash_amount_cents ?? 0) +
+                      bundleSiblings.reduce((s, o) => s + (o.cash_amount_cents ?? 0), 0);
+                    const bundleFeeCents =
+                      (trade.buyer_transaction_fee_cents ?? 0) +
+                      bundleSiblings.reduce((s, o) => s + (o.buyer_transaction_fee_cents ?? 0), 0);
+                    const bundleTaxCents =
+                      (trade.tax_amount_cents ?? 0) +
+                      bundleSiblings.reduce((s, o) => s + (o.tax_amount_cents ?? 0), 0);
+                    return (
+                      <View style={styles.bundleTotalsSection}>
+                        <View style={styles.bundleTotalSeparator} />
                         <View style={styles.bundleTotalRow}>
-                          <Text style={styles.bundleTotalLabel}>Sales Tax:</Text>
+                          <Text style={styles.bundleTotalLabel}>Items Total:</Text>
                           <Text style={styles.bundleTotalValue}>
-                            ${(bundleTaxCents / 100).toFixed(2)}
+                            ${(bundleCashCents / 100).toFixed(2)}
                           </Text>
                         </View>
-                      )}
-                      <View style={[styles.bundleTotalRow, styles.bundleTotalGrandRow]}>
-                        <Text style={styles.bundleTotalGrandLabel}>Deal Total:</Text>
-                        <Text style={styles.bundleTotalGrandValue}>
-                          ${((bundleCashCents + bundleFeeCents + bundleTaxCents) / 100).toFixed(2)}
-                        </Text>
+                        <View style={styles.bundleTotalRow}>
+                          <Text style={styles.bundleTotalLabel}>Platform Fee:</Text>
+                          <Text style={styles.bundleTotalValue}>
+                            ${(bundleFeeCents / 100).toFixed(2)}
+                          </Text>
+                        </View>
+                        {bundleTaxCents > 0 && (
+                          <View style={styles.bundleTotalRow}>
+                            <Text style={styles.bundleTotalLabel}>Sales Tax:</Text>
+                            <Text style={styles.bundleTotalValue}>
+                              ${(bundleTaxCents / 100).toFixed(2)}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={[styles.bundleTotalRow, styles.bundleTotalGrandRow]}>
+                          <Text style={styles.bundleTotalGrandLabel}>Deal Total:</Text>
+                          <Text style={styles.bundleTotalGrandValue}>
+                            $
+                            {((bundleCashCents + bundleFeeCents + bundleTaxCents) / 100).toFixed(2)}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  );
-                })()}
+                    );
+                  })()}
               </View>
             )}
           </View>
         )}
 
-        <View style={[styles.statusBanner, getStatusBannerStyle(trade.status)]} testID="status-banner">
+        <View
+          style={[styles.statusBanner, getStatusBannerStyle(trade.status)]}
+          testID="status-banner"
+        >
           {getStatusIcon(trade.status)}
           <View style={styles.statusBannerTextContainer}>
             <Text style={[styles.statusBannerLabel, getStatusTextStyle(trade.status)]}>
@@ -806,13 +858,15 @@ export default function TradeTimelineScreen() {
         </View>
 
         {/* D-30 FIX: Show "Awaiting Seller" card for pending offers OR in_progress without auto_complete_at */}
-        {(trade.status === 'pending' || (trade.status === 'in_progress' && !trade.auto_complete_at)) && (
+        {(trade.status === 'pending' ||
+          (trade.status === 'in_progress' && !trade.auto_complete_at)) && (
           <View style={styles.pendingSellerCard} testID="pending-seller-card">
             <Clock size={20} color="#F59E0B" weight="regular" />
             <View style={styles.pendingSellerContent}>
               <Text style={styles.pendingSellerTitle}>Awaiting seller response</Text>
               <Text style={styles.pendingSellerDesc}>
-                The seller has 48 hours to accept or decline your offer. You'll receive a notification when they respond.
+                The seller has 48 hours to accept or decline your offer. You'll receive a
+                notification when they respond.
               </Text>
             </View>
           </View>
@@ -840,21 +894,29 @@ export default function TradeTimelineScreen() {
               Dispute reported — our team has been notified and will review shortly.
             </Text>
             <Text style={styles.disputeCardNote}>
-              The trade is paused while we review. Keep chatting with the other party — we'll notify you with the outcome.
+              The trade is paused while we review. Keep chatting with the other party — we'll notify
+              you with the outcome.
             </Text>
           </View>
         )}
         {(trade as any).dispute_status === 'under_review' && (
-          <View style={[styles.disputeCard, styles.disputeCardOrange]} testID="dispute-banner-under-review">
+          <View
+            style={[styles.disputeCard, styles.disputeCardOrange]}
+            testID="dispute-banner-under-review"
+          >
             <View style={styles.disputeCardHeader}>
               <View style={[styles.disputeCardIconWrap, styles.disputeCardIconWrapOrange]}>
                 <WarningCircle size={20} color="#FFFFFF" weight="fill" />
               </View>
               <View style={styles.disputeCardHeaderText}>
-                <Text style={[styles.disputeCardTitle, styles.disputeCardTitleOrange]}>Dispute under review</Text>
+                <Text style={[styles.disputeCardTitle, styles.disputeCardTitleOrange]}>
+                  Dispute under review
+                </Text>
                 <View style={styles.disputeCardBadge}>
                   <View style={[styles.disputeCardBadgeDot, styles.disputeCardBadgeDotOrange]} />
-                  <Text style={[styles.disputeCardBadgeText, styles.disputeCardBadgeTextOrange]}>Our team is investigating</Text>
+                  <Text style={[styles.disputeCardBadgeText, styles.disputeCardBadgeTextOrange]}>
+                    Our team is investigating
+                  </Text>
                 </View>
               </View>
             </View>
@@ -868,12 +930,16 @@ export default function TradeTimelineScreen() {
         )}
 
         {/* What to do next — only shown AFTER seller accepts (auto_complete_at set) */}
-        {trade.status === 'in_progress' && trade.auto_complete_at && (
-          nextStepsDismissed ? (
+        {trade.status === 'in_progress' &&
+          trade.auto_complete_at &&
+          (nextStepsDismissed ? (
             <Pressable
               style={styles.nextStepsCollapsed}
               onPress={() => setNextStepsDismissed(false)}
               testID="next-steps-toggle"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Next steps toggle"
             >
               <CheckCircle size={18} color="#5DBB8E" weight="fill" />
               <Text style={styles.nextStepsCollapsedText}>What to do next</Text>
@@ -896,7 +962,9 @@ export default function TradeTimelineScreen() {
                       </View>
                       <View style={styles.nextStepContent}>
                         <Text style={styles.nextStepLabel}>Message the seller</Text>
-                        <Text style={styles.nextStepDesc}>Coordinate the meetup location and time</Text>
+                        <Text style={styles.nextStepDesc}>
+                          Coordinate the meetup location and time
+                        </Text>
                       </View>
                     </View>
                     <View style={styles.nextStepRow}>
@@ -905,7 +973,9 @@ export default function TradeTimelineScreen() {
                       </View>
                       <View style={styles.nextStepContent}>
                         <Text style={styles.nextStepLabel}>Meet up and inspect the item</Text>
-                        <Text style={styles.nextStepDesc}>Make sure everything looks as described</Text>
+                        <Text style={styles.nextStepDesc}>
+                          Make sure everything looks as described
+                        </Text>
                       </View>
                     </View>
                     <View style={styles.nextStepRow}>
@@ -914,7 +984,9 @@ export default function TradeTimelineScreen() {
                       </View>
                       <View style={styles.nextStepContent}>
                         <Text style={styles.nextStepLabel}>Come back and tap "I Got It"</Text>
-                        <Text style={styles.nextStepDesc}>This releases funds to the seller and completes the trade</Text>
+                        <Text style={styles.nextStepDesc}>
+                          This releases funds to the seller and completes the trade
+                        </Text>
                       </View>
                     </View>
                   </>
@@ -935,7 +1007,9 @@ export default function TradeTimelineScreen() {
                       </View>
                       <View style={styles.nextStepContent}>
                         <Text style={styles.nextStepLabel}>Hand off the item</Text>
-                        <Text style={styles.nextStepDesc}>Make sure the buyer is satisfied with their purchase</Text>
+                        <Text style={styles.nextStepDesc}>
+                          Make sure the buyer is satisfied with their purchase
+                        </Text>
                       </View>
                     </View>
                     <View style={styles.nextStepRow}>
@@ -944,7 +1018,9 @@ export default function TradeTimelineScreen() {
                       </View>
                       <View style={styles.nextStepContent}>
                         <Text style={styles.nextStepLabel}>Wait for buyer confirmation</Text>
-                        <Text style={styles.nextStepDesc}>Once the buyer confirms receipt, your payout will be released</Text>
+                        <Text style={styles.nextStepDesc}>
+                          Once the buyer confirms receipt, your payout will be released
+                        </Text>
                       </View>
                     </View>
                   </>
@@ -954,20 +1030,24 @@ export default function TradeTimelineScreen() {
                 style={styles.nextStepsCta}
                 onPress={() => setNextStepsDismissed(true)}
                 testID="next-steps-cta"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Next steps cta"
               >
                 <CheckCircle size={16} color="#FFFFFF" weight="fill" style={{ marginRight: 6 }} />
                 <Text style={styles.nextStepsCtaText}>Got it</Text>
               </Pressable>
             </View>
-          )
-        )}
+          ))}
 
         {/* Payout Hold Info Bar — seller only, after acceptance (in_progress with auto_complete_at set) */}
         {isSeller && trade.status === 'in_progress' && trade.auto_complete_at && (
           <View style={styles.payoutHoldCard}>
             <Text style={styles.payoutHoldEmoji}>💰</Text>
             <View style={styles.payoutHoldTextWrap}>
-              <Text style={styles.payoutHoldTitle}>Your payout is on hold until trade completes</Text>
+              <Text style={styles.payoutHoldTitle}>
+                Your payout is on hold until trade completes
+              </Text>
               <Text style={styles.payoutHoldDesc}>
                 Funds are held securely and released once the buyer taps "I Got It"
                 {autoCompleteCountdownLabel
@@ -981,189 +1061,216 @@ export default function TradeTimelineScreen() {
         {/* Auto-complete timer — buyer only; seller sees the countdown in the payout card below */}
         {/* Hidden when there's an unresolved dispute — no point showing a countdown if trade is frozen */}
         {isBuyer && trade.status === 'in_progress' && !hasUnresolvedDispute && (
-          <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} isSeller={false} />
+          <AutoCompleteBanner
+            autoCompleteAt={trade.auto_complete_at}
+            status={trade.status}
+            isSeller={false}
+          />
         )}
 
         {/* R15 — Trade Extension (one-time, pickup window only) */}
-        {trade.status === 'in_progress' && trade.auto_complete_at && !hasUnresolvedDispute && (() => {
-          const extStatus = trade.extension_status;
-          const isRequester = !!trade.extension_requested_by && trade.extension_requested_by === user?.id;
+        {trade.status === 'in_progress' &&
+          trade.auto_complete_at &&
+          !hasUnresolvedDispute &&
+          (() => {
+            const extStatus = trade.extension_status;
+            const isRequester =
+              !!trade.extension_requested_by && trade.extension_requested_by === user?.id;
 
-          // Pending request → requester sees a waiting banner; counterparty sees accept/decline
-          if (extStatus === 'requested') {
-            const extCountdown = trade.extension_request_expires_at
-              ? formatCountdownLabel(
-                  createCountdownModel(
-                    trade.extension_request_expires_at,
-                    trade.extension_requested_at ?? new Date().toISOString(),
-                    extensionNowMs
+            // Pending request → requester sees a waiting banner; counterparty sees accept/decline
+            if (extStatus === 'requested') {
+              const extCountdown = trade.extension_request_expires_at
+                ? formatCountdownLabel(
+                    createCountdownModel(
+                      trade.extension_request_expires_at,
+                      trade.extension_requested_at ?? new Date().toISOString(),
+                      extensionNowMs
+                    )
                   )
-                )
-              : '';
-            if (isRequester) {
+                : '';
+              if (isRequester) {
+                return (
+                  <View style={styles.extensionCardPending}>
+                    <View style={styles.extensionCardHeader}>
+                      <Clock size={20} color="#F59E0B" weight="regular" />
+                      <Text style={styles.extensionCardTitle}>Extension request sent</Text>
+                    </View>
+                    <Text style={styles.extensionCardDesc}>
+                      Waiting for the other party to respond. If they don't answer within{' '}
+                      {extCountdown || 'the response window'}, the request expires and the trade is
+                      cancelled.
+                    </Text>
+                  </View>
+                );
+              }
               return (
                 <View style={styles.extensionCardPending}>
                   <View style={styles.extensionCardHeader}>
                     <Clock size={20} color="#F59E0B" weight="regular" />
-                    <Text style={styles.extensionCardTitle}>Extension request sent</Text>
+                    <Text style={styles.extensionCardTitle}>Extension request</Text>
                   </View>
                   <Text style={styles.extensionCardDesc}>
-                    Waiting for the other party to respond. If they don't answer within{' '}
-                    {extCountdown || 'the response window'}, the request expires and the trade is cancelled.
+                    The other party asked for more time to complete this trade. Respond within{' '}
+                    {extCountdown || '4 hours'}, or the trade is cancelled.
+                  </Text>
+                  <View style={styles.extensionCardActions}>
+                    <Pressable
+                      style={styles.extensionDeclineButton}
+                      onPress={() => setExtensionConfirm({ visible: true, action: 'decline' })}
+                      disabled={extensionSubmitting}
+                      testID="decline-extension-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Decline extension button"
+                    >
+                      <Text style={styles.extensionDeclineText}>Decline</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.extensionAcceptButton}
+                      onPress={() => setExtensionConfirm({ visible: true, action: 'accept' })}
+                      disabled={extensionSubmitting}
+                      testID="accept-extension-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Accept extension button"
+                    >
+                      {extensionSubmitting ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.extensionAcceptText}>Accept</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }
+
+            // Granted → show the extended pickup window
+            if (extStatus === 'accepted') {
+              return (
+                <View style={styles.extensionCardGranted}>
+                  <View style={styles.extensionCardHeader}>
+                    <CheckCircle size={20} color="#16A34A" weight="fill" />
+                    <Text style={styles.extensionCardTitle}>Pickup window extended</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    You now have until{' '}
+                    {trade.auto_complete_at
+                      ? new Date(trade.auto_complete_at).toLocaleString()
+                      : 'the new deadline'}{' '}
+                    to complete the trade.
                   </Text>
                 </View>
               );
             }
-            return (
-              <View style={styles.extensionCardPending}>
-                <View style={styles.extensionCardHeader}>
-                  <Clock size={20} color="#F59E0B" weight="regular" />
-                  <Text style={styles.extensionCardTitle}>Extension request</Text>
-                </View>
-                <Text style={styles.extensionCardDesc}>
-                  The other party asked for more time to complete this trade. Respond within{' '}
-                  {extCountdown || '4 hours'}, or the trade is cancelled.
-                </Text>
-                <View style={styles.extensionCardActions}>
+
+            // No extension used yet → offer the one-time "Request more time"
+            if (!extStatus) {
+              return (
+                <View style={styles.extensionCard}>
+                  <View style={styles.extensionCardHeader}>
+                    <Clock size={20} color="#5DBB8E" weight="regular" />
+                    <Text style={styles.extensionCardTitle}>Need more time?</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    You can request one extension to extend the pickup window. The other party must
+                    accept within 4 hours, or the trade is cancelled.
+                  </Text>
                   <Pressable
-                    style={styles.extensionDeclineButton}
-                    onPress={() => setExtensionConfirm({ visible: true, action: 'decline' })}
+                    style={styles.extensionRequestButton}
+                    onPress={handleRequestExtension}
                     disabled={extensionSubmitting}
-                    testID="decline-extension-button"
-                  >
-                    <Text style={styles.extensionDeclineText}>Decline</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.extensionAcceptButton}
-                    onPress={() => setExtensionConfirm({ visible: true, action: 'accept' })}
-                    disabled={extensionSubmitting}
-                    testID="accept-extension-button"
+                    testID="request-extension-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Request extension button"
                   >
                     {extensionSubmitting ? (
                       <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.extensionAcceptText}>Accept</Text>
+                      <Text style={styles.extensionRequestText}>Request More Time</Text>
                     )}
                   </Pressable>
                 </View>
-              </View>
-            );
-          }
+              );
+            }
 
-          // Granted → show the extended pickup window
-          if (extStatus === 'accepted') {
-            return (
-              <View style={styles.extensionCardGranted}>
-                <View style={styles.extensionCardHeader}>
-                  <CheckCircle size={20} color="#16A34A" weight="fill" />
-                  <Text style={styles.extensionCardTitle}>Pickup window extended</Text>
-                </View>
-                <Text style={styles.extensionCardDesc}>
-                  You now have until{' '}
-                  {trade.auto_complete_at ? new Date(trade.auto_complete_at).toLocaleString() : 'the new deadline'} to
-                  complete the trade.
-                </Text>
-              </View>
-            );
-          }
-
-          // No extension used yet → offer the one-time "Request more time"
-          if (!extStatus) {
-            return (
-              <View style={styles.extensionCard}>
-                <View style={styles.extensionCardHeader}>
-                  <Clock size={20} color="#5DBB8E" weight="regular" />
-                  <Text style={styles.extensionCardTitle}>Need more time?</Text>
-                </View>
-                <Text style={styles.extensionCardDesc}>
-                  You can request one extension to extend the pickup window. The other party must accept within 4
-                  hours, or the trade is cancelled.
-                </Text>
-                <Pressable
-                  style={styles.extensionRequestButton}
-                  onPress={handleRequestExtension}
-                  disabled={extensionSubmitting}
-                  testID="request-extension-button"
-                >
-                  {extensionSubmitting ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.extensionRequestText}>Request More Time</Text>
-                  )}
-                </Pressable>
-              </View>
-            );
-          }
-
-          // denied / auto_denied / reauth_failed → trade is cancelled; the cancelled UI covers it.
-          return null;
-        })()}
+            // denied / auto_denied / reauth_failed → trade is cancelled; the cancelled UI covers it.
+            return null;
+          })()}
 
         {/* SP Release Status — seller only, completed trade with SP involved */}
-        {isSeller && trade.status === 'completed' && (() => {
-          const totalSpForSeller = trade.sp_earned_at_completion ?? trade.sp_amount ?? 0;
-          if (totalSpForSeller <= 0) return null;
+        {isSeller &&
+          trade.status === 'completed' &&
+          (() => {
+            const totalSpForSeller = trade.sp_earned_at_completion ?? trade.sp_amount ?? 0;
+            if (totalSpForSeller <= 0) return null;
 
-          const isReleased = !!trade.sp_released_at;
-          const releaseDate = trade.sp_released_at
-            ? new Date(trade.sp_released_at).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })
-            : null;
+            const isReleased = !!trade.sp_released_at;
+            const releaseDate = trade.sp_released_at
+              ? new Date(trade.sp_released_at).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : null;
 
-          return (
-            <View style={[styles.card, { backgroundColor: isReleased ? '#F0FDF4' : '#FFF9EC' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                <View style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: isReleased ? '#DCFCE7' : '#FEF3C7',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  {isReleased ? (
-                    <CheckCircle size={20} color="#16A34A" weight="fill" />
-                  ) : (
-                    <Clock size={20} color="#D97706" weight="regular" />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { marginBottom: 4 }]}>
-                    {isReleased ? 'SP Released' : 'Swap Points Pending'}
-                  </Text>
-                  <Text style={{ fontSize: 14, color: '#6B6B6B', lineHeight: 20 }}>
-                    {isReleased
-                      ? `${totalSpForSeller} SP released to your wallet${releaseDate ? ` on ${releaseDate}` : ''}.`
-                      : `${totalSpForSeller} SP releasing in ${spReleaseDays} days — added to your pending wallet.`}
-                  </Text>
-                  <Pressable
+            return (
+              <View style={[styles.card, { backgroundColor: isReleased ? '#F0FDF4' : '#FFF9EC' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                  <View
                     style={{
-                      flexDirection: 'row',
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: isReleased ? '#DCFCE7' : '#FEF3C7',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: isReleased ? '#5DBB8E' : '#F59E0B',
-                      borderRadius: 20,
-                      paddingVertical: 8,
-                      paddingHorizontal: 16,
-                      marginTop: 12,
-                      alignSelf: 'flex-start',
-                      gap: 6,
                     }}
-                    onPress={() => navigation.navigate('SpWallet')}
-                    testID="sp-view-wallet-button"
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>
-                      View Wallet
+                    {isReleased ? (
+                      <CheckCircle size={20} color="#16A34A" weight="fill" />
+                    ) : (
+                      <Clock size={20} color="#D97706" weight="regular" />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardTitle, { marginBottom: 4 }]}>
+                      {isReleased ? 'SP Released' : 'Swap Points Pending'}
                     </Text>
-                  </Pressable>
+                    <Text style={{ fontSize: 14, color: '#6B6B6B', lineHeight: 20 }}>
+                      {isReleased
+                        ? `${totalSpForSeller} SP released to your wallet${releaseDate ? ` on ${releaseDate}` : ''}.`
+                        : `${totalSpForSeller} SP releasing in ${spReleaseDays} days — added to your pending wallet.`}
+                    </Text>
+                    <Pressable
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: isReleased ? '#5DBB8E' : '#F59E0B',
+                        borderRadius: 20,
+                        paddingVertical: 8,
+                        paddingHorizontal: 16,
+                        marginTop: 12,
+                        alignSelf: 'flex-start',
+                        gap: 6,
+                      }}
+                      onPress={() => navigation.navigate('SpWallet')}
+                      testID="sp-view-wallet-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Sp view wallet button"
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>
+                        View Wallet
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
-            </View>
-          );
-        })()}
+            );
+          })()}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Details</Text>
@@ -1220,7 +1327,17 @@ export default function TradeTimelineScreen() {
               <View style={[styles.row, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total:</Text>
                 <Text style={styles.totalValue}>
-                  ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents + (isBuyer ? ((trade.status === 'completed' ? (trade.tax_amount_cents ?? 0) : taxPreview.taxAmountCents)) : 0)) / 100).toFixed(2)}
+                  $
+                  {(
+                    (trade.cash_amount_cents +
+                      trade.buyer_transaction_fee_cents +
+                      (isBuyer
+                        ? trade.status === 'completed'
+                          ? (trade.tax_amount_cents ?? 0)
+                          : taxPreview.taxAmountCents
+                        : 0)) /
+                    100
+                  ).toFixed(2)}
                 </Text>
               </View>
             </>
@@ -1248,7 +1365,13 @@ export default function TradeTimelineScreen() {
               <View style={[styles.row, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total:</Text>
                 <Text style={styles.totalValue}>
-                  ${(Math.max(0, trade.cash_amount_cents - (trade.seller_transaction_fee_cents ?? 0)) / 100).toFixed(2)}
+                  $
+                  {(
+                    Math.max(
+                      0,
+                      trade.cash_amount_cents - (trade.seller_transaction_fee_cents ?? 0)
+                    ) / 100
+                  ).toFixed(2)}
                 </Text>
               </View>
             </>
@@ -1257,19 +1380,26 @@ export default function TradeTimelineScreen() {
 
         {/* Hide message button for cancelled and pending trades — no active trade exists */}
         {trade.status !== 'cancelled' && trade.status !== 'pending' && (
-        <Pressable style={styles.messageButton} onPress={handleOpenChat} testID="message-button">
-          {counterpartyProfile ? (
-            <Avatar
-              imageUrl={counterpartyProfile.avatar_url}
-              name={counterpartyProfile.name}
-              size={24}
-              verificationStatus={counterpartyProfile.verification_status}
-            />
-          ) : (
-            <ChatCircle size={20} color="#5DBB8E" weight="regular" />
-          )}
-          <Text style={styles.messageButtonText}>Message {isBuyer ? 'Seller' : 'Buyer'}</Text>
-        </Pressable>
+          <Pressable
+            style={styles.messageButton}
+            onPress={handleOpenChat}
+            testID="message-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Message"
+          >
+            {counterpartyProfile ? (
+              <Avatar
+                imageUrl={counterpartyProfile.avatar_url}
+                name={counterpartyProfile.name}
+                size={24}
+                verificationStatus={counterpartyProfile.verification_status}
+              />
+            ) : (
+              <ChatCircle size={20} color="#5DBB8E" weight="regular" />
+            )}
+            <Text style={styles.messageButtonText}>Message {isBuyer ? 'Seller' : 'Buyer'}</Text>
+          </Pressable>
         )}
 
         {/* TFV2-020: Safe meetup tips (only after seller accepts, not for pending offers) */}
@@ -1289,6 +1419,9 @@ export default function TradeTimelineScreen() {
               onPress={handleComplete}
               disabled={submitting || hasUnresolvedDispute}
               testID="confirm-trade-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Confirm trade button"
             >
               {submitting ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -1311,6 +1444,9 @@ export default function TradeTimelineScreen() {
                 onPress={handleReportProblem}
                 disabled={submitting}
                 testID="report-problem-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Report problem button"
               >
                 <WarningCircle size={20} color="#E85D75" weight="regular" />
                 <Text style={styles.cancelButtonOutlineText}>Report Problem</Text>
@@ -1327,6 +1463,9 @@ export default function TradeTimelineScreen() {
               onPress={handleCancel}
               disabled={submitting}
               testID="cancel-trade-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Cancel trade button"
             >
               <XCircle size={20} color="#E85D75" weight="regular" />
               <Text style={styles.cancelButtonOutlineText}>Cancel Trade</Text>
@@ -1338,10 +1477,16 @@ export default function TradeTimelineScreen() {
         {isSeller && trade.status === 'in_progress' && !hasUnresolvedDispute && (
           <View style={styles.actions}>
             <Pressable
-              style={[styles.cancelButtonOutline, (submitting || isCancelling) && styles.disabledButton]}
+              style={[
+                styles.cancelButtonOutline,
+                (submitting || isCancelling) && styles.disabledButton,
+              ]}
               onPress={handleCancel}
               disabled={submitting || isCancelling}
               testID="seller-cancel-inprogress-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Seller cancel inprogress button"
             >
               {isCancelling ? (
                 <ActivityIndicator size="small" color="#E85D75" />
@@ -1398,6 +1543,9 @@ export default function TradeTimelineScreen() {
                 style={[styles.reviewButton, { marginTop: 16 }]}
                 onPress={handleReviewPress}
                 testID="review-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Review button"
               >
                 <Star size={20} color="#FFFFFF" weight="regular" />
                 <Text style={styles.confirmButtonText}>
@@ -1407,7 +1555,6 @@ export default function TradeTimelineScreen() {
             )}
           </View>
         )}
-
       </ScrollView>
 
       <TradeConfirmationModal
@@ -1438,10 +1585,15 @@ export default function TradeTimelineScreen() {
               await completeTradeV2(tid);
             }
             if (refreshSession) await refreshSession();
-            showNotif('Done!', `All ${bundleConfirmData.total} items marked as completed.`, 'accept', () => {
-              setNotifModal(null);
-              navigation.goBack();
-            });
+            showNotif(
+              'Done!',
+              `All ${bundleConfirmData.total} items marked as completed.`,
+              'accept',
+              () => {
+                setNotifModal(null);
+                navigation.goBack();
+              }
+            );
           } catch {
             showNotif('Error', 'Could not confirm all items. Try confirming each one.', 'decline');
           } finally {
@@ -1473,10 +1625,15 @@ export default function TradeTimelineScreen() {
               await cancelTradeV2(tid, data.reason);
             }
             if (refreshSession) await refreshSession();
-            showNotif('Trade Cancelled', 'Your trades have been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
-              setNotifModal(null);
-              navigation.goBack();
-            });
+            showNotif(
+              'Trade Cancelled',
+              'Your trades have been cancelled. Any Swap Points have been refunded to your wallet.',
+              'default',
+              () => {
+                setNotifModal(null);
+                navigation.goBack();
+              }
+            );
           } catch {
             showNotif('Error', 'Could not cancel all items. Try cancelling each one.', 'decline');
           } finally {
@@ -1498,7 +1655,7 @@ export default function TradeTimelineScreen() {
           message={notifModal.message}
           confirmLabel={notifModal.confirmLabel || 'OK'}
           variant={notifModal.variant || 'default'}
-          onConfirm={() => notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null)}
+          onConfirm={() => (notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null))}
           onCancel={() => setNotifModal(null)}
           hideCancel
         />
@@ -1514,7 +1671,9 @@ export default function TradeTimelineScreen() {
               ? 'The pickup window will be extended and a new payment hold will be placed. Only one extension is allowed per trade.'
               : 'The trade will be cancelled and the payment hold released. This cannot be undone.'
           }
-          confirmLabel={extensionConfirm.action === 'accept' ? 'Accept Extension' : 'Decline Extension'}
+          confirmLabel={
+            extensionConfirm.action === 'accept' ? 'Accept Extension' : 'Decline Extension'
+          }
           cancelLabel="Cancel"
           variant={extensionConfirm.action === 'accept' ? 'accept' : 'decline'}
           onConfirm={() => handleRespondExtension(extensionConfirm.action)}
@@ -1550,10 +1709,12 @@ export default function TradeTimelineScreen() {
             // Extract the actual error message from the FunctionsHttpError context
             // Supabase SDK puts the parsed response body in error.context
             const ctx = (error as any)?.context;
-            const actualMsg = ctx?.error?.message || ctx?.message || (error as any)?.message || error.message;
+            const actualMsg =
+              ctx?.error?.message || ctx?.message || (error as any)?.message || error.message;
             throw new Error(actualMsg);
           }
-          if (data && !data.success) throw new Error(data.error?.message ?? 'Failed to report dispute');
+          if (data && !data.success)
+            throw new Error(data.error?.message ?? 'Failed to report dispute');
           setShowIssueModal(false);
           fetchTrade();
         }}
@@ -1566,7 +1727,7 @@ function renderTimelineStep(
   step: TradeStatus,
   label: string,
   currentStatus: TradeStatus,
-  _autoCompleteAt?: string | null  // Prefixed with _ to indicate intentionally unused
+  _autoCompleteAt?: string | null // Prefixed with _ to indicate intentionally unused
 ): React.JSX.Element {
   const statusOrder: TradeStatus[] = ['pending', 'in_progress', 'completed'];
   const currentIndex = statusOrder.indexOf(currentStatus);
@@ -1607,7 +1768,7 @@ function renderTimelineStep(
 
 function getStatusDisplay(status: string): string {
   const statusMap: Record<string, string> = {
-    pending: 'Awaiting Seller',  // D-30: More accurate - payment is pre-authorized, waiting for seller response
+    pending: 'Awaiting Seller', // D-30: More accurate - payment is pre-authorized, waiting for seller response
     payment_failed: 'Payment Failed',
     in_progress: 'In Progress',
     completed: 'Completed',
@@ -1643,7 +1804,7 @@ function getStatusIcon(status: string) {
   switch (status) {
     case 'pending':
       return <Clock {...iconProps} color="#D97706" />;
-    case 'payment_processing': /* D-30: deprecated */
+    case 'payment_processing' /* D-30: deprecated */:
       return <ArrowsLeftRight {...iconProps} color="#2563EB" />;
     case 'payment_failed':
       return <XCircle {...iconProps} color="#DC2626" />;

@@ -66,6 +66,7 @@ export function ConditionSelector({
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessible
               style={styles.guideButton}
               onPress={() => onOpenGuide(condition.value)}
               accessibilityLabel={`View photo guide for ${condition.label}`}

@@ -38,6 +38,7 @@ import { suggestSpellingCorrection } from '@/services/discovery';
 import { countActiveFilters, getDefaultFilters } from '@/utils/filterHelpers';
 import { SearchResult, DiscoveryFilters, SortOption, TrendingCategory } from '@/types/discovery';
 import { getCategories } from '@/services/items';
+import { captureException } from '@/services/errorReporter';
 import { SortDropdown } from '@/components/atoms';
 import { SearchFilterModal, ItemCard } from '@/components/molecules';
 import {
@@ -432,15 +433,9 @@ export default function DiscoverScreen({ navigation }: Props) {
       }
 
       if (nearbyNodesError) {
-        console.error(
-          '[DiscoverScreen] get_nodes_within_radius failed:',
-          JSON.stringify({
-            code: nearbyNodesError.code,
-            message: nearbyNodesError.message,
-            details: nearbyNodesError.details,
-            hint: nearbyNodesError.hint,
-          })
-        );
+        captureException(nearbyNodesError, {
+          tags: { screen: 'DiscoverScreen', action: 'get_nodes_within_radius' },
+        });
 
         const normalizedErrorText =
           `${nearbyNodesError.message || ''} ${nearbyNodesError.details || ''}`.toLowerCase();
@@ -665,7 +660,10 @@ export default function DiscoverScreen({ navigation }: Props) {
       // DISCOVER-REDESIGN: load state-scoped trending categories (non-blocking)
       await loadTrending();
     } catch (err) {
-      console.error('[DiscoverScreen] Failed to load initial data:', err);
+      captureException(err, {
+        tags: { screen: 'DiscoverScreen', action: 'load_initial_data' },
+        extra: { message: err instanceof Error ? err.message : String(err) },
+      });
       setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
       setLoading(false);
@@ -787,7 +785,10 @@ export default function DiscoverScreen({ navigation }: Props) {
           await loadRecentSearches();
         }
       } catch (err) {
-        console.error('[DiscoverScreen] Search failed:', err);
+        captureException(err, {
+          tags: { screen: 'DiscoverScreen', action: 'search' },
+          extra: { message: err instanceof Error ? err.message : String(err) },
+        });
         setError(err instanceof Error ? err.message : 'Search failed');
 
         // On error, do NOT clear existing results (non-blocking error)
@@ -1007,7 +1008,9 @@ export default function DiscoverScreen({ navigation }: Props) {
         enrollmentFailed: false,
       });
     } catch (enrollError) {
-      console.error('[DiscoverScreen] Waitlist enrollment failed:', enrollError);
+      captureException(enrollError, {
+        tags: { screen: 'DiscoverScreen', action: 'waitlist_enrollment' },
+      });
       setInactiveZipDialog({
         visible: true,
         step: 'confirmed',
@@ -1451,6 +1454,7 @@ export default function DiscoverScreen({ navigation }: Props) {
           <View style={styles.showAllNodesRow}>
             <Pressable
               testID="discover-show-all-nodes-toggle"
+              accessible
               accessibilityRole="switch"
               accessibilityState={{ selected: showAllNodes }}
               accessibilityLabel={`Show All Nodes ${showAllNodes ? 'on' : 'off'}`}
@@ -1541,7 +1545,14 @@ export default function DiscoverScreen({ navigation }: Props) {
 
         {/* Network Error Banner */}
         {error && (
-          <Pressable testID="network-error-banner" style={styles.errorBanner} onPress={handleRetry}>
+          <Pressable
+            testID="network-error-banner"
+            style={styles.errorBanner}
+            onPress={handleRetry}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Retry"
+          >
             <Text style={styles.errorBannerText}>⚠️ {error}. Tap to retry.</Text>
           </Pressable>
         )}

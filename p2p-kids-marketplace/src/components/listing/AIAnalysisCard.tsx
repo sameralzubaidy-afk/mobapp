@@ -82,6 +82,8 @@ export function AIAnalysisCard({
         </View>
 
         <TouchableOpacity
+          accessible
+          accessibilityRole="button"
           style={[styles.useButton, isFilled && styles.useButtonDisabled]}
           onPress={() => onApplyField(field, value)}
           accessibilityLabel={`Use AI suggestion for ${label}`}
@@ -112,6 +114,7 @@ export function AIAnalysisCard({
           accessibilityLabel="Dismiss AI suggestions"
           accessibilityRole="button"
           testID="dismiss-ai-card"
+          accessible
         >
           <Text style={styles.dismissButton}>×</Text>
         </TouchableOpacity>
@@ -133,6 +136,7 @@ export function AIAnalysisCard({
         accessibilityLabel="Apply all AI suggestions to empty fields"
         accessibilityRole="button"
         testID="apply-all-button"
+        accessible
       >
         <Text style={styles.applyAllButtonText}>Apply All (Empty Fields Only)</Text>
       </TouchableOpacity>

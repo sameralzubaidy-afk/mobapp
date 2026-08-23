@@ -1,13 +1,13 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeOfferScreen.tsx
  * TASK FLOW-08-01: Trade Offer Screen - Whisk Design System
- * 
+ *
  * Redesigned with:
  * - Phosphor icons (ArrowsLeftRight, Coins, ShieldCheck)
  * - Two-column trade card layout
  * - Gold SP input (#FEF3C7 bg, #F59E0B accent)
  * - Green pill button (#5DBB8E)
- * 
+ *
  * Bugfix: Added missing payment method section (saved card + new card CardField)
  * Bugfix: Added getTransactionFee to fetchData for dynamic fee resolution
  * Bugfix: useStripe() called unconditionally at top level (React Hooks rule)
@@ -32,6 +32,7 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
+import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import { trackEvent } from '@/services/analytics';
@@ -89,7 +90,12 @@ export default function TradeOfferScreen() {
   const [loadingSavedPaymentMethod, setLoadingSavedPaymentMethod] = useState(false);
   const [paymentInputMode, setPaymentInputMode] = useState<'saved' | 'new'>('saved');
   const [addingNewCard, setAddingNewCard] = useState(false);
-  const [errorModal, setErrorModal] = useState<{ visible: boolean; title: string; message: string; isDuplicate?: boolean }>({
+  const [errorModal, setErrorModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    isDuplicate?: boolean;
+  }>({
     visible: false,
     title: '',
     message: '',
@@ -102,10 +108,7 @@ export default function TradeOfferScreen() {
 
     try {
       setLoading(true);
-      const [itemData, config] = await Promise.all([
-        getItemById(itemId),
-        getAdminConfig(),
-      ]);
+      const [itemData, config] = await Promise.all([getItemById(itemId), getAdminConfig()]);
 
       if (!itemData) {
         Alert.alert('Error', 'Item not found');
@@ -138,7 +141,9 @@ export default function TradeOfferScreen() {
         setMaxSpPercentage(fallbackPercent);
       }
     } catch (error) {
-      console.error('❌ Error fetching trade data:', error);
+      captureException(error, {
+        tags: { screen: 'TradeOfferScreen', action: 'fetch_trade_data' },
+      });
       Alert.alert('Error', 'Failed to load trade details');
     } finally {
       setLoading(false);
@@ -274,7 +279,10 @@ export default function TradeOfferScreen() {
         }
       }
     } catch (err: any) {
-      console.error('[TradeOfferScreen] handleAddNewCard error:', err);
+      captureException(err, {
+        tags: { screen: 'TradeOfferScreen', action: 'add_new_card' },
+        extra: { message: err?.message },
+      });
       Alert.alert('Error', err.message || 'An unexpected error occurred');
     } finally {
       setAddingNewCard(false);
@@ -294,9 +302,7 @@ export default function TradeOfferScreen() {
     if (!item) return;
 
     const isSubscriber =
-      subStatus.status === 'active' ||
-      subStatus.status === 'trial' ||
-      subStatus.status === 'grace';
+      subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
 
     // Calculate cash amount (item price - SP discount + fee)
     const itemPriceCents = Math.round(item.price * 100);
@@ -310,20 +316,16 @@ export default function TradeOfferScreen() {
     if (cashAmountCents > 0 && paymentInputMode === 'new' && !savedPaymentMethod?.id) {
       Alert.alert(
         'Payment Method Required',
-        'Please add a new card first by tapping "Add New Card" below.',
+        'Please add a new card first by tapping "Add New Card" below.'
       );
       return;
     }
 
     if (cashAmountCents > 0 && paymentInputMode === 'saved' && !savedPaymentMethod?.id) {
-      Alert.alert(
-        'Payment Method Required',
-        'No saved card is available. Please add a new card.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Add Payment Method', onPress: () => navigation.navigate('PaymentMethods') },
-        ]
-      );
+      Alert.alert('Payment Method Required', 'No saved card is available. Please add a new card.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Add Payment Method', onPress: () => navigation.navigate('PaymentMethods') },
+      ]);
       return;
     }
 
@@ -375,7 +377,8 @@ export default function TradeOfferScreen() {
         // D-30: max pending offers per seller (cap is admin-configurable)
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
           setOfferLimitMessage(
-            offerResult.error || 'You have reached the offer limit for this seller. Cancel one to make a new offer.'
+            offerResult.error ||
+              'You have reached the offer limit for this seller. Cancel one to make a new offer.'
           );
           setShowOfferLimitModal(true);
           return;
@@ -390,7 +393,10 @@ export default function TradeOfferScreen() {
           return;
         }
 
-        Alert.alert('Offer Failed', offerResult.error || 'Could not submit your offer. Please try again.');
+        Alert.alert(
+          'Offer Failed',
+          offerResult.error || 'Could not submit your offer. Please try again.'
+        );
         return;
       }
 
@@ -427,7 +433,9 @@ export default function TradeOfferScreen() {
         item_id: item.id,
         reason: 'unexpected_error',
       });
-      console.error('[TradeOfferScreen] handleInitiateTrade error:', error);
+      captureException(error, {
+        tags: { screen: 'TradeOfferScreen', action: 'initiate_trade' },
+      });
       setErrorModal({
         visible: true,
         title: 'Error',
@@ -508,9 +516,7 @@ export default function TradeOfferScreen() {
             <View style={styles.tradeSide}>
               <Text style={styles.tradeSideLabel}>You Offer</Text>
               <Text style={styles.offerAmount}>${(offerAmountCents / 100).toFixed(2)}</Text>
-              {spAmount > 0 && (
-                <Text style={styles.spUsedBadge}>{spAmount} SP applied</Text>
-              )}
+              {spAmount > 0 && <Text style={styles.spUsedBadge}>{spAmount} SP applied</Text>}
             </View>
           </View>
 
@@ -550,7 +556,8 @@ export default function TradeOfferScreen() {
                     Save up to {maxSpPercentage}% with Swap Points
                   </Text>
                   <Text style={styles.subscribeUpsellBody}>
-                    Kids Club+ members can use Swap Points to save on every trade. Try it free for 30 days.
+                    Kids Club+ members can use Swap Points to save on every trade. Try it free for
+                    30 days.
                   </Text>
                 </View>
               </View>
@@ -558,12 +565,14 @@ export default function TradeOfferScreen() {
                 style={styles.subscribeUpsellButton}
                 onPress={() => navigation.navigate('JoinKidsClub')}
                 testID="subscribe-upsell-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Subscribe upsell button"
               >
                 <Text style={styles.subscribeUpsellButtonText}>Try Kids Club+ Free</Text>
               </Pressable>
             </View>
           )}
-
 
           {/* ── Payment Method Section ─────────────────────────────────────── */}
           {cashAmountCents > 0 && (
@@ -627,6 +636,9 @@ export default function TradeOfferScreen() {
                     onPress={handleAddNewCard}
                     disabled={addingNewCard}
                     testID="add-new-card-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Add new card button"
                   >
                     {addingNewCard || paymentSheetLoading ? (
                       <View style={styles.addCardButtonLoadingRow}>
@@ -649,6 +661,9 @@ export default function TradeOfferScreen() {
                     onPress={handleAddNewCard}
                     disabled={addingNewCard}
                     testID="replace-card-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Replace card button"
                   >
                     {addingNewCard || paymentSheetLoading ? (
                       <View style={styles.addCardButtonLoadingRow}>
@@ -686,16 +701,12 @@ export default function TradeOfferScreen() {
             {spAmount > 0 && (
               <View style={styles.valueStackRow}>
                 <Text style={styles.valueStackLabel}>SP discount</Text>
-                <Text style={[styles.valueStackValue, styles.valueStackSP]}>
-                  -{spAmount} SP
-                </Text>
+                <Text style={[styles.valueStackValue, styles.valueStackSP]}>-{spAmount} SP</Text>
               </View>
             )}
             <View style={styles.valueStackRow}>
               <Text style={styles.valueStackLabel}>{buyerFeeInfo?.label ?? 'Platform fee'}</Text>
-              <Text style={styles.valueStackValue}>
-                ${(platformFeeCents / 100).toFixed(2)}
-              </Text>
+              <Text style={styles.valueStackValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
             </View>
             {/* MODULE-15.3-PART3 TAX-011: sales tax row (hidden when 0) */}
             <TaxBreakdownRow
@@ -708,9 +719,7 @@ export default function TradeOfferScreen() {
             />
             <View style={[styles.valueStackRow, styles.valueStackTotalRow]}>
               <Text style={styles.valueStackTotalLabel}>Total cash</Text>
-              <Text style={styles.valueStackTotalValue}>
-                ${(grandTotalCents / 100).toFixed(2)}
-              </Text>
+              <Text style={styles.valueStackTotalValue}>${(grandTotalCents / 100).toFixed(2)}</Text>
             </View>
           </View>
 
@@ -719,6 +728,9 @@ export default function TradeOfferScreen() {
             onPress={handleSendOffer}
             disabled={submitting}
             testID="send-offer-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Send offer button"
           >
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -735,18 +747,15 @@ export default function TradeOfferScreen() {
         onCancel={() => setShowDisclaimer(false)}
       />
 
-      <SPInfoTooltip
-        visible={showSpInfoTooltip}
-        onClose={() => setShowSpInfoTooltip(false)}
-      />
+      <SPInfoTooltip visible={showSpInfoTooltip} onClose={() => setShowSpInfoTooltip(false)} />
 
       <Modal
         visible={errorModal.visible}
         type="alert"
         title={errorModal.title}
         message={errorModal.message}
-        primaryButtonText={errorModal.isDuplicate ? "Go to Trade History" : "OK"}
-        secondaryButtonText={errorModal.isDuplicate ? "Dismiss" : undefined}
+        primaryButtonText={errorModal.isDuplicate ? 'Go to Trade History' : 'OK'}
+        secondaryButtonText={errorModal.isDuplicate ? 'Dismiss' : undefined}
         onPrimaryPress={() => {
           setErrorModal({ ...errorModal, visible: false });
           if (errorModal.isDuplicate) {
@@ -1110,4 +1119,3 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { EnvelopeSimple } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
+import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -33,12 +34,9 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
     return (
       <ScreenLayout variant="detail" title="Contact Support" onBack={() => navigation.goBack()}>
         <View style={styles.authGate}>
-          <Text style={styles.authGateText}>
-            Please log in to contact support.
-          </Text>
+          <Text style={styles.authGateText}>Please log in to contact support.</Text>
           <Text style={styles.emailText}>
-            Or email us at{' '}
-            <Text style={styles.emailHighlight}>support@passitup.com</Text>
+            Or email us at <Text style={styles.emailHighlight}>support@passitup.com</Text>
           </Text>
         </View>
       </ScreenLayout>
@@ -59,29 +57,27 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
     try {
       setSubmitting(true);
 
-      const { error } = await supabase
-        .from('support_messages')
-        .insert({
-          user_id: session.user.id,
-          subject: subject.trim(),
-          message: message.trim(),
-        });
+      const { error } = await supabase.from('support_messages').insert({
+        user_id: session.user.id,
+        subject: subject.trim(),
+        message: message.trim(),
+      });
 
       if (error) {
         throw error;
       }
 
-      Alert.alert(
-        'Message Sent',
-        "Thank you for contacting us. We'll respond within 24 hours.",
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+      Alert.alert('Message Sent', "Thank you for contacting us. We'll respond within 24 hours.", [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
 
       // Reset form
       setSubject('');
       setMessage('');
     } catch (error) {
-      console.error('[ContactSupportScreen] Submit error:', error);
+      captureException(error, {
+        tags: { screen: 'ContactSupportScreen', action: 'submit' },
+      });
       Alert.alert('Error', 'Failed to send message. Please try again or email us directly.');
     } finally {
       setSubmitting(false);
@@ -142,9 +138,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
                 maxLength={1000}
               />
             </View>
-            <Text style={styles.charCount}>
-              {message.length} / 1000
-            </Text>
+            <Text style={styles.charCount}>{message.length} / 1000</Text>
           </View>
 
           {/* Submit Button */}
@@ -153,20 +147,18 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
             onPress={handleSubmit}
             disabled={submitting}
             testID="send-message-button"
+            accessible
             accessibilityRole="button"
             accessibilityLabel="Send message"
             accessibilityState={{ disabled: submitting }}
           >
-            <Text style={styles.submitBtnText}>
-              {submitting ? 'Sending…' : 'Send Message'}
-            </Text>
+            <Text style={styles.submitBtnText}>{submitting ? 'Sending…' : 'Send Message'}</Text>
           </TouchableOpacity>
 
           {/* Email Fallback */}
           <View style={styles.emailContainer}>
             <Text style={styles.emailText}>
-              Or email us at{' '}
-              <Text style={styles.emailHighlight}>support@passitup.com</Text>
+              Or email us at <Text style={styles.emailHighlight}>support@passitup.com</Text>
             </Text>
           </View>
         </ScrollView>

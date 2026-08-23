@@ -47,6 +47,7 @@ export default function FAQDetailScreen({ navigation, route }: any) {
                   navigation.goBack();
                 }}
                 testID="helpful-yes-button"
+                accessible
                 accessibilityRole="button"
                 accessibilityLabel="Yes, this was helpful"
               >
@@ -59,6 +60,7 @@ export default function FAQDetailScreen({ navigation, route }: any) {
                   navigation.navigate('ContactSupport');
                 }}
                 testID="helpful-no-button"
+                accessible
                 accessibilityRole="button"
                 accessibilityLabel="No, this was not helpful"
               >
@@ -74,6 +76,7 @@ export default function FAQDetailScreen({ navigation, route }: any) {
               style={styles.contactBtn}
               onPress={() => navigation.navigate('ContactSupport')}
               testID="contact-support-button"
+              accessible
               accessibilityRole="button"
               accessibilityLabel="Contact support"
             >

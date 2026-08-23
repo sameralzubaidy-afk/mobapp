@@ -61,8 +61,11 @@ export function PaymentFailureBanner({
     onDismiss?.();
   };
 
-return (
-    <View style={[styles.container, failureInfo.urgencyLevel === 'high' && styles.containerHigh]} testID={testID}>
+  return (
+    <View
+      style={[styles.container, failureInfo.urgencyLevel === 'high' && styles.containerHigh]}
+      testID={testID}
+    >
       <View style={styles.iconCircle}>
         <Warning size={20} color="#E85D75" weight="fill" />
       </View>
@@ -77,6 +80,8 @@ return (
         )}
         <View style={styles.actions}>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             style={styles.primaryButton}
             onPress={handleUpdatePayment}
             activeOpacity={0.8}
@@ -85,6 +90,8 @@ return (
             <Text style={styles.primaryButtonText}>Update Payment</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            accessible
+            accessibilityRole="button"
             onPress={handleDismiss}
             activeOpacity={0.8}
             testID={`${testID}-dismiss`}
