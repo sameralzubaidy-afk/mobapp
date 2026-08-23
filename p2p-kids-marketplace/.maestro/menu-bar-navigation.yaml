@@ -1,0 +1,202 @@
+# FLOW: menu-bar-navigation
+# TASK: AUTH-TC-P04–P10 (Group P — Global App Shell: Floating Pill Bottom Nav)
+#
+# Purpose: End-to-end verification of the global bottom "menu bar"
+# (PersistentTabBar). Maps directly to the manual Group P cases:
+#   - AUTH-TC-P04  pill layout: all five tabs present, left-to-right order
+#   - AUTH-TC-P05  no Inbox tab (Messages lives on the header chat icon)
+#   - AUTH-TC-P06  Trades tab → Active Trades screen
+#   - AUTH-TC-P09  Basket tab → Trade Basket screen
+#   - AUTH-TC-P10  Sell FAB globally visible → Sell sheet (List One Item /
+#                  Bulk Upload), Cancel closes without navigating
+#
+# Source of truth:
+#   cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md § Group P
+#
+# Run (from p2p-kids-marketplace/, iOS Simulator booted):
+#   maestro test .maestro/menu-bar-navigation.yaml
+#
+# NOTE: login is inlined (not the shared helpers/tfv2-login-buyer.yaml) because
+# that helper uses the bare `id:` form in scrollUntilVisible, which Maestro 2.6.1
+# rejects; this flow uses the valid `element:` wrapper so it runs standalone.
+#
+# Companion Jest coverage (same behavior, no device needed):
+#   - unit:       src/components/organisms/PersistentTabBar/__tests__/PersistentTabBar.test.tsx
+#   - integration: src/navigation/__tests__/AppNavigatorTabBarNavigation.test.tsx
+
+appId: com.sameralzubaidi.p2pmarketplace
+---
+- waitForAnimationToEnd
+
+# Handle Welcome screen if shown.
+- runFlow:
+    when:
+      visible:
+        id: "welcome-get-started-button"
+    commands:
+      - tapOn:
+          id: "welcome-get-started-button"
+      - waitForAnimationToEnd
+
+# Handle Landing screen if shown.
+- runFlow:
+    when:
+      visible:
+        id: "landing-login-button"
+    commands:
+      - tapOn:
+          id: "landing-login-button"
+      - waitForAnimationToEnd
+
+# Log in as test-buyer.
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - waitForAnimationToEnd
+      - eraseText
+      - inputText: "test-buyer@kidsmarketplace.test"
+
+      # Tap password field twice: first tap dismisses iOS autofill suggestion,
+      # second tap actually focuses the password field.
+      - tapOn:
+          id: "login-password-input"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "login-password-input"
+      - waitForAnimationToEnd
+      - eraseText
+      - inputText: "TestBuyer123!"
+
+      - hideKeyboard
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            id: "login-submit-button"
+          direction: DOWN
+          timeout: 5000
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
+# Retry submit once if still on the login screen.
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - hideKeyboard
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            id: "login-submit-button"
+          direction: DOWN
+          timeout: 5000
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
+# iOS save-password sheet may appear.
+- runFlow:
+    when:
+      visible:
+        text: "Save Password?"
+    commands:
+      - tapOn:
+          text: "Not Now"
+      - waitForAnimationToEnd
+
+# ── Login result — authenticated stack loaded with the tab bar visible ───────
+- extendedWaitUntil:
+    visible:
+      id: "tab-discover"
+    timeout: 15000
+
+# ── AUTH-TC-P04 — floating pill layout: all five tabs present ────────────────
+- assertVisible:
+    id: "tab-home"
+- assertVisible:
+    id: "tab-discover"
+- assertVisible:
+    id: "tab-sell"
+- assertVisible:
+    id: "tab-trades"
+- assertVisible:
+    id: "tab-basket"
+
+# ── AUTH-TC-P04 — left-to-right tab order (Home, Discover, Sell, Trades, Basket)
+- assertVisible:
+    id: "tab-discover"
+    rightOf:
+      id: "tab-home"
+- assertVisible:
+    id: "tab-sell"
+    rightOf:
+      id: "tab-discover"
+- assertVisible:
+    id: "tab-trades"
+    rightOf:
+      id: "tab-sell"
+- assertVisible:
+    id: "tab-basket"
+    rightOf:
+      id: "tab-trades"
+
+# ── AUTH-TC-P05 — Inbox is gone from the nav ─────────────────────────────────
+- assertNotVisible:
+    id: "tab-inbox"
+
+# ── AUTH-TC-P06 — Trades tab → Active Trades (My Trades screen) ──────────────
+- tapOn:
+    id: "tab-trades"
+- waitForAnimationToEnd
+- assertVisible: "My Trades"
+- assertVisible:
+    id: "tab-active"          # Active segment control
+- assertVisible:
+    id: "tab-history"         # History segment control
+
+# ── AUTH-TC-P09 — Basket tab → Trade Basket screen ───────────────────────────
+- tapOn:
+    id: "tab-basket"
+- waitForAnimationToEnd
+- assertVisible: "Trade Basket"
+
+# ── Discover tab → Discover search ───────────────────────────────────────────
+- tapOn:
+    id: "tab-discover"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "discover-search-input"
+
+# ── Home tab → dashboard ─────────────────────────────────────────────────────
+- tapOn:
+    id: "tab-home"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "dashboard-screen"
+
+# ── AUTH-TC-P10 — Sell FAB → Sell sheet (List One Item / Bulk Upload) ────────
+- tapOn:
+    id: "tab-sell"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "sell-option-list-one-item"
+- assertVisible:
+    id: "sell-option-bulk-upload"
+
+# Cancel closes the sheet without navigating anywhere.
+- tapOn: "Cancel"
+- waitForAnimationToEnd
+- assertNotVisible:
+    id: "sell-option-list-one-item"
+
+# Still on Home after the sheet is dismissed.
+- assertVisible:
+    id: "dashboard-screen"
+- takeScreenshot: "CHECKPOINT-menu-bar-navigation"
