@@ -287,10 +287,10 @@ export function PersistentTabBar() {
             onPress={() => navigateToTab('TradeList', NAV_EVENTS.TRADES_TAB_TAPPED)}
           />
 
-          {/* 5 — Trade Basket */}
+          {/* 5 — Basket */}
           <TabItem
             Icon={ShoppingCart}
-            label="Trade Basket"
+            label="Basket"
             active={activeTab === 'Cart'}
             badgeCount={cartCount}
             onPress={() => navigateToTab('Cart', NAV_EVENTS.BASKET_TAB_TAPPED)}

@@ -791,6 +791,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
+    // Clear the floating pill bottom nav (PersistentTabBar) so the Send Offer
+    // button scrolls fully above it — matches the app-wide 100px clearance used
+    // by Profile/Edit Profile/Home etc.
+    paddingBottom: 100,
   },
   backButton: {
     flexDirection: 'row',

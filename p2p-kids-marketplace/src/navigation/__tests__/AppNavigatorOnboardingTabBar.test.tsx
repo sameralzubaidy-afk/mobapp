@@ -237,7 +237,7 @@ jest.mock('@stripe/stripe-react-native', () => {
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-const TAB_TEST_IDS = ['tab-home', 'tab-discover', 'tab-sell', 'tab-trades', 'tab-trade-basket'];
+const TAB_TEST_IDS = ['tab-home', 'tab-discover', 'tab-sell', 'tab-trades', 'tab-basket'];
 
 // An authenticated session so RootNavigator renders the dashboard stack with
 // the first-run onboarding carousel gated on.
