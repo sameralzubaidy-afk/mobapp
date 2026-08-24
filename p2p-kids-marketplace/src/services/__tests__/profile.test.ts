@@ -24,7 +24,6 @@ jest.mock('../supabase/client', () => ({
 // Mock location service used by profile.ts
 jest.mock('../location', () => ({
   assignNodeByZipCode: jest.fn(),
-  incrementNodeMemberCount: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe('Profile Service', () => {

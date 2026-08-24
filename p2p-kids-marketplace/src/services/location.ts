@@ -5,7 +5,6 @@
  * Handles:
  * - ZIP code to coordinates lookup (Zippopotam API)
  * - Automatic node assignment (exact ZIP or nearest active)
- * - Node member count tracking via RPC
  * - Analytics event tracking
  * - Error handling & Sentry reporting
  */
@@ -180,68 +179,6 @@ export const getZipCodeCoordinates = async (
       tags: { service: 'location', action: 'zip_lookup' },
     });
     return null;
-  }
-};
-
-/**
- * Increment node member count after user assignment
- * Uses RPC for atomic operation
- *
- * @param nodeId - Geographic node UUID
- */
-export const incrementNodeMemberCount = async (nodeId: string): Promise<void> => {
-  try {
-    if (!nodeId) {
-      console.warn('⚠️ incrementNodeMemberCount called with null nodeId');
-      return;
-    }
-    const { error } = await supabase.rpc('increment_node_member_count', {
-      node_id: nodeId,
-    });
-    if (error) {
-      // Check if this is a "no rows updated" scenario (valid, just didn't find node)
-      if (error.message?.includes('no rows') || error.message?.includes('not found')) {
-        console.warn('⚠️ Node not found for increment:', nodeId);
-        return;
-      }
-      throw error;
-    }
-  } catch (error) {
-    captureException(error, {
-      tags: { service: 'location', action: 'increment_member_count' },
-    });
-    // Don't throw - this is non-critical for signup flow
-  }
-};
-
-/**
- * Decrement node member count (e.g., when user deletes profile or changes nodes)
- * Uses RPC for atomic operation
- *
- * @param nodeId - Geographic node UUID
- */
-export const decrementNodeMemberCount = async (nodeId: string): Promise<void> => {
-  try {
-    if (!nodeId) {
-      console.warn('⚠️ decrementNodeMemberCount called with null nodeId');
-      return;
-    }
-    const { error } = await supabase.rpc('decrement_node_member_count', {
-      node_id: nodeId,
-    });
-    if (error) {
-      // Check if this is a "no rows updated" scenario (valid, just didn't find node)
-      if (error.message?.includes('no rows') || error.message?.includes('not found')) {
-        console.warn('⚠️ Node not found for decrement:', nodeId);
-        return;
-      }
-      throw error;
-    }
-  } catch (error) {
-    captureException(error, {
-      tags: { service: 'location', action: 'decrement_member_count' },
-    });
-    // Don't throw - this is non-critical
   }
 };
 

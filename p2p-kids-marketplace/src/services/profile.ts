@@ -9,7 +9,7 @@ import type {
   ProfileUpdateData,
   NodeAssignment,
 } from '@/types/profile.types';
-import { assignNodeByZipCode, incrementNodeMemberCount } from './location';
+import { assignNodeByZipCode } from './location';
 import { getImageUrl } from '@/utils/imageUrl';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode as decodeBase64ArrayBuffer } from 'base64-arraybuffer';
@@ -111,7 +111,9 @@ export const setupUserProfile = async (
       zip_code: profileData.zip_code,
       node_id: assignedNodeId, // Can be null if no node found
       profile_completed: true,
-      onboarding_completed: false, // Set to false, WelcomeScreen will set to true at the end of onboarding
+      // Set to false here; the live OnboardingScreen carousel flips the gate by
+      // setting onboarding_completed_at (Get Started) or onboarding_skipped_at (Skip).
+      onboarding_completed: false,
       phone_verified: true,
       phone_verified_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -133,16 +135,6 @@ export const setupUserProfile = async (
     if (insertError) {
       console.error('Profile insert error:', insertError);
       return { user: null, error: insertError };
-    }
-
-    // NODE-003: Increment node member count if node assigned
-    if (assignedNodeId) {
-      try {
-        await incrementNodeMemberCount(assignedNodeId);
-      } catch (error) {
-        console.error('❌ [NODE-003] Failed to increment member count (non-fatal):', error);
-        // Non-fatal error - continue
-      }
     }
 
     // Return the user data (we'll need to get it from auth.users)

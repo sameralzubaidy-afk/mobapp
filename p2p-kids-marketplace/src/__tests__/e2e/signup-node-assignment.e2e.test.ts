@@ -11,7 +11,7 @@
  */
 
 import { supabase } from '../../services/supabase';
-import { assignNodeByZipCode, incrementNodeMemberCount } from '../../services/location';
+import { assignNodeByZipCode } from '../../services/location';
 
 // Mock external services
 jest.mock('../../services/supabase', () => ({
@@ -279,18 +279,6 @@ describe('E2E: Signup with Automatic Node Assignment - NODE-003', () => {
 
       const assignmentResult = await assignNodeByZipCode(ACTIVE_ZIP, TEST_USER_ID);
       expect(assignmentResult.nodeId).toBe('node-1');
-
-      // Step 2: Increment node member count
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: null,
-        error: null,
-      } as any);
-
-      await incrementNodeMemberCount('node-1');
-      expect(mockSupabase.rpc).toHaveBeenCalledWith(
-        'increment_node_member_count',
-        expect.any(Object)
-      );
     });
 
     it('should complete full flow with waitlist: ZIP → assignment → waitlist → skip', async () => {
@@ -318,14 +306,6 @@ describe('E2E: Signup with Automatic Node Assignment - NODE-003', () => {
 
       const assignmentResult = await assignNodeByZipCode(INACTIVE_ZIP, TEST_USER_ID);
       expect(assignmentResult.matchType).toBe('nearest');
-
-      // Step 2: Increment node member count (they accept assignment)
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: null,
-        error: null,
-      } as any);
-
-      await incrementNodeMemberCount('node-2');
 
       // Step 3: (Optional) Skip waitlist - proceed without adding to waitlist
       // No database call needed, just navigate to next screen
