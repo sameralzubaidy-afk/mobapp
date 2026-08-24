@@ -62,8 +62,8 @@
 | **H — Profile Setup & Onboarding** | AUTH-TC-H01 | Profile Setup: avatar + display name + ZIP |
 | | AUTH-TC-H02 | Profile Setup validation errors |
 | | AUTH-TC-H03 | Avatar upload failure does not block |
-| | AUTH-TC-H04 | Welcome screen → Get Started |
-| | AUTH-TC-H05 | Feature Highlights carousel |
+| | ~~AUTH-TC-H04~~ | ~~Welcome screen → Get Started~~ (REMOVED — screen deleted; superseded by H06/H07) |
+| | ~~AUTH-TC-H05~~ | ~~Feature Highlights carousel~~ (REMOVED — screen deleted; superseded by H06/H07) |
 | | AUTH-TC-H06 | Onboarding carousel: Next / Skip / Get Started |
 | | AUTH-TC-H07 | Onboarding completion routes to Home |
 | **I — Subscription Choice (Onboarding)** | AUTH-TC-I01 | Start Free Trial enrolls Kids Club+ |
@@ -964,30 +964,23 @@
 **Expected Result:**
 - A warning notes the profile will be created without an avatar (addable later); profile completion still succeeds.
 
-### AUTH-TC-H04 · Welcome screen → Get Started
+### ~~AUTH-TC-H04 · Welcome screen → Get Started~~ — REMOVED
 
-**Actors:** new-user
+**Status:** Deprecated/removed 2026-08-23.
+The standalone `WelcomeScreen` (and its `welcome` deep link) was deleted — it was an orphaned route
+reachable only via `p2pkidsmarketplace://welcome`, never from live navigation, and fully superseded
+by the 5-slide `OnboardingScreen` carousel. Coverage to use instead: **AUTH-TC-H06** (carousel
+Next / Skip / Get Started) + **AUTH-TC-H07** (onboarding completion routes to Home). The
+"Get Started marks onboarding progress" assertion is covered by H06's Get-Started-on-last-slide step.
 
-**Objective:** Verify the Welcome screen advances onboarding.
+### ~~AUTH-TC-H05 · Feature Highlights carousel~~ — REMOVED
 
-**Steps:**
-1. On the Welcome screen, read the headline and tap **Get Started**.
-
-**Expected Result:**
-- The Welcome copy about a "safe, neighborhood marketplace" is shown; tapping **Get Started** marks onboarding progress and moves forward (eventually to Home).
-
-### AUTH-TC-H05 · Feature Highlights carousel
-
-**Actors:** new-user
-
-**Objective:** Verify the 4-slide feature highlights.
-
-**Steps:**
-1. Step through the Feature Highlights slides (Discover Items, Earn Money, Safe Trading, Build Reputation).
-2. On the last slide tap **Get Started**.
-
-**Expected Result:**
-- Each slide shows a title, description, emoji, and pagination dots; the final **Get Started** advances the flow.
+**Status:** Deprecated/removed 2026-08-23.
+The standalone `FeatureHighlightsScreen` (and its `feature-highlights` deep link) was deleted — an
+orphaned route that only linked forward to the equally-orphaned `WelcomeScreen`. Its 4 slides
+(Discover Items / Earn Money / Safe Trading / Build Reputation) were superseded by the live 5-slide
+`OnboardingScreen` carousel. Coverage to use instead: **AUTH-TC-H06** (swipe through the live
+carousel; titles/descriptions/emoji/pagination-dots assertions) + **AUTH-TC-H07** (completion routes to Home).
 
 ### AUTH-TC-H06 · Onboarding carousel: Next / Skip / Get Started
 
@@ -2435,7 +2428,7 @@
 | Admin deactivate/reactivate node | AUTH-TC-G04, AUTH-TC-G05 |
 | Node stats + form validation | AUTH-TC-G06 |
 | Profile Setup capture + validation | AUTH-TC-H01, AUTH-TC-H02, AUTH-TC-H03 |
-| Welcome / Feature Highlights | AUTH-TC-H04, AUTH-TC-H05 |
+| Welcome / Feature Highlights | ~~AUTH-TC-H04, AUTH-TC-H05~~ — REMOVED (screens deleted; superseded by AUTH-TC-H06, AUTH-TC-H07) |
 | Onboarding carousel + completion | AUTH-TC-H06, AUTH-TC-H07 |
 | Subscription choice trial/free | AUTH-TC-I01, AUTH-TC-I02, AUTH-TC-I03 |
 | Listing photo-first gating | AUTH-TC-J01 |

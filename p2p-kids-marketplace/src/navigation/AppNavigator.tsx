@@ -26,9 +26,7 @@ import BadgesScreen from '@/screens/profile/BadgesScreen';
 import LeaderboardScreen from '@/screens/profile/LeaderboardScreen';
 import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
-import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
 import JoinKidsClubScreen from '@/screens/subscription/JoinKidsClubScreen';
-import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
 // MODULE-18 EDU-004: Trading education onboarding carousel
 import OnboardingScreen from '@/screens/onboarding/OnboardingScreen';
 import ItemCreateScreen from '@/screens/ItemCreateScreen';
@@ -139,7 +137,6 @@ const linking = {
       SellerProfile: 'seller-profile/:userId',
       EditProfile: 'edit-profile',
       ForgotPassword: 'forgot-password',
-      Welcome: 'welcome',
       SubscriptionChoice: 'subscription-choice',
       JoinKidsClub: 'join-kids-club',
       ContinueKidsClub: 'continue-kids-club',
@@ -149,7 +146,6 @@ const linking = {
       CancelSubscription: 'cancel-subscription',
       SubscriptionExpired: 'subscription-expired',
       MySubscription: 'my-subscription',
-      FeatureHighlights: 'feature-highlights',
       MyListings: 'my-listings',
       ItemCreate: 'create-item',
       BundleBuilder: 'bundle-builder/:sellerId',
@@ -931,11 +927,6 @@ export function RootNavigator() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="Welcome"
-              component={WelcomeScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="SubscriptionChoice"
               component={JoinKidsClubScreen}
               options={{ headerShown: false }}
@@ -943,11 +934,6 @@ export function RootNavigator() {
             <Stack.Screen
               name="JoinKidsClub"
               component={JoinKidsClubScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="FeatureHighlights"
-              component={FeatureHighlightsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

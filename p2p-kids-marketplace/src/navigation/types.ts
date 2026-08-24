@@ -7,8 +7,6 @@ export type RootStackParamList = {
   SuspendedAccount: undefined;
   PhoneVerification: undefined;
   ProfileSetup: undefined;
-  Welcome: { userId?: string } | undefined;
-  FeatureHighlights: { userId?: string } | undefined;
   /**
    * onOnboardingFinished: called by OnboardingScreen when the user completes
    * (Get Started) OR skips the carousel, so RootNavigator can flip its local
