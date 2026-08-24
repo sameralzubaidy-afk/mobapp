@@ -1,0 +1,106 @@
+
+| Group | TC# | Description |
+|---|---|---|
+| **A — Plans & Comparison** | SUB-TC-A01 | Subscription Plans screen — Free vs Kids Club+ cards |
+| | SUB-TC-A02 | Plan Comparison table — feature-by-feature + POPULAR badge |
+| | SUB-TC-A03 | Dynamic pricing & fees pulled from admin config |
+| | SUB-TC-A04 | Current plan reflected (button disabled / "Current Plan") |
+| | SUB-TC-A05 | Kids Club+ Overview screen by subscription status |
+| **B — Start Trial & Payment** | SUB-TC-B01 | Start free trial from Plans → payment screen |
+| | SUB-TC-B02 | Payment screen benefits + pricing + "Due today $0.00" (trial) |
+| | SUB-TC-B03 | Complete Stripe payment → Success screen |
+| | SUB-TC-B04 | Trial already used — blocked with support/subscribe options |
+| | SUB-TC-B05 | Trial disabled globally — Free tier only |
+| | SUB-TC-B06 | Continue Kids Club+ (mid-trial) urgency + benefits |
+| | SUB-TC-B07 | Referred user warned about bonus loss before choosing Free |
+| | SUB-TC-B08 | Admin changes trial-limit config → trial CTA updates |
+| | SUB-TC-B09 | Cancel Stripe payment sheet — no error, retry available |
+| | SUB-TC-B10 | Card declined — clear error + retry |
+| | SUB-TC-B11 | Re-subscribe reuses saved payment method (1-click) |
+| | SUB-TC-B12 | Network error during payment — retry succeeds |
+| | SUB-TC-B13 | Apple Pay / Google Pay payment |
+| **C — Manage & Cancel** | SUB-TC-C01 | My Subscription screen — paid member view |
+| | SUB-TC-C02 | My Subscription quick menu (Billing / Payment / Help) |
+| | SUB-TC-C03 | Manage Kids Club+ — status, next billing, days remaining |
+| | SUB-TC-C04 | Cancel flow — retention screen "Keep My Benefits" |
+| | SUB-TC-C05 | Cancel reason modal + final confirmation |
+| | SUB-TC-C06 | Cancelled subscription stays active until period end |
+| | SUB-TC-C07 | Auto-renew toggle / update payment method |
+| | SUB-TC-C08 | Manage Kids Club+ free/no-subscription state |
+| | SUB-TC-C09 | Manage Kids Club+ expired state |
+| | SUB-TC-C10 | My Subscription free-user state |
+| | SUB-TC-C11 | My Subscription "Learn More" link |
+| | SUB-TC-C12 | My Subscription "Member Since" value (latent bug) |
+| **D — Renewal, Grace & Expiry** | SUB-TC-D01 | Grace period banner + SP wallet frozen warning |
+| | SUB-TC-D02 | Re-subscribe from grace period |
+| | SUB-TC-D03 | Subscription Expired screen — benefits lost + Renew |
+| | SUB-TC-D04 | Renew (isRenewal) — payment screen "Due today" = full price |
+| | SUB-TC-D05 | Reactivate from cancelled state |
+| | SUB-TC-D06 | Subscription event notifications (trial reminders, renewal, failure) |
+| | SUB-TC-D07 | Grace reminder notifications follow configured thresholds |
+| **E — Billing History & Status** | SUB-TC-E01 | Billing History list — records, status badges, amounts |
+| | SUB-TC-E02 | Billing History empty state |
+| | SUB-TC-E03 | Failed charge shows error message |
+| | SUB-TC-E04 | Subscription Status screen — Stripe IDs + period + retries |
+| **F — Payout Dashboard & Earnings** | SUB-TC-F01 | Payout Dashboard hero (SP balance + AUD equivalent) |
+| | SUB-TC-F02 | Payout method section (add vs existing) |
+| | SUB-TC-F03 | Payout history list (completed / pending) |
+| | SUB-TC-F04 | Seller Earnings screen — totals, pending, payout breakdown |
+| | SUB-TC-F05 | Seller Earnings empty state |
+| | SUB-TC-F06 | Pending earnings release follows admin-configured delay |
+| | SUB-TC-F07 | Seller Earnings error state + Retry |
+| | SUB-TC-F08 | Seller Earnings Load More pagination |
+| **G — Payout Methods & Verification** | SUB-TC-G01 | Add Stripe Connect payout method (onboarding) |
+| | SUB-TC-G02 | Add PayPal / Venmo payout method |
+| | SUB-TC-G03 | Add Bank ACH payout method |
+| | SUB-TC-G04 | Set primary method / delete method (confirmation) |
+| | SUB-TC-G05 | Unverified method blocks payout |
+| | SUB-TC-G06 | requires_action payout → "Set Up Payout Method" |
+| | SUB-TC-G07 | Payout Settings — "Edit Details" sheet |
+| | SUB-TC-G08 | "Cannot Delete Primary/Only Method" guard |
+| | SUB-TC-G09 | "Cannot Set as Primary" (unverified) guard |
+| | SUB-TC-G10 | Payout history Load More |
+| | SUB-TC-G11 | NoMethodModal flow |
+| **H — Request & Withdraw** | SUB-TC-H01 | Request Payout — amount validation vs available |
+| | SUB-TC-H02 | Fee + net summary by method type |
+| | SUB-TC-H03 | Confirm Payout success |
+| | SUB-TC-H04 | Request blocked when no method / unverified |
+| | SUB-TC-H05 | Withdraw Now from Payout Settings hero |
+| | SUB-TC-H06 | Admin minimum withdrawal blocks smaller payouts |
+| | SUB-TC-H07 | Minimum withdrawal disabled when config = 0 |
+| **I — SP Wallet Balance & Earn** | SUB-TC-I01 | SP Wallet hero balance + lifetime stats |
+| | SUB-TC-I02 | Quick actions (Shop / Sell / History) |
+| | SUB-TC-I03 | How to Earn SP section + Learn More |
+| | SUB-TC-I04 | SP expiration info + expiring-soon alert |
+| | SUB-TC-I05 | Wallet warning banner by state (active/grace/expired) |
+| | SUB-TC-I06 | Free user SP wallet inactive state |
+| | SUB-TC-I07 | SP Wallet — "Reserved in trades" card |
+| | SUB-TC-I08 | SP Wallet — "Wallet Not Found" error |
+| | SUB-TC-I09 | SP Wallet — pending-release summary note |
+| **J — SP Transaction History** | SUB-TC-J01 | SP History tabs (All / Earned / Spent) |
+| | SUB-TC-J02 | Transaction rows — type icon, label, signed amount |
+| | SUB-TC-J03 | Empty state per tab |
+| | SUB-TC-J04 | Pull-to-refresh updates ledger |
+| **K — Transaction / Billing History (Profile)** | SUB-TC-K01 | Transaction History list + status badges |
+| | SUB-TC-K02 | Transaction History empty + error/retry |
+| **L — Webhooks & Reconciliation** | SUB-TC-L01 | Renewal webhook updates billing history and member state |
+| | SUB-TC-L02 | Payment-failed webhook moves subscription into retry / grace state |
+| | SUB-TC-L03 | Invalid webhook signature is rejected with no duplicate state change |
+| | SUB-TC-L04 | Duplicate webhook delivery is idempotent |
+| | SUB-TC-L05 | Payout-status webhook updates seller payout history |
+| **M — Payment Methods (Card on File)** | SUB-TC-M01 | Payment Methods — loading state |
+| | SUB-TC-M02 | Empty state + Add Payment Method (Stripe sheet) |
+| | SUB-TC-M03 | Saved-card display + security banner |
+| | SUB-TC-M04 | Update Payment Method |
+| | SUB-TC-M05 | Remove This Card (confirm + success) |
+| | SUB-TC-M06 | Go Back |
+| | SUB-TC-M07 | Backend contract — attach / detach / retryFailedPayment branches |
+| **N — Kids Club Join & Continue** | SUB-TC-N01 | JoinKidsClub value-prop + web CTA |
+| | SUB-TC-N02 | JoinKidsClub web redirect (passitup.com) |
+| | SUB-TC-N03 | Route-alias reachability (JoinKidsClub vs deep-link-only aliases) |
+| | SUB-TC-N04 | ContinueKidsClub active-subscription variant |
+| | SUB-TC-N05 | ContinueKidsClub loading state |
+| | SUB-TC-N06 | ContinueKidsClub trial-ending urgency badge |
+
+---
+

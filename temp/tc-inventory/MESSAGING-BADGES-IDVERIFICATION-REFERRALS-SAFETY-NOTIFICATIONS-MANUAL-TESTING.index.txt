@@ -1,0 +1,78 @@
+
+| Group | TC# | Description |
+|---|---|---|
+| **A — Messaging: Conversations & Chat** | MSG-TC-A01 | Conversation list (search, unread badges, empty state) |
+| | MSG-TC-A02 | Open a chat thread + trade context banner |
+| | MSG-TC-A03 | Send a text message + delivery status (sent→delivered→read) |
+| | MSG-TC-A04 | Receive a message in real time |
+| | MSG-TC-A05 | Typing indicator |
+| | MSG-TC-A06 | Send an image message + full-screen viewer |
+| | MSG-TC-A07 | Message length limit (2000 chars) |
+| | MSG-TC-A08 | Quick-reply meeting chips |
+| | MSG-TC-A09 | Safety meeting banner + Learn more |
+| | MSG-TC-A10 | Photo permission denied error |
+| **B — Badges & Achievements** | MSG-TC-B01 | My Badges grid (earned vs locked) |
+| | MSG-TC-B02 | Badge detail modal |
+| | MSG-TC-B03 | Badge showcase on profile |
+| | MSG-TC-B04 | Badge celebration modal on unlock |
+| | MSG-TC-B05 | Leaderboard ranking |
+| **C — Reviews & Ratings** | MSG-TC-C01 | Submit a post-trade review (stars + comment) |
+| | MSG-TC-C02 | Rating required validation |
+| | MSG-TC-C03 | Anonymous review |
+| | MSG-TC-C04 | Skip review |
+| | MSG-TC-C05 | Review display on seller profile + aggregate rating |
+| | MSG-TC-C06 | Report a review (reviewee only) |
+| **D — ID Badge Verification (End User)** | MSG-TC-D01 | Start ID verification + upload from library |
+| | MSG-TC-D02 | Capture ID with camera |
+| | MSG-TC-D03 | Submit creates pending request |
+| | MSG-TC-D04 | Duplicate pending request blocked |
+| | MSG-TC-D05 | No-image submit validation |
+| | MSG-TC-D06 | Pending state screen |
+| | MSG-TC-D07 | Approved → Verified badge on profile |
+| | MSG-TC-D08 | Rejected → reason shown + resubmit |
+| | MSG-TC-D09 | Submission confirmation notifications reach the user |
+| | MSG-TC-D10 | Decision notifications honor channel preferences |
+| **E — ID Badge Verification (Admin)** | MSG-TC-E01 | Review queue (stats, filters, search) |
+| | MSG-TC-E02 | Approve a request |
+| | MSG-TC-E03 | Reject with reason |
+| | MSG-TC-E04 | View completed request details |
+| | MSG-TC-E05 | Edit message templates |
+| | MSG-TC-E06 | New submission creates admin alert notification |
+| **F — Referrals** | MSG-TC-F01 | View referral code + hero |
+| | MSG-TC-F02 | Copy referral code |
+| | MSG-TC-F03 | Share referral code (native share) |
+| | MSG-TC-F04 | Active rewards display |
+| | MSG-TC-F05 | Referral history (pending vs completed) |
+| | MSG-TC-F06 | Enter referral code at signup |
+| | MSG-TC-F07 | Program paused banner + disabled share |
+| | MSG-TC-F08 | Admin configures referral rewards |
+| **G — Safety & Compliance (End User)** | MSG-TC-G01 | Listing flagged → Safety Review screen |
+| | MSG-TC-G02 | Appeal a flagged/rejected listing |
+| | MSG-TC-G03 | Resubmit a "needs edits" listing |
+| | MSG-TC-G04 | Remove a flagged listing |
+| | MSG-TC-G05 | Recall safety alert notification |
+| | MSG-TC-G06 | Appeal max-attempt limit follows admin config |
+| | MSG-TC-G07 | Appeal window follows admin config |
+| | MSG-TC-G08 | AI moderation toggle affects automated image review |
+| | MSG-TC-G09 | Recall check toggle and threshold affect recall flagging |
+| **H — Safety & Compliance (Admin)** | MSG-TC-H01 | Flagged items moderation queue |
+| | MSG-TC-H02 | Approve a flagged item |
+| | MSG-TC-H03 | Reject with reason |
+| | MSG-TC-H04 | Request edits |
+| | MSG-TC-H05 | Trade dispute: mark under review |
+| | MSG-TC-H06 | Trade dispute: resolve complete / refund |
+| **I — Notifications: Permission & Center** | MSG-TC-I01 | Enable push notifications |
+| | MSG-TC-I02 | Push error states (Expo Go / web) |
+| | MSG-TC-I03 | Notification center list + icons |
+| | MSG-TC-I04 | Tap notification → deep link + mark read |
+| | MSG-TC-I05 | Mark all as read |
+| | MSG-TC-I06 | Pagination + pull to refresh |
+| | MSG-TC-I07 | Real-time arrival |
+| **J — Notification Preferences** | MSG-TC-J01 | Category × channel toggles |
+| | MSG-TC-J02 | Default preferences |
+| | MSG-TC-J03 | Safety alerts always-on note |
+| | MSG-TC-J04 | Quiet hours (subscriber) + validation |
+| | MSG-TC-J05 | ID verification preference controls decision delivery |
+
+---
+

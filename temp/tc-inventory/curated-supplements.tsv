@@ -1,0 +1,24 @@
+# Curated supplementary evidence — canonical TC verdicts attached manually
+# from targeted fix-verification / re-verify reports that assert per-TC
+# outcomes via Item/Check tables (not parseable as TC-ID verdict rows).
+#
+# Columns: path(relative)  date  wc  source_type  tc_id  verdict
+# wc=9999 marks the row as the latest same-day verification of that TC
+# (these re-verify/fix-verify runs happened after the original group run).
+# Grounding (all verbatim from the cited report):
+#   - group-l-reverify 2026-08-21: "Full L01–L04 re-run ... PASS (L01, L02, L03, L04 all PASS)"
+#   - group-p-reverify 2026-08-23: Item 1 AppHeader bell/chat AX = PASS (P19); Item 2 composer_bar_tapped fires on focus = PASS (P18)
+#   - group-qs-fix-verify 2026-08-23: Fix 2 event-type CHECK migration applied; app help_view now persists (3 rows) => Q06 defect resolved
+e2e-test-results/group-l-reverify-l01-l04-2026-08-21/report.md	2026-08-21	9999	manual	AUTH-TC-L01	PASS
+e2e-test-results/group-l-reverify-l01-l04-2026-08-21/report.md	2026-08-21	9999	manual	AUTH-TC-L02	PASS
+e2e-test-results/group-l-reverify-l01-l04-2026-08-21/report.md	2026-08-21	9999	manual	AUTH-TC-L03	PASS
+e2e-test-results/group-l-reverify-l01-l04-2026-08-21/report.md	2026-08-21	9999	manual	AUTH-TC-L04	PASS
+e2e-test-results/group-p-reverify-appheader-composer-2026-08-23/report.md	2026-08-23	9999	manual	AUTH-TC-P18	PASS
+e2e-test-results/group-p-reverify-appheader-composer-2026-08-23/report.md	2026-08-23	9999	manual	AUTH-TC-P19	PASS
+e2e-test-results/group-qs-fix-verify-2026-08-23/report.md	2026-08-23	9999	manual	AUTH-TC-Q06	PASS
+# Stage1 (2026-08-11) standalone happy-path report — legacy TC-A01..A03/B01/B02 IDs map to AUTH guide
+e2e-test-results/Stage1-iOS-Signup-HappyPath-report.md	2026-08-11	0	manual	AUTH-TC-A01	PASS
+e2e-test-results/Stage1-iOS-Signup-HappyPath-report.md	2026-08-11	0	manual	AUTH-TC-A02	PASS
+e2e-test-results/Stage1-iOS-Signup-HappyPath-report.md	2026-08-11	0	manual	AUTH-TC-A03	PASS
+e2e-test-results/Stage1-iOS-Signup-HappyPath-report.md	2026-08-11	0	manual	AUTH-TC-B01	PASS
+e2e-test-results/Stage1-iOS-Signup-HappyPath-report.md	2026-08-11	0	manual	AUTH-TC-B02	PASS

@@ -1,0 +1,172 @@
+
+| Group | TC# | Description |
+|---|---|---|
+| **A — Auth & Dashboard** | ADM-TC-A01 | Admin login with admin role |
+| | ADM-TC-A02 | Non-admin login rejected (RBAC gate) |
+| | ADM-TC-A03 | Dashboard layout: intro → health strip → Action Center → KPIs (no duplicate nav) |
+| | ADM-TC-A04 | Direct protected route access without session redirects to login |
+| | ADM-TC-A05 | Expired session redirects once without a loop |
+| | ADM-TC-A06 | Dashboard KPI cards follow design-system styling |
+| **B — User Management** | ADM-TC-B01 | User list, search, status filters, pagination |
+| | ADM-TC-B02 | User detail drawer (identity, subscription, SP, trades) |
+| | ADM-TC-B03 | Suspend / ban / delete account |
+| | ADM-TC-B04 | Credit/debit SP + freeze wallet from user |
+| | ADM-TC-B05 | User analytics cards (totals, DAU/MAU) |
+| | ADM-TC-B06 | Reset Password action |
+| | ADM-TC-B07 | Unsuspend action |
+| | ADM-TC-B08 | Sort By / Sort Order |
+| **C — Listings, Items & Flagged** | ADM-TC-C01 | Listing management — search & analytics tabs |
+| | ADM-TC-C02 | Flagged items — filter tabs + statuses |
+| | ADM-TC-C03 | Approve flagged item |
+| | ADM-TC-C04 | Reject item with required reason |
+| | ADM-TC-C05 | Item detail view + appeal info |
+| | ADM-TC-C06 | Force Delete |
+| | ADM-TC-C07 | Pause |
+| | ADM-TC-C08 | Approve |
+| | ADM-TC-C09 | Request Edits |
+| | ADM-TC-C10 | Reject |
+| | ADM-TC-C11 | Select-all / selection counter (no bulk execute — flag) |
+| | ADM-TC-C12 | Individual filter controls |
+| **D — Categories** | ADM-TC-D01 | Category list, filters (incl. Bonus), search |
+| | ADM-TC-D02 | Create / edit category + SP multiplier |
+| | ADM-TC-D03 | Activate / deactivate category |
+| | ADM-TC-D04 | Category suggestions queue + count badge |
+| | ADM-TC-D05 | Icon / badge upload |
+| | ADM-TC-D06 | SP spending cap % |
+| | ADM-TC-D07 | SP redemption cap |
+| | ADM-TC-D08 | Drag-and-drop reorder |
+| | ADM-TC-D09 | Bulk actions (Activate / Deactivate / Delete / Export CSV) |
+| | ADM-TC-D10 | Delete category + guards |
+| | ADM-TC-D11 | Suggestion Approve / Merge / Reject |
+| **E — Nodes & Waitlist** | ADM-TC-E01 | Geographic nodes list + stats |
+| | ADM-TC-E02 | Add / edit node |
+| | ADM-TC-E03 | Deactivate node with members warning |
+| | ADM-TC-E04 | Node settings (radius validations) |
+| | ADM-TC-E05 | ZIP waitlist queue + status filter |
+| | ADM-TC-E06 | Node tagging completeness (N6) — every record resolves to one node |
+| | ADM-TC-E07 | Per-node KPIs (N6) — expansion-gate metrics per node |
+| | ADM-TC-E08 | Waitlist API authorization (401 without admin session) |
+| **F — Global Config & Settings** | ADM-TC-F01 | Global configuration inline edit + permission gate |
+| | ADM-TC-F02 | Cart settings (min value, max carts, expiry) |
+| | ADM-TC-F03 | Trade timing config (timing keys + nested validation) |
+| | ADM-TC-F04 | Settings single-source — cross-link + last-updated + audit |
+| | ADM-TC-F05 | N1 configurability — pickup countdown + payout buffer (new keys) |
+| | ADM-TC-F06 | R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys) |
+| | ADM-TC-F07 | Trade Pipeline visualization — see & track trades in all stages |
+| | ADM-TC-F08 | R1 tiered buyer-fee fields |
+| | ADM-TC-F09 | Buyer Fee-Tier Distribution table |
+| | ADM-TC-F10 | Legacy fee keys |
+| | ADM-TC-F11 | Reset button |
+| **G — Policy Management** | ADM-TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |
+| | ADM-TC-G02 | Create new policy version (version regex) |
+| | ADM-TC-G03 | Edit draft policy |
+| | ADM-TC-G04 | Publish policy (confirmation) |
+| **H — Trades** | ADM-TC-H01 | Trade list filters + columns |
+| | ADM-TC-H02 | Trade detail (info, monetary breakdown, audit) |
+| | ADM-TC-H03 | Trade admin actions |
+| | ADM-TC-H04 | Subscription Context section |
+| | ADM-TC-H05 | External References (Stripe PI/refund + SP ledger IDs) |
+| | ADM-TC-H06 | Sales Tax line in monetary breakdown |
+| **I — Disputes** | ADM-TC-I01 | Dispute queue + SLA highlighting |
+| | ADM-TC-I02 | Mark dispute under review |
+| | ADM-TC-I03 | Resolve dispute — Complete |
+| | ADM-TC-I04 | Resolve dispute — Refund |
+| | ADM-TC-I05 | Filter-tab click behavior (All/Reported/Under Review) |
+| **J — Tax Admin** | ADM-TC-J01 | Tax admin entry points (cross-ref TradeFlow Group P) |
+| **K — Payouts** | ADM-TC-K01 | Payout fee configuration + test breakdown |
+| | ADM-TC-K02 | Payouts management list, stats, filters |
+| | ADM-TC-K03 | Retry failed payout (confirmation) |
+| **L — SP Economy / Analytics / Wallet** | ADM-TC-L01 | SP Economy hub tabs (Health/Flow/Rules) |
+| | ADM-TC-L02 | SP Analytics dashboard + CSV export |
+| | ADM-TC-L03 | SP Wallet admin — economy metrics + search |
+| | ADM-TC-L04 | SP adjustment (credit/deduct) with reason |
+| | ADM-TC-L05 | Freeze / unfreeze / suspend wallet |
+| | ADM-TC-L06 | SP Wallet entry points — home card, summary metrics, sidebar link |
+| | ADM-TC-L07 | SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state |
+| | ADM-TC-L08 | SP Wallet warning banners (mobile) — frozen/suspended/grace |
+| **M — Subscriptions Admin** | ADM-TC-M01 | Grace period config (days + reminders) |
+| | ADM-TC-M02 | Subscriptions list, filters, metrics |
+| | ADM-TC-M03 | Extend / cancel / reactivate |
+| | ADM-TC-M04 | Reactivate button (confirm + mobile reflection) |
+| | ADM-TC-M05 | Metrics cards (MRR/churn/trial) |
+| | ADM-TC-M06 | "free" status filter |
+| **N — Referrals Admin** | ADM-TC-N01 | Referral configuration tab |
+| | ADM-TC-N02 | Referral analytics tab |
+| | ADM-TC-N03 | 5 SP fields + 3 toggles |
+| | ADM-TC-N04 | "Missing configuration" warning |
+| **O — ID Badge Verification** | ADM-TC-O01 | ID badge queue + stats + status filter |
+| | ADM-TC-O02 | Review request — approve |
+| | ADM-TC-O03 | Review request — reject with reason |
+| | ADM-TC-O04 | Request details (screenshot deleted note) |
+| | ADM-TC-O05 | Message templates edit |
+| **P — Badges & Sandbox** | ADM-TC-P01 | Badge management list + toggle |
+| | ADM-TC-P02 | Create/edit/delete badge |
+| | ADM-TC-P03 | Manual award badge |
+| | ADM-TC-P04 | Badge sandbox event simulation |
+| **Q — Review Moderation** | ADM-TC-Q01 | Reported reviews list + reason filter |
+| | ADM-TC-Q02 | Hide review (confirmation) |
+| | ADM-TC-Q03 | Approve review (unhide + delete reports) |
+| | ADM-TC-Q04 | Status filter dropdown |
+| | ADM-TC-Q05 | Sort-by dropdown |
+| | ADM-TC-Q06 | Search input |
+| **R — Education & FAQ CMS** | ADM-TC-R01 | Education sections/examples/analytics |
+| | ADM-TC-R02 | FAQ management (questions/categories/analytics) |
+| | ADM-TC-R03 | Publish FAQ / education content |
+| **S — Support Messages** | ADM-TC-S01 | Support inbox + unread filter |
+| | ADM-TC-S02 | Support detail + mark as read |
+| **T — Analytics** | ADM-TC-T01 | Revenue & Analytics dashboard |
+| | ADM-TC-T02 | Notification analytics (category/type/variant) |
+| **U — Audit Logs** | ADM-TC-U01 | Audit logs view |
+| **V — Monitoring & Cron** | ADM-TC-V01 | Monitoring run + alerts (acknowledge/note) |
+| | ADM-TC-V02 | Cron jobs status + run history + timezone |
+| **W — Sidebar Navigation** | ADM-TC-W01 | Sidebar grouped into 7 labeled sections |
+| | ADM-TC-W02 | Expand / collapse a section via label + chevron |
+| | ADM-TC-W03 | Section state persists per admin across sessions |
+| | ADM-TC-W04 | Active route auto-expands its parent section |
+| | ADM-TC-W05 | Active/inactive item styling + label typography |
+| | ADM-TC-W06 | Collapsed icon rail shows all destinations |
+| | ADM-TC-W07 | All previous nav destinations still reachable |
+| **X — Action Center** | ADM-TC-X01 | Action Center page loads aggregated cards |
+| | ADM-TC-X02 | Same-type items bundled with count |
+| | ADM-TC-X03 | Severity tags (Urgent/Routine) |
+| | ADM-TC-X04 | Expand card drills into item list |
+| | ADM-TC-X05 | Inline approve flagged item |
+| | ADM-TC-X06 | Inline mark dispute under review |
+| | ADM-TC-X07 | Inline retry failed payout (confirmation) |
+| | ADM-TC-X08 | Empty state "All caught up" |
+| | ADM-TC-X09 | Sidebar pinned nav item + live count badge |
+| | ADM-TC-X10 | Header bell opens Action Center + badge |
+| | ADM-TC-X11 | Config drift card lists out-of-range settings |
+| | ADM-TC-X12 | Dashboard embeds top-5 Action Center cards + View all link |
+| | ADM-TC-X13 | Cancellation Insights card drill |
+| | ADM-TC-X14 | /cancellation-insights full page |
+| **Y — Command Palette & Global Search** | ADM-TC-Y01 | ⌘K / Ctrl+K opens the palette from any page |
+| | ADM-TC-Y02 | Header search bar opens the palette |
+| | ADM-TC-Y03 | Parallel search across 4 entity types with grouped labels |
+| | ADM-TC-Y04 | Breadcrumb context per result row |
+| | ADM-TC-Y05 | Input debounced ~200ms |
+| | ADM-TC-Y06 | Top 5 per group + "See all N results" expansion |
+| | ADM-TC-Y07 | Footer "View all in <domain>" → prefilled list page |
+| | ADM-TC-Y08 | Selecting a result navigates directly |
+| | ADM-TC-Y09 | Keyboard navigation (↑/↓/↵/Esc) + focus trap |
+| | ADM-TC-Y10 | Non-admin rejected (permission scoping) |
+| | ADM-TC-Y11 | Secret settings values never shown |
+| | ADM-TC-Y12 | Empty + no-results states |
+| **Z — Dashboard Health Strip** | ADM-TC-Z01 | Health strip renders below title, above Action Center |
+| | ADM-TC-Z02 | Six indicators with colored dots + labels + values |
+| | ADM-TC-Z03 | Dot color reflects configurable thresholds |
+| | ADM-TC-Z04 | Clicking an indicator navigates to its detail page |
+| | ADM-TC-Z05 | Failed Payouts deep-link pre-filters to failed |
+| | ADM-TC-Z06 | Thresholds tunable via /config (health) without code change |
+| | ADM-TC-Z07 | Dashboard embeds Action Center below the strip |
+| **N2 — Idempotency & Audit (Cross-Cutting)** | ADM-TC-N2-A01 | Financial audit journal viewable per trade |
+| | ADM-TC-N2-A02 | Admin SP adjustment — double-click cannot double-credit |
+| | ADM-TC-N2-A03 | Duplicate refund attempt rejected (no double refund) |
+| | ADM-TC-N2-A04 | Payout — single row per trade, single transfer |
+| | ADM-TC-N2-A05 | Financial Audit screen accessible from sidebar + renders |
+| | ADM-TC-N2-A06 | Financial Audit — search & filters |
+| | ADM-TC-N2-A07 | Financial Audit — row details, trade link, amount formatting |
+| | ADM-TC-N2-A08 | Financial Audit — summary strip reconciles with journal |
+
+---
+

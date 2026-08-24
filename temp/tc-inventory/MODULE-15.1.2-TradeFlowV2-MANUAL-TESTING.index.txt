@@ -1,0 +1,333 @@
+
+| Group | TC# | Description |
+|---|---|---|
+| **A — Core Happy Paths** | TRD-TC-A01 | Cash Only: full happy path (buyer confirms) |
+| | TRD-TC-A02 | Accept SP: Use SP slider → seller accepts → buyer confirms |
+| | TRD-TC-A03 | Accept SP: Pay Cash (0 SP) — subscriber seller still earns SP |
+| | TRD-TC-A04 | Donate listing: [Claim] button, no charge |
+| **B — Offer Lifecycle** | TRD-TC-B01 | Seller declines offer |
+| | TRD-TC-B02 | Offer expires (seller never responds) + seller ignore prompt |
+| | TRD-TC-B03 | Multiple competing offers — sort order + auto-decline |
+| | TRD-TC-B04 | Buyer cancels pending trade — no consequence level |
+| | TRD-TC-B05 | Per-seller cap: max 3 pending offers per seller (2026-07-18) |
+| | TRD-TC-B05a | Per-seller cap: Buyer at 3 with Seller A can still submit to Seller B |
+| | TRD-TC-B05b | Per-seller cap: Blocked at 4th offer to same seller |
+| | TRD-TC-B05c | Per-seller cap: Bundle offer counts as 1 slot, not N |
+| | TRD-TC-B05d | Per-seller cap: Expired offer frees slot immediately |
+| | TRD-TC-B05e | Regression: No leftover global cap blocks buyer over old global limit |
+| | TRD-TC-B05f | Admin config: Change offer cap from 3 to 5 on Trade Timing page |
+| | TRD-TC-B05g | Admin config: Revert cap from 5 back to 3 (forward-looking only) |
+| | TRD-TC-B05h | Admin config: Validation — reject invalid values (0, 11) |
+| | TRD-TC-B05i | Mobile client: Config fetch failure — graceful degradation |
+| | TRD-TC-B05j | Regression: Per-seller scope + bundle=1 still hold after config change |
+| | TRD-TC-B06 | Card declined at offer submission |
+| | TRD-TC-B07 | Expired offer timeline — no message button |
+| | TRD-TC-B08 | Chat frozen after trade is cancelled or completed |
+| | TRD-TC-B09 | Chat remains active for in_progress trades |
+| | TRD-TC-B10 | Replace Card path (saved card → new card) |
+| | TRD-TC-B11 | Subscribe-upsell → JoinKidsClub |
+| | TRD-TC-B12 | SP info tooltip (not wired — flag) |
+| | TRD-TC-B13 | Duplicate-offer modal navigation (dead code — flag) |
+| **C — SP Behavior** | TRD-TC-C01 | SP reserved on offer submission |
+| | TRD-TC-C02 | SP restored to buyer on seller decline |
+| | TRD-TC-C03 | SP restored to buyer on offer expiry |
+| | TRD-TC-C04 | SP stays reserved when seller accepts |
+| | TRD-TC-C05 | SP released to seller at trade completion |
+| | TRD-TC-C06 | SP restored to buyer on seller cancel (in_progress) |
+| | TRD-TC-C07 | Free user sees locked Use SP button + upgrade modal |
+| | TRD-TC-C08 | SP slider capped at 50% of item price |
+| **D — Auto-Complete & Timers** | TRD-TC-D01 | Auto-complete when buyer never taps I Got It |
+| | TRD-TC-D02 | Auto-complete skipped when dispute is open |
+| | TRD-TC-D03 | Offer countdown pill color states |
+| | TRD-TC-D04 | Auto-complete banner visible to buyer only |
+| | TRD-TC-D05 | Post-meetup nudge after auto-complete |
+| **E — Dispute Flow** | TRD-TC-E01 | Buyer opens Report a Problem modal |
+| | TRD-TC-E02 | Disputed trade does not auto-complete |
+| | TRD-TC-E03 | Buyer UI during active dispute |
+| | TRD-TC-E04 | Seller UI during active dispute |
+| | TRD-TC-E05 | Admin resolves dispute → Complete |
+| | TRD-TC-E06 | Admin resolves dispute → Refund |
+| | TRD-TC-E07 | Trade Dispute — no reason (disabled submit) |
+| | TRD-TC-E08 | Trade Dispute — reason selected (non-Other) |
+| | TRD-TC-E09 | Trade Dispute — "Other" + min-20 description |
+| | TRD-TC-E10 | Trade Dispute — submitting + confirm + success/error |
+| **F — Payout** | TRD-TC-F01 | Payout shown on completion (no dispute) |
+| | TRD-TC-F02 | Payout held when dispute is open |
+| | TRD-TC-F03 | Payout needs action when seller has no payout method |
+| **G — Notifications** | TRD-TC-G01 | Offer expiry reminders to seller |
+| | TRD-TC-G02 | Auto-complete reminders to buyer |
+| | TRD-TC-G03 | Notification throttle per trade |
+| | TRD-TC-G04 | Push notifications deep-link to correct screen |
+| **H — Completion CTAs** | TRD-TC-H01 | Free buyer sees subscription CTA |
+| | TRD-TC-H02 | Subscriber buyer used SP — "You saved $X" |
+| | TRD-TC-H03 | Subscriber seller on Accept SP listing — SP pending notice |
+| | TRD-TC-H04 | Subscriber seller on Cash Only listing — upsell |
+| | TRD-TC-H05 | Subscription lifecycle — trial / paid / cancel regression |
+| **I — Safety UX** | TRD-TC-I01 | Safe meetup card on in_progress trade |
+| | TRD-TC-I02 | Safe meetup card dismissible per trade |
+| | TRD-TC-I03 | In-chat safety banner persistent |
+| | TRD-TC-I04 | Pre-first-message safety modal once per listing |
+| | TRD-TC-I05 | Chat quick-reply chips on in_progress trade |
+| | TRD-TC-I06 | Liability disclaimer modal gates purchase (checkbox + Accept & Continue) |
+| | TRD-TC-I07 | Disclaimer modal Cancel path — no trade created |
+| | TRD-TC-I08 | Disclaimer modal ✕ close behaves like Cancel |
+| | TRD-TC-I09 | Disclaimer checkbox resets to unchecked on reopen |
+| | TRD-TC-I10 | Disclaimer modal loading state |
+| | TRD-TC-I11 | Disclaimer modal not shown for non-trade actions |
+| **J — Seller Cancel Consequences** | TRD-TC-J01 | Seller cancels in_progress trade → Level 1 |
+| | TRD-TC-J02 | 2nd post-acceptance cancel → Level 2 |
+| | TRD-TC-J03 | 3rd post-acceptance cancel → Level 3 |
+| | TRD-TC-J04 | Seller cancel button only on in_progress |
+| | TRD-TC-J05 | Seller cancel modal shows seller reasons only |
+| **K — Value Stack & Fees** | TRD-TC-K01 | Subscriber sees $0.99 fee + Sales Tax line in value stack |
+| | TRD-TC-K02 | Non-subscriber sees $2.99 fee + Sales Tax line in value stack |
+| | TRD-TC-K03 | SP discount row conditional on SP used |
+| | TRD-TC-K04 | Bundle checkout — fee charged per item (admin toggle OFF) |
+| | TRD-TC-K05 | Bundle checkout — one fee per bundle (admin toggle ON) |
+| | TRD-TC-K06 | Bundle timeline — fee display matches charge mode |
+| | TRD-TC-K07 | Admin partial refund — refund price only, keep fee |
+| | TRD-TC-K08 | Admin partial refund — tax ledger partially refunded |
+| | TRD-TC-K09 | Payments reconciliation page — charged vs refunded per trade |
+| | TRD-TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client |
+| | TRD-TC-K11 | Seller fee = 5% × cash portion (SP trade) |
+| **L — Bundle Flows** | TRD-TC-L01 | Bundle banner on trade detail |
+| | TRD-TC-L02 | Confirm All shortcut for bundle (buyer) |
+| | TRD-TC-L03 | Bundle offer rows in Offers tab (seller) |
+| | TRD-TC-L04 | Non-bundle offers render as single rows |
+| | TRD-TC-L05 | In-progress bundles section in Buying tab |
+| | TRD-TC-L06 | Bundle banner in Review Offer screen |
+| | TRD-TC-L07 | Accept All N Items in Review Offer screen |
+| | TRD-TC-L08 | Individual accept/decline alongside bundle siblings |
+| | **TRD-TC-L09** | **Bundle card in Your Offers (buyer)** |
+| | TRD-TC-L10 | Bundle cancel prompt (buyer + seller) |
+| | TRD-TC-L11 | Bundle checkout skips items already in an active trade — buyer notified, flow continues |
+| **M — Cart (End User)** | TRD-TC-M01 | Add first item → active cart created |
+| | TRD-TC-M02 | Add second item from same seller |
+| | TRD-TC-M03 | Add item from different seller → choice modal |
+| | TRD-TC-M04 | Replace Cart option |
+| | TRD-TC-M05 | Cannot add own item to cart |
+| | TRD-TC-M06 | Cannot add unavailable / out-of-node item |
+| | TRD-TC-M07 | Duplicate item prevented in same cart |
+| | TRD-TC-M08 | Remove item from cart |
+| | TRD-TC-M09 | Clear cart |
+| | TRD-TC-M10 | Saved carts: max 3, LRU eviction, switch cart |
+| | TRD-TC-M11 | Minimum cart value warning + checkout blocked |
+| | TRD-TC-M12 | Max SP available shown per cart item (subscriber) |
+| | TRD-TC-M13 | Realtime: item becomes unavailable while in cart |
+| | TRD-TC-M14 | Favorites add / remove |
+| | TRD-TC-M15 | Favorites screen: availability + empty state |
+| | TRD-TC-M16 | Success toast appears and auto-dismisses on add-to-cart |
+| | TRD-TC-M17 | Cart badge increments in sync with toast |
+| | TRD-TC-M18 | Toast copy uses "Trade Basket" terminology |
+| | TRD-TC-M19 | Home dashboard Favorites quick-action tile navigates to Favorites |
+| | TRD-TC-M20 | Discover header heart icon navigates to Favorites |
+| **N — Cart (Admin)** | TRD-TC-N01 | Admin sets minimum cart value → reflects in app |
+| | TRD-TC-N02 | Admin minimum cart value validation |
+| | TRD-TC-N03 | Admin updates Minimum Listing Price on Config → Fees tab |
+| | TRD-TC-N04 | Seller cannot publish single-item listing below threshold |
+| | TRD-TC-N05 | Bulk: below-threshold items flagged, valid items publish |
+| | TRD-TC-N06 | Existing listing auto-paused when threshold raised above price |
+| | TRD-TC-N07 | Seller raises price to meet threshold → listing repurchasable |
+| | TRD-TC-N08 | Regression: single-item + bundle checkout at/above threshold |
+| | TRD-TC-N09 | Price adjustment modal displays correct copy and button text (single-item) |
+| | TRD-TC-N10 | "Update Price" dismisses modal and auto-scrolls + auto-focuses price field (single-item) |
+| | TRD-TC-N11 | Price adjustment modal in edit listing flow (single-item edit) |
+| | TRD-TC-N12 | Bulk listing: per-item chip shows dynamic threshold in missing-required warning |
+| | TRD-TC-N13 | Bulk listing: publish failure shows clear error message for below-threshold items |
+| | TRD-TC-N14 | Regression: minimum-price validation still blocks publish in single-item and bulk flows |
+| **O — Tax (End User)** | TRD-TC-O01 | Sales tax shown in checkout/cart breakdown (0 SP) |
+| | TRD-TC-O02 | Tax base stays on full item price as SP slider moves (offer + checkout) |
+| | TRD-TC-O03 | Tax $0 when globally disabled |
+| | TRD-TC-O04 | Tax $0 when node tax disabled |
+| | TRD-TC-O05 | Tax-exempt user sees Tax Free badge |
+| | TRD-TC-O06 | Transaction history shows tax details |
+| | TRD-TC-O07 | Refund shows proportional tax refunded |
+| | TRD-TC-O08 | Tax shown on trade timeline/detail for buyer only |
+| **O-1 — Tax Categories (Admin Config)** | TRD-TC-O1-C01 | Admin creates a new tax rule for general_tangible_goods |
+| | TRD-TC-O1-C02 | Admin creates second rule for same category — overlap blocked |
+| | TRD-TC-O1-C03 | Admin edits existing rule — new version created |
+| | TRD-TC-O1-C04 | Admin deactivates a rule |
+| | TRD-TC-O1-C05 | Existing listings backfill to general_tangible_goods |
+| | TRD-TC-O1-C06 | New single-listing creation receives default tax category |
+| | TRD-TC-O1-C07 | New bulk-listing creation receives default tax category |
+| | TRD-TC-O1-C08 | Admin changes individual listing's tax category |
+| | TRD-TC-O1-C09 | Tax-exempt category configuration |
+| | TRD-TC-O1-C10 | Price-threshold category configuration (clothing_footwear) |
+| | TRD-TC-O1-C11 | Fee-in-tax-base toggle on and off |
+| | TRD-TC-O1-C12 | Unauthorized user cannot view or edit tax configuration |
+| | TRD-TC-O1-C13 | Audit trail shows actor, timestamp, before/after values |
+| | TRD-TC-O1-C14 | Admin views and edits category→tax-category mapping |
+| | TRD-TC-O1-C15 | Category mapping change affects new listings immediately |
+| | TRD-TC-O1-C16 | Admin cannot map to non-existent or inactive tax category |
+| | TRD-TC-O1-C17 | Admin filters tax rules by active / inactive status |
+| **O-2 — Tax Status Lifecycle** | TRD-TC-O2-C01 | Single taxable item, no SP — offer is quoted/authorized, not collected |
+| | TRD-TC-O2-C02 | Bundle with taxable, exempt, and threshold items — line-level tax correct |
+| | TRD-TC-O2-C03 | Platform-fee tax toggle off and on — tax base changes by fee amount |
+| | TRD-TC-O2-C04 | SP used — taxable base unchanged, card auth reflects SP tender |
+| | TRD-TC-O2-C05 | Seller accepts — tax remains quoted/authorized, not collected |
+| | TRD-TC-O2-C06 | Buyer cancels while Awaiting Seller — PI canceled, tax voided, SP released once |
+| | TRD-TC-O2-C07 | Seller declines and offer expiry — PI canceled, tax voided |
+| | TRD-TC-O2-C08 | Buyer completes successfully — capture succeeds, tax collected |
+| | TRD-TC-O2-C09 | Auto-complete after 48 hours — capture succeeds, tax collected |
+| | TRD-TC-O2-C10 | Capture failure — no payout, no collected tax, recovery state visible |
+| | TRD-TC-O2-C11 | Duplicate webhook/retry — no duplicate tax collection, payout, or SP event |
+| | TRD-TC-O2-C12 | Historical/backfill records — clearly classified, never falsely marked as collected |
+| **O-3 — Tax Refund & Reconciliation** | TRD-TC-O3-C01 | Buyer wording: "Payment authorized" before capture (Awaiting Seller) |
+| | TRD-TC-O3-C02 | Buyer wording: "Payment authorized" after seller accept (In Progress) |
+| | TRD-TC-O3-C03 | Buyer wording: "Paid" after successful capture (Completed) |
+| | TRD-TC-O3-C04 | Capture failure shows "payment could not be completed" (no completed state) |
+| | TRD-TC-O3-C05 | Admin dispute route: full refund with Stripe + tax reversal (captured trade) |
+| | TRD-TC-O3-C06 | Duplicate refund/retry is idempotent |
+| | TRD-TC-O3-C07 | Admin dispute route: uncaptured PI is cancelled (not refunded) |
+| | TRD-TC-O3-C08 | Admin dispute route: Stripe refund failure stays unresolved |
+| | TRD-TC-O3-C09 | Stripe refund pending → tax pending_refund |
+| | TRD-TC-O3-C10 | Report: newly submitted offer → Pending/Authorized Tax |
+| | TRD-TC-O3-C11 | Report: captured trade → Tax Collected using capture timestamp |
+| | TRD-TC-O3-C12 | Report: cancelled/declined/expired → Voided/Expired Tax, not collected |
+| | TRD-TC-O3-C13 | Report: refunded trade → Tax Refunded, Net adjusts |
+| | TRD-TC-O3-C14 | Report: CSV totals match on-screen totals |
+| **P — Tax (Admin)** | TRD-TC-P01 | Node tax rate config (view/edit, validation) |
+| | TRD-TC-P02 | Bulk tax update across nodes |
+| | TRD-TC-P03 | Tax rate change history / audit |
+| | TRD-TC-P04 | Global tax settings toggle + warning banner |
+| | TRD-TC-P05 | Tax reporting dashboard: summary + date presets |
+| | TRD-TC-P06 | Jurisdiction breakdown + 7 report types |
+| | TRD-TC-P07 | CSV export for filing |
+| | TRD-TC-P08 | Admin changes rate → new transactions use new rate |
+| **Q — Reviews & Ratings** | TRD-TC-Q01 | Review prompt ([Rate Seller] / [Rate Buyer]) on completion |
+| | TRD-TC-Q02 | Star rating required — submit blocked without rating |
+| | TRD-TC-Q03 | Comment optional, max 500 characters |
+| | TRD-TC-Q04 | Anonymous review hides reviewer identity |
+| | TRD-TC-Q05 | Skip review — no blocking, no re-prompt for same trade |
+| | TRD-TC-Q06 | Mutual review status shown on completed trade detail |
+| | TRD-TC-Q07 | Completed reviews visible on counterparty's profile |
+| | TRD-TC-Q08 | Average rating and total review count on user profile |
+| | TRD-TC-Q09 | Rating breakdown (5 → 1 stars) on profile |
+| | TRD-TC-Q10 | Edit review succeeds within 24h window |
+| | TRD-TC-Q11 | Edit blocked after 24h window |
+| | TRD-TC-Q12 | One review per trade — duplicate submission blocked |
+| | TRD-TC-Q13 | 30-day same-counterparty cooldown enforced |
+| | TRD-TC-Q14 | 24h post-completion cooldown — review locked |
+| | TRD-TC-Q15 | Flag a review (select reason) |
+| | TRD-TC-Q16 | Auto-hide review after 3+ reports |
+| | TRD-TC-Q17 | Cannot flag own review |
+| | TRD-TC-Q18 | Admin moderation queue — reported reviews with counts |
+| | TRD-TC-Q19 | Admin approves (unhides) a reported review |
+| | TRD-TC-Q20 | Admin deletes a reported review |
+| **R — Refund & Cancellation State Machine** | TRD-TC-R01 | Buyer cancels pending trade → cancelled, auth voided, SP restored |
+| | TRD-TC-R02 | Seller declines pending offer → cancelled, SP restored |
+| | TRD-TC-R03 | Offer expiry → auto-cancel + competing offers cancelled |
+| | TRD-TC-R04 | Card declined at offer submission → no trade created |
+| | TRD-TC-R05 | Seller cancels in_progress → refund + consequence level |
+| | TRD-TC-R06 | Refund settlement breakdown (cash + proportional tax + fee) |
+| **T — Points Redemption (Bundle Checkout)** | TRD-TC-T01 | Points toggle appears only on eligible items; ineligible show "Not eligible" label |
+| | TRD-TC-T02 | Toggle ON applies correct amount (wallet + category cap both sufficient) |
+| | TRD-TC-T03 | Toggle ON applies partial amount with "balance limit" label when wallet insufficient |
+| | TRD-TC-T04 | Category cap limits applied points even when wallet covers more |
+| | TRD-TC-T05 | Toggle OFF restores balance for sequential allocation |
+| | TRD-TC-T06 | Running "Points remaining" counter updates accurately across multiple toggles |
+| | TRD-TC-T07 | Order Summary "Points Applied" line and cash total correct after multiple toggles |
+| | TRD-TC-T08 | Seller Review Offer shows per-item points breakdown |
+| | TRD-TC-T09 | Seller Review Offer shows "Total Payout" and "Buyer's Total Paid" correctly |
+| | TRD-TC-T10 | "Includes points redemption" tag on seller's offer list/inbox card |
+| | TRD-TC-T11 | Wallet ledger: buyer debited, seller credited + bonus on acceptance |
+| | TRD-TC-T12 | No ledger transaction on offer decline |
+| | TRD-TC-T13 | Regression: single-item (non-bundle) offer flow with SP still works |
+| | TRD-TC-T14 | Regression: bundle CTA, different-seller modal, "more from this seller" still functional |
+| | TRD-TC-R07 | SP reversal on refund (reserved/transferred returned) |
+| | TRD-TC-R08 | Seller payout withheld / cancelled on refund |
+| | TRD-TC-R09 | Admin dispute resolve → Refund (full settlement) |
+| | TRD-TC-R10 | Admin dispute resolve → Complete (no refund) |
+| | TRD-TC-R11 | Refund / cancellation notifications to both parties |
+| | TRD-TC-R12 | Refund idempotency — no double refund |
+| | TRD-TC-R13 | Cancelled / refunded trade status + timeline |
+| **S — Seller Group & Bundle Discovery** | TRD-TC-S01 | Different-seller modal uses generic copy (no seller name leak) |
+| | TRD-TC-S02 | "More from this seller" icon appears only when 2+ approved listings |
+| | TRD-TC-S03 | "More from this seller" icon hidden when seller has exactly 1 listing |
+| | TRD-TC-S04 | Tapping icon opens "More from this seller" page — no seller identity |
+| | TRD-TC-S05 | Add to Cart from filtered seller page populates cart correctly |
+| | TRD-TC-S06 | "Matches Your Cart" indicator on filtered seller page |
+| | TRD-TC-S07 | Bundle CTA appears on CartScreen with 2+ same-seller items |
+| | TRD-TC-S08 | Bundle CTA hidden with single item or empty cart |
+| | TRD-TC-S09 | Bundle CTA navigates to checkout in bundle mode |
+| | TRD-TC-S10 | Bundle checkout shows "Bundle Offer" banner |
+| | TRD-TC-S11 | Regression: Discover/search grid unchanged (no badges) |
+| | TRD-TC-S12 | Regression: single-item offer flow unchanged |
+| | TRD-TC-S13 | Regression: seller identity unlocks only post-acceptance |
+| | TRD-TC-S14 | More from seller — Item Detail CTA in standalone position (below seller card) |
+| | TRD-TC-S15 | More from seller — Item Detail CTA hidden at 0 additional listings |
+| | TRD-TC-S16 | More from seller — Item Detail CTA does not disrupt "Matches Your Cart" badge |
+| | TRD-TC-S17 | More from seller — Trade Basket banner shows correct remaining-item count |
+| | TRD-TC-S18 | More from seller — Trade Basket banner recalculates after adding item from filtered page |
+| | TRD-TC-S19 | More from seller — Trade Basket banner disappears when all seller's listings are in basket |
+| | TRD-TC-S20 | More from seller — Trade Basket banner dismissible via X button |
+| | TRD-TC-S21 | More from seller — Banner and filtered page never reveal seller identity |
+| | TRD-TC-S22 | Regression: Seller Info card elements unchanged |
+| | TRD-TC-S23 | Regression: Trade Basket subtotal/total/bundle CTA layout unaffected |
+| | TRD-TC-S24 | More from seller — Return-to-Cart navigation after adding item from filtered page |
+| **X — Navigation Consistency & Bottom Nav** | TRD-TC-X01 | Bottom nav renders identically on Home (Dashboard) |
+| | TRD-TC-X02 | Bottom nav renders identically on Discover |
+| | TRD-TC-X03 | Bottom nav renders identically on Trades |
+| | TRD-TC-X04 | Bottom nav renders identically on Trade Basket |
+| | TRD-TC-X05 | Bottom nav renders on Item Detail / Cart Checkout / Trade screens |
+| | TRD-TC-X06 | Bottom nav renders on Profile, Settings, Wallet, Subscriptions |
+| | TRD-TC-X07 | Cart badge shows item count from multiple entry points |
+| | TRD-TC-X08 | Cart badge count accuracy — add / remove / clear |
+| | TRD-TC-X09 | "Me" tab removed — Profile still accessible via Home avatar |
+| | TRD-TC-X10 | Sell FAB opens action sheet on every screen |
+| | TRD-TC-X16 | Flow Registry (nav) — flow-registry.md entries updated |
+| **U — Top Nav Header Pattern Consistency** | TRD-TC-U01 | Root/tab screens use pattern 1 (no back button, greeting/avatar/title, bell) |
+| | TRD-TC-U02 | Secondary/detail screens use pattern 2 (back button + title + bell) |
+| | TRD-TC-U03 | Notification bell behavior + badge accuracy |
+| | TRD-TC-U04 | Screens without ScreenLayout still have working headers |
+| | TRD-TC-U05 | Checkout/payment screens intentionally hide the bell |
+| **V — Copy Rename Verification** | TRD-TC-V01 | "Trade Basket" appears in bottom tab bar |
+| | TRD-TC-V02 | "Trade Basket" appears as screen title on Cart screen |
+| | TRD-TC-V03 | Empty state shows "trade basket" in copy |
+| | TRD-TC-V04 | "View Trade Basket" button on Item Detail screen |
+| | TRD-TC-V05 | "Add to Trade Basket" button on More from This Seller screen |
+| | TRD-TC-V06 | "In Trade Basket" status on More from This Seller items already in basket |
+| | TRD-TC-V07 | "Added to Trade Basket" alert on item add |
+| | TRD-TC-V08 | "Matches Your Trade Basket" badge on matching items |
+| | TRD-TC-V09 | Different-seller modal references "trade basket" |
+| | TRD-TC-V10 | Bundle CTA says "Make one offer" (no "Bundle" visible) |
+| | TRD-TC-V11 | "Combined Offer" banner on checkout (no "Bundle" visible) |
+| | TRD-TC-V12 | Bundle Builder screen title shows "Build Offer" (no "Bundle" visible) |
+| | TRD-TC-V13 | Favorites "Added to Trade Basket" alert copy |
+| | TRD-TC-V14 | Functional behavior unchanged (adding items, submitting offers) |
+| **W — Admin Bundle Trade Views** | TRD-TC-W01 | Trades page has "Single Trades" and "Bundle Trades" tabs |
+| | TRD-TC-W02 | Single Trades tab shows only non-bundle trades |
+| | TRD-TC-W03 | Bundle Trades tab groups trades by bundle_id |
+| | TRD-TC-W04 | Bundle row shows item count, totals, buyer/seller, statuses |
+| | TRD-TC-W05 | Clicking a bundle row navigates to bundle detail page |
+| | TRD-TC-W06 | Bundle detail page lists all trades in the bundle |
+| | TRD-TC-W07 | Bundle detail page shows monetary breakdown |
+| | TRD-TC-W08 | Each trade row links to individual trade detail |
+| | TRD-TC-W09 | Bundle detail page has "Force Cancel Entire Bundle" action |
+| | TRD-TC-W10 | Force Cancel succeeds for all trades in the bundle |
+| | TRD-TC-W11 | Status filter works in Bundle Trades view |
+| | TRD-TC-W12 | Tab toggle resets filters when switching views |
+| **R2 — New Implementation** | TRD-TC-D06 | Pickup window drives the auto-complete deadline (R2 — configurable) |
+| | TRD-TC-G05 | Pickup-window reminders to buyer (R2) |
+| **N2 — Idempotency & Audit (Cross-Cutting)** | TRD-TC-N2-C01 | Retried offer submission → exactly 1 PaymentIntent / 1 trade / 1 SP reservation / 1 audit row |
+| | TRD-TC-N2-C02 | Retried payout trigger → exactly 1 seller_payouts row / 1 Stripe transfer |
+| | TRD-TC-N2-C03 | Retried refund / duplicate refund webhook → exactly 1 refund, no double refund |
+| | TRD-TC-N2-C04 | Re-run SP release processor → no double-credit |
+| | TRD-TC-N2-C05 | Retried SP debit/credit on cancel → no double mutation |
+| | TRD-TC-N2-C06 | Admin SP adjustment double-click → single credit |
+| | TRD-TC-N2-C07 | Audit completeness — every payment/SP/fee/tax transition logged |
+| | TRD-TC-N2-C08 | Audit log insert-only + RLS (service-role/admin read) |
+| | TRD-TC-N2-C09 | Duplicate idempotency key → prior result, no partial write |
+| | TRD-TC-N2-C10 | Reconciliation — payments vs trade_refunds vs financial_audit_log |
+| **Y — Trade List & Timeline** | TRD-TC-Y01 | Trade List summary filter chips |
+| | TRD-TC-Y02 | Trade List Load More history pagination |
+| | TRD-TC-Y03 | Trade List Message button on rows |
+| | TRD-TC-Y04 | Trade List "See all →" link |
+| | TRD-TC-Y05 | R15 — Request More Time (requester) |
+| | TRD-TC-Y06 | R15 — counterparty Accept |
+| | TRD-TC-Y07 | R15 — counterparty Decline |
+| | TRD-TC-Y08 | R15 — granted state |
+| | TRD-TC-Y09 | "What to do next" card + "Got it" toggle |
+
+---
+

@@ -1,0 +1,79 @@
+
+| Group | TC# | Description |
+|---|---|---|
+| **A — Settings Hub** | ACC-TC-A01 | Settings screen sections + rows render |
+| | ACC-TC-A02 | Sign Out confirmation |
+| | ACC-TC-A03 | Test Push Notification (rate limit / quiet hours / queued) |
+| | ACC-TC-A04 | Settings → legal & help links navigate |
+| | ACC-TC-A05 | "Manage Payment Methods" row navigates |
+| **B — Edit Profile** | ACC-TC-B01 | Edit profile fields load + save (optimistic) |
+| | ACC-TC-B02 | Email change requires re-verification |
+| | ACC-TC-B03 | Phone change → OTP verification modal |
+| | ACC-TC-B04 | Avatar upload |
+| | ACC-TC-B05 | Profile screen stats, badges, reviews, status badge |
+| | ACC-TC-B06 | Form validation (phone 10-digit, email format) |
+| | ACC-TC-B07 | "No Changes" alert |
+| | ACC-TC-B08 | Waitlist prompt (unreachable from Edit Profile — flag) |
+| | ACC-TC-B09 | "Already verified" phone path |
+| | ACC-TC-B10 | Locked-field "cannot be changed" alerts |
+| **C — Linked Accounts** | ACC-TC-C01 | Linked accounts list (email readonly, password, social) |
+| | ACC-TC-C02 | Link a social provider (password re-auth gate) |
+| | ACC-TC-C03 | Unlink provider (confirmation + last-method guard) |
+| | ACC-TC-C04 | Email mismatch on link blocked |
+| **D — Notification Preferences** | ACC-TC-D01 | Five categories × three channel toggles |
+| | ACC-TC-D02 | Optimistic toggle reverts on failure |
+| | ACC-TC-D03 | Quiet hours toggle + time validation |
+| | ACC-TC-D04 | Empty state → Initialize Settings |
+| **E — Delete Account (COPPA)** | ACC-TC-E01 | Delete account consequences + password gate |
+| | ACC-TC-E02 | Wrong password blocked |
+| | ACC-TC-E03 | Two-step confirmation → deletion + logout |
+| **F — Suspended / Unsubscribe / Offline** | ACC-TC-F01 | Suspended account screen (logout only) |
+| | ACC-TC-F02 | Unsubscribe via email token (success/error) |
+| | ACC-TC-F03 | Offline screen + Try Again |
+| | ACC-TC-F04 | Suspended account — Log Out tap |
+| **G — Home Dashboard** | ACC-TC-G01 | Greeting + subscription badge + SP balance |
+| | ACC-TC-G02 | Priority banners (grace > payment fail > trial > draft) |
+| | ACC-TC-G03 | Quick action tiles route correctly |
+| | ACC-TC-G04 | ID verification CTA banner (dismissible) |
+| | ACC-TC-G05 | Recommendations + recent trade card |
+| | ACC-TC-G06 | Pull-to-refresh reloads dashboard |
+| | ACC-TC-G07 | "Show more actions" toggle |
+| | ACC-TC-G08 | Free-user "Unlock Swap Points" strip |
+| | ACC-TC-G09 | "No session found" state |
+| | ACC-TC-G10 | Empty-trade state |
+| | ACC-TC-G11 | "View Timeline" nav |
+| | ACC-TC-G12 | "See All" → Discover nav |
+| | ACC-TC-G13 | Subscription-card Upgrade button |
+| **H — Help & Support Menu** | ACC-TC-H01 | Help & Support menu (3 cards) routes |
+| | ACC-TC-H02 | FAQ list — search + category filter |
+| | ACC-TC-H03 | FAQ fallback when offline |
+| | ACC-TC-H04 | FAQ detail — helpful vote (Yes/No) |
+| | ACC-TC-H05 | Contact Support form (auth gate + validation) |
+| **I — Education & SP Calculator** | ACC-TC-I01 | Education Help screen sections (accordion + deep link) |
+| | ACC-TC-I02 | SP Calculator (free mode) sell/buy outputs |
+| | ACC-TC-I03 | SP Calculator bonus category badge |
+| | ACC-TC-I04 | SP Calculator validation (price range) |
+| | ACC-TC-I05 | Education analytics events fire |
+| **J — Legal Screens** | ACC-TC-J01 | Terms of Service view + last updated |
+| | ACC-TC-J02 | TOS acceptance flow (requireAcceptance) |
+| | ACC-TC-J03 | Privacy Policy view + acceptance |
+| | ACC-TC-J04 | Liability Disclaimer view (read-only + retry) |
+| | ACC-TC-J05 | Policy versioning — re-acceptance on new version |
+| | ACC-TC-J06 | Signup implies TOS + Privacy agreement (no mandatory dialog) |
+| | ACC-TC-J07 | Legal screen unavailable state (no published policy) |
+| | ACC-TC-J08 | Legal screen load failure — error + Retry |
+| | ACC-TC-J09 | Very long policy content renders + scrolls smoothly |
+| | ACC-TC-J10 | Legal screens render consistently on iOS and Android |
+| | ACC-TC-J11 | Legal screen loads < 2s and scrolls without lag |
+| | ACC-TC-J12 | Liability Disclaimer unavailable state |
+| **K — Privacy & Security / MFA** | ACC-TC-K01 | MFA factors list + enrollment entry points |
+| | ACC-TC-K02 | Enroll and verify an authenticator factor |
+| | ACC-TC-K03 | Protected action prompts MFA challenge + invalid code handling |
+| | ACC-TC-K04 | Recovery path and remove verified factor |
+| **L — Error Recovery & Crash Reporting** | ACC-TC-L01 | Render-time error shows fallback instead of red/white screen |
+| | ACC-TC-L02 | Try Again recovers after transient error |
+| | ACC-TC-L03 | Persistent error stays contained to fallback |
+| | ACC-TC-L04 | Error reporting is safe with and without telemetry |
+
+---
+
