@@ -25,6 +25,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
 - BP-58 Bottom-anchored UI on pill-nav screens — scroll content `paddingBottom: 100`, fixed bottom bars `bottom: 120`, in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: (a) typecheck, (b) grep for a bare prop-like line immediately followed by a JSX child (text-children corruption), (c) Prettier and confirm it doesn't rewrite the region unexpectedly.
+- BP-61 Accessibility props in `<Text>` — never paste `accessible`/`accessibilityRole`/`accessibilityLabel` as literal children; they must be attributes on the opening tag (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole`) whenever writing or reviewing `<Text>` components.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -308,3 +309,17 @@ Rules:
 Detection checklist:
 - `grep -rn -A1 -E '^[ ]*accessible$' --include="*.tsx" src` → any match whose next line starts with `<` or `</` is a JSX-text-children corruption (should never happen for a real prop).
 - `yarn typecheck` passing is NOT proof of correctness for scripted JSX edits.
+
+## BP-61: Accessibility Props Must Be Attributes on the Opening Tag — Never Literal `<Text>` Children
+
+Problem: A recurring copy-paste mistake (confirmed 3 times: `WelcomeScreen`, `ResumeDraftBanner.tsx`, `CartScreen.tsx`) pastes accessibility props (`accessible`, `accessibilityRole="..."`, `accessibilityLabel="..."`) as literal string content inside a `<Text>` component's children instead of applying them as real JSX attributes on the opening tag. Users/QA then see a junk rendered line (e.g. `accessible accessibilityRole="button" You have 1 unfinished listing`) and the element loses its accessibility semantics entirely. Typecheck does NOT catch it — the pasted text is syntactically valid JSX children.
+
+Rules:
+1. Whenever writing or touching a `<Text>` component (not just during a dedicated sweep task), do a quick sanity check that any accessibility props are attributes on the opening tag (`<Text accessible accessibilityRole="..." accessibilityLabel="...">`), not part of the rendered children.
+2. When reviewing a diff that touches `<Text>` components, grep for the pattern as a matter of course — `rg -n "accessible accessibilityRole=" p2p-kids-marketplace/src` → any hit that appears inside JSX children (not on an opening tag) is this bug class. Also try variants: `accessible accessibilityHint`, `accessibilityRole="..." accessibilityLabel`, or a bare `accessible` line inside a `<Text>`.
+3. If a `<Text>`'s children contain prop-like keywords (`accessible`, `accessibilityRole`, `accessibilityLabel`, `accessibilityHint`, `onPress`), treat it as a suspected paste-corruption until confirmed otherwise.
+
+Detection checklist:
+- `rg -n "accessible accessibilityRole=" p2p-kids-marketplace/src` → on an opening tag = fine (real attribute); inside `<Text>` children = BUG.
+- A user-visible line like `accessible accessibilityRole="button" ...` in the rendered UI is the on-device symptom.
+- Genuine attribute usage (e.g. `ReviewCard.tsx` / `IssueReportModal.tsx` TouchableOpacity props) is NOT this bug — do not "fix" those.

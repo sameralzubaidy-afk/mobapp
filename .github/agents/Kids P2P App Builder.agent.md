@@ -767,6 +767,11 @@ Issue: "A CTA / Save / Submit button (or a sticky bottom bar) is hidden behind t
 ✅ Check: Scroll content uses `paddingBottom: 100`; fixed bottom bars use `bottom: 120`; in-flow bars above a fixed bar use `marginBottom: 200` (BP-58)
 See also: BP-58 (bottom-anchored UI must clear the floating pill nav — the pill top sits ~110pt from the screen bottom)
 
+Issue: "A screen renders a visible junk line like `accessible accessibilityRole="button" ...` inside a `<Text>` (accessibility props pasted as literal children)"
+
+✅ Check: Every `<Text>` carrying `accessible`/`accessibilityRole`/`accessibilityLabel` has them as attributes on the opening tag, never as rendered children — grep `accessible accessibilityRole` when touching or reviewing `<Text>` components (BP-61)
+See also: BP-61 (accessibility props must be attributes, not literal `<Text>` children — recurred on `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`)
+
 Issue: "A mutation appears to succeed in the UI but the database wasn't actually changed"
 
 ✅ Check: The caller checked the `{success}` result of the service call instead of ignoring it (BP-35)
@@ -1215,7 +1220,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-60)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-61)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1277,6 +1282,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-58 Bottom-anchored UI on pill-nav screens — scroll content needs `paddingBottom: 100`, fixed bottom bars `bottom: 120`, and in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: typecheck + grep for bare prop-lines followed by a JSX child + Prettier (a formatter rewriting the region signals structural problems).
 - BP-60 Test isolation — a `renderScreen()`-style helper that accepts or defaults to a shared/mutable route/params object leaks state between tests (e.g. an earlier test's `draftId` silently carries into a later test and disables draft-auto-save); always pass explicit, freshly-constructed params per test, and check for this pattern before blaming a flaky-looking failure on the feature code.
+- BP-61 Accessibility-prop text as literal `<Text>` children — accessibility props must be JSX attributes on the opening tag, never rendered children (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole` inside JSX children) whenever writing or reviewing `<Text>` components.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1390,6 +1396,8 @@ BP-56: Discover/Design Code Must Use the Canonical Pass-It-Up Tokens (never lega
 BP-57: Behavior-Fix Test Drift — a fix that makes an auto-verify/auto-submit path actually work breaks tests written around the old broken behavior (manual-fallback reliance); audit & update those tests — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-58: Bottom-Anchored UI Must Clear the Floating Pill Nav (PersistentTabBar) — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-61: Accessibility Props Must Be Attributes on the Opening Tag, Never Literal `<Text>` Children — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-23: Realtime Callback Must Mirror Mount-Time Side Effects — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
