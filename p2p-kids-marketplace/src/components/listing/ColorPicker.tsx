@@ -64,8 +64,11 @@ export function ColorPicker({
               style={[styles.swatch, isSelected && styles.swatchSelected]}
               onPress={() => handleToggleColor(color.id)}
               accessibilityLabel={`${color.label} color`}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isSelected }}
+              // BP-53: accessibilityRole="checkbox" does not register in the iOS
+              // AX tree on RN 0.81 — use "button" + selected state, mirroring the
+              // other selectable pills (AgeGroupSelector / GenderSelector).
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
               testID={`color-${color.id}`}
             >
               <View

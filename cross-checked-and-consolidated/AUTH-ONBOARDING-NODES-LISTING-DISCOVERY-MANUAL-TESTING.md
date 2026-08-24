@@ -162,7 +162,7 @@
 - For social login: Google/Facebook/Apple providers are enabled in the auth provider settings and a test provider account is available.
 - For phone verification in DEV: the SMS bypass code `123456` is available, or a real phone number that can receive SMS.
 - For listing/discovery: a subscriber test account and a free test account both exist and have completed onboarding in an active node.
-- For listing media tests: sample JPG/PNG/WebP images under 5MB, one image over 5MB, and one unsupported file type are available on the test device.
+- For listing media tests: sample JPG/PNG/WebP images under 10MB, one image over 10MB, and one unsupported file type are available on the test device. (Size cap is 10MB — see AUTH-TC-J12; matches `photoService.MAX_FILE_SIZE_MB`.)
 - For category bonus tests: at least one active category with `sp_earning_multiplier > 1.10` exists so the bonus badge and category-specific SP preview can be verified.
 
 ## Accounts for testing
@@ -1197,13 +1197,13 @@ flagged as deprecation-review candidates (see `docs/DECISIONS.md`).
 
 **Steps:**
 1. Open **New Item** and add three valid photos (mix of JPG/PNG/WebP if available).
-2. Attempt to add an image larger than 5MB.
+2. Attempt to add an image larger than 10MB.
 3. Attempt to add an unsupported file type.
 
 **Expected Result:**
 - Valid images upload successfully, appear in the photo strip, and keep the listing form unlocked.
 - The seller can keep adding photos until the 10-photo cap is reached.
-- A file larger than 5MB is rejected with a clear size error.
+- A file larger than 10MB is rejected with a clear size error.
 - An unsupported format is rejected with a clear type error and is not added to the listing.
 
 ### AUTH-TC-J13 · Listing photos — remove, reorder, replace, and persist after resume

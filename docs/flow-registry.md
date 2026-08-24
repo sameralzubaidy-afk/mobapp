@@ -509,6 +509,20 @@ This file is the canonical registry of end-to-end flows and their required regre
       - All 6 affected Jest suites — 102/102 PASS
       - Full suite `yarn test` — 3414 passed, 0 failed (one TradeOfferScreen flake observed once, passes in isolation; unrelated to these files)
     - Regression: Tier 0 (typecheck/lint/unit). No DB/API/Edge Function changes.
+  - **GROUP-J-DEVFIXTURE-AX-DOCDRIFT (2026-08-24):** Group J remaining findings — dev fixture for `uploadedPhotoUrls` (unblocks AI/draft QA), ColorPicker AX role fix (BP-53), and photo-size guide reconciliation (10MB confirmed intended)
+    - Scope:
+      - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` — new `__DEV__`-gated `dev-add-test-photo-uploaded` fixture (sibling of `dev-add-test-photo`): injects a bundled photo AND records a mock `https://dev-fixture.local/...` URL (no network upload), so the `uploadedPhotoUrls`-gated AI-analysis + draft-auto-save code paths execute on-device (AUTH-TC-J02/J11)
+      - `p2p-kids-marketplace/src/components/listing/ColorPicker.tsx` — swatch AX role `checkbox` → `button` + `accessibilityState={{ selected }}` (BP-53: `checkbox` doesn't register on iOS AX RN 0.81; mirrors AgeGroupSelector/GenderSelector)
+      - `cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` — photo size cap text 5MB → 10MB (J12 doc drift; 10MB confirmed intended — matches `photoService.MAX_FILE_SIZE_MB` + `docx/BULK-LISTING-REQUIREMENTS.md` L746; the 5MB text lives only in legacy `design-system.md`/`screen-flow-mapping.md`)
+      - Tests: `ItemCreateScreen.test.tsx` (new fixture test), `ColorPicker.test.tsx` (AX assertions updated)
+    - Behavior:
+      - `dev-add-test-photo-uploaded` sets `uploadedPhotoUrls` + seeds the id→URL ref map so `useAIAnalysis` fires (analyzing → error/retry path) and `useItemDraft` auto-save creates a draft row carrying the mock URL
+      - ColorPicker swatches now surface in the iOS AX tree for QA instrumentation (J04 locator gap)
+    - Validation:
+      - `yarn typecheck` (PASS) + `npx eslint <4 changed files>` (0 errors; 12 pre-existing no-console warnings untouched)
+      - Affected + indirect suites: ItemCreateScreen 39/39, ColorPicker 15/15, listing components + Bulk + EditListing 12 suites / 187 tests — all PASS
+      - Full suite `yarn test` — 3415 passed, 0 failed (485 RUN_SUPABASE_E2E-gated skips, expected)
+    - Regression: Tier 0 (typecheck/lint/unit). __DEV__-gated fixtures + AX props + doc text only; no DB/API/Edge Function changes.
   - **PHONE-VERIFICATION-GATE (2026-08-19):** Hoisted the client phone-verification gate out of dead code + added a server-side items INSERT backstop + fixed the tab-bar occlusion of the Publish button on ItemCreate
     - Scope:
       - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx`

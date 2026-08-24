@@ -214,6 +214,49 @@ describe('ItemCreateScreen', () => {
       expect(getByTestId('manual-price-input').props.value).toBe('20');
       expect(getByTestId('condition-new').props.accessibilityState?.checked).toBe(true);
     });
+
+    it('dev-add-test-photo-uploaded records a mock URL so AI + draft paths fire', async () => {
+      const saveMock = jest.fn();
+      mockUseItemDraft.mockReturnValue({
+        draft: null,
+        save: saveMock,
+        saveNow: jest.fn(),
+        discard: jest.fn(),
+        isSaving: false,
+        saveError: null,
+      } as any);
+
+      const { getByTestId } = renderScreen();
+
+      // The fixture must be exposed for automation to reach it.
+      expect(getByTestId('dev-add-test-photo-uploaded')).toBeTruthy();
+
+      fireEvent.press(getByTestId('dev-add-test-photo-uploaded'));
+
+      // It adds a photo so the below-fold form renders.
+      await waitFor(() => {
+        expect(getByTestId('title-input')).toBeTruthy();
+      });
+
+      // AI path fires — useAIAnalysis receives the mock uploaded URL list
+      // (unlike `dev-add-test-photo`, which keeps the URL list empty).
+      await waitFor(() => {
+        expect(mockUseAIAnalysis).toHaveBeenCalled();
+      });
+      const latestAiCall =
+        mockUseAIAnalysis.mock.calls[mockUseAIAnalysis.mock.calls.length - 1];
+      expect(latestAiCall[0].length).toBeGreaterThan(0);
+      expect(latestAiCall[0][0]).toMatch(/^https:\/\/dev-fixture\.local\//);
+
+      // Draft path fires — auto-save creates a draft row carrying the mock URL.
+      await waitFor(() => {
+        expect(saveMock).toHaveBeenCalled();
+      });
+      const draftData = saveMock.mock.calls[0][0] as DraftData;
+      expect(draftData.photo_urls).toEqual([
+        expect.stringMatching(/^https:\/\/dev-fixture\.local\//),
+      ]);
+    });
   });
 
   describe('State Machine: IDLE → ADDING_PHOTOS', () => {

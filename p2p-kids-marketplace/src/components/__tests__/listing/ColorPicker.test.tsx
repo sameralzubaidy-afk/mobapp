@@ -145,11 +145,11 @@ describe('ColorPicker', () => {
   });
 
   describe('Accessibility', () => {
-    it('has checkbox role for color swatches', () => {
+    it('has button role for color swatches', () => {
       const { getByTestId } = render(<ColorPicker selectedColors={[]} onChange={mockOnChange} />);
 
       const redSwatch = getByTestId('color-red');
-      expect(redSwatch.props.accessibilityRole).toBe('checkbox');
+      expect(redSwatch.props.accessibilityRole).toBe('button');
     });
 
     it('has accessible labels for colors', () => {
@@ -162,16 +162,16 @@ describe('ColorPicker', () => {
       expect(getByLabelText('Multicolor color')).toBeTruthy();
     });
 
-    it('has accessible state for selected colors', () => {
+    it('has accessible selected state for selected colors', () => {
       const { getByTestId } = render(
         <ColorPicker selectedColors={['red']} onChange={mockOnChange} />
       );
 
       const redSwatch = getByTestId('color-red');
-      expect(redSwatch.props.accessibilityState).toEqual({ checked: true });
+      expect(redSwatch.props.accessibilityState).toEqual({ selected: true });
 
       const blueSwatch = getByTestId('color-blue');
-      expect(blueSwatch.props.accessibilityState).toEqual({ checked: false });
+      expect(blueSwatch.props.accessibilityState).toEqual({ selected: false });
     });
   });
 

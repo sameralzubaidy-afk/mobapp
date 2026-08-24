@@ -673,7 +673,9 @@ export default function ItemCreateScreen() {
   // DEV-ONLY fixture: inject a bundled placeholder photo without the native
   // image picker so QA automation can reach the below-fold form fields (the
   // form only renders after photos.length > 0). Gated by __DEV__ — never in
-  // release builds. Does NOT set uploadedPhotoUrls, so AI analysis stays idle.
+  // release builds. Does NOT set uploadedPhotoUrls, so AI analysis stays idle
+  // and no draft is created — use `dev-add-test-photo-uploaded` below when the
+  // AI-analysis / draft-auto-save code paths need to be exercised on-device.
   const handleAddDevTestPhoto = useCallback(() => {
     const source = Image.resolveAssetSource(require('../../assets/adaptive-icon.png'));
     const uri = source?.uri;
@@ -685,6 +687,41 @@ export default function ItemCreateScreen() {
       ...prev,
       { id: `dev-photo-${Date.now()}`, uri, width: 1024, height: 1024, mimeType: 'image/png' },
     ]);
+    dispatch({ type: 'PHOTOS_ADDED' });
+  }, []);
+
+  // DEV-ONLY fixture (sibling of `dev-add-test-photo`): inject a bundled photo
+  // AND record a mock uploaded URL for it — WITHOUT doing any network upload —
+  // so the `uploadedPhotoUrls`-gated code paths actually execute on-device:
+  // `useAIAnalysis` triggers on the non-empty URL list (analyzing overlay → AI
+  // card → error/retry path) and `useItemDraft` auto-save creates a draft row
+  // (photo_urls derived from the id→URL map, same bookkeeping `uploadPhotos`
+  // performs). Gated by __DEV__ — never in release builds. The mock URL is a
+  // placeholder (`https://dev-fixture.local/...`) that never resolves; it exists
+  // only to satisfy the non-empty checks, not to render a real image.
+  const handleAddDevUploadedPhoto = useCallback(() => {
+    const source = Image.resolveAssetSource(require('../../assets/adaptive-icon.png'));
+    const uri = source?.uri;
+    if (!uri) {
+      console.warn('[ItemCreateScreen] Dev uploaded photo: bundled asset unresolved');
+      return;
+    }
+    const photoId = `dev-uploaded-photo-${Date.now()}`;
+    const mockUrl = `https://dev-fixture.local/item-photos/${photoId}.png`;
+
+    setPhotos((prev) => [
+      ...prev,
+      { id: photoId, uri, width: 1024, height: 1024, mimeType: 'image/png' },
+    ]);
+    setUploadedPhotoUrls((prev) => [...prev, mockUrl]);
+
+    // Record the URL against the photo id so the draft's photo_urls derive from
+    // the CURRENT on-screen order (reorder/remove safe), exactly like uploadPhotos.
+    const nextMap = new Map(photoUrlByPhotoIdRef.current);
+    nextMap.set(photoId, mockUrl);
+    photoUrlByPhotoIdRef.current = nextMap;
+    setPhotoUrlMapVersion((v) => v + 1);
+
     dispatch({ type: 'PHOTOS_ADDED' });
   }, []);
 
@@ -1092,6 +1129,23 @@ export default function ItemCreateScreen() {
             testID="dev-add-test-photo"
           >
             <Text style={styles.devTestPhotoButtonText}>Dev: Add Test Photo</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* DEV-ONLY: sibling of `dev-add-test-photo` that ALSO records a mock
+            uploaded URL (no network upload), so the AI-analysis and draft-auto-save
+            code paths execute for on-device QA (AUTH-TC-J02/J11). Never rendered
+            in release builds (__DEV__ false). */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.devTestPhotoButton}
+            onPress={handleAddDevUploadedPhoto}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Add uploaded test photo with mock URL (dev only)"
+            testID="dev-add-test-photo-uploaded"
+          >
+            <Text style={styles.devTestPhotoButtonText}>Dev: Add Uploaded Photo (AI/Draft)</Text>
           </TouchableOpacity>
         )}
 
