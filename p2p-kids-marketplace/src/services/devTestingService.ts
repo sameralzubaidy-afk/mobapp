@@ -623,6 +623,90 @@ export async function getSimulatedAvatarUploadError(): Promise<Error | null> {
 }
 
 // ========================================
+// QA PROVIDER-OUTAGE SIMULATION (C05 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Canonical admin_config key that arms the AUTH-TC-C05 provider-outage simulation.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'google' | 'facebook' | 'apple' | 'all' | 'none'
+ *   - a provider name simulates THAT provider returning a 5xx
+ *   - 'all' simulates every provider being unavailable
+ */
+export const QA_PROVIDER_UNAVAILABLE_KEY = 'qa_provider_unavailable';
+
+/**
+ * QA staging toggle for AUTH-TC-C05 ("Provider unavailable → email fallback
+ * banner").
+ *
+ * Why this exists: `initiateSocialLogin` throws `ProviderUnavailableError` only
+ * when the provider genuinely 503s / times out — not reproducible on healthy
+ * staging without breaking a real provider. Instead, dev/test builds read an
+ * admin_config toggle BEFORE the real OAuth call and short-circuit with a
+ * FAITHFUL `ProviderUnavailableError` that flows through SocialLoginButtons'
+ * existing catch → inline "{Provider} is temporarily unavailable. Sign up with
+ * email instead?" banner, so the exact behavior the AUTH guide asserts for C05
+ * renders on demand, with zero infra impact.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return null and
+ *    the real OAuth initiation always runs. The simulation never alters server
+ *    state.
+ *  - admin_config is read via `fn_get_admin_config_values` (SECURITY DEFINER,
+ *    already GRANTed to anon) because direct SELECT on admin_config is RLS-locked
+ *    to authenticated/service_role — this screen is pre-login (anon).
+ *  - Toggle unset / read error / unknown value → null (no simulation).
+ *
+ * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
+ *   supabase.rpc('upsert_admin_config_setting', {
+ *     p_key: 'qa_provider_unavailable',
+ *     p_value: 'google' | 'facebook' | 'apple' | 'all' | 'none',
+ *     p_category: 'feature_flags',
+ *     p_data_type: 'string',
+ *     p_admin_id: <admin user id>,   // records the editor (BP-48)
+ *   })
+ */
+export async function getSimulatedProviderOutage(): Promise<string | null> {
+  if (!isDevEnvironment()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+      p_keys: [QA_PROVIDER_UNAVAILABLE_KEY],
+    });
+
+    if (error || !data) {
+      console.warn(
+        `[DevTestingService] ${QA_PROVIDER_UNAVAILABLE_KEY} read failed: ${error?.message ?? 'no data'}`
+      );
+      return null;
+    }
+
+    const rows = Array.isArray(data) ? data : [data];
+    const row = rows.find(
+      (r) => (r as { out_key?: string })?.out_key === QA_PROVIDER_UNAVAILABLE_KEY
+    );
+    const value = (row as { out_value?: string })?.out_value ?? 'none';
+
+    switch (value) {
+      case 'google':
+      case 'facebook':
+      case 'apple':
+      case 'all':
+        return value;
+      default:
+        return null;
+    }
+  } catch (err) {
+    console.warn(
+      `[DevTestingService] ${QA_PROVIDER_UNAVAILABLE_KEY} read error: ${(err as Error).message}`
+    );
+    return null;
+  }
+}
+
+// ========================================
 // UTILITY FUNCTIONS
 // ========================================
 
@@ -666,4 +750,7 @@ export default {
 
   // QA Auth Error Simulation (S03/S04)
   getSimulatedForgotPasswordError,
+
+  // QA Provider-Outage Simulation (C05)
+  getSimulatedProviderOutage,
 };

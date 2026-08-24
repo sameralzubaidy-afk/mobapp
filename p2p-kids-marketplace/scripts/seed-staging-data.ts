@@ -121,6 +121,16 @@ export const TEST_USERS = {
     name: 'QA No Profile User',
     phone: '5551234009',
   },
+  // C07: standing social-only (password-less) fixture — see seedSocialOnlyFixture().
+  // Deliberately NO password: can_set_password() returns true iff
+  // auth.users.encrypted_password IS NULL (AUTH-TC-C07 becomes testable).
+  socialOnlyUser: {
+    id: 'a1234567-0000-0000-0000-00000000000d', // Fixed UUID for C07 password-less account
+    email: 'qa-social-only@kidsmarketplace.test',
+    // No `password` key — the fixture must stay password-less.
+    name: 'QA Social Only User',
+    phone: '5551234010',
+  },
 };
 
 const TEST_CATEGORIES = [
@@ -212,7 +222,7 @@ const SELLER2_LISTINGS = [
     status: 'available',
   },
   {
-    title: 'Children\'s Dictionary',
+    title: "Children's Dictionary",
     description: 'Hardcover illustrated dictionary.',
     categoryName: 'Books',
     condition: 'good',
@@ -458,7 +468,7 @@ async function signupTestUser(
  */
 async function seedQaAuthFixtures(): Promise<void> {
   console.log('\n' + '═'.repeat(50));
-  console.log('🧪 QA AUTH FIXTURES (B08 soft-deleted, B09 no-profile)');
+  console.log('🧪 QA AUTH FIXTURES (B08 soft-deleted, B09 no-profile, C07 social-only)');
   console.log('═'.repeat(50));
 
   // ── B08: soft-deleted account ─────────────────────────────────────────────
@@ -486,20 +496,21 @@ async function seedQaAuthFixtures(): Promise<void> {
   if (existingAuth?.user) {
     console.log(`   ✓ B09 auth user exists: ${np.email}`);
   } else {
-    const { data: createdUser, error: createError } =
-      await adminSupabase.auth.admin.createUser({
-        email: np.email,
-        password: np.password,
-        email_confirm: true,
-        user_metadata: { name: np.name, phone: np.phone },
-        // @ts-ignore - admin API supports id parameter (matches signupTestUser)
-        id: np.id,
-      });
+    const { data: createdUser, error: createError } = await adminSupabase.auth.admin.createUser({
+      email: np.email,
+      password: np.password,
+      email_confirm: true,
+      user_metadata: { name: np.name, phone: np.phone },
+      // @ts-ignore - admin API supports id parameter (matches signupTestUser)
+      id: np.id,
+    });
     if (createError) {
       console.error(`   ❌ B09 create auth user failed: ${createError.message}`);
       return;
     }
-    console.log(`   ✓ B09 auth user created: ${np.email} (trigger auto-created a profile — deleting next)`);
+    console.log(
+      `   ✓ B09 auth user created: ${np.email} (trigger auto-created a profile — deleting next)`
+    );
   }
 
   // 2. Remove the profile row (idempotent) so login hits PROFILE_NOT_FOUND.
@@ -527,6 +538,178 @@ async function seedQaAuthFixtures(): Promise<void> {
     console.warn(`   ⚠️ B09 VERIFY FAIL: auth user missing for ${np.email}`);
   } else {
     console.log(`   ✓ B09 VERIFY OK: auth user present, profile absent (${np.email})`);
+  }
+}
+
+/**
+ * C07 — standing social-only (password-less) fixture for AUTH-TC-C07
+ * ("Social-only user sets a password").
+ *
+ * Why it exists: no password-less social-only user exists on staging (the C04
+ * fixture made kidsp2p@gmail.com password-capable; fixture user B also has a
+ * password). SetPasswordModal requires an auth user with NO password — its
+ * `canSetPassword()` RPC returns true iff `auth.users.encrypted_password IS NULL`.
+ * This fixture creates such an account via the admin API with NO password, marks
+ * it as a Google social account in app_metadata, and gives it a normal COMPLETED
+ * profile (node/zip/onboarding/phone) so the QA agent can log in and reach
+ * Settings → Linked Accounts → Set Password.
+ *
+ * NOTE (login leg): logging IN as this user still requires an OAuth identity
+ * attached to it (a real Google account — operator SQL on auth.identities, same
+ * mechanism as the C04 fixture). This script provisions the standing fixture and
+ * verifies the password-less precondition via check_account_exists_by_email;
+ * attaching a provider identity is a separate operator step documented in
+ * /memories/repo/qa-test-accounts.md.
+ *
+ * Idempotent: re-running on an existing fixture is a no-op and NEVER sets a
+ * password on an existing account.
+ */
+async function seedSocialOnlyFixture(): Promise<void> {
+  console.log('   ── C07 social-only (password-less) fixture ──');
+  const so = TEST_USERS.socialOnlyUser;
+
+  // 1. Ensure the auth user exists (create without a password only if missing).
+  const { data: existing } = await adminSupabase.auth.admin.getUserById(so.id);
+  if (existing?.user) {
+    console.log(`   ✓ C07 auth user exists: ${so.email}`);
+  } else {
+    const { data: created, error } = await adminSupabase.auth.admin.createUser({
+      email: so.email,
+      // Deliberately NO `password` — the fixture must stay password-less so
+      // can_set_password() returns true (AUTH-TC-C07 testable).
+      email_confirm: true,
+      app_metadata: {
+        provider: 'google',
+        providers: ['google'],
+      },
+      user_metadata: {
+        name: so.name,
+        phone: so.phone,
+      },
+      // @ts-ignore - admin API supports id parameter (matches signupTestUser)
+      id: so.id,
+    });
+    if (error) {
+      console.error(`   ❌ C07 create auth user failed: ${error.message}`);
+      return;
+    }
+    console.log(`   ✓ C07 auth user created (no password): ${so.email} (${created.user?.id})`);
+  }
+
+  // 2. Ensure a normal COMPLETED profile (unlike B09's deleted profile). The
+  //    on_auth_user_created trigger auto-creates one; this upsert completes it
+  //    (node/zip/onboarding/phone) so the user can use the app and reach the
+  //    Set Password modal from Settings → Linked Accounts.
+  const seedNodeId = await resolveSeedNodeId();
+  const { error: profileError } = await adminSupabase.from('profiles').upsert(
+    {
+      user_id: so.id,
+      id: so.id,
+      name: so.name,
+      phone: so.phone,
+      phone_verified: true,
+      profile_completed: true,
+      onboarding_completed: true,
+      onboarding_completed_at: new Date().toISOString(),
+      zip_code: '06850',
+      node_id: seedNodeId,
+      dob: '2000-01-01', // 24+ years old
+      role: 'user',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  );
+  if (profileError) {
+    console.warn(`   ⚠️ C07 profile upsert failed: ${profileError.message}`);
+  } else {
+    console.log(`   ✓ C07 profile completed (node ${seedNodeId ?? 'null'})`);
+  }
+
+  // 3. Verify the password-less precondition via the same RPC the app uses
+  //    (check_account_exists_by_email → has_password:false).
+  const { data: rpcData, error: rpcError } = await adminSupabase.rpc(
+    'check_account_exists_by_email',
+    { p_email: so.email }
+  );
+  if (rpcError) {
+    console.warn(`   ⚠️ C07 VERIFY: check_account_exists_by_email failed: ${rpcError.message}`);
+  } else {
+    const r = (rpcData ?? {}) as { exists?: boolean; user_id?: string; has_password?: boolean };
+    if (r.exists === true && r.user_id === so.id && r.has_password === false) {
+      console.log(
+        `   ✓ C07 VERIFY OK: account exists, NO password (can_set_password=true expected)`
+      );
+    } else {
+      console.warn(`   ⚠️ C07 VERIFY: unexpected state for ${so.email}: ${JSON.stringify(r)}`);
+    }
+  }
+}
+
+/**
+ * P03 — seeded unread-message fixture for AUTH-TC-P03 ("Header chat icon opens
+ * Messages with an unread badge").
+ *
+ * test-buyer has zero `messages` rows after a fresh seed, so the header chat
+ * unread badge (getTotalUnreadMessageCount: messages from the OTHER party with
+ * read_at IS NULL on the user's trades) can never show a count. This seeds ONE
+ * trade-scoped message FROM the seller TO the buyer with read_at NULL so the
+ * badge renders 1 (P03 testable without a multi-account, multi-screen dead-end).
+ * After the QA opens the chat, mark_trade_messages_read sets read_at → badge
+ * clears (P03's expected read flow).
+ *
+ * Idempotent: if a message from the seller already exists on the target trade,
+ * this is a no-op.
+ */
+async function seedUnreadMessageFixture(buyerId: string, sellerId: string): Promise<void> {
+  console.log('   ── P03 unread-message fixture ──');
+
+  // Find an existing trade where the buyer is test-buyer (seedTrade creates up
+  // to 3 pending trades earlier in main()).
+  const { data: trade, error: tradeError } = await adminSupabase
+    .from('trades')
+    .select('id, buyer_id, seller_id')
+    .eq('buyer_id', buyerId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (tradeError || !trade) {
+    console.warn(
+      `   ⚠️ P03: no buyer trade found to attach a message to (${tradeError?.message ?? 'none'})`
+    );
+    return;
+  }
+
+  // Idempotency guard: skip if a message from the seller already exists.
+  const { data: existingRows } = await adminSupabase
+    .from('messages')
+    .select('id')
+    .eq('trade_id', trade.id)
+    .eq('sender_id', sellerId)
+    .is('deleted_at', null)
+    .limit(1);
+
+  if (existingRows && existingRows.length > 0) {
+    console.log(`   ✓ P03 unread message already exists on trade ${trade.id}`);
+    return;
+  }
+
+  const { error: insertError } = await adminSupabase.from('messages').insert({
+    trade_id: trade.id,
+    sender_id: sellerId,
+    content:
+      'Hi! Thanks for your offer — I can arrange a meetup this weekend. Let me know a good time for you.',
+    message_type: 'text',
+    delivery_status: 'sent',
+    read_at: null,
+    created_at: new Date().toISOString(),
+  });
+
+  if (insertError) {
+    console.warn(`   ⚠️ P03 message insert failed: ${insertError.message}`);
+  } else {
+    console.log(`   ✓ P03 unread message seeded (seller → buyer) on trade ${trade.id}`);
   }
 }
 
@@ -943,7 +1126,9 @@ async function seedCompetingOffers(
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
-    console.log(`   ✓ Competing offer from ${comp.email}: $${(comp.cash/100).toFixed(2)} + ${comp.sp} SP`);
+    console.log(
+      `   ✓ Competing offer from ${comp.email}: $${(comp.cash / 100).toFixed(2)} + ${comp.sp} SP`
+    );
   }
 }
 
@@ -1095,7 +1280,10 @@ async function seedCompletedTradeWithReview(
 /**
  * Seeds donation and cash-only listings for TC-A01, TC-A04.
  */
-async function seedExtendedListings(sellerId: string, categoryMap: { [key: string]: string }): Promise<void> {
+async function seedExtendedListings(
+  sellerId: string,
+  categoryMap: { [key: string]: string }
+): Promise<void> {
   console.log('\n📦 Seeding extended listings (donation, cash-only)...');
 
   const extended = [DONATION_LISTING, CASH_ONLY_LISTING];
@@ -1138,10 +1326,7 @@ async function seedSellerCancelLevels(): Promise<void> {
 
   try {
     // Check if the seller_consequences table exists
-    const { error } = await adminSupabase
-      .from('seller_consequences')
-      .select('id')
-      .limit(1);
+    const { error } = await adminSupabase.from('seller_consequences').select('id').limit(1);
     if (error && error.message?.includes('relation') && error.message?.includes('does not exist')) {
       console.log('   ⏭️  seller_consequences table does not exist — skipping');
       return;
@@ -1159,10 +1344,7 @@ async function seedTaxConfig(): Promise<void> {
   console.log('\n💰 Seeding tax configuration...');
   // Check if node_tax_rates table exists
   try {
-    const { error } = await adminSupabase
-      .from('node_tax_rates')
-      .select('id')
-      .limit(1);
+    const { error } = await adminSupabase.from('node_tax_rates').select('id').limit(1);
     if (error && error.message?.includes('relation') && error.message?.includes('does not exist')) {
       console.log('   ⏭️  node_tax_rates table does not exist — skipping');
       return;
@@ -1233,8 +1415,10 @@ async function main(): Promise<void> {
       process.exit(1);
     }
 
-    // 2b. QA auth fixtures (AUTH-TC-B08 soft-deleted, AUTH-TC-B09 no-profile)
+    // 2b. QA auth fixtures (AUTH-TC-B08 soft-deleted, AUTH-TC-B09 no-profile,
+    //     AUTH-TC-C07 social-only password-less)
     await seedQaAuthFixtures();
+    await seedSocialOnlyFixture();
 
     // Get fresh sessions for both users
     const { data: buyerSession } = await supabase.auth.signInWithPassword({
@@ -1265,6 +1449,9 @@ async function main(): Promise<void> {
     if (listingIds.length > 2) {
       await seedTrade(buyerId, sellerId, listingIds[2]);
     }
+
+    // 4b. P03 unread-message fixture (AUTH-TC-P03 header chat unread badge)
+    await seedUnreadMessageFixture(buyerId, sellerId);
 
     // 5. Create subscriptions
     await seedSubscriptions(buyerId, sellerId);
@@ -1342,7 +1529,9 @@ async function main(): Promise<void> {
     console.log('\n📊 SEEDED DATA:');
     console.log('--------------------');
     console.log(`✓ ${TEST_CATEGORIES.length} categories`);
-    console.log(`✓ ${IS_EXTENDED ? listingIds.length + 2 + SELLER2_LISTINGS.length : listingIds.length} listings`);
+    console.log(
+      `✓ ${IS_EXTENDED ? listingIds.length + 2 + SELLER2_LISTINGS.length : listingIds.length} listings`
+    );
     console.log(`✓ 3 pending trades`);
     console.log(`✓ 2 trial subscriptions`);
     console.log(`✓ 4 SP ledger entries (buyer: 75 SP, seller: 130 SP)`);

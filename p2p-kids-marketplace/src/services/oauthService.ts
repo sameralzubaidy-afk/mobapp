@@ -14,6 +14,7 @@ import {
   OAUTH_STATE_EXPIRY_MS,
   PROVIDER_TIMEOUT_SECONDS,
 } from './oauthProviderConfig';
+import { QA_PROVIDER_UNAVAILABLE_KEY, getSimulatedProviderOutage } from './devTestingService';
 
 function extractStateFromOAuthUrl(url: string): string | null {
   const queryPart = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
@@ -100,6 +101,19 @@ export async function initiateSocialLogin(
   redirectOverride?: string
 ): Promise<{ url: string; state: string }> {
   try {
+    // QA staging toggle (dev-only, fail-closed): simulate a provider 5xx so
+    // AUTH-TC-C05's "provider unavailable → email fallback banner" is inducible
+    // on demand WITHOUT a real provider outage. Returns null in release builds /
+    // when unarmed → the real OAuth initiation always runs. Thrown BEFORE any
+    // provider/network interaction — the simulation never alters server state.
+    const simulatedOutage = await getSimulatedProviderOutage();
+    if (simulatedOutage === provider || simulatedOutage === 'all') {
+      throw new ProviderUnavailableError(
+        provider,
+        `Provider outage simulated (${QA_PROVIDER_UNAVAILABLE_KEY})`
+      );
+    }
+
     // Get provider-specific scopes
     const scopes = OAUTH_SCOPES[provider];
     const queryParams =

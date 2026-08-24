@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { OTPInput } from '@/components/ui/OTPInput';
 import { usePhoneVerification } from '@/hooks/usePhoneVerification';
 import { DEV_SMS_BYPASS_CODE } from '@/services/phoneService';
 
@@ -60,7 +61,6 @@ export default function PhoneVerificationModal({
   } = usePhoneVerification();
 
   const phoneInputRef = useRef<TextInput>(null);
-  const codeInputRefs = useRef<(TextInput | null)[]>([]);
 
   // Focus phone input when modal opens
   useEffect(() => {
@@ -68,13 +68,6 @@ export default function PhoneVerificationModal({
       setTimeout(() => phoneInputRef.current?.focus(), 100);
     }
   }, [visible, step]);
-
-  // Auto-focus first code digit when entering code step
-  useEffect(() => {
-    if (step === 'code') {
-      setTimeout(() => codeInputRefs.current[0]?.focus(), 100);
-    }
-  }, [step]);
 
   const handlePhoneChange = (text: string) => {
     // Auto-format with E.164 (+1 for US)
@@ -92,34 +85,6 @@ export default function PhoneVerificationModal({
     await sendCode();
   };
 
-  const handleCodeChange = (text: string, index: number) => {
-    // Only allow digits
-    const digit = text.replace(/[^0-9]/g, '').slice(-1);
-
-    // Update code
-    const newCode = code.split('');
-    newCode[index] = digit;
-    const updatedCode = newCode.join('').slice(0, 6);
-    setCode(updatedCode);
-
-    // Auto-advance to next digit
-    if (digit && index < 5) {
-      codeInputRefs.current[index + 1]?.focus();
-    }
-
-    // Auto-verify when 6 digits entered
-    if (updatedCode.length === 6) {
-      handleVerifyCode(updatedCode);
-    }
-  };
-
-  const handleKeyPress = (key: string, index: number) => {
-    // Handle backspace - move to previous digit
-    if (key === 'Backspace' && !code[index] && index > 0) {
-      codeInputRefs.current[index - 1]?.focus();
-    }
-  };
-
   const handleVerifyCode = async (codeToVerify?: string) => {
     // Pass the freshly-typed code through so verification doesn't race React's
     // state flush (auto-verify previously read a stale state.code and failed).
@@ -130,6 +95,16 @@ export default function PhoneVerificationModal({
       onClose();
     }
   };
+
+  // Auto-verify once 6 digits are entered (the single-field OTPInput replaces
+  // the old 6-box auto-advance; the current `code` is passed explicitly so
+  // verification never reads a stale state.code).
+  useEffect(() => {
+    if (step === 'code' && code.length === 6) {
+      void handleVerifyCode(code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- code/step drive the effect; handleVerifyCode is stable per render
+  }, [step, code]);
 
   const handleResend = async () => {
     if (canResend) {
@@ -232,25 +207,14 @@ export default function PhoneVerificationModal({
                   We sent a 6-digit code to{'\n'}
                   <Text style={styles.phone}>{phone}</Text>
                 </Text>
-                <View style={styles.codeContainer}>
-                  {[0, 1, 2, 3, 4, 5].map((index) => (
-                    <TextInput
-                      key={index}
-                      ref={(ref) => {
-                        codeInputRefs.current[index] = ref;
-                      }}
-                      style={styles.codeDigit}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      value={code[index] || ''}
-                      onChangeText={(text) => handleCodeChange(text, index)}
-                      onKeyPress={({ nativeEvent: { key } }) => handleKeyPress(key, index)}
-                      editable={!isVerifying}
-                      accessibilityLabel={`Digit ${index + 1}`}
-                      accessibilityHint={`Enter digit ${index + 1} of 6`}
-                      testID={`${testID}-code-digit-${index}`}
-                    />
-                  ))}
+                <View style={styles.otpContainer}>
+                  <OTPInput
+                    length={6}
+                    value={code}
+                    onChange={setCode}
+                    error={!!error}
+                    testID={`${testID}-code`}
+                  />
                 </View>
                 {error && (
                   <View style={styles.errorContainer}>
@@ -258,7 +222,6 @@ export default function PhoneVerificationModal({
                     <Text style={styles.errorText}>{error}</Text>
                   </View>
                 )}
-                accessible
                 {/* Resend Timer */}
                 <View style={styles.resendContainer}>
                   {canResend ? (
@@ -395,23 +358,11 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     backgroundColor: '#F0F0F0',
   },
-  codeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  otpContainer: {
     marginBottom: 24,
-    gap: 8,
-  },
-  codeDigit: {
-    width: 48,
-    height: 56,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    fontSize: 24,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: '#1A1A1A',
-    backgroundColor: '#F0F0F0',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 320,
   },
   errorContainer: {
     flexDirection: 'row',

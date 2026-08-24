@@ -3,11 +3,7 @@
 // Reference: Prompts/re-desing/design-system.md Section 6.3
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  TextInput,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { TextInput, StyleSheet, View } from 'react-native';
 import { theme } from '@/theme';
 
 interface OTPInputProps {
@@ -15,6 +11,11 @@ interface OTPInputProps {
   value: string;
   onChange: (otp: string) => void;
   error?: boolean;
+  /** TestID for the underlying TextInput. Defaults to the canonical `otp-input`
+   *  (the standalone PhoneVerificationScreen's identifier). Callers rendering
+   *  this inside their own gate/modal may pass a namespaced value so the field
+   *  stays locatable by QA automation within that surface. */
+  testID?: string;
 }
 
 export const OTPInput: React.FC<OTPInputProps> = ({
@@ -22,6 +23,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   value,
   onChange,
   error = false,
+  testID = 'otp-input',
 }) => {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -44,11 +46,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     return val.split('').join(' ');
   };
 
-  const inputStyle = [
-    styles.input,
-    isFocused && styles.inputFocused,
-    error && styles.inputError,
-  ];
+  const inputStyle = [styles.input, isFocused && styles.inputFocused, error && styles.inputError];
 
   return (
     <View style={styles.container}>
@@ -63,7 +61,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
         onBlur={() => setIsFocused(false)}
         selectTextOnFocus
         autoFocus
-        testID="otp-input"
+        testID={testID}
         placeholder="0 0 0 0 0 0"
         placeholderTextColor="#999"
       />

@@ -22,19 +22,12 @@ const PHONE_INPUT_ID = `${TEST_ID}-phone-input`;
 const SEND_CODE_ID = `${TEST_ID}-send-code`;
 const CLOSE_ID = `${TEST_ID}-close`;
 const RESEND_ID = `${TEST_ID}-resend`;
-const VERIFY_ID = `${TEST_ID}-verify`;
+// Single auto-formatted OTP field (design-system-passitup.md §4.4) — the gate
+// modal renders the canonical OTPInput with a namespaced testID `${testID}-code`.
+const OTP_ID = `${TEST_ID}-code`;
 
-async function enterOtpSequentially(
-  getByTestId: (id: string) => any,
-  otp: string
-): Promise<void> {
-  for (let i = 0; i < otp.length; i += 1) {
-    const testId = `${TEST_ID}-code-digit-${i}`;
-    fireEvent.changeText(getByTestId(testId), otp[i]);
-    await waitFor(() => {
-      expect(getByTestId(testId).props.value).toBe(otp[i]);
-    });
-  }
+async function enterOtp(getByTestId: (id: string) => any, otp: string): Promise<void> {
+  fireEvent.changeText(getByTestId(OTP_ID), otp);
 }
 
 describe('PhoneVerificationModal', () => {
@@ -105,7 +98,7 @@ describe('PhoneVerificationModal', () => {
 
     await waitFor(() => {
       expect(mockPhoneService.sendPhoneVerificationCode).toHaveBeenCalledWith('+15551234567');
-      expect(getByTestId(`${TEST_ID}-code-digit-0`)).toBeTruthy();
+      expect(getByTestId(OTP_ID)).toBeTruthy();
       expect(getByText(/We sent a 6-digit code to/i)).toBeTruthy();
     });
   });
@@ -130,10 +123,10 @@ describe('PhoneVerificationModal', () => {
     });
 
     await waitFor(() => {
-      expect(getByTestId(`${TEST_ID}-code-digit-0`)).toBeTruthy();
+      expect(getByTestId(OTP_ID)).toBeTruthy();
     });
 
-    await enterOtpSequentially(getByTestId, '123456');
+    await enterOtp(getByTestId, '123456');
 
     // Entering the 6th digit auto-verifies now (the auto-verify state race is
     // fixed by passing the freshly-typed code through), so no manual VERIFY tap.
@@ -164,7 +157,7 @@ describe('PhoneVerificationModal', () => {
     });
 
     await waitFor(() => {
-      expect(getByTestId(`${TEST_ID}-code-digit-0`)).toBeTruthy();
+      expect(getByTestId(OTP_ID)).toBeTruthy();
     });
 
     // One tap fills the fixed DEV bypass code AND verifies it (no digit-by-digit).
@@ -198,10 +191,10 @@ describe('PhoneVerificationModal', () => {
     });
 
     await waitFor(() => {
-      expect(getByTestId(`${TEST_ID}-code-digit-0`)).toBeTruthy();
+      expect(getByTestId(OTP_ID)).toBeTruthy();
     });
 
-    await enterOtpSequentially(getByTestId, '999999');
+    await enterOtp(getByTestId, '999999');
 
     // Auto-verify fires on the 6th digit and surfaces the error immediately.
     await waitFor(() => {
@@ -230,10 +223,10 @@ describe('PhoneVerificationModal', () => {
     });
 
     await waitFor(() => {
-      expect(getByTestId(`${TEST_ID}-code-digit-0`)).toBeTruthy();
+      expect(getByTestId(OTP_ID)).toBeTruthy();
     });
 
-    await enterOtpSequentially(getByTestId, '123456');
+    await enterOtp(getByTestId, '123456');
 
     // Auto-verify fires on the 6th digit; the expired error returns to phone step.
     await waitFor(() => {

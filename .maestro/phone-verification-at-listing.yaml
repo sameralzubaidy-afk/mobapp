@@ -1,5 +1,11 @@
 # FLOW: Phone Verification at First Listing | TASK: AUTH-V3-009 | States covered: unverified user blocked, verify, then proceed
 # Tests deferred phone verification gate when user attempts to create first listing
+#
+# NOTE (2026-08-24): legacy Maestro flow — NOT referenced by test-automation/trade-flow-v2/manifest.json
+# and its identifiers predate the current app (appId `com.p2pkids.marketplace` is not the bundle;
+# `phone-input`/`send-code-button`/`modal-close-button`/`otp-input-N` don't exist on-device). Kept for
+# reference only. The gate modal now renders the canonical single auto-formatted OTP field
+# (design-system-passitup.md §4.4) as `listing-phone-verification-code` (testID = <modal testID>-code).
 
 appId: com.p2pkids.marketplace
 
@@ -86,32 +92,17 @@ appId: com.p2pkids.marketplace
 - waitForAnimationToEnd
 
 ---
-# Step 6: OTP entry step should appear
+# Step 6: OTP entry step should appear (single auto-formatted field, §4.4)
 - assertVisible:
     text: "Enter verification code"
 - assertVisible:
-    id: "otp-input-0"
+    id: "listing-phone-verification-code"
 
 ---
-# Step 7: Enter 6-digit code
+# Step 7: Enter 6-digit code in the single auto-formatted field
 - tapOn:
-    id: "otp-input-0"
-- inputText: "1"
-- tapOn:
-    id: "otp-input-1"
-- inputText: "2"
-- tapOn:
-    id: "otp-input-2"
-- inputText: "3"
-- tapOn:
-    id: "otp-input-3"
-- inputText: "4"
-- tapOn:
-    id: "otp-input-4"
-- inputText: "5"
-- tapOn:
-    id: "otp-input-5"
-- inputText: "6"
+    id: "listing-phone-verification-code"
+- inputText: "123456"
 - waitForAnimationToEnd
 
 ---
