@@ -7,7 +7,7 @@
  * - Show image previews in horizontal scroll
  * - Delete individual images
  * - Reorder images (first = primary/cover image)
- * - Validate file size (5 MB max per image)
+ * - Validate file size (10 MB max per image, shared with photoService)
  */
 
 import React, { useState } from 'react';
@@ -23,9 +23,11 @@ import {
   Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+// Single source of truth — ItemCreate / Bulk Listing / EditListing all share the
+// same cap (photoService.MAX_FILE_SIZE_MB) so the surfaces can never drift again.
+import { MAX_FILE_SIZE_MB } from '../../services/photoService';
 
 const MAX_IMAGES = 5;
-const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export interface SelectedImage {

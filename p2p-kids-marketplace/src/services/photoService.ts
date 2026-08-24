@@ -21,7 +21,10 @@ import { PhotoAsset, PhotoGroup } from '../types/listing';
 const STORAGE_BUCKET = 'item-images';
 
 // Validation limits
-const MAX_FILE_SIZE_MB = 10;
+// Single source of truth for the client-side file-size cap. ImagePickerGrid
+// (EditListingScreen) imports this so ItemCreate / Bulk Listing / EditListing
+// all enforce the same limit and can never drift apart.
+export const MAX_FILE_SIZE_MB = 10;
 const MIN_DIMENSION = 400;
 const MAX_PHOTOS_TOTAL = 30;
 const MAX_PHOTOS_PER_GROUP = 10;

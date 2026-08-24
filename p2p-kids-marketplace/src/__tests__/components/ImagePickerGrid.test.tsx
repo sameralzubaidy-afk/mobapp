@@ -203,12 +203,12 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       });
     });
 
-    it('should reject image exceeding 5 MB file size limit', async () => {
+    it('should reject image exceeding 10 MB file size limit', async () => {
       (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
         status: 'granted',
       });
 
-      const largeFileSize = 6 * 1024 * 1024; // 6 MB
+      const largeFileSize = 11 * 1024 * 1024; // 11 MB (> shared 10MB cap)
       (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
         canceled: false,
         assets: [{ uri: 'file:///large.jpg', width: 4000, height: 3000, fileSize: largeFileSize }],
@@ -224,7 +224,7 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'File Too Large',
-          expect.stringContaining('exceeds 5 MB')
+          expect.stringContaining('exceeds 10 MB')
         );
         expect(mockOnImagesChange).not.toHaveBeenCalled();
       });
@@ -321,12 +321,12 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       });
     });
 
-    it('should reject camera photo exceeding 5 MB', async () => {
+    it('should reject camera photo exceeding 10 MB', async () => {
       (ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValueOnce({
         status: 'granted',
       });
 
-      const largeFileSize = 7 * 1024 * 1024; // 7 MB
+      const largeFileSize = 12 * 1024 * 1024; // 12 MB (> shared 10MB cap)
       (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({
         canceled: false,
         assets: [
@@ -342,7 +342,7 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       fireEvent.press(getByTestId('image-picker-grid-source-camera'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('File Too Large', 'Image must be under 5 MB');
+        expect(Alert.alert).toHaveBeenCalledWith('File Too Large', 'Image must be under 10 MB');
         expect(mockOnImagesChange).not.toHaveBeenCalled();
       });
     });
