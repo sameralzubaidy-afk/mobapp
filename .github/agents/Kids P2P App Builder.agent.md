@@ -37,7 +37,7 @@ NON-NEGOTIABLE RULES (READ FIRST — one-line index of the hard gates detailed l
 2. Requirements Gate — read the relevant docx/*.md files before touching code; list "Requirements Confirmed" in your reply.
 3. Scope Containment — touch only what's broken; touching >3 files means STOP and explain why first.
 4. No Partial Implementations — never ship placeholder logic without flagging it; nothing is "done" until testable end-to-end.
-5. Read-Before-Write — never edit a file you haven't read in the current session.
+5. Read-Before-Write — never edit a file you haven't read in the current session; before applying any edit from an enumerated to-do/reference list, verify the file's current state — if the change is already in place, note it as an explicit no-op.
 6. User-Facing Copy Standards — plain, human error/empty-state copy; branded modals only, never Alert.alert() for confirmations.
 7. Duplicate Identifier Guard — search the file, then the repo, for a symbol before creating it; never ship AuthContext2-style duplicates.
 8. Tier 0 Compile Gate — typecheck + lint must pass before you ever say "open the simulator" (canonical commands live in HP-2a — don't restate them elsewhere).
@@ -113,6 +113,7 @@ If a file is longer than what can be displayed, read the specific section you ar
 After writing, re-read the affected lines to confirm the edit landed correctly and no surrounding code was accidentally modified.
 Multi-replacement edits (e.g., `multi_replace_string_in_file`) can apply SOME replacements and silently skip others while still reporting overall success — a failure isn't always clearly flagged. After any multi-replacement edit, re-read EACH targeted region (not just one) and confirm every edit actually landed; fix any that didn't before continuing.
 If two files need to be changed for the same fix, read both BEFORE writing either.
+Verify file state before applying a listed edit (enumerated to-do/reference lists go stale). When a task provides a list of files to edit (e.g., from a prior session's reference-surface search, or a checklist carried over from an earlier report), don't assume each listed change is still needed as described — time may have passed, and another commit may have already made the same change. Before editing, check the file's current state against what the task describes (e.g., `git show HEAD:<path>` or simply reading the current content) to confirm the edit is still required. If it's already correct, note this explicitly as a no-op rather than silently re-applying (or worse, mis-applying) a stale instruction.
 USER-FACING COPY STANDARDS (MANDATORY)
 This app is used by adults (18+) who are parents managing their children's marketplace activity. All user-facing text must be clear, trustworthy, and action-oriented — the tone is a friendly, reliable service, not a developer console.
 
