@@ -91,16 +91,38 @@ const SKIP_E2E = !process.env.RUN_SUPABASE_E2E || !TEST_USER_EMAIL || !TEST_USER
   });
 
   describe('Bucket Existence', () => {
-    it('should have item-images bucket created', async () => {
-      const { data: buckets, error } = await supabase.storage.listBuckets();
+    it('should expose item-images as a public, writable bucket', async () => {
+      // NOTE: We intentionally do NOT assert via listBuckets()/getBucket().
+      // On modern Supabase projects `storage.buckets` is RLS-protected, so an
+      // end-user JWT cannot list buckets (listBuckets() -> []) or read bucket
+      // metadata (getBucket(id) -> "Bucket not found"). That is the platform
+      // default (bucket config is admin/service-role only), not a defect — the
+      // app never calls these APIs. So we verify the SAFETY-P001 contract
+      // through the object API the app actually uses:
+      //   1. a small upload succeeds  -> bucket exists + INSERT policy allows it,
+      //   2. the object is served via a public URL -> bucket.public = true.
+      // The 10MB file_size_limit is asserted separately by the oversized-upload
+      // test in the "Upload Permissions (RLS)" block.
+      const probePath = `${testItemId}/bucket-probe-${Date.now()}.png`;
+      uploadedPaths.push(probePath);
 
-      expect(error).toBeNull();
-      expect(buckets).toBeDefined();
+      const probePng = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64'
+      );
+      const probeBlob = new Blob([probePng], { type: 'image/png' });
 
-      const itemImagesBucket = buckets?.find((b) => b.id === 'item-images');
-      expect(itemImagesBucket).toBeDefined();
-      expect(itemImagesBucket?.public).toBe(true);
-      expect(itemImagesBucket?.file_size_limit).toBe(10485760); // 10MB (matches photoService.MAX_FILE_SIZE_MB)
+      const { error: uploadError } = await supabase.storage
+        .from('item-images')
+        .upload(probePath, probeBlob);
+      expect(uploadError).toBeNull();
+
+      const { data: urlData } = supabase.storage.from('item-images').getPublicUrl(probePath);
+      expect(urlData.publicUrl).toContain('/item-images/');
+      const publicRes = await fetch(urlData.publicUrl);
+      expect(publicRes.status).toBe(200);
+
+      console.log(`✓ item-images bucket reachable + public (probe: ${probePath})`);
     });
   });
 
@@ -244,7 +266,7 @@ const SKIP_E2E = !process.env.RUN_SUPABASE_E2E || !TEST_USER_EMAIL || !TEST_USER
       console.log(`✓ Delete successful: ${filePath}`);
     });
 
-    it('should reject delete of images from item not owned by current user', async () => {
+    it('should not delete images from item not owned by current user', async () => {
       // Find an item NOT owned by current user with existing images
       const { data: otherItemImage } = await supabase
         .from('item_images')
@@ -267,12 +289,25 @@ const SKIP_E2E = !process.env.RUN_SUPABASE_E2E || !TEST_USER_EMAIL || !TEST_USER
         return;
       }
 
-      const { error: deleteError } = await supabase.storage.from('item-images').remove([filePath]);
+      const { data, error } = await supabase.storage.from('item-images').remove([filePath]);
 
-      expect(deleteError).toBeDefined();
-      expect(deleteError?.message).toMatch(/policy|denied|permission/i);
+      // Supabase Storage's bulk-delete endpoint (DELETE /object/{bucket}) returns
+      // HTTP 200 with `error: null` even when RLS blocks a delete: the denied
+      // prefix is simply omitted from the returned `data` array (0 objects matched
+      // under the storage.objects DELETE policy). It does NOT raise a
+      // "policy/denied/permission" error for a cross-user delete — that's the
+      // Storage API's documented behavior (deleteObjects -> 200 + results array).
+      // So we assert the actual security property: the other user's image must
+      // NOT have been deleted (i.e. it must not appear in the removed set). If
+      // the API ever surfaces an explicit denial error, that is also a valid
+      // fail-closed signal.
+      const removed = (Array.isArray(data) ? data : []) as { name?: string }[];
+      expect(removed.some((r) => r.name === filePath)).toBe(false);
+      if (error) {
+        expect(String(error?.message ?? '')).toMatch(/policy|denied|permission|not found|access/i);
+      }
 
-      console.log(`✓ Unauthorized delete rejected: ${deleteError?.message}`);
+      console.log(`✓ Unauthorized delete correctly denied (${filePath} not removed)`);
     });
   });
 
