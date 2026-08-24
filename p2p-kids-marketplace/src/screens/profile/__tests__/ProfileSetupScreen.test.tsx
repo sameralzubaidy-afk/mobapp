@@ -1,4 +1,5 @@
 import React from 'react';
+import { Image } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import ProfileSetupScreen from '../ProfileSetupScreen';
 import { setupUserProfile, uploadProfileAvatar } from '@/services/profile';
@@ -22,6 +23,13 @@ jest.mock('@/services/supabase/auth', () => ({
 jest.mock('@/services/waitlist', () => ({
   upsertZipWaitlist: jest.fn(),
 }));
+
+// Bundled assets aren't loaded by Jest, so resolve the dev avatar fixture's
+// bundled image to a stable file URI. (jest-expo's Image mock exposes
+// resolveAssetSource as a real function, hence the spyOn.)
+const resolveAssetSourceSpy = jest
+  .spyOn(Image, 'resolveAssetSource')
+  .mockReturnValue({ uri: 'file:///dev/avatar.png', scale: 1, width: 1, height: 1 } as any);
 
 describe('ProfileSetupScreen FLOW-02', () => {
   beforeEach(() => {
@@ -71,5 +79,17 @@ describe('ProfileSetupScreen FLOW-02', () => {
       expect(getByTestId('display-name-error')).toBeTruthy();
       expect(getByTestId('zip-code-error')).toBeTruthy();
     });
+  });
+
+  it('dev-set-avatar injects a bundled avatar and updates the preview (__DEV__ only)', () => {
+    const { getByTestId } = render(<ProfileSetupScreen navigation={{}} />);
+
+    // The dev fixture must be exposed for automation to reach it.
+    expect(getByTestId('dev-set-avatar')).toBeTruthy();
+
+    fireEvent.press(getByTestId('dev-set-avatar'));
+
+    // The fixture resolves the bundled asset and injects it as the avatar.
+    expect(resolveAssetSourceSpy).toHaveBeenCalled();
   });
 });

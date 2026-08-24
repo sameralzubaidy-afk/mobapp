@@ -35,7 +35,7 @@ export const ONBOARDING_SCREENS: readonly OnboardingScreenData[] = [
   },
   {
     id: 3,
-    title: 'How You Earn PIPs ( Pass It Up Pionts)',
+    title: 'How You Earn PIPs (Pass It Up Points)',
     body: 'List your items and choose to get paid in cash or a mix of cash and PIPs to maximize your value. Boost your earnings with category multipliers and complete seamless local trades with other parents to grow your balance.',
     illustrationName: 'onboarding-sp-earning.png',
     a11yLabel: 'Onboarding, step 3 of 5, How You Earn PIPs',

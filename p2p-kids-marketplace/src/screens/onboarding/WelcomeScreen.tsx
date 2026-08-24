@@ -90,8 +90,13 @@ export default function WelcomeScreen() {
         />
 
         {/* Title */}
-        <Text style={styles.title} testID="welcome-headline">
-          accessible accessibilityRole="button" accessibilityLabel="Welcome get started button"
+        <Text
+          style={styles.title}
+          testID="welcome-headline"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Welcome get started button"
+        >
           Welcome to a safe, neighborhood marketplace built exclusively for local families.
         </Text>
 

@@ -167,6 +167,22 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
     }
   };
 
+  // DEV-ONLY fixture: inject a bundled avatar directly into localImageUri,
+  // bypassing the native photo-picker crop editor (expo-image-picker
+  // allowsEditing), which is undrivable by QA automation — same limitation
+  // class as the documented CategorySelectModal issue. Gated by __DEV__ —
+  // never in release builds. Local state only (no upload), so the avatar
+  // preview update becomes toolset-verifiable without the native picker.
+  const handleDevSetAvatar = () => {
+    const source = Image.resolveAssetSource(require('../../../assets/adaptive-icon.png'));
+    const uri = source?.uri;
+    if (!uri) {
+      console.warn('[ProfileSetupScreen] Dev avatar fixture: bundled asset unresolved');
+      return;
+    }
+    setLocalImageUri(uri);
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
@@ -297,6 +313,24 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         </TouchableOpacity>
         {uploadingImage && (
           <ActivityIndicator size="small" color="#5DBB8E" style={{ marginTop: 8 }} />
+        )}
+
+        {/* DEV-ONLY: bypass the native photo-picker crop editor (undrivable by QA
+            automation — same class as the documented CategorySelectModal issue)
+            so the avatar-preview update is verifiable without the native picker.
+            Gated by __DEV__ — never rendered in release builds. Local state only
+            (sets localImageUri), no upload. */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.devAvatarButton}
+            onPress={handleDevSetAvatar}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Set test avatar (dev only)"
+            testID="dev-set-avatar"
+          >
+            <Text style={styles.devAvatarButtonText}>Dev: Set Test Avatar</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -547,6 +581,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  devAvatarButton: {
+    backgroundColor: '#EAF7F0',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  devAvatarButtonText: {
+    color: '#2E7D5B',
+    fontSize: 14,
+    fontWeight: '600',
   },
   inputGroup: {
     marginBottom: 24,
