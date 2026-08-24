@@ -707,6 +707,240 @@ export async function getSimulatedProviderOutage(): Promise<string | null> {
 }
 
 // ========================================
+// QA PUSH SIMULATION (A03 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Canonical admin_config key that arms the AUTH-TC-A03 push simulation.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'token' | 'rate_limited' | 'quiet_hours' | 'none'
+ *   - 'token'         → simulate a registered push token AND mock the send so the
+ *                       normal leg proceeds (instead of "No push tokens registered")
+ *   - 'rate_limited'  → force the rate-limit state (10+/hr "Rate Limited" alert)
+ *   - 'quiet_hours'   → force the quiet-hours state ("Quiet Hours" alert)
+ */
+export const QA_PUSH_SIMULATION_KEY = 'qa_push_simulation';
+
+/**
+ * QA staging toggle for AUTH-TC-A03 (Test Push Notification).
+ *
+ * Why this exists: `sendPushNotification` hits "No push tokens registered" on the
+ * simulator before the rate-limit / quiet-hours / send legs can be observed —
+ * real Expo push tokens require a physical device (Device.isDevice is false on
+ * sims). Dev/test builds read an admin_config toggle and force the exact leg the
+ * QA run wants: a fake token + mocked send ('token'), a forced rate-limit
+ * ('rate_limited'), or a forced quiet-hours ('quiet_hours'). The simulation never
+ * alters server state and never makes a real Expo call.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return 'none'
+ *    immediately and the real push path always runs.
+ *  - Toggle unset / read error / unknown value → 'none' (no simulation).
+ *
+ * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
+ *   supabase.rpc('upsert_admin_config_setting', {
+ *     p_key: 'qa_push_simulation',
+ *     p_value: 'token' | 'rate_limited' | 'quiet_hours' | 'none',
+ *     p_category: 'feature_flags',
+ *     p_data_type: 'string',
+ *     p_admin_id: <admin user id>,   // records the editor (BP-48)
+ *   })
+ */
+export async function getPushSimulationMode(): Promise<
+  'token' | 'rate_limited' | 'quiet_hours' | 'none'
+> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+      p_keys: [QA_PUSH_SIMULATION_KEY],
+    });
+
+    if (error || !data) {
+      console.warn(
+        `[DevTestingService] ${QA_PUSH_SIMULATION_KEY} read failed: ${error?.message ?? 'no data'}`
+      );
+      return 'none';
+    }
+
+    const rows = Array.isArray(data) ? data : [data];
+    const row = rows.find(
+      (r) => (r as { out_key?: string })?.out_key === QA_PUSH_SIMULATION_KEY
+    );
+    const value = (row as { out_value?: string })?.out_value ?? 'none';
+
+    switch (value) {
+      case 'token':
+      case 'rate_limited':
+      case 'quiet_hours':
+        return value;
+      default:
+        return 'none';
+    }
+  } catch (err) {
+    console.warn(
+      `[DevTestingService] ${QA_PUSH_SIMULATION_KEY} read error: ${(err as Error).message}`
+    );
+    return 'none';
+  }
+}
+
+// ========================================
+// QA NOTIFICATION-PREF SAVE FAILURE SIMULATION (D02 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Canonical admin_config key that arms the AUTH-TC-D02 save-failure simulation.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'save_failure' | 'none'
+ */
+export const QA_FORCE_PREF_SAVE_FAILURE_KEY = 'qa_force_pref_save_failure';
+
+/**
+ * QA staging toggle for AUTH-TC-D02 (optimistic toggle reverts on failure).
+ *
+ * Why this exists: `updateNotificationPreference` is a pure real-write path — a
+ * genuine save failure cannot be reproduced on demand without breaking network
+ * or DB permissions. Instead, dev/test builds read an admin_config toggle and
+ * return a FAITHFUL failure result that flows through NotificationPreferencesScreen's
+ * existing revert branch (optimistic update → revert + error alert), so the exact
+ * behavior the ACC guide asserts for D02 renders on demand.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return null and
+ *    the real save always runs. The simulation never alters server state.
+ *  - Toggle unset / read error / unknown value → null (no simulation).
+ *
+ * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
+ *   supabase.rpc('upsert_admin_config_setting', {
+ *     p_key: 'qa_force_pref_save_failure',
+ *     p_value: 'save_failure' | 'none',
+ *     p_category: 'feature_flags',
+ *     p_data_type: 'string',
+ *     p_admin_id: <admin user id>,   // records the editor (BP-48)
+ *   })
+ */
+export async function getSimulatedNotificationPrefSaveError(): Promise<Error | null> {
+  if (!isDevEnvironment()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+      p_keys: [QA_FORCE_PREF_SAVE_FAILURE_KEY],
+    });
+
+    if (error || !data) {
+      console.warn(
+        `[DevTestingService] ${QA_FORCE_PREF_SAVE_FAILURE_KEY} read failed: ${error?.message ?? 'no data'}`
+      );
+      return null;
+    }
+
+    const rows = Array.isArray(data) ? data : [data];
+    const row = rows.find(
+      (r) => (r as { out_key?: string })?.out_key === QA_FORCE_PREF_SAVE_FAILURE_KEY
+    );
+    const value = (row as { out_value?: string })?.out_value ?? 'none';
+
+    if (value === 'save_failure') {
+      // Faithful save-failure. Deliberately NOT an app-crash-style message —
+      // NotificationPreferencesScreen's D02 branch (revert + error alert) is
+      // what must be exercised.
+      return new Error('Simulated preference save failure (qa_force_pref_save_failure)');
+    }
+    return null;
+  } catch (err) {
+    console.warn(
+      `[DevTestingService] ${QA_FORCE_PREF_SAVE_FAILURE_KEY} read error: ${(err as Error).message}`
+    );
+    return null;
+  }
+}
+
+// ========================================
+// QA LINK EMAIL-MISMATCH SIMULATION (C04 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Canonical admin_config key that arms the AUTH-TC-C04 email-mismatch simulation.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'google' | 'facebook' | 'apple' | 'all' | 'none'
+ *   - a provider name simulates THAT provider's OAuth callback returning a
+ *     mismatched provider email
+ *   - 'all' simulates every provider email mismatching
+ */
+export const QA_LINK_EMAIL_MISMATCH_KEY = 'qa_link_email_mismatch';
+
+/**
+ * QA staging toggle for AUTH-TC-C04 ("Email mismatch on link blocked").
+ *
+ * Why this exists: `EmailMismatchError` is only thrown when a REAL OAuth callback
+ * returns a provider email that differs from the account email — the dev Link
+ * flow on LinkedAccountsScreen is simulated (initiateSocialLogin + an "OAuth
+ * Flow" alert), so the mismatch path is never exercised. Dev/test builds read an
+ * admin_config toggle AFTER the simulated initiation and throw a FAITHFUL
+ * `EmailMismatchError` that flows through the screen's existing catch → "Email
+ * Mismatch" alert, so the exact behavior the ACC guide asserts for C04 renders
+ * on demand, with zero real provider round-trip.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return null and
+ *    the real link flow always runs. The simulation never alters server state.
+ *  - Toggle unset / read error / unknown value → null (no simulation).
+ *
+ * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
+ *   supabase.rpc('upsert_admin_config_setting', {
+ *     p_key: 'qa_link_email_mismatch',
+ *     p_value: 'google' | 'facebook' | 'apple' | 'all' | 'none',
+ *     p_category: 'feature_flags',
+ *     p_data_type: 'string',
+ *     p_admin_id: <admin user id>,   // records the editor (BP-48)
+ *   })
+ */
+export async function getSimulatedLinkEmailMismatch(): Promise<string | null> {
+  if (!isDevEnvironment()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
+      p_keys: [QA_LINK_EMAIL_MISMATCH_KEY],
+    });
+
+    if (error || !data) {
+      console.warn(
+        `[DevTestingService] ${QA_LINK_EMAIL_MISMATCH_KEY} read failed: ${error?.message ?? 'no data'}`
+      );
+      return null;
+    }
+
+    const rows = Array.isArray(data) ? data : [data];
+    const row = rows.find(
+      (r) => (r as { out_key?: string })?.out_key === QA_LINK_EMAIL_MISMATCH_KEY
+    );
+    const value = (row as { out_value?: string })?.out_value ?? 'none';
+
+    switch (value) {
+      case 'google':
+      case 'facebook':
+      case 'apple':
+      case 'all':
+        return value;
+      default:
+        return null;
+    }
+  } catch (err) {
+    console.warn(
+      `[DevTestingService] ${QA_LINK_EMAIL_MISMATCH_KEY} read error: ${(err as Error).message}`
+    );
+    return null;
+  }
+}
+
+// ========================================
 // UTILITY FUNCTIONS
 // ========================================
 
@@ -753,4 +987,13 @@ export default {
 
   // QA Provider-Outage Simulation (C05)
   getSimulatedProviderOutage,
+
+  // QA Push Simulation (A03)
+  getPushSimulationMode,
+
+  // QA Notification-Pref Save-Failure Simulation (D02)
+  getSimulatedNotificationPrefSaveError,
+
+  // QA Link Email-Mismatch Simulation (C04)
+  getSimulatedLinkEmailMismatch,
 };

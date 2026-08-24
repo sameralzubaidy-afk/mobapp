@@ -28,6 +28,7 @@ import {
   countLoginMethods,
 } from '@/services/accountService';
 import { initiateSocialLogin } from '@/services/oauthService';
+import { getSimulatedLinkEmailMismatch } from '@/services/devTestingService';
 import { captureException } from '@/services/errorReporter';
 import PasswordReauthModal from '@/components/auth/PasswordReauthModal';
 import type { OAuthProvider, LinkedProvider } from '@/types/auth-v3';
@@ -121,6 +122,17 @@ export default function LinkedAccountsScreen({ navigation }: any) {
       // For testing, simulate successful linking
       console.log(`[LinkedAccounts] OAuth URL: ${url}`);
 
+      // AUTH-TC-C04 (dev-only): simulate the OAuth callback returning a provider
+      // email that mismatches the account email (EmailMismatchError). Reads the
+      // `qa_link_email_mismatch` admin_config toggle; when armed for this provider
+      // (or 'all') it throws a FAITHFUL EmailMismatchError that flows through the
+      // existing catch → "Email Mismatch" alert. Fail-closed: release builds /
+      // unset / unknown → the simulated link-success alert is shown as before.
+      const simulatedMismatch = await getSimulatedLinkEmailMismatch();
+      if (simulatedMismatch === provider || simulatedMismatch === 'all') {
+        throw new EmailMismatchError('qa-mismatch@external.example', user?.email || 'unknown');
+      }
+
       Alert.alert(
         'OAuth Flow',
         `In production, this would open ${provider} sign-in. For testing, use the manual test guide.`,
@@ -130,6 +142,10 @@ export default function LinkedAccountsScreen({ navigation }: any) {
       // Reload linked accounts after successful link
       // await loadLinkedAccounts();
     } catch (error) {
+      // Always clear the in-progress spinner on the error path (both the
+      // email-mismatch branch and the generic branch) so the provider card is
+      // not left stuck on a loading indicator after the alert is dismissed.
+      setLinkingProvider(null);
       if (error instanceof EmailMismatchError) {
         Alert.alert(
           'Email Mismatch',

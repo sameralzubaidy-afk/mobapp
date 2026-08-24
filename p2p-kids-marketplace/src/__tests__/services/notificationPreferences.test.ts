@@ -252,7 +252,12 @@ describe('NotificationPreferences Service - Unit Tests', () => {
         );
       }
 
-      expect(supabase.rpc).toHaveBeenCalledTimes(5);
+      // Each update also reads the D02 `qa_force_pref_save_failure` toggle
+      // (fn_get_admin_config_values) first, so count only the actual update RPCs.
+      const updateCalls = (supabase.rpc as jest.Mock).mock.calls.filter(
+        ([name]: [string]) => name === 'update_notification_preference'
+      );
+      expect(updateCalls).toHaveLength(5);
     });
   });
 });

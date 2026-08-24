@@ -2,6 +2,7 @@
 // MODULE-14: Service for managing user notification preferences via Supabase RPC
 
 import { supabase } from './supabase';
+import { getSimulatedNotificationPrefSaveError } from './devTestingService';
 
 export type NotificationCategory = 'subscription' | 'sp_events' | 'badges' | 'trades' | 'system';
 
@@ -79,6 +80,18 @@ export const updateNotificationPreference = async (
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
+
+    // AUTH-TC-D02 (dev-only): allow QA to force a save failure via the
+    // `qa_force_pref_save_failure` admin_config toggle (mirrors the H03
+    // `qa_avatar_upload_failure` pattern). Fail-closed — release builds and
+    // unset/unknown toggles always run the real save. A simulated failure flows
+    // through NotificationPreferencesScreen's existing revert branch (optimistic
+    // update → revert + error alert).
+    const simulatedSaveError = await getSimulatedNotificationPrefSaveError();
+    if (simulatedSaveError) {
+      console.warn('[notificationPreferences] QA preference-save failure simulation active');
+      return { success: false, error: simulatedSaveError.message };
+    }
 
     const { data: _data, error } = await supabase.rpc('update_notification_preference', {
       p_user_id: user.id,

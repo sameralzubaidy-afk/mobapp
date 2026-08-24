@@ -3,6 +3,7 @@
 // React Native-safe implementation: calls Supabase Edge Function for sends.
 
 import { supabase } from '../config/supabase';
+import { getPushSimulationMode } from './devTestingService';
 
 const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 
@@ -331,6 +332,12 @@ export async function sendPushNotification(
   const actualFingerprint = fingerprint || `${type}-${userId}-${Math.floor(Date.now() / 60000)}`; // 1-minute window for auto-generated fingerprints
 
   try {
+    // AUTH-TC-A03 (dev-only): read the QA push-simulation mode ONCE so the
+    // rate-limit / quiet-hours / token / send legs all agree within one send.
+    // Returns 'none' immediately in release builds (isDevEnvironment() false) —
+    // no RPC, the real push path always runs. Values: 'token' | 'rate_limited' |
+    // 'quiet_hours' | 'none' (fail-closed). See devTestingService.getPushSimulationMode().
+    const simMode = await getPushSimulationMode();
     // 1. Check deduplication (unless critical)
     if (!critical) {
       const isDuplicate = await checkDuplicate(userId, type, actualFingerprint);
@@ -346,7 +353,7 @@ export async function sendPushNotification(
 
     // 2. Check rate limit (unless critical)
     if (!critical) {
-      const withinRateLimit = await checkRateLimit(userId);
+      const withinRateLimit = simMode === 'rate_limited' ? false : await checkRateLimit(userId);
       if (!withinRateLimit) {
         console.log(`[pushDelivery] Rate limit exceeded for user ${userId}`);
         return {
@@ -359,7 +366,7 @@ export async function sendPushNotification(
 
     // 3. Check quiet hours (unless critical)
     if (!critical) {
-      const inQuietHours = await checkQuietHours(userId);
+      const inQuietHours = simMode === 'quiet_hours' ? true : await checkQuietHours(userId);
       if (inQuietHours) {
         console.log(`[pushDelivery] User ${userId} in quiet hours, notification deferred`);
         return {
@@ -371,7 +378,10 @@ export async function sendPushNotification(
     }
 
     // 4. Get user's push tokens
-    const pushTokens = await getUserPushTokens(userId);
+    const pushTokens =
+      simMode === 'token'
+        ? [{ id: 'qa-simulated-push-token', token: 'ExponentPushToken[qa-simulator-simulated]' }]
+        : await getUserPushTokens(userId);
     if (pushTokens.length === 0) {
       console.warn(`[pushDelivery] No push tokens found for user ${userId}`);
       return {
@@ -393,19 +403,30 @@ export async function sendPushNotification(
     }
 
     // 6. Send push notifications via existing Supabase Edge Function.
-    const sendResult = await sendViaEdgeFunction(
-      userId,
-      title,
-      body,
-      {
-        ...data,
-        notificationId,
-        type,
-        sound,
-        badge,
-      },
-      priority
-    );
+    //    AUTH-TC-A03 (dev-only): when the simulated token is in play ('token'
+    //    mode), mock the send so no real Expo call is made to the fake token.
+    //    The mock returns an 'ok' ticket so the success path (and dedup on
+    //    repeat taps → 'Notification Queued') is observable on the simulator.
+    const sendResult =
+      simMode === 'token'
+        ? {
+            success: true,
+            tickets: [{ status: 'ok' as const, id: 'qa-simulated-ticket' }],
+            loggedByEdge: true,
+          }
+        : await sendViaEdgeFunction(
+            userId,
+            title,
+            body,
+            {
+              ...data,
+              notificationId,
+              type,
+              sound,
+              badge,
+            },
+            priority
+          );
 
     if (!sendResult.success) {
       // If edge function did not write logs, record failures locally for observability.
