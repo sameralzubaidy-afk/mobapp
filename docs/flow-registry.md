@@ -813,8 +813,8 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Module: MODULE-04-ITEM-LISTING-V3 (TASK LISTING-V3-011: SP Earnings Preview)
   - Seller edits an approved listing (e.g., title/price/photos) -> `items.status` transitions `available` -> `pending` and requires admin re-approval.
   - **SAFETY-P001 (2026-03-28):** Item Images Storage Bucket
-    - Migration: `20260328000100_create_item_images_bucket.sql`
-    - Storage bucket: `item-images` (public, 5MB limit, allowed: JPEG/PNG/WebP/GIF)
+    - Migrations: `20260328000100_create_item_images_bucket.sql` (create, 5MB) → `20260824000001_update_item_images_bucket_file_size_limit.sql` (**applied to staging `drntwgporzabmxdqykrp` 2026-08-24**: `file_size_limit` 5MB → 10MB, matching `photoService.MAX_FILE_SIZE_MB`; live-verified `10485760`, 11MB upload rejected in e2e)
+    - Storage bucket: `item-images` (public, 10MB limit, allowed: JPEG/PNG/WebP/GIF)
     - RLS policies:
       - Sellers can upload/update/delete images for their own listings
       - Public read access to all listing images

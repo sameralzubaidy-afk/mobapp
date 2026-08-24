@@ -100,7 +100,7 @@ const SKIP_E2E = !process.env.RUN_SUPABASE_E2E || !TEST_USER_EMAIL || !TEST_USER
       const itemImagesBucket = buckets?.find((b) => b.id === 'item-images');
       expect(itemImagesBucket).toBeDefined();
       expect(itemImagesBucket?.public).toBe(true);
-      expect(itemImagesBucket?.file_size_limit).toBe(5242880); // 5MB
+      expect(itemImagesBucket?.file_size_limit).toBe(10485760); // 10MB (matches photoService.MAX_FILE_SIZE_MB)
     });
   });
 
@@ -127,9 +127,9 @@ const SKIP_E2E = !process.env.RUN_SUPABASE_E2E || !TEST_USER_EMAIL || !TEST_USER
       console.log(`✓ Upload successful: ${filePath}`);
     });
 
-    it('should reject upload exceeding 5MB file size limit', async () => {
-      // Create a 6MB blob (exceeds limit)
-      const largeBlob = new Blob([new ArrayBuffer(6 * 1024 * 1024)], { type: 'image/jpeg' });
+    it('should reject upload exceeding 10MB file size limit', async () => {
+      // Create an 11MB blob (exceeds the 10MB bucket limit)
+      const largeBlob = new Blob([new ArrayBuffer(11 * 1024 * 1024)], { type: 'image/jpeg' });
 
       const filePath = `${testItemId}/large-file-${Date.now()}.jpg`;
 

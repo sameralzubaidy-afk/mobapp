@@ -115,8 +115,8 @@ describe('Storage Service - Item Images', () => {
       expect(result.path).toBeNull();
     });
 
-    it('should respect 5MB file size limit (enforced by Supabase)', async () => {
-      const mockError = { message: 'File size exceeds bucket limit of 5242880 bytes' };
+    it('should respect 10MB file size limit (enforced by Supabase)', async () => {
+      const mockError = { message: 'File size exceeds bucket limit of 10485760 bytes' };
       const mockUpload = jest.fn().mockResolvedValue({
         data: null,
         error: mockError,
