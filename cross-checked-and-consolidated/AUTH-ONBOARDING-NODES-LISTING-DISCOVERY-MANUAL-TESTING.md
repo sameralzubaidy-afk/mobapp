@@ -66,9 +66,9 @@
 | | ~~AUTH-TC-H05~~ | ~~Feature Highlights carousel~~ (REMOVED — screen deleted; superseded by H06/H07) |
 | | AUTH-TC-H06 | Onboarding carousel: Next / Skip / Get Started |
 | | AUTH-TC-H07 | Onboarding completion routes to Home |
-| **I — Subscription Choice (Onboarding)** | AUTH-TC-I01 | Start Free Trial enrolls Kids Club+ |
-| | AUTH-TC-I02 | Continue Free stays on free tier |
-| | AUTH-TC-I03 | Trial limit reached hides trial CTA |
+| **I — Subscription Choice (Onboarding)** | ~~AUTH-TC-I01~~ | ~~Start Free Trial enrolls Kids Club+~~ (REMOVED — no in-app trial-choice step; subscription purchase superseded by web-first `JoinKidsClubScreen` path) |
+| | ~~AUTH-TC-I02~~ | ~~Continue Free stays on free tier~~ (REMOVED — post-Profile-Setup routes to EDU carousel → free-tier Home; no Continue Free step) |
+| | ~~AUTH-TC-I03~~ | ~~Trial limit reached hides trial CTA~~ (REMOVED — no in-app trial CTA; trial disabled via `admin_config.trial_enabled=false`) |
 | **J — Listing Creation (Single Item)** | AUTH-TC-J01 | Photo-first gating (fields hidden until 1 photo) |
 | | AUTH-TC-J02 | AI auto-fill Apply All + per-field Use |
 | | AUTH-TC-J03 | Required field validation |
@@ -1012,43 +1012,33 @@ carousel; titles/descriptions/emoji/pagination-dots assertions) + **AUTH-TC-H07*
 
 ## Group I — Subscription Choice (Onboarding)
 
-### AUTH-TC-I01 · Start Free Trial enrolls Kids Club+
+### ~~AUTH-TC-I01 · Start Free Trial enrolls Kids Club+~~ — REMOVED
 
-**Actors:** new-user
+**Status:** Deprecated/removed 2026-08-24.
+The native "Subscription Choice" step (Start Free Trial / Continue Free) is deliberately NOT
+implemented — final product decision (see `docs/DECISIONS.md`). Post-Profile-Setup the app routes
+to the 5-slide EDU carousel (`OnboardingScreen`) → free-tier Home; there is no in-app trial-choice
+step. Subscription upsell is handled entirely via the web-first `JoinKidsClubScreen` purchase path
+(route `SubscriptionChoice` maps to `JoinKidsClubScreen` per `AppNavigator.tsx` L562). Coverage to
+use instead: **AUTH-TC-H06** + **AUTH-TC-H07** (onboarding) and the `JoinKidsClubScreen` web purchase
+flow (manual/admin verification).
 
-**Precondition:** Trial is enabled in admin config.
+### ~~AUTH-TC-I02 · Continue Free stays on free tier~~ — REMOVED
 
-**Objective:** Verify starting the trial enrolls the user in Kids Club+.
+**Status:** Deprecated/removed 2026-08-24.
+There is no "Continue Free" step in-app — post-Profile-Setup routes directly to the EDU carousel →
+free-tier Home (see `docs/DECISIONS.md`). The free tier is the default outcome of the (non-existent)
+trial choice; free-tier gating of subscriber features is covered elsewhere (e.g., AUTH-TC-J07
+free-user upgrade prompt). Coverage to use instead: **AUTH-TC-H06** + **AUTH-TC-H07**.
 
-**Steps:**
-1. On the Subscription Choice screen, tap **Start Free Trial**.
+### ~~AUTH-TC-I03 · Trial limit reached hides trial CTA~~ — REMOVED
 
-**Expected Result:**
-- The screen shows "Try Kids Club+ Free for N days" at $0.00; after enrolling, the user proceeds to Home and gains subscriber features (e.g., SP, Accept SP toggle).
-
-### AUTH-TC-I02 · Continue Free stays on free tier
-
-**Actors:** new-user
-
-**Objective:** Verify choosing free keeps the user on the free tier.
-
-**Steps:**
-1. On the Subscription Choice screen, tap **Continue Free**.
-
-**Expected Result:**
-- The user proceeds to Home on the free tier with subscriber-only features locked.
-
-### AUTH-TC-I03 · Trial limit reached hides trial CTA
-
-**Actors:** new-user (who already used the max trials)
-
-**Objective:** Verify the trial CTA hides once the trial limit is reached.
-
-**Steps:**
-1. Reach the Subscription Choice screen as a user who has exhausted allowed trials.
-
-**Expected Result:**
-- **Start Free Trial** is hidden; only the paid Kids Club+ option and **Continue Free** are shown.
+**Status:** Deprecated/removed 2026-08-24.
+There is no in-app trial CTA to hide. Trial enrollment is disabled on staging
+(`admin_config.trial_enabled=false` — intentional, see `docs/DECISIONS.md`), and subscription
+purchase is web-first via `JoinKidsClubScreen`. Trial-limit RPCs (`get_trial_limit_status` /
+`increment_trial_uses` / `admin_reset_trial_uses`) and related trial services have no live UI path;
+flagged as deprecation-review candidates (see `docs/DECISIONS.md`).
 
 ---
 
@@ -2430,7 +2420,7 @@ carousel; titles/descriptions/emoji/pagination-dots assertions) + **AUTH-TC-H07*
 | Profile Setup capture + validation | AUTH-TC-H01, AUTH-TC-H02, AUTH-TC-H03 |
 | Welcome / Feature Highlights | ~~AUTH-TC-H04, AUTH-TC-H05~~ — REMOVED (screens deleted; superseded by AUTH-TC-H06, AUTH-TC-H07) |
 | Onboarding carousel + completion | AUTH-TC-H06, AUTH-TC-H07 |
-| Subscription choice trial/free | AUTH-TC-I01, AUTH-TC-I02, AUTH-TC-I03 |
+| Subscription choice trial/free | ~~AUTH-TC-I01, AUTH-TC-I02, AUTH-TC-I03~~ — REMOVED (no in-app trial-choice step; subscription purchase via web-first `JoinKidsClubScreen` path — see `docs/DECISIONS.md`) |
 | Listing photo-first gating | AUTH-TC-J01 |
 | AI auto-fill apply | AUTH-TC-J02 |
 | Listing required-field validation | AUTH-TC-J03 |

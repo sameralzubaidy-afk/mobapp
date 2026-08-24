@@ -3097,7 +3097,7 @@ add one section on the top give summary on what this file covers from testing an
   - DB migration: `supabase/migrations/20260312000000_sub_020_trial_limit_control.sql`
   - New RPCs: `get_trial_limit_status`, `increment_trial_uses`, `admin_reset_trial_uses`
   - Updated RPCs: `is_user_trial_eligible`, `create_trial_subscription`, `upgrade_free_subscription_to_trial`
-  - Mobile UI: `p2p-kids-marketplace/src/screens/onboarding/SubscriptionChoiceScreen.tsx`
+  - Mobile UI: route `SubscriptionChoice` maps to `JoinKidsClubScreen` (`p2p-kids-marketplace/src/navigation/AppNavigator.tsx` L562) — the web-first purchase screen. This is the ACTUAL, INTENDED, PERMANENT implementation (not a placeholder/unfinished state): the native Start Free Trial / Continue Free trial-choice screen is deliberately NOT implemented — product decision 2026-08-24, see `docs/DECISIONS.md`.
   - Service: `p2p-kids-marketplace/src/services/subscription.ts`
   - Manual tests: `docs/manual-verification/SUB-020-TRIAL-LIMIT-MANUAL-TEST-CASES.md`
   - Maestro: `p2p-kids-marketplace/.maestro/sub-020-trial-limit.yaml`
