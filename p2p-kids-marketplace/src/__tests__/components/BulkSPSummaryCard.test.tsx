@@ -26,6 +26,7 @@ describe('BulkSPSummaryCard', () => {
     mockUseCategorySPCache.mockReturnValue({
       multipliers: multiplierMap,
       categoryNames: categoryNameMap,
+      capPercents: new Map<string, number>(),
       loading: false,
       error: null,
       getMultiplier: (categoryId: string | null) => {
@@ -36,6 +37,7 @@ describe('BulkSPSummaryCard', () => {
         if (!categoryId) return 'Unknown';
         return categoryNameMap.get(categoryId) || categoryId;
       },
+      getSpendingCapPercent: () => 70,
       refresh: jest.fn(),
     });
   });

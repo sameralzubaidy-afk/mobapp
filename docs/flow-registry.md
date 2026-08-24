@@ -494,6 +494,21 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
   - Create listing -> appears in listings feed for same node.
+  - **J13-PHOTO-REORDER-REPLACE + J15-BUYER-SP-CAP (2026-08-24):** Two confirmed product features on single-item listing creation (closes QA Group J spec gaps AUTH-TC-J13 reorder/replace + AUTH-TC-J15 buyer SP-cap display)
+    - Scope:
+      - `p2p-kids-marketplace/src/components/listing/PhotoUploadManager.tsx` — ◀/▶ reorder chips (`onReorder` now wired) + per-photo replace (⟳) control
+      - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` — photo id→URL ref map (`photoUrlByPhotoIdRef`); draft `photo_urls` derived from on-screen photo order so reorder/replace/remove all persist correctly (cover = `photo_urls[0]`)
+      - `p2p-kids-marketplace/src/hooks/useCategorySPCache.ts` — now fetches + exposes per-category `sp_spending_cap_percent` (single fetch/cache path, DB-driven, default 70 matches DB column default)
+      - `p2p-kids-marketplace/src/components/listing/SPEarningsPreview.tsx` — buyer max-SP cap line (distinct gold row) from the category's DB cap; concrete SP/$ figures; percentage-only before a price is entered
+      - Tests: `SPEarningsPreview.test.tsx` (new), `PhotoUploadManager.test.tsx`, `ItemCreateScreen.test.tsx`, `useCategorySPCache.test.ts`, `BulkSPSummaryCard.test.tsx`
+    - Behavior:
+      - J15: buyer cap = `floor(price × category.sp_spending_cap_percent / 100)` (reuses `calculateMaxSpendSP`, same formula the backend enforces); never hardcoded; updates on price/category change; copy: "Buyers can pay up to ~X SP toward this $Y price with Swap Points" (percentage-only when price is 0).
+      - J13: reorder persists cover into the draft; replace swaps the photo in place (array length unchanged, slot preserved) without re-triggering AI (AI-derived fields stay as-is); remove no longer leaves stale URLs in the saved draft.
+    - Validation:
+      - `yarn typecheck` (PASS) + `npx eslint <9 changed files>` (0 errors; project-wide lint has 104 pre-existing errors in untouched files — `detox/`, `__tests__/integration/`, etc.)
+      - All 6 affected Jest suites — 102/102 PASS
+      - Full suite `yarn test` — 3414 passed, 0 failed (one TradeOfferScreen flake observed once, passes in isolation; unrelated to these files)
+    - Regression: Tier 0 (typecheck/lint/unit). No DB/API/Edge Function changes.
   - **PHONE-VERIFICATION-GATE (2026-08-19):** Hoisted the client phone-verification gate out of dead code + added a server-side items INSERT backstop + fixed the tab-bar occlusion of the Publish button on ItemCreate
     - Scope:
       - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx`

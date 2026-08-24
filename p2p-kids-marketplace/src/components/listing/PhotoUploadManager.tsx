@@ -19,6 +19,12 @@ export interface PhotoUploadManagerProps {
   onAddPhotos: () => void;
   onRemovePhoto: (photoId: string) => void;
   onReorder: (newOrder: PhotoAsset[]) => void;
+  /**
+   * Swap an individual photo in place (keeps its position in the order).
+   * Optional so callers that only add/remove aren't forced to handle replace;
+   * the replace control renders only when a handler is provided.
+   */
+  onReplacePhoto?: (photoId: string) => void;
   maxPhotos?: number;
   testID?: string;
 }
@@ -27,12 +33,28 @@ export function PhotoUploadManager({
   photos,
   onAddPhotos,
   onRemovePhoto,
-  onReorder: _onReorder,
+  onReorder,
+  onReplacePhoto,
   maxPhotos = 10,
   testID = 'photo-upload-manager',
 }: PhotoUploadManagerProps) {
   const canAddMore = photos.length < maxPhotos;
   const visibleAddSlots = canAddMore ? Math.min(maxPhotos - photos.length, 3) : 0;
+
+  // J13 reorder: move a photo one slot left/right and report the full new order
+  // to the parent (the parent owns `photos` state + draft persistence). The app's
+  // established reorder convention is ◀/▶ arrow chips (see PhotoSelectGrid K02,
+  // PhotoGroupingView, ImagePickerGrid) — no drag library is used on this form.
+  const movePhoto = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= photos.length) {
+      return;
+    }
+    const next = [...photos];
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, moved);
+    onReorder(next);
+  };
 
   const gridItems: (
     | { kind: 'photo'; key: string; photo: PhotoAsset; photoIndex: number }
@@ -103,6 +125,47 @@ export function PhotoUploadManager({
         >
           <Text style={styles.removeText}>✕</Text>
         </TouchableOpacity>
+
+        {/* J13: reorder (◀/▶) + replace (⟳) controls. First photo in the resulting
+            order stays flagged as Cover because the Cover badge keys off index 0. */}
+        <View style={styles.photoControlsRow}>
+          {item.photoIndex > 0 && (
+            <TouchableOpacity
+              accessible
+              style={styles.photoControlChip}
+              onPress={() => movePhoto(item.photoIndex, -1)}
+              accessibilityLabel="Move this photo earlier in the item"
+              accessibilityRole="button"
+              testID={`move-photo-left-${item.photo.id}`}
+            >
+              <Text style={styles.photoControlText}>◀</Text>
+            </TouchableOpacity>
+          )}
+          {onReplacePhoto && (
+            <TouchableOpacity
+              accessible
+              style={styles.photoControlChip}
+              onPress={() => onReplacePhoto(item.photo.id)}
+              accessibilityLabel="Replace this photo"
+              accessibilityRole="button"
+              testID={`replace-photo-${item.photo.id}`}
+            >
+              <Text style={styles.photoControlText}>⟳</Text>
+            </TouchableOpacity>
+          )}
+          {item.photoIndex < photos.length - 1 && (
+            <TouchableOpacity
+              accessible
+              style={styles.photoControlChip}
+              onPress={() => movePhoto(item.photoIndex, 1)}
+              accessibilityLabel="Move this photo later in the item"
+              accessibilityRole="button"
+              testID={`move-photo-right-${item.photo.id}`}
+            >
+              <Text style={styles.photoControlText}>▶</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -229,6 +292,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  photoControlsRow: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  photoControlChip: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoControlText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    lineHeight: 14,
   },
   maxPhotosText: {
     fontSize: 14,

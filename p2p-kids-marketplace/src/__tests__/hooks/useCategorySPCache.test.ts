@@ -18,9 +18,27 @@ const mockCategoryService = categoryService as jest.Mocked<typeof categoryServic
 
 describe('useCategorySPCache', () => {
   const mockCategories = [
-    { id: 'cat-toys', name: 'Toys', sp_earning_multiplier: 1.2, item_count: 10 },
-    { id: 'cat-clothes', name: 'Clothes', sp_earning_multiplier: 1.1, item_count: 5 },
-    { id: 'cat-books', name: 'Books', sp_earning_multiplier: 1.3, item_count: 8 },
+    {
+      id: 'cat-toys',
+      name: 'Toys',
+      sp_earning_multiplier: 1.2,
+      sp_spending_cap_percent: 75,
+      item_count: 10,
+    },
+    {
+      id: 'cat-clothes',
+      name: 'Clothes',
+      sp_earning_multiplier: 1.1,
+      sp_spending_cap_percent: 60,
+      item_count: 5,
+    },
+    {
+      id: 'cat-books',
+      name: 'Books',
+      sp_earning_multiplier: 1.3,
+      sp_spending_cap_percent: 80,
+      item_count: 8,
+    },
   ];
 
   beforeEach(() => {
@@ -52,6 +70,11 @@ describe('useCategorySPCache', () => {
 
       // Should have category names
       expect(result.current.getCategoryName('cat-toys')).toBe('Toys');
+
+      // Should expose the DB-configured buyer spending cap per category (J15)
+      expect(result.current.getSpendingCapPercent('cat-toys')).toBe(75);
+      expect(result.current.getSpendingCapPercent('cat-clothes')).toBe(60);
+      expect(result.current.getSpendingCapPercent('cat-books')).toBe(80);
 
       // Should have saved to cache
       expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
@@ -147,6 +170,44 @@ describe('useCategorySPCache', () => {
       });
 
       expect(result.current.getMultiplier('cat-unknown')).toBe(1.1);
+    });
+  });
+
+  describe('getSpendingCapPercent', () => {
+    it('should return the DB-configured cap for a known category', async () => {
+      mockCategoryService.getCategoriesWithCounts.mockResolvedValue(mockCategories as any);
+
+      const { result } = renderHook(() => useCategorySPCache());
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.getSpendingCapPercent('cat-books')).toBe(80);
+    });
+
+    it('should return the DB column default (70) for null category', async () => {
+      mockCategoryService.getCategoriesWithCounts.mockResolvedValue(mockCategories as any);
+
+      const { result } = renderHook(() => useCategorySPCache());
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.getSpendingCapPercent(null)).toBe(70);
+    });
+
+    it('should return the DB column default (70) for an unknown category', async () => {
+      mockCategoryService.getCategoriesWithCounts.mockResolvedValue(mockCategories as any);
+
+      const { result } = renderHook(() => useCategorySPCache());
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.getSpendingCapPercent('cat-unknown')).toBe(70);
     });
   });
 

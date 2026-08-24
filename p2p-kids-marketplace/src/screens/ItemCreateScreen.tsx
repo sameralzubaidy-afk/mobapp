@@ -138,6 +138,13 @@ export default function ItemCreateScreen() {
   const hasHydratedDraftRef = useRef(false);
   const hasHandledInitialPhotoSourceRef = useRef(false);
   const pendingCategoryIdRef = useRef<string | null>(null);
+  // J13: photo id -> remote URL (source of truth for the draft's photo_urls order).
+  // Derived from the on-screen `photos` order so reorder/replace/remove all persist
+  // correctly into the draft, regardless of upload-completion order.
+  const photoUrlByPhotoIdRef = useRef<Map<string, string>>(new Map());
+  // Bumped when a replaced photo's upload lands so the draft effect re-reads the
+  // ref (refs don't trigger renders on their own).
+  const [photoUrlMapVersion, setPhotoUrlMapVersion] = useState(0);
 
   // State machine
   const [flowState, dispatch] = useReducer(stateReducer, 'IDLE');
@@ -253,6 +260,7 @@ export default function ItemCreateScreen() {
   useEffect(() => {
     hasHydratedDraftRef.current = false;
     pendingCategoryIdRef.current = null;
+    photoUrlByPhotoIdRef.current = new Map();
     setRestoredPhotoUrls([]);
     setIsDraftHydrated(!draftId);
   }, [draftId]);
@@ -297,6 +305,11 @@ export default function ItemCreateScreen() {
         width: 0,
         height: 0,
       }))
+    );
+    // Seed the id->URL map so reorder/replace can derive draft photo_urls from
+    // the on-screen order after resuming a draft.
+    photoUrlByPhotoIdRef.current = new Map(
+      restoredPhotoUrls.map((url, index) => [`restored-photo-${index}`, url])
     );
 
     const savedCategoryId =
@@ -378,7 +391,12 @@ export default function ItemCreateScreen() {
       return;
     }
 
-    const combinedPhotoUrls = [...restoredPhotoUrls, ...uploadedPhotoUrls];
+    // Derive the draft's photo_urls from the CURRENT on-screen photo order via
+    // the id->URL map, so reorder/replace/remove all persist correctly (cover =
+    // photo_urls[0]). Photos still uploading (no URL yet) are skipped.
+    const combinedPhotoUrls = photos
+      .map((p) => photoUrlByPhotoIdRef.current.get(p.id))
+      .filter((url): url is string => Boolean(url));
     const hasUploadedPhotos = combinedPhotoUrls.length > 0;
     const isResumedDraft = Boolean(draftId);
 
@@ -438,6 +456,7 @@ export default function ItemCreateScreen() {
     priceInput,
     saveDraft,
     saveNow,
+    photoUrlMapVersion,
     isDraftHydrated,
   ]);
 
@@ -545,6 +564,25 @@ export default function ItemCreateScreen() {
 
         if (result.urls.length > 0) {
           setUploadedPhotoUrls((prev) => [...prev, ...result.urls]);
+
+          // Record each successful upload against its photo id so the draft's
+          // photo_urls can be derived from the CURRENT on-screen order (reorder
+          // safe) instead of upload-completion order.
+          const failedIndices = new Set(result.errors.map((e) => e.index));
+          let urlCursor = 0;
+          const nextMap = new Map(photoUrlByPhotoIdRef.current);
+          photosToUpload.forEach((photo, i) => {
+            if (failedIndices.has(i)) {
+              return;
+            }
+            const url = result.urls[urlCursor];
+            if (url) {
+              nextMap.set(photo.id, url);
+            }
+            urlCursor += 1;
+          });
+          photoUrlByPhotoIdRef.current = nextMap;
+          setPhotoUrlMapVersion((v) => v + 1);
         }
 
         if (result.errors.length > 0) {
@@ -694,12 +732,53 @@ export default function ItemCreateScreen() {
   }, [addPhotosFromSource, initialPhotoSource, photos.length]);
 
   const handleRemovePhoto = (photoId: string) => {
+    // Drop the URL mapping too — the draft's photo_urls derive from the on-screen
+    // photos + this map, so a removed photo never lingers in a saved draft.
+    photoUrlByPhotoIdRef.current.delete(photoId);
     setPhotos(photos.filter((p) => p.id !== photoId));
-    // TODO: Remove from uploadedPhotoUrls
   };
 
   const handleReorderPhotos = (newOrder: PhotoAsset[]) => {
+    // J13: reorder persists to the draft automatically — draft photo_urls derive
+    // from the on-screen photos order + the id->URL map (cover = first photo).
     setPhotos(newOrder);
+  };
+
+  // J13 replace: swap an individual photo in place. Reuses the existing picker
+  // entry point; the array length is unchanged and AI-derived fields are NOT
+  // re-analyzed (only the photo changes, per product decision).
+  const handleReplacePhoto = async (photoId: string) => {
+    const index = photos.findIndex((p) => p.id === photoId);
+    if (index < 0) {
+      return;
+    }
+
+    const picked = await pickAssetsFromSource('library', 1);
+    if (!picked || picked.length === 0) {
+      return;
+    }
+    const replacement = picked[0];
+
+    photoUrlByPhotoIdRef.current.delete(photoId);
+    setPhotos((prev) => prev.map((p) => (p.id === photoId ? replacement : p)));
+
+    try {
+      const result = await uploadPhotoBatch([replacement], sellerId);
+      if (result.urls.length > 0) {
+        const nextMap = new Map(photoUrlByPhotoIdRef.current);
+        nextMap.set(replacement.id, result.urls[0]);
+        photoUrlByPhotoIdRef.current = nextMap;
+        setPhotoUrlMapVersion((v) => v + 1);
+      } else if (result.errors.length > 0) {
+        Alert.alert('Error', result.errors[0].error || 'Failed to upload replacement photo');
+      }
+    } catch (err: any) {
+      captureException(err, {
+        tags: { screen: 'ItemCreateScreen', action: 'replace_photo' },
+        extra: { message: err?.message },
+      });
+      Alert.alert('Error', 'Failed to upload replacement photo');
+    }
   };
 
   const handleApplyAllAI = () => {
@@ -997,6 +1076,7 @@ export default function ItemCreateScreen() {
           onAddPhotos={handleAddPhotos}
           onRemovePhoto={handleRemovePhoto}
           onReorder={handleReorderPhotos}
+          onReplacePhoto={handleReplacePhoto}
         />
 
         {/* DEV-ONLY: bypass the native photo picker so QA automation can reach

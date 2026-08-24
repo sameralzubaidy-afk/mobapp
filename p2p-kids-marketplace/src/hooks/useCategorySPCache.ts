@@ -16,11 +16,16 @@ import { getCategoriesWithCounts } from '../services/categoryService';
 const STORAGE_KEY = '@kids_marketplace:category_sp_multipliers';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const DEFAULT_MULTIPLIER = 1.1;
+// Matches the DB column DEFAULT 70 (ADMIN-CATEGORY-MANAGEMENT.md L424-425: `DEFAULT 70`,
+// `CHECK (sp_spending_cap_percent BETWEEN 50 AND 80)`). Only used when a category has no
+// configured value — never as a replacement for the admin-configured cap.
+const DEFAULT_SPENDING_CAP_PERCENT = 70;
 
 export interface CategorySPMultiplier {
   category_id: string;
   category_name: string;
   sp_earning_multiplier: number;
+  sp_spending_cap_percent: number;
   last_updated: string; // ISO timestamp
 }
 
@@ -34,6 +39,8 @@ export interface UseCategorySPCacheReturn {
   multipliers: Map<string, number>;
   /** Map of category_id -> category_name */
   categoryNames: Map<string, string>;
+  /** Map of category_id -> sp_spending_cap_percent (buyer-side cap, 50-80%) */
+  capPercents: Map<string, number>;
   /** Loading state */
   loading: boolean;
   /** Error message (null if no error) */
@@ -42,6 +49,8 @@ export interface UseCategorySPCacheReturn {
   getMultiplier: (categoryId: string | null) => number;
   /** Get category name by ID */
   getCategoryName: (categoryId: string | null) => string;
+  /** Get buyer spending cap % for a category ID (returns default 70 if not found) */
+  getSpendingCapPercent: (categoryId: string | null) => number;
   /** Force refresh from API */
   refresh: () => Promise<void>;
 }
@@ -59,6 +68,7 @@ export interface UseCategorySPCacheReturn {
 export function useCategorySPCache(): UseCategorySPCacheReturn {
   const [multipliers, setMultipliers] = useState<Map<string, number>>(new Map());
   const [categoryNames, setCategoryNames] = useState<Map<string, string>>(new Map());
+  const [capPercents, setCapPercents] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,19 +96,35 @@ export function useCategorySPCache(): UseCategorySPCacheReturn {
   );
 
   /**
+   * Get buyer spending cap % for a category ID
+   * Returns the DB-configured value; falls back to the DB column default (70)
+   * only when the category is unknown or has no configured cap.
+   */
+  const getSpendingCapPercent = useCallback(
+    (categoryId: string | null): number => {
+      if (!categoryId) return DEFAULT_SPENDING_CAP_PERCENT;
+      return capPercents.get(categoryId) || DEFAULT_SPENDING_CAP_PERCENT;
+    },
+    [capPercents]
+  );
+
+  /**
    * Apply multiplier payload to local state maps
    */
   const applyCategoryData = useCallback((data: CategorySPMultiplier[]) => {
     const newMultipliers = new Map<string, number>();
     const newNames = new Map<string, string>();
+    const newCaps = new Map<string, number>();
 
     data.forEach((cat) => {
       newMultipliers.set(cat.category_id, cat.sp_earning_multiplier);
       newNames.set(cat.category_id, cat.category_name);
+      newCaps.set(cat.category_id, cat.sp_spending_cap_percent);
     });
 
     setMultipliers(newMultipliers);
     setCategoryNames(newNames);
+    setCapPercents(newCaps);
   }, []);
 
   /**
@@ -165,6 +191,7 @@ export function useCategorySPCache(): UseCategorySPCacheReturn {
       category_id: cat.id,
       category_name: cat.name,
       sp_earning_multiplier: cat.sp_earning_multiplier || DEFAULT_MULTIPLIER,
+      sp_spending_cap_percent: cat.sp_spending_cap_percent || DEFAULT_SPENDING_CAP_PERCENT,
       last_updated: new Date().toISOString(),
     }));
   }, []);
@@ -255,10 +282,12 @@ export function useCategorySPCache(): UseCategorySPCacheReturn {
   return {
     multipliers,
     categoryNames,
+    capPercents,
     loading,
     error,
     getMultiplier,
     getCategoryName,
+    getSpendingCapPercent,
     refresh,
   };
 }

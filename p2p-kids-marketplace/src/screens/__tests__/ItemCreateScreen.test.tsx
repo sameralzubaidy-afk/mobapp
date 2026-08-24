@@ -14,8 +14,9 @@
 
 import React from 'react';
 import { Alert, Image } from 'react-native';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import ItemCreateScreen from '../ItemCreateScreen';
+import { DraftData } from '../../types/listing';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../hooks/useAuth';
 import { useItemDraft } from '../../hooks/useItemDraft';
@@ -457,6 +458,150 @@ describe('ItemCreateScreen', () => {
 
       expect(mockSaveNow).toHaveBeenCalled();
       expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
+  });
+
+  // ── J13: photo reorder + replace must persist through to the draft's
+  //    photo_urls (cover = photo_urls[0]), and replace must not re-trigger AI.
+  describe('J13 Photo Reorder + Replace (draft persistence)', () => {
+    // Upload URLs derive from the asset uri so each photo maps to a distinct URL
+    // (photo-a.jpg -> .../a.jpg, photo-b.jpg -> .../b.jpg, photo-c.jpg -> .../c.jpg).
+    const mockUploadByUri = () => {
+      mockUploadPhotoBatch.mockImplementation(async (photos: { uri: string }[]) => ({
+        urls: photos.map(
+          (p) => `https://cdn.example.com/${p.uri.replace('photo-', '').replace('.jpg', '')}.jpg`
+        ),
+        errors: [],
+      }));
+    };
+
+    const addPhotoViaPicker = async (getByTestId: (id: string | RegExp) => any, uri: string) => {
+      mockImagePicker.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri, width: 800, height: 800, fileSize: 1000, mimeType: 'image/jpeg' }],
+      } as any);
+      // Wrap the press in act and let the fire-and-forget async chain
+      // (picker → setPhotos → upload → draft effect) flush deterministically.
+      await act(async () => {
+        fireEvent.press(getByTestId('add-photos-button'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await waitFor(() => expect(mockImagePicker).toHaveBeenCalled());
+      // Let the upload continuation + draft save run to completion.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+
+    const lastSavedPhotoUrls = (mockSave: jest.Mock): string[] | undefined => {
+      const lastCall = mockSave.mock.calls[mockSave.mock.calls.length - 1];
+      return (lastCall?.[0] as DraftData | undefined)?.photo_urls;
+    };
+
+    it('persists a reorder into the draft photo_urls (cover = new first photo)', async () => {
+      const mockSave = jest.fn();
+      mockUseItemDraft.mockReturnValue({
+        draft: null,
+        save: mockSave,
+        saveNow: jest.fn(),
+        discard: jest.fn(),
+        isSaving: false,
+        saveError: null,
+      } as any);
+      mockUploadByUri();
+
+      const { getByTestId } = renderScreen({ params: { showPhotoSourcePrompt: false } } as any);
+
+      await addPhotoViaPicker(getByTestId, 'photo-a.jpg');
+      await addPhotoViaPicker(getByTestId, 'photo-b.jpg');
+
+      // Both uploads must be triggered before the draft save can be asserted.
+      await waitFor(() => expect(mockUploadPhotoBatch).toHaveBeenCalledTimes(2));
+
+      await waitFor(
+        () => {
+          expect(lastSavedPhotoUrls(mockSave)).toEqual([
+            'https://cdn.example.com/a.jpg',
+            'https://cdn.example.com/b.jpg',
+          ]);
+        },
+        { timeout: 5000, interval: 50 }
+      );
+
+      // Move the first photo one slot right → order becomes [b, a].
+      fireEvent.press(getByTestId(/move-photo-right-/));
+
+      await waitFor(() => {
+        expect(lastSavedPhotoUrls(mockSave)).toEqual([
+          'https://cdn.example.com/b.jpg',
+          'https://cdn.example.com/a.jpg',
+        ]);
+      });
+    });
+
+    it('replaces a photo in place without changing length or re-triggering AI', async () => {
+      const mockSave = jest.fn();
+      mockUseItemDraft.mockReturnValue({
+        draft: null,
+        save: mockSave,
+        saveNow: jest.fn(),
+        discard: jest.fn(),
+        isSaving: false,
+        saveError: null,
+      } as any);
+      mockUploadByUri();
+
+      const { getByTestId, getAllByTestId } = renderScreen({
+        params: { showPhotoSourcePrompt: false },
+      } as any);
+
+      await addPhotoViaPicker(getByTestId, 'photo-a.jpg');
+      await addPhotoViaPicker(getByTestId, 'photo-b.jpg');
+
+      // Both uploads must be triggered before the draft save can be asserted.
+      await waitFor(() => expect(mockUploadPhotoBatch).toHaveBeenCalledTimes(2));
+
+      await waitFor(
+        () => {
+          expect(lastSavedPhotoUrls(mockSave)).toEqual([
+            'https://cdn.example.com/a.jpg',
+            'https://cdn.example.com/b.jpg',
+          ]);
+        },
+        { timeout: 5000, interval: 50 }
+      );
+
+      // Replace the FIRST photo: picker returns a new asset, upload maps it to c.jpg.
+      mockImagePicker.mockResolvedValue({
+        canceled: false,
+        assets: [
+          { uri: 'photo-c.jpg', width: 800, height: 800, fileSize: 1000, mimeType: 'image/jpeg' },
+        ],
+      } as any);
+      const replaceButtons = getAllByTestId(/replace-photo-/);
+      fireEvent.press(replaceButtons[0]);
+
+      // The replaced photo keeps its slot; draft photo_urls reflect the swap.
+      await waitFor(
+        () => {
+          expect(lastSavedPhotoUrls(mockSave)).toEqual([
+            'https://cdn.example.com/c.jpg',
+            'https://cdn.example.com/b.jpg',
+          ]);
+        },
+        { timeout: 5000, interval: 50 }
+      );
+
+      // Array length is unchanged — still 2 filled slots.
+      expect(getAllByTestId(/photo-slot-filled-/)).toHaveLength(2);
+
+      // AI input (uploadedPhotoUrls) is unchanged by replace — the replacement URL
+      // is never handed to the AI hook.
+      const latestAiCall = mockUseAIAnalysis.mock.calls[mockUseAIAnalysis.mock.calls.length - 1];
+      expect(latestAiCall[0]).toEqual([
+        'https://cdn.example.com/a.jpg',
+        'https://cdn.example.com/b.jpg',
+      ]);
     });
   });
 

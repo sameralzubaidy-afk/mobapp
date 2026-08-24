@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, within } from '@testing-library/react-native';
 import { PhotoUploadManager } from '../../listing/PhotoUploadManager';
 import { PhotoAsset } from '../../../types/listing';
 
@@ -304,6 +304,109 @@ describe('PhotoUploadManager', () => {
       );
 
       expect(getByTestId('custom-test-id')).toBeTruthy();
+    });
+  });
+
+  describe('Reorder (J13)', () => {
+    it('calls onReorder with the swapped order when move-right is pressed', () => {
+      const { getByTestId } = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+      // Move photo 1 (index 0) one slot right → [2, 1, 3]
+      fireEvent.press(getByTestId('move-photo-right-1'));
+      expect(mockOnReorder).toHaveBeenCalledWith([mockPhotos[1], mockPhotos[0], mockPhotos[2]]);
+    });
+
+    it('calls onReorder with the swapped order when move-left is pressed', () => {
+      const { getByTestId } = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+      // Move photo 3 (index 2) one slot left → [1, 3, 2]
+      fireEvent.press(getByTestId('move-photo-left-3'));
+      expect(mockOnReorder).toHaveBeenCalledWith([mockPhotos[0], mockPhotos[2], mockPhotos[1]]);
+    });
+
+    it('hides move-left on the first photo and move-right on the last photo', () => {
+      const { queryByTestId } = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+      expect(queryByTestId('move-photo-left-1')).toBeNull(); // first photo
+      expect(queryByTestId('move-photo-right-3')).toBeNull(); // last photo
+    });
+
+    it('keeps the Cover badge on the first slot after the order changes', () => {
+      // Simulate the parent accepting a reorder by re-rendering with the new order.
+      const reordered = [mockPhotos[1], mockPhotos[0], mockPhotos[2]];
+      const { rerender, getByTestId, getAllByText } = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+      rerender(
+        <PhotoUploadManager
+          photos={reordered}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+      // Exactly one Cover badge, and it sits inside the (new) first slot.
+      expect(getAllByText('Cover')).toHaveLength(1);
+      expect(within(getByTestId('photo-slot-filled-0')).getByText('Cover')).toBeTruthy();
+    });
+  });
+
+  describe('Replace (J13)', () => {
+    it('calls onReplacePhoto with the photo id when replace is pressed', () => {
+      const onReplacePhoto = jest.fn();
+      const { getByTestId } = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+          onReplacePhoto={onReplacePhoto}
+        />
+      );
+
+      fireEvent.press(getByTestId('replace-photo-2'));
+      expect(onReplacePhoto).toHaveBeenCalledWith('2');
+    });
+
+    it('does not render replace controls when onReplacePhoto is not provided', () => {
+      const { queryByTestId } = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+      expect(queryByTestId('replace-photo-1')).toBeNull();
     });
   });
 });
