@@ -21,6 +21,7 @@ import { upsertZipWaitlist } from '@/services/waitlist';
 import type { ProfileSetupData } from '@/types/profile.types';
 import { useAuth } from '@/hooks/useAuth';
 import { User, Camera, MapPin } from 'phosphor-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export default function ProfileSetupScreen({ navigation: _navigation }: any) {
   const { refreshSession } = useAuth();
@@ -167,20 +168,49 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
     }
   };
 
-  // DEV-ONLY fixture: inject a bundled avatar directly into localImageUri,
-  // bypassing the native photo-picker crop editor (expo-image-picker
-  // allowsEditing), which is undrivable by QA automation — same limitation
-  // class as the documented CategorySelectModal issue. Gated by __DEV__ —
-  // never in release builds. Local state only (no upload), so the avatar
-  // preview update becomes toolset-verifiable without the native picker.
-  const handleDevSetAvatar = () => {
-    const source = Image.resolveAssetSource(require('../../../assets/adaptive-icon.png'));
-    const uri = source?.uri;
-    if (!uri) {
-      console.warn('[ProfileSetupScreen] Dev avatar fixture: bundled asset unresolved');
-      return;
+  // DEV-ONLY fixture: inject a bundled avatar into localImageUri, bypassing the
+  // native photo-picker crop editor (expo-image-picker allowsEditing), which is
+  // undrivable by QA automation — same limitation class as the documented
+  // CategorySelectModal issue. Gated by __DEV__ — never in release builds.
+  // Local state only (no direct upload), so the avatar preview update becomes
+  // toolset-verifiable without the native picker.
+  //
+  // The bundled asset is COPIED into the app cache first so the resulting URI is
+  // a local file:// path (identical to a real expo-image-picker result): the
+  // rest of the avatar pipeline (uploadProfileAvatar →
+  // ImageManipulator.manipulateAsync) can only read LOCAL file URIs, not the raw
+  // Metro dev-server asset URL (Expo Go: http://localhost:8081/assets/...) or
+  // the file:// bundle path (dev-client build). Without this copy, the upload
+  // silently fails and avatar_url stays null in the DB.
+  const handleDevSetAvatar = async () => {
+    try {
+      const source = Image.resolveAssetSource(require('../../../assets/adaptive-icon.png'));
+      const uri = source?.uri;
+      if (!uri) {
+        console.warn('[ProfileSetupScreen] Dev avatar fixture: bundled asset unresolved');
+        return;
+      }
+
+      const cacheDirectory = FileSystem.cacheDirectory;
+      if (!cacheDirectory) {
+        console.warn('[ProfileSetupScreen] Dev avatar fixture: cache directory unavailable');
+        return;
+      }
+
+      const destUri = `${cacheDirectory}dev-avatar-${Date.now()}.png`;
+      // Local bundle path (dev-client build) → copy; remote Metro asset URL
+      // (Expo Go) → download. Both land on a file:// cache path that the
+      // ImageManipulator-based upload can read.
+      if (uri.startsWith('file://')) {
+        await FileSystem.copyAsync({ from: uri, to: destUri });
+      } else {
+        await FileSystem.downloadAsync(uri, destUri);
+      }
+
+      setLocalImageUri(destUri);
+    } catch (error) {
+      console.warn('[ProfileSetupScreen] Dev avatar fixture: failed to prepare local asset', error);
     }
-    setLocalImageUri(uri);
   };
 
   const handleSubmit = async () => {
@@ -319,7 +349,8 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
             automation — same class as the documented CategorySelectModal issue)
             so the avatar-preview update is verifiable without the native picker.
             Gated by __DEV__ — never rendered in release builds. Local state only
-            (sets localImageUri), no upload. */}
+            (sets localImageUri to a cache file:// path); the normal Complete
+            Setup flow performs the actual upload. */}
         {__DEV__ && (
           <TouchableOpacity
             style={styles.devAvatarButton}
