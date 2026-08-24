@@ -1215,7 +1215,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-49)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-60)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1276,6 +1276,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
 - BP-58 Bottom-anchored UI on pill-nav screens — scroll content needs `paddingBottom: 100`, fixed bottom bars `bottom: 120`, and in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: typecheck + grep for bare prop-lines followed by a JSX child + Prettier (a formatter rewriting the region signals structural problems).
+- BP-60 Test isolation — a `renderScreen()`-style helper that accepts or defaults to a shared/mutable route/params object leaks state between tests (e.g. an earlier test's `draftId` silently carries into a later test and disables draft-auto-save); always pass explicit, freshly-constructed params per test, and check for this pattern before blaming a flaky-looking failure on the feature code.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1555,3 +1556,16 @@ Whenever implementing a state change that should notify users:
 
 ## BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
 - Verify the screen has access to the joined listing (either via `trade.listing.price` or a separate item query) before assuming the fix is simple.
+
+## BP-60: Shared Test-Render Helpers Must Receive Explicit Clean Params (test isolation)
+
+**Problem:** A `renderScreen()`-style test helper that accepts or defaults to a shared/mutable route/params object can leak state between test cases if that object isn't reset — e.g., a `draftId` set by an earlier test silently carrying into a later test and disabling behavior (like draft-auto-save) that the later test actually intends to exercise fresh. This produces flaky-looking failures whose real cause is test isolation, not the feature under test.
+
+**Real case (J15/J13, 2026-08-24):** The J13 reorder/replace draft-persistence tests in `ItemCreateScreen.test.tsx` passed in isolation (`-t`) but failed in the full-file run. Root cause: `renderScreen()` mutates the shared `mockRoute.params` object, so an earlier draft-resume test left `draftId` set; the J13 tests then rendered with `draftId` inherited → `isDraftHydrated = false` → the draft effect never ran → the draft was never saved. Fix: pass explicit clean params (`renderScreen({ params: { showPhotoSourcePrompt: false } })`).
+
+**Rules:**
+1. When writing or reviewing tests that use such a helper, ALWAYS pass an explicit, freshly-constructed params object per test rather than relying on a shared default or a previous test's leftover state.
+2. If a test failure looks flaky or inconsistent across runs (passes in isolation, fails in the full file), check for this pattern — a shared mutable fixture/params object — before assuming the failure is in the feature code itself.
+3. When introducing a new shared test-render helper, either reset the params object in `beforeEach` or make it require an explicit params argument (never silently reuse a mutated shared default).
+
+**Detection checklist:** a test fails only when run with the rest of its file (not in isolation), and the screen/hook under test has state keyed off `route.params`/`draftId` — the shared route object is leaking; pass explicit clean params.
