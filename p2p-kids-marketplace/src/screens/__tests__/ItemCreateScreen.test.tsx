@@ -243,8 +243,7 @@ describe('ItemCreateScreen', () => {
       await waitFor(() => {
         expect(mockUseAIAnalysis).toHaveBeenCalled();
       });
-      const latestAiCall =
-        mockUseAIAnalysis.mock.calls[mockUseAIAnalysis.mock.calls.length - 1];
+      const latestAiCall = mockUseAIAnalysis.mock.calls[mockUseAIAnalysis.mock.calls.length - 1];
       expect(latestAiCall[0].length).toBeGreaterThan(0);
       expect(latestAiCall[0][0]).toMatch(/^https:\/\/dev-fixture\.local\//);
 
@@ -256,6 +255,57 @@ describe('ItemCreateScreen', () => {
       expect(draftData.photo_urls).toEqual([
         expect.stringMatching(/^https:\/\/dev-fixture\.local\//),
       ]);
+    });
+
+    it('auto-save payload includes price so a resumed draft restores it (Group J Fix 2)', async () => {
+      const saveMock = jest.fn();
+      mockUseItemDraft.mockReturnValue({
+        draft: null,
+        save: saveMock,
+        saveNow: jest.fn(),
+        discard: jest.fn(),
+        isSaving: false,
+        saveError: null,
+      } as any);
+
+      const { getByTestId } = renderScreen({
+        params: { showPhotoSourcePrompt: false },
+      } as any);
+
+      // Add an uploaded photo so the below-fold form + draft auto-save fire.
+      fireEvent.press(getByTestId('dev-add-test-photo-uploaded'));
+      await waitFor(() => expect(getByTestId('manual-price-input')).toBeTruthy());
+
+      // Fill title/price/condition deterministically (dev-fill-item sets $20).
+      fireEvent.press(getByTestId('dev-fill-item'));
+      await waitFor(() => {
+        expect(getByTestId('manual-price-input').props.value).toBe('20');
+      });
+
+      // The latest auto-save payload must carry the entered price.
+      await waitFor(() => {
+        const lastCall = saveMock.mock.calls[saveMock.mock.calls.length - 1];
+        expect((lastCall?.[0] as DraftData | undefined)?.price).toBe(20);
+      });
+    });
+
+    it('dev-set-other-category selects Other and prefills the custom name (Group J Fix 5)', async () => {
+      const { getByTestId } = renderScreen({
+        params: { showPhotoSourcePrompt: false },
+      } as any);
+
+      // Photo-first gating: the custom-category input only renders after a photo.
+      fireEvent.press(getByTestId('dev-add-test-photo'));
+      await waitFor(() => expect(getByTestId('dev-set-other-category')).toBeTruthy());
+
+      fireEvent.press(getByTestId('dev-set-other-category'));
+
+      // "Other" selected → the custom-category-name input appears, prefilled so
+      // canPublish() passes (QA can also clear it to verify the blocked state).
+      await waitFor(() => {
+        expect(getByTestId('custom-category-name-input')).toBeTruthy();
+        expect(getByTestId('custom-category-name-input').props.value).toBe('Board Games');
+      });
     });
   });
 
@@ -375,6 +425,9 @@ describe('ItemCreateScreen', () => {
       });
 
       expect(getByDisplayValue('Saved draft description')).toBeTruthy();
+
+      // Group J Fix 2: a resumed draft restores the saved price too.
+      expect(getByDisplayValue('25')).toBeTruthy();
     });
 
     it('should not auto-analyze restored photos when resuming a draft', async () => {

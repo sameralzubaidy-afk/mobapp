@@ -83,7 +83,7 @@ export function ResumeDraftBanner({
       </View>
       <View style={styles.textBlock}>
         <Text style={styles.title} testID={`${testID}-title`}>
-          accessible accessibilityRole="button" You have {unfinishedItemCount} unfinished listing
+          You have {unfinishedItemCount} unfinished listing
           {unfinishedItemCount > 1 ? 's' : ''}
         </Text>
         <Text style={styles.subtitle} testID={`${testID}-subtitle`}>

@@ -509,6 +509,25 @@ This file is the canonical registry of end-to-end flows and their required regre
       - All 6 affected Jest suites — 102/102 PASS
       - Full suite `yarn test` — 3414 passed, 0 failed (one TradeOfferScreen flake observed once, passes in isolation; unrelated to these files)
     - Regression: Tier 0 (typecheck/lint/unit). No DB/API/Edge Function changes.
+  - **GROUP-J-CLOSURE-SWEEP-FIXES (2026-08-24):** Group J closure sweep + remaining open items — literal accessibility-prop-text sweep (2 confirmed instances fixed), draft price persist/restore, `item_drafts.photo_urls` column sync, QA guide "Try Again" wording, and dev "Other" category fixture (unblocks AUTH-TC-J05)
+    - Scope:
+      - `p2p-kids-marketplace/src/components/molecules/ResumeDraftBanner.tsx` — removed literal `accessible accessibilityRole="button"` pasted as Text content (junk line above "You have 1 unfinished listing"; P2 copy defect from the closure run)
+      - `p2p-kids-marketplace/src/screens/cart/CartScreen.tsx` — same bug class in the cart subtotal Text (junk prefix above the $ amount)
+      - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` — draft auto-save payload now includes `price` (DraftData already supported it) + resume hydration restores `setPriceInput(...)`; new `__DEV__` `dev-set-other-category` fixture (sets category `other` + prefills `requestedCategoryName`)
+      - `p2p-kids-marketplace/src/services/draftService.ts` — client-side merge fallback now also refreshes the top-level `photo_urls` column (mirrors the RPC)
+      - `supabase/migrations/20260824000002_fix_merge_item_draft_sync_photo_urls.sql` — `merge_item_draft` RPC now sets `photo_urls` from `p_updates->'photo_urls'` when present + one-time backfill from `draft_data` (column is a live consumer in `publishDraft`, so it is kept in sync, NOT deprecated)
+      - `cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` — J02 wording "Retry AI" → "Try Again" (matches the app's actual button label)
+      - Tests: `ItemCreateScreen.test.tsx` (+2: price payload + price restore; +1: `dev-set-other-category`)
+    - Behavior:
+      - Sweep = second confirmed recurrence of the WelcomeScreen junk-text class (first instance already fixed); `ReviewCard`/`IssueReportModal` flagged as genuine JSX attributes (no change)
+      - Draft auto-save carries `price` and resume restores it, so a seller no longer re-enters price after leaving/reopening
+      - `item_drafts.photo_urls` column stays in sync with `draft_data->'photo_urls'` on every update — `publishDraft` (which reads the column) now uses the reordered/correct URLs
+      - `dev-set-other-category` makes AUTH-TC-J05's custom-category flow on-device testable without the undrivable CategorySelectModal
+    - Validation:
+      - `yarn typecheck` (PASS) + `npx eslint <5 changed files>` (0 errors; 12 pre-existing no-console warnings untouched); repo-wide lint still has 104 pre-existing errors in untouched files
+      - Affected suites (ResumeDraftBanner, ItemCreateScreen, draftService) — 60/60 PASS
+      - Full suite `yarn test` — 3417 passed, 0 failed (485 RUN_SUPABASE_E2E-gated skips, expected)
+    - Regression: Tier 0 (typecheck/lint/unit) + Tier 1 targeted (draft/resume fixtures). Migration `20260824000002` must be applied to staging for the RPC-side photo_urls sync to go live (client fallback covers DBs without the RPC).
   - **GROUP-J-DEVFIXTURE-AX-DOCDRIFT (2026-08-24):** Group J remaining findings — dev fixture for `uploadedPhotoUrls` (unblocks AI/draft QA), ColorPicker AX role fix (BP-53), and photo-size guide reconciliation (10MB confirmed intended)
     - Scope:
       - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` — new `__DEV__`-gated `dev-add-test-photo-uploaded` fixture (sibling of `dev-add-test-photo`): injects a bundled photo AND records a mock `https://dev-fixture.local/...` URL (no network upload), so the `uploadedPhotoUrls`-gated AI-analysis + draft-auto-save code paths execute on-device (AUTH-TC-J02/J11)

@@ -1072,7 +1072,7 @@ flagged as deprecation-review candidates (see `docs/DECISIONS.md`).
 **Expected Result:**
 - **Apply All** fills only empty fields (title, category, condition, brand, color, age group, gender).
 - Per-field **Use** applies a single suggestion.
-- After ~7 seconds a **Continue Without AI** option lets the seller proceed manually; a failure shows a "Retry AI" option.
+- After ~7 seconds a **Continue Without AI** option lets the seller proceed manually; a failure shows a **Try Again** option (the app's actual button label).
 
 ### AUTH-TC-J03 · Required field validation
 

@@ -223,9 +223,17 @@ export async function updateItemDraft(
         ...normalizedUpdates,
       };
 
+      // Mirror the merge_item_draft RPC: also refresh the top-level photo_urls
+      // column so it never drifts from draft_data->'photo_urls' (publishDraft
+      // reads the column directly to create the listing).
+      const updatePayload: Record<string, unknown> = { draft_data: merged };
+      if (normalizedUpdates.photo_urls !== undefined) {
+        updatePayload.photo_urls = normalizedUpdates.photo_urls;
+      }
+
       const { error: updateError } = await supabase
         .from('item_drafts')
-        .update({ draft_data: merged })
+        .update(updatePayload)
         .eq('id', draftId);
 
       if (updateError) throw updateError;

@@ -288,6 +288,7 @@ export default function ItemCreateScreen() {
 
     setTitle(draftData.title || '');
     setDescription(draftData.description || '');
+    setPriceInput(typeof draftData.price === 'number' ? String(draftData.price) : '');
     setRequestedCategoryName(draftData.requested_category_name || '');
     setCondition(draftData.condition || null);
     setBrand(draftData.brand || '');
@@ -409,6 +410,10 @@ export default function ItemCreateScreen() {
     const draftData: DraftData = {
       title,
       description,
+      price:
+        priceInput.trim().length > 0 && parseFloat(priceInput) > 0
+          ? parseFloat(priceInput)
+          : undefined,
       category_id: category?.id,
       requested_category_name: requestedCategoryName,
       condition: condition || undefined,
@@ -740,6 +745,17 @@ export default function ItemCreateScreen() {
     setCategory(cat);
     setRequestedCategoryName('');
   }, [categories]);
+
+  // DEV-ONLY fixture (sibling of `dev-set-category`): set the "Other" category
+  // directly — bypassing the native fullScreen CategorySelectModal — and prefill
+  // a requestedCategoryName so AUTH-TC-J05's custom-category-name flow is
+  // on-device testable. Gated by __DEV__ — never in release builds. Local form
+  // state only; canPublish() requires the custom name non-empty for Other, so QA
+  // can also clear the field to verify the blocked-submit state (J05 expected).
+  const handleDevSetOtherCategory = useCallback(() => {
+    setCategory({ id: 'other', name: 'Other', icon: null } as Category);
+    setRequestedCategoryName('Board Games');
+  }, []);
 
   // DEV-ONLY fixture: fill title/price/condition in ONE tap, bypassing the manual
   // form-fill + keyboard-dismiss dance (and its price-corruption risk). Mirrors
@@ -1176,6 +1192,23 @@ export default function ItemCreateScreen() {
             <Text style={styles.devTestPhotoButtonText}>
               Dev: Set Category{category ? ` (${category.name})` : ''}
             </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* DEV-ONLY: sibling of `dev-set-category` that selects "Other" + prefills
+            the custom category name, so AUTH-TC-J05's custom-category flow is
+            reachable without the undrivable native CategorySelectModal. Never
+            rendered in release builds (__DEV__ false). */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.devTestPhotoButton}
+            onPress={handleDevSetOtherCategory}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Set Other category with custom name (dev only)"
+            testID="dev-set-other-category"
+          >
+            <Text style={styles.devTestPhotoButtonText}>Dev: Set Other Category (Custom Name)</Text>
           </TouchableOpacity>
         )}
 

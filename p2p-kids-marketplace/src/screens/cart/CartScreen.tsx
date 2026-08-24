@@ -568,7 +568,7 @@ export default function CartScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
             <Text style={styles.summaryValue} testID="cart-subtotal">
-              accessible accessibilityRole="button" ${calculateSubtotal().toFixed(2)}
+              ${calculateSubtotal().toFixed(2)}
             </Text>
           </View>
 
