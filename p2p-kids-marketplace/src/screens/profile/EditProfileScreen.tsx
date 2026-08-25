@@ -32,7 +32,6 @@ import {
   resolveAvatarUrl,
 } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
-import { addToWaitlist } from '@/services/waitlist';
 import { requestPhoneVerification, verifyPhoneCode } from '@/services/phone';
 import { captureException } from '@/services/errorReporter';
 import { supabase } from '@/services/supabase/client';
@@ -154,7 +153,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
         }
 
         // Phone may exist on auth user top-level or inside user_metadata
-        let phoneFromAuth =
+        const phoneFromAuth =
           (authUser as any).phone ||
           (authUser as any).user_metadata?.phone ||
           (profile as any)?.phone ||
@@ -168,33 +167,12 @@ export default function EditProfileScreen({ navigation, route }: any) {
         }
 
         // Run slower enrichments in background without blocking first render.
+        // NOTE: The legacy `phone_verification_codes.verified` column was removed by the
+        // AUTH-V3 migration (20260420000014) — the table now stores only hashed OTP codes.
+        // "Already verified" phone state is sourced from auth.users.phone and
+        // profiles.phone_verified (see handleSave), so the old verified-row reconciliation
+        // below queried a dropped column, errored silently, and is removed (ACC-TC-B09).
         void Promise.allSettled([
-          (async () => {
-            // Always reconcile with the latest verified phone row because auth metadata can be stale.
-
-            try {
-              const { data: phoneData, error: phoneError } = await (
-                supabase.from('phone_verification_codes') as any
-              )
-                .select('phone')
-                .eq('user_id', authUser.id)
-                .eq('verified', true)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-              if (!phoneError && phoneData?.phone) {
-                const verifiedPhone = phoneData.phone;
-                if (normalizePhone(verifiedPhone) !== normalizePhone(phoneFromAuth)) {
-                  phoneFromAuth = verifiedPhone;
-                  setPhone(verifiedPhone);
-                  setOriginalPhone(verifiedPhone);
-                }
-              }
-            } catch (e) {
-              console.warn('Error fetching verified phone:', e);
-            }
-          })(),
           (async () => {
             // Resolve avatar URL: profile.avatar_url could be a full URL or a storage path.
             try {
@@ -219,7 +197,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
         }
       }
     },
-    [hydrateForm, navigation, normalizePhone]
+    [hydrateForm, navigation]
   );
 
   useEffect(() => {
@@ -399,8 +377,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
       let user: any = null;
       let error: any = null;
-      let needsWaitlist = false;
-      let updatedZip: string | undefined;
 
       if (Object.keys(updates).length > 0) {
         const updateResult = await updateUserProfile(currentUser.id, updates, {
@@ -408,8 +384,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
         });
         user = updateResult.user;
         error = updateResult.error;
-        needsWaitlist = Boolean(updateResult.needsWaitlist);
-        updatedZip = updateResult.zipCode;
       }
 
       if (emailChanged) {
@@ -441,23 +415,22 @@ export default function EditProfileScreen({ navigation, route }: any) {
       if (phoneChanged) {
         const currentAuthPhone = normalizePhone(originalPhone);
 
-        // Check verified phone records for this user
-        let alreadyVerified = false;
-        try {
-          const { data: verifiedRow } = await (supabase.from('phone_verification_codes') as any)
-            .select('phone')
-            .eq('user_id', (currentUser as any).id)
-            .eq('verified', true)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (verifiedRow && (verifiedRow as any).phone) {
-            alreadyVerified =
-              normalizePhone((verifiedRow as any).phone || '') === normalizePhone(trimmedPhone);
-          }
-        } catch (e) {
-          console.warn('Could not check verified phone records:', e);
-        }
+        // Determine which phone numbers are already verified & active on this account.
+        // The legacy `phone_verification_codes.verified` column no longer exists (removed
+        // by the AUTH-V3 migration 20260420000014), so querying it used to error silently
+        // and always open the OTP modal even for an already-active phone (ACC-TC-B09).
+        // Verified-phone state now lives in auth.users.phone (set by auth-update-phone
+        // after OTP) and profiles.phone + profiles.phone_verified.
+        const accountVerifiedPhones = [
+          normalizePhone((currentUser as any)?.phone || ''),
+          ...(currentProfile?.phone_verified
+            ? [normalizePhone((currentProfile as any)?.phone || '')]
+            : []),
+        ].filter((normalized) => normalized.length > 0);
+
+        const alreadyVerified =
+          accountVerifiedPhones.length > 0 &&
+          accountVerifiedPhones.includes(normalizePhone(trimmedPhone));
 
         if (normalizePhone(trimmedPhone) === currentAuthPhone || alreadyVerified) {
           // Phone already present/verified — update local UI and don't trigger verification
@@ -538,40 +511,12 @@ export default function EditProfileScreen({ navigation, route }: any) {
         email: trimmedEmail || (currentUser as any)?.email || '',
       };
 
-      // If the updated zip code has no active node, prompt to join waitlist
-      if (needsWaitlist && updatedZip) {
-        Alert.alert(
-          'Area Not Yet Available',
-          `We're not live in your area (${updatedZip}) yet! Would you like to join the waitlist to be notified when we launch?`,
-          [
-            { text: 'Skip', style: 'cancel', onPress: () => navigation.goBack() },
-            {
-              text: 'Join Waitlist',
-              onPress: async () => {
-                const { success } = await addToWaitlist({
-                  email: (currentUser as any)?.email || '',
-                  phone: (currentUser as any)?.phone,
-                  zip: updatedZip,
-                });
-
-                if (success) {
-                  Alert.alert('Added to Waitlist!', "We'll notify you when we launch.", [
-                    { text: 'OK', onPress: () => navigation.goBack() },
-                  ]);
-                } else {
-                  Alert.alert('Info', 'Could not add to waitlist, but changes were saved.', [
-                    { text: 'OK', onPress: () => navigation.goBack() },
-                  ]);
-                  if (phoneChanged && phoneVerification.visible) {
-                    // If phone verification still pending, keep modal open
-                  }
-                }
-              },
-            },
-          ]
-        );
-        return;
-      }
+      // NOTE: The waitlist prompt ("Area Not Yet Available") used to live here, reached only
+      // when `updateUserProfile` returned needsWaitlist=true. That path is unreachable on
+      // this screen: the ZIP input is locked (editable={false} — "Zip codes are locked to
+      // your node."), so `updates.zip_code` is never sent and needsWaitlist stays false.
+      // Removed as dead code (ACC-TC-B08); the waitlist prompt remains active on the
+      // signup/ProfileSetup flow where ZIP is first entered.
 
       if (refreshSession) {
         void refreshSession().catch((refreshError) => {
