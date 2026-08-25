@@ -131,6 +131,18 @@ export const TEST_USERS = {
     name: 'QA Social Only User',
     phone: '5551234010',
   },
+  // ACC-TC-F01/F04: standing suspended-account fixture — see seedSuspendedAccountFixture().
+  // The guide's Accounts table lists test-suspended@... but it was never seeded and the
+  // one existing account_status='suspended' profile has an unknown password. Provisioned
+  // here with a known password + account_status='suspended' so the logout-only
+  // SuspendedAccountScreen gate becomes testable.
+  suspendedUser: {
+    id: 'a1234567-0000-0000-0000-00000000000f', // Fixed UUID for F01/F04 suspended account
+    email: 'test-suspended@kidsmarketplace.test',
+    password: 'TestSuspended123!',
+    name: 'Test Suspended User',
+    phone: '5551234011',
+  },
 };
 
 const TEST_CATEGORIES = [
@@ -643,6 +655,127 @@ async function seedSocialOnlyFixture(): Promise<void> {
     } else {
       console.warn(`   ⚠️ C07 VERIFY: unexpected state for ${so.email}: ${JSON.stringify(r)}`);
     }
+  }
+}
+
+/**
+ * ACC-TC-F01/F04 — standing suspended-account fixture for the QA Test Agent
+ * ("Suspended account screen — logout only").
+ *
+ * Why it exists: the guide's Accounts table lists `test-suspended@…` but no
+ * login-able fixture exists on staging (the one existing
+ * `account_status='suspended'` profile has an unknown password). The
+ * SuspendedAccountScreen gate is keyed off the profile's `account_status`
+ * (`AuthContext` enriches `session.user.account_status` from `profiles`, and
+ * `AppNavigator` routes authenticated+suspended users to the logout-only
+ * screen). Provisioning here mirrors the qa-deleted/qa-no-profile standing
+ * fixtures: a full normal profile, then `account_status='suspended'` set like
+ * the admin's suspend RPC (suspended_at + suspension_reason; suspended_by left
+ * NULL — the gate reads only account_status).
+ *
+ * Idempotent: re-running re-signs the user (no-op if exists) then re-applies
+ * the suspended status, so the fixture is always suspended after a fresh seed.
+ */
+async function seedSuspendedAccountFixture(): Promise<void> {
+  console.log('   ── F01/F04 suspended-account fixture ──');
+  const su = TEST_USERS.suspendedUser;
+
+  // 1. Ensure the auth user + full profile exist (same as a normal persona).
+  await signupTestUser(su, 'user');
+
+  // 2. Set account_status='suspended' (mirror the admin suspend RPC fields;
+  //    suspended_by left NULL — no admin actor in the seed path).
+  const { error: suspendError } = await adminSupabase
+    .from('profiles')
+    .update({
+      account_status: 'suspended',
+      suspended_at: new Date().toISOString(),
+      suspension_reason: 'QA fixture: ACC-TC-F01/F04 suspended account (do not restore)',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', su.id);
+
+  if (suspendError) {
+    console.warn(`   ⚠️ F01/F04 suspend update failed: ${suspendError.message}`);
+  } else {
+    console.log(`   ✓ test-suspended suspended (login → SuspendedAccountScreen): ${su.email}`);
+  }
+
+  // 3. Verify end-state via the same read AuthContext uses.
+  const { data: profile, error: verifyError } = await adminSupabase
+    .from('profiles')
+    .select('account_status, suspended_at')
+    .eq('user_id', su.id)
+    .maybeSingle();
+
+  if (verifyError) {
+    console.warn(`   ⚠️ F01/F04 VERIFY: profile read failed: ${verifyError.message}`);
+  } else if (profile?.account_status === 'suspended') {
+    console.log(`   ✓ F01/F04 VERIFY OK: account_status='suspended' (${su.email})`);
+  } else {
+    console.warn(`   ⚠️ F01/F04 VERIFY FAIL: account_status=${profile?.account_status ?? 'null'}`);
+  }
+}
+
+/**
+ * ACC-TC-F02 (success leg) — valid unsubscribe token for the QA Test Agent
+ * ("You've Been Unsubscribed" + category + Go to Home via deep link).
+ *
+ * Why it exists: `unsubscribe_tokens` is empty on staging and an execution-only
+ * QA agent cannot mint one (no DB writes). This mints a valid, unexpired token
+ * via the existing `generate_unsubscribe_token` RPC against a standing persona
+ * (test-buyer), so the app's UnsubscribeScreen success branch
+ * (`p2pkidsmarketplace://unsubscribe?token=<TOKEN>`) becomes testable.
+ *
+ * Idempotent: prior UNUSED tokens for the fixture user are removed so re-seeds
+ * don't accumulate rows; the token is consumed (used_at set) the first time F02
+ * runs, so a later re-seed mints a fresh one.
+ */
+async function seedUnsubscribeTokenFixture(): Promise<void> {
+  console.log('   ── F02 valid unsubscribe-token fixture ──');
+  const target = TEST_USERS.buyer; // standing persona with a full profile + prefs rows
+
+  // 1. Clean up any prior UNUSED tokens for this user (used tokens stay as audit).
+  const { error: cleanupError } = await adminSupabase
+    .from('unsubscribe_tokens')
+    .delete()
+    .eq('user_id', target.id)
+    .is('used_at', null);
+
+  if (cleanupError) {
+    console.warn(`   ⚠️ F02 cleanup of prior unused tokens failed: ${cleanupError.message}`);
+  }
+
+  // 2. Mint a fresh valid token via the existing RPC.
+  const { data: token, error: tokenError } = await adminSupabase.rpc(
+    'generate_unsubscribe_token',
+    { p_user_id: target.id, p_category: 'subscription' }
+  );
+
+  if (tokenError || !token || typeof token !== 'string') {
+    console.warn(
+      `   ⚠️ F02 generate_unsubscribe_token failed: ${tokenError?.message ?? 'no token returned'}`
+    );
+    return;
+  }
+
+  // 3. Verify the minted token is valid + unexpired (same read path as process_unsubscribe).
+  const { data: row } = await adminSupabase
+    .from('unsubscribe_tokens')
+    .select('token, category, used_at, expires_at')
+    .eq('token', token)
+    .maybeSingle();
+
+  const isValid =
+    row && row.used_at === null && row.expires_at && new Date(row.expires_at) > new Date();
+
+  if (isValid) {
+    console.log(
+      `   ✓ F02 valid token minted: user=${target.email} category=${row.category} (expires ${row.expires_at})`
+    );
+    console.log(`   ── F02 deep link (QA): p2pkidsmarketplace://unsubscribe?token=${token}`);
+  } else {
+    console.warn(`   ⚠️ F02 VERIFY FAIL: token not found/expired: ${JSON.stringify(row)}`);
   }
 }
 
@@ -1420,6 +1553,11 @@ async function main(): Promise<void> {
     await seedQaAuthFixtures();
     await seedSocialOnlyFixture();
 
+    // 2c. Account-file QA fixtures (ACC-TC-F01/F04 suspended-account gate,
+    //     ACC-TC-F02 valid unsubscribe token for the deep-link success leg)
+    await seedSuspendedAccountFixture();
+    await seedUnsubscribeTokenFixture();
+
     // Get fresh sessions for both users
     const { data: buyerSession } = await supabase.auth.signInWithPassword({
       email: TEST_USERS.buyer.email,
@@ -1520,6 +1658,9 @@ async function main(): Promise<void> {
       console.log(`ADMIN:  ${TEST_USERS.admin.email} / ${TEST_USERS.admin.password}`);
       console.log(`        UUID: ${adminId}`);
     }
+    console.log(
+      `SUSPENDED: ${TEST_USERS.suspendedUser.email} / ${TEST_USERS.suspendedUser.password} (ACC-TC-F01/F04 gate)`
+    );
     if (IS_EXTENDED) {
       console.log(`FREE:   ${TEST_USERS.freeUser.email} / ${TEST_USERS.freeUser.password}`);
       console.log(`SELLER2:${TEST_USERS.seller2.email} / ${TEST_USERS.seller2.password}`);
