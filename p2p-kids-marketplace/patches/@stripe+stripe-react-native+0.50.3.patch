@@ -1,0 +1,17 @@
+diff --git a/node_modules/@stripe/stripe-react-native/ios/StripeSwiftInterop.h b/node_modules/@stripe/stripe-react-native/ios/StripeSwiftInterop.h
+index c7a804d..118c5a2 100644
+--- a/node_modules/@stripe/stripe-react-native/ios/StripeSwiftInterop.h
++++ b/node_modules/@stripe/stripe-react-native/ios/StripeSwiftInterop.h
+@@ -11,7 +11,11 @@
+ @protocol STPPaymentCardTextFieldDelegate;
+ @protocol STPCardFormViewDelegate;
+ 
+-typedef NS_ENUM(NSUInteger, STPPaymentStatus);
++// PATCH (patch-package): underlying type must be NSInteger to match the real
++// Stripe SDK (`@objc public enum STPPaymentStatus: Int`) and the generated
++// `stripe_react_native-Swift.h` forward decl. `NSUInteger` breaks compilation
++// with Xcode 26.6's Clang ("enumeration redeclared with different underlying type").
++typedef NS_ENUM(NSInteger, STPPaymentStatus);
+ 
+ // stripe_react_native-Swift.h also depends on these headers.
+ #import <React/RCTBridgeModule.h>
