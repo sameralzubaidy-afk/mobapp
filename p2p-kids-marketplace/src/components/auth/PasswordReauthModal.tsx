@@ -163,6 +163,10 @@ export default function PasswordReauthModal({
                   style={styles.cancelButton}
                   onPress={handleCancel}
                   disabled={isVerifying}
+                  testID={`${testID}-cancel-button`}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
@@ -173,6 +177,10 @@ export default function PasswordReauthModal({
                   ]}
                   onPress={handleConfirm}
                   disabled={!password || isVerifying}
+                  testID={`${testID}-confirm-button`}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirm"
                 >
                   {isVerifying ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />

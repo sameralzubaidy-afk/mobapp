@@ -26,6 +26,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 interface SendEmailRequest {
   type: 'welcome' | 'password_reset' | 'trade_notification' | 'transaction_confirmation' | 'subscription_status' | 
         'payment_failed' | 'trial_expiring' | 'subscription_cancelled' | 'security_alert' | 'password_changed' |
+        'change_email' |
         'id_badge_approved' | 'id_badge_rejected' | 'id_badge_submission';
   to: string;
   userId?: string;
@@ -286,6 +287,7 @@ function validateRequest(req: SendEmailRequest): { valid: boolean; error?: strin
     'subscription_cancelled',
     'security_alert',
     'password_changed',
+    'change_email',
     'id_badge_approved', 
     'id_badge_rejected', 
     'id_badge_submission'
@@ -597,6 +599,75 @@ async function processIDBadgeEmail(
   }
 }
 
+/**
+ * Send email-change verification email (CRITICAL - always sent)
+ * Uses a simple HTML body (like the ID-badge emails) so it works on staging
+ * without a SendGrid template configured. Contains the 6-digit code.
+ */
+async function processChangeEmailEmail(
+  to: string,
+  data?: Record<string, any>
+): Promise<{ success: boolean; error?: string }> {
+  const code = data?.code ? String(data.code) : '';
+  const newEmail = data?.newEmail ? String(data.newEmail) : to;
+
+  if (!/^\d{6}$/.test(code)) {
+    return { success: false, error: 'Missing or invalid verification code in request data' };
+  }
+
+  const htmlBody = `
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #5DBB8E;">Verify your new email</h2>
+          <p>You asked to change the email on your account to <strong>${newEmail}</strong>.</p>
+          <p>Enter this 6-digit code in the app to finish the change:</p>
+          <div style="margin: 24px 0; padding: 20px; background-color: #f3f4f6; border-radius: 8px; text-align: center;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937;">${code}</span>
+          </div>
+          <p>This code expires in 24 hours. Your current email stays active until you confirm.</p>
+          <p style="color: #6b7280; font-size: 12px;">If you didn't request this, you can ignore this email — your email won't change.</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  if (!SENDGRID_API_KEY) {
+    console.error('SendGrid API key not configured');
+    return { success: false, error: 'SendGrid API key not configured' };
+  }
+
+  const payload = {
+    personalizations: [{ to: [{ email: to }] }],
+    from: { email: SENDGRID_FROM_EMAIL },
+    reply_to: { email: SENDGRID_REPLY_TO_EMAIL },
+    subject: 'Verify your new email',
+    content: [{ type: 'text/html', value: htmlBody }],
+  };
+
+  try {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`SendGrid API error: ${response.status}`, errorData);
+      return { success: false, error: `SendGrid API returned ${response.status}: ${errorData}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('SendGrid request failed:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 serve(async (req: Request) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -693,6 +764,10 @@ serve(async (req: Request) => {
 
       case 'password_changed':
         result = await processPasswordChangedEmail(request.to, request.data, logId || undefined);
+        break;
+
+      case 'change_email':
+        result = await processChangeEmailEmail(request.to, request.data);
         break;
 
       case 'trade_notification':

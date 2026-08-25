@@ -6,9 +6,23 @@ import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import EditProfileScreen from '../EditProfileScreen';
 import { getUserProfile, updateUserProfile } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
+import { requestEmailChange, verifyEmailChangeCode } from '@/services/emailChange';
+import { sendPhoneVerificationCode, verifyPhoneCode } from '@/services/phoneService';
 
 jest.mock('@/services/profile');
 jest.mock('@/services/supabase/auth');
+jest.mock('@/services/emailChange', () => ({
+  requestEmailChange: jest.fn(),
+  resendEmailChangeCode: jest.fn(),
+  verifyEmailChangeCode: jest.fn(),
+}));
+// Spread the real module so the screen's `instanceof OTPRateLimitError/OTPExpiredError`
+// checks keep working while the send/verify functions are stubbed (ACC-TC-B03).
+jest.mock('@/services/phoneService', () => ({
+  ...jest.requireActual('@/services/phoneService'),
+  sendPhoneVerificationCode: jest.fn(),
+  verifyPhoneCode: jest.fn(),
+}));
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ refreshSession: jest.fn() }),
 }));
@@ -162,6 +176,188 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
 
     await waitFor(() => {
       expect(getByText('Phone number must be 10 digits')).toBeTruthy();
+    });
+  });
+
+  it('opens the email verification modal on email change and defers applying it (ACC-TC-B02)', async () => {
+    const mockRequestEmailChange = requestEmailChange as jest.MockedFunction<
+      typeof requestEmailChange
+    >;
+    mockRequestEmailChange.mockResolvedValue({
+      success: true,
+      message: 'Verification code sent to your new email.',
+      newEmail: 'new@example.com',
+    });
+
+    const { getByPlaceholderText, getByText } = render(
+      <EditProfileScreen navigation={{ goBack: jest.fn() }} />
+    );
+
+    await waitFor(() => {
+      fireEvent.changeText(getByPlaceholderText('Enter your email'), 'new@example.com');
+    });
+
+    fireEvent.press(getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(mockRequestEmailChange).toHaveBeenCalledWith('new@example.com');
+      expect(getByText('Verify Your Email')).toBeTruthy();
+    });
+    // The email must NOT be applied immediately — the OLD email stays active until verified.
+    expect(mockUpdateUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('verifying the email code navigates to Profile with the new email (ACC-TC-B02)', async () => {
+    const mockRequestEmailChange = requestEmailChange as jest.MockedFunction<
+      typeof requestEmailChange
+    >;
+    mockRequestEmailChange.mockResolvedValue({
+      success: true,
+      message: 'Verification code sent to your new email.',
+      newEmail: 'new@example.com',
+    });
+    const mockVerifyEmailChangeCode = verifyEmailChangeCode as jest.MockedFunction<
+      typeof verifyEmailChangeCode
+    >;
+    mockVerifyEmailChangeCode.mockResolvedValue({
+      success: true,
+      message: 'Your email has been updated.',
+      newEmail: 'new@example.com',
+    });
+
+    const reset = jest.fn();
+    const { getByPlaceholderText, getByTestId, getByText } = render(
+      <EditProfileScreen navigation={{ goBack: jest.fn(), reset }} />
+    );
+
+    await waitFor(() => {
+      fireEvent.changeText(getByPlaceholderText('Enter your email'), 'new@example.com');
+    });
+    fireEvent.press(getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(getByText('Verify Your Email')).toBeTruthy();
+    });
+
+    fireEvent.changeText(getByTestId('edit-profile-email-otp-input'), '123456');
+    fireEvent.press(getByTestId('edit-profile-email-verify-button'));
+
+    await waitFor(() => {
+      expect(mockVerifyEmailChangeCode).toHaveBeenCalledWith('123456');
+      expect(reset).toHaveBeenCalledWith({
+        index: 0,
+        routes: [
+          {
+            name: 'Profile',
+            params: {
+              optimisticUserPatch: { email: 'new@example.com' },
+              profileUpdatedAt: expect.any(Number),
+            },
+          },
+        ],
+      });
+    });
+  });
+
+  // ---- ACC-TC-B03: phone change → OTP verification modal ----
+  it('opens the phone verification modal and sends via the canonical stack (ACC-TC-B03)', async () => {
+    const mockSend = sendPhoneVerificationCode as jest.MockedFunction<
+      typeof sendPhoneVerificationCode
+    >;
+    mockSend.mockResolvedValue({ devBypass: false });
+
+    const { getByPlaceholderText, getByText } = render(
+      <EditProfileScreen navigation={{ goBack: jest.fn(), reset: jest.fn() }} />
+    );
+
+    await waitFor(() => {
+      fireEvent.changeText(getByPlaceholderText('(XXX) XXX-XXXX'), '2025551234');
+    });
+    fireEvent.press(getByText('Save Changes'));
+
+    await waitFor(() => {
+      // E.164 normalization is applied at the send boundary for the Twilio path.
+      expect(mockSend).toHaveBeenCalledWith('+12025551234');
+      expect(getByText('Verify Your Phone')).toBeTruthy();
+    });
+  });
+
+  it('verifying the phone code persists the account phone and navigates to Profile (ACC-TC-B03)', async () => {
+    const mockSend = sendPhoneVerificationCode as jest.MockedFunction<
+      typeof sendPhoneVerificationCode
+    >;
+    mockSend.mockResolvedValue({ devBypass: false });
+    const mockVerify = verifyPhoneCode as jest.MockedFunction<typeof verifyPhoneCode>;
+    mockVerify.mockResolvedValue(undefined);
+    mockUpdateUserProfile.mockResolvedValue({ user: null, error: null, needsWaitlist: false });
+
+    const reset = jest.fn();
+    const { getByPlaceholderText, getByTestId, getByText } = render(
+      <EditProfileScreen navigation={{ goBack: jest.fn(), reset }} />
+    );
+
+    await waitFor(() => {
+      fireEvent.changeText(getByPlaceholderText('(XXX) XXX-XXXX'), '2025551234');
+    });
+    fireEvent.press(getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(getByText('Verify Your Phone')).toBeTruthy();
+    });
+
+    fireEvent.changeText(getByTestId('edit-profile-phone-otp-input'), '123456');
+    fireEvent.press(getByTestId('edit-profile-phone-verify-button'));
+
+    await waitFor(() => {
+      expect(mockVerify).toHaveBeenCalledWith('+12025551234', '123456');
+      expect(mockUpdateUserProfile).toHaveBeenCalledWith(
+        'test-user-id',
+        { phone: '2025551234' },
+        { includeAuthUser: false }
+      );
+      expect(reset).toHaveBeenCalledWith({
+        index: 0,
+        routes: [
+          {
+            name: 'Profile',
+            params: {
+              optimisticUserPatch: { phone: '2025551234' },
+              profileUpdatedAt: expect.any(Number),
+            },
+          },
+        ],
+      });
+    });
+  });
+
+  it('shows an error message for an invalid phone code and keeps the modal open (ACC-TC-B03)', async () => {
+    const mockSend = sendPhoneVerificationCode as jest.MockedFunction<
+      typeof sendPhoneVerificationCode
+    >;
+    mockSend.mockResolvedValue({ devBypass: false });
+    const mockVerify = verifyPhoneCode as jest.MockedFunction<typeof verifyPhoneCode>;
+    mockVerify.mockRejectedValue(new Error('Invalid code'));
+
+    const { getByPlaceholderText, getByTestId, getByText } = render(
+      <EditProfileScreen navigation={{ goBack: jest.fn(), reset: jest.fn() }} />
+    );
+
+    await waitFor(() => {
+      fireEvent.changeText(getByPlaceholderText('(XXX) XXX-XXXX'), '2025551234');
+    });
+    fireEvent.press(getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(getByText('Verify Your Phone')).toBeTruthy();
+    });
+
+    fireEvent.changeText(getByTestId('edit-profile-phone-otp-input'), '999999');
+    fireEvent.press(getByTestId('edit-profile-phone-verify-button'));
+
+    await waitFor(() => {
+      expect(getByText('Invalid code')).toBeTruthy();
+      // Modal stays open (not navigated away) on a failed verification.
+      expect(getByText('Verify Your Phone')).toBeTruthy();
     });
   });
 });

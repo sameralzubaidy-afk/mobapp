@@ -269,31 +269,48 @@
 
 ### ACC-TC-B02 · Email change requires re-verification
 
-> ⛔ **KNOWN NOT-IMPLEMENTED (2026-08-13, re-verified against source):** No in-app email re-verification flow exists. Saving a changed email in EditProfileScreen calls `supabase.auth.updateUser({ email })` directly and proceeds with no verification gate, prompt, or confirmation screen (email verification exists only in the ID-badge context). This test case is **blocked / not testable as written** — it is retained so it is not mistaken for a real gap or a lost test. If an email-verification gate is added later, update this case to match.
+> ✅ **IMPLEMENTED (2026-08-25, Dev Task B02, Option A — 6-digit code):** Changing the
+> email on Edit Profile no longer applies immediately. It mints a pending
+> `email_change_verifications` row, emails a 6-digit code to the NEW address via the
+> `send-email` function (`change_email` type), and opens an in-app "Verify Your Email"
+> modal (same UX as the phone OTP modal). The OLD email stays active on `auth.users` +
+> `profiles` until the code is verified; only then does the `auth-email-change` Edge
+> Function apply the new email (via `auth.admin.updateUserById`) and sync `profiles.email`.
+> If the user never confirms, the request expires after 24h and the old email stays active.
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
 
-**Objective:** Verify changing email triggers verification.
+**Objective:** Verify changing email triggers verification and that the old email stays active until confirmed.
 
 **Steps:**
-1. On Edit Profile, change the email to a new address and save.
+1. On Edit Profile, change the email to a new address (e.g. `test-buyer+new@kidsmarketplace.test`) and tap **Save Changes**.
+2. The **"Verify Your Email"** modal appears with the new address and a 6-digit code field.
+3. Enter the code (on staging, use **`123456`** — `DEV_EMAIL_CODE_FIXED=true` is set for QA) and tap **Verify**.
 
 **Expected Result:**
-- **Not testable as written — feature not implemented.** Current behavior: the email is changed immediately via `supabase.auth.updateUser` (relying on Supabase's built-in email-change confirmation outside the app); no in-app verification prompt or "email isn't switched until verified" gating appears.
+- After Save, the modal opens with "We sent a 6-digit code to {new email}"; the profile is NOT updated yet and no navigation happens until verified.
+- After a valid code, the app navigates to **Profile** showing the new email. `auth.users.email` and `profiles.email` both reflect the new address (DB-close: check `auth.users` + `profiles`).
+- **Cancel** (or closing the modal) leaves the old email fully active — no change to `auth.users.email` / `profiles.email`.
+- The emailed code contains the 6 digits in a "Verify your new email" message; a code cannot be replayed after success (`email_change_verifications.used_at` set).
 
 **Setup:**
-- **Blocked — feature not implemented (re-verified 2026-08-13).** No in-app email re-verification flow exists; saving a changed email calls `supabase.auth.updateUser` directly. Not agent-runnable as written; requires a product decision to add an email-verification gate first.
+- Requires the B02 feature (migration `20260825000001_email_change_verification.sql` + `auth-email-change` Edge Function + `send-email` `change_email` type deployed). The old email (`test-buyer@…`) must remain valid for the login used.
 
 **Locator hints:**
-- Email field: TextInput placeholder "Enter your email" — **NO TESTID FOUND** (same as ACC-TC-B01).
-- Save button: "Save Changes" — **NO TESTID FOUND** (same as ACC-TC-B01).
+- Email field: TextInput placeholder "Enter your email" — `testID="edit-profile-email-input"` (`EditProfileScreen.tsx`).
+- Save button: "Save Changes" — `testID="edit-profile-save-button"`.
+- Email OTP field: `testID="edit-profile-email-otp-input"`.
+- Verify button: `testID="edit-profile-email-verify-button"` (`accessible` + `accessibilityRole="button"`).
 
 **Assert:**
-- None — not runnable. (If run only to capture current behavior: email change succeeds immediately with no verification prompt or confirmation screen.)
+1. Changing the email opens the "Verify Your Email" modal and does NOT apply the change immediately (no `supabase.auth.updateUser` direct call; profile email unchanged until verified).
+2. Wrong code → friendly in-app error ("That code didn't match. Check it and try again.").
+3. Valid code (`123456` on staging) → navigates to Profile with the new email; `auth.users.email` + `profiles.email` updated.
+4. Cancel → old email still active; `email_change_verifications` still pending (unverified) or expires.
 
 **Dependencies:**
-- **Not agent-runnable as-is without the feature implemented.** Same precondition-staging class as the open `B09`/`S03`–`S05`/`I08` items: the feature must exist before this case can assert anything.
+- Backend: `auth-email-change` Edge Function (request/verify/resend), `email_change_verifications` table + RPCs, `send-email` `change_email` type. Network call on Save (no Stripe/3rd-party). On staging the code is fixed to `123456` (dev gate) so no real email read is required; the email is still sent (SendGrid) and tracked in `email_logs`.
 
 ---
 
@@ -310,6 +327,22 @@
 
 **Expected Result:**
 - The phone normalizes to digits; an OTP modal appears with a resend button + countdown and a verifying state; a valid code marks the phone verified.
+
+**Locator hints:**
+- Phone field: TextInput placeholder "(XXX) XXX-XXXX" — `testID="edit-profile-phone-input"` (`EditProfileScreen.tsx`).
+- Save button: "Save Changes" — `testID="edit-profile-save-button"`.
+- Phone OTP field: `testID="edit-profile-phone-otp-input"`.
+- Verify button: `testID="edit-profile-phone-verify-button"` (`accessible` + `accessibilityRole="button"`).
+- Resend: `testID="edit-profile-phone-resend-button"` (rendered only after the 60s countdown expires).
+
+**Assert:**
+1. Changing the phone and saving opens the "Verify Your Phone" modal and does NOT apply the phone immediately (no `auth.users.phone` change until verified).
+2. The resend area shows a 60s countdown; Resend re-sends once the countdown expires.
+3. Wrong code → friendly in-app error in the modal (e.g. "Invalid code", or "Code expired. Please request a new one."); modal stays open.
+4. Valid code (`123456` on staging — dev bypass) → navigates to Profile; `auth.users.phone` + `profiles.phone_verified_at`/`phone_verified` updated.
+
+**Dependencies:**
+- Backend (all deployed + DB-verified): `send-phone-otp` Edge Function (Twilio SMS + rate limits + bcrypt via `hash_otp_code`), `verify_otp_code` RPC, `auth-update-phone` Edge Function (persists `auth.users.phone`), `updateUserProfile({ phone })`. Network call on Save/Verify (no Stripe/3rd-party). On staging, the dev bypass (`123456`) is active in dev builds, so no real SMS read is required; the SMS is still sent (Twilio) when the function succeeds.
 
 ---
 

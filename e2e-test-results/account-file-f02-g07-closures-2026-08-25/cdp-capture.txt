@@ -1,0 +1,943 @@
+[2026-08-25T17:00:03.151Z] --- [capture] starting continuous capture to /Users/sameralzubaidi/Desktop/kids_marketplace_app/e2e-test-results/account-file-f02-g07-closures-2026-08-25/cdp-capture.txt
+[2026-08-25T17:00:03.171Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:00:03.181Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:00:03.181Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:00:03.182Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:00:03.182Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:00:03.182Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:00:03.182Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:00:03.182Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:00:03.183Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:00:03.186Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:00:03.707Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:00:06.178Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:00:06.181Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:00:06.182Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:00:06.182Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:00:06.182Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:00:06.183Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:00:06.183Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:00:06.183Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:00:06.183Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:00:06.183Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:00:07.201Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:00:09.178Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:00:09.179Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:00:09.179Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:00:09.179Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:00:09.179Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:00:09.179Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:00:09.180Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:00:09.180Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:00:09.180Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:00:09.180Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:00:11.192Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:00:12.180Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:00:12.185Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:00:12.185Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:00:12.185Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:00:12.185Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:00:12.185Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:00:12.185Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:00:12.185Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:00:12.186Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:00:12.186Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:00:12.186Z] [console.log] [NAV] route: Login
+[2026-08-25T17:00:16.201Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:00:18.186Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:00:18.192Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:00:18.192Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:00:18.192Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:00:18.193Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:00:18.193Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:00:18.193Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:00:18.193Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:00:18.193Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:00:18.194Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:00:18.194Z] [console.log] [NAV] route: Login
+[2026-08-25T17:00:26.207Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:00:27.192Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:00:27.197Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:00:27.198Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:00:27.198Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:00:27.198Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:00:27.198Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:00:27.198Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:00:27.198Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:00:27.198Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:00:27.199Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:00:27.199Z] [console.log] [NAV] route: Login
+[2026-08-25T17:00:43.223Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:00:45.214Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:00:45.218Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:00:45.218Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:00:45.218Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:00:45.219Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:00:45.219Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:00:45.219Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:00:45.219Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:00:45.220Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:00:45.220Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:00:45.221Z] [console.log] [NAV] route: Login
+[2026-08-25T17:00:52.497Z] [console.log] Login successful: Object
+[2026-08-25T17:00:52.743Z] [console.log] [NAV] route: Home
+[2026-08-25T17:00:57.843Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:01.255Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:01:03.223Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:01:03.230Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:01:03.231Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:01:03.231Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:01:03.231Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:01:03.231Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:01:03.231Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:01:03.231Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:01:03.231Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:01:03.231Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:01:03.231Z] [console.log] [NAV] route: Login
+[2026-08-25T17:01:03.232Z] [console.log] Login successful: Object
+[2026-08-25T17:01:03.232Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:03.232Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:05.236Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:01:18.705Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:19.140Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:19.252Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:01:21.233Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:01:21.234Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:01:21.234Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:01:21.236Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:01:21.236Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:01:21.236Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:01:21.236Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:01:21.236Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:01:21.236Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:01:21.236Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:01:21.236Z] [console.log] [NAV] route: Login
+[2026-08-25T17:01:21.237Z] [console.log] Login successful: Object
+[2026-08-25T17:01:21.237Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:21.237Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:21.273Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:01:21.274Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:21.274Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:21.274Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:37.265Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:01:39.244Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:01:39.251Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:01:39.252Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:01:39.252Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:01:39.252Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:01:39.252Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:01:39.253Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:01:39.253Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:01:39.253Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:01:39.254Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:01:39.254Z] [console.log] [NAV] route: Login
+[2026-08-25T17:01:39.254Z] [console.log] Login successful: Object
+[2026-08-25T17:01:39.254Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:39.255Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:39.255Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:01:39.255Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:39.255Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:39.255Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:55.266Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:01:57.255Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:01:57.258Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:01:57.260Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:01:57.260Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:01:57.260Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:01:57.260Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:01:57.261Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:01:57.261Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:01:57.261Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:01:57.261Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:01:57.263Z] [console.log] [NAV] route: Login
+[2026-08-25T17:01:57.263Z] [console.log] Login successful: Object
+[2026-08-25T17:01:57.264Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:57.264Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:57.265Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:01:57.265Z] [console.log] [NAV] route: Home
+[2026-08-25T17:01:57.265Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:01:57.265Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:04.794Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:02:05.356Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:02:05.365Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:02:12.506Z] [console.log] [NAV] route: Login
+[2026-08-25T17:02:13.295Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:02:15.262Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:02:15.263Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:02:15.263Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:02:15.263Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:02:15.263Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:02:15.263Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:02:15.263Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:02:15.263Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:02:15.264Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:02:15.264Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:02:15.264Z] [console.log] [NAV] route: Login
+[2026-08-25T17:02:15.264Z] [console.log] Login successful: Object
+[2026-08-25T17:02:15.265Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:15.265Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:15.265Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:02:15.266Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:15.266Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:15.266Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:15.266Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:02:15.267Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:02:15.267Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:02:15.268Z] [console.log] [NAV] route: Login
+[2026-08-25T17:02:31.283Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:02:33.270Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:02:33.274Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:02:33.276Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:02:33.276Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:02:33.276Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:02:33.276Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:02:33.276Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:02:33.276Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:02:33.277Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:02:33.277Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:02:33.277Z] [console.log] [NAV] route: Login
+[2026-08-25T17:02:33.278Z] [console.log] Login successful: Object
+[2026-08-25T17:02:33.278Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:33.279Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:33.280Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:02:33.280Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:33.280Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:33.280Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:33.280Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:02:33.280Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:02:33.281Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:02:33.281Z] [console.log] [NAV] route: Login
+[2026-08-25T17:02:43.960Z] [console.log] Login successful: Object
+[2026-08-25T17:02:44.257Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:45.475Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:02:49.298Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:02:51.280Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:02:51.286Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:02:51.287Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:02:51.287Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:02:51.287Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:02:51.287Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:02:51.287Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:02:51.287Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:02:51.288Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:02:51.288Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:02:51.288Z] [console.log] [NAV] route: Login
+[2026-08-25T17:02:51.288Z] [console.log] Login successful: Object
+[2026-08-25T17:02:51.288Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:51.288Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:51.288Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:02:51.289Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:51.289Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:51.289Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:02:51.289Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:02:51.289Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:02:51.289Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:02:51.290Z] [console.log] [NAV] route: Login
+[2026-08-25T17:02:51.290Z] [console.log] Login successful: Object
+[2026-08-25T17:02:51.290Z] [console.log] [NAV] route: Home
+[2026-08-25T17:02:51.291Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:03:07.307Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:03:09.292Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:03:09.299Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:03:09.299Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:03:09.299Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:03:09.299Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:03:09.299Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:03:09.299Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:03:09.299Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:03:09.300Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:03:09.300Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:03:09.300Z] [console.log] [NAV] route: Login
+[2026-08-25T17:03:09.300Z] [console.log] Login successful: Object
+[2026-08-25T17:03:09.300Z] [console.log] [NAV] route: Home
+[2026-08-25T17:03:09.301Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:03:09.301Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:03:09.302Z] [console.log] [NAV] route: Home
+[2026-08-25T17:03:09.302Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:03:09.302Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:03:09.302Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:03:09.302Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:03:09.302Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:03:09.303Z] [console.log] [NAV] route: Login
+[2026-08-25T17:03:09.303Z] [console.log] Login successful: Object
+[2026-08-25T17:03:09.303Z] [console.log] [NAV] route: Home
+[2026-08-25T17:03:09.303Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:03:25.321Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:03:27.300Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:03:27.307Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:03:27.307Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:03:27.307Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:03:27.308Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:03:27.308Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:03:27.308Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:03:27.308Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:03:27.308Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:03:27.308Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:03:27.308Z] [console.log] [NAV] route: Login
+[2026-08-25T17:03:27.308Z] [console.log] Login successful: Object
+[2026-08-25T17:03:27.309Z] [console.log] [NAV] route: Home
+[2026-08-25T17:03:27.309Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:03:27.310Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:03:27.310Z] [console.log] [NAV] route: Home
+[2026-08-25T17:03:27.310Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:03:27.310Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:03:27.310Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:03:27.310Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:03:27.311Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:03:27.311Z] [console.log] [NAV] route: Login
+[2026-08-25T17:03:27.311Z] [console.log] Login successful: Object
+[2026-08-25T17:03:27.312Z] [console.log] [NAV] route: Home
+[2026-08-25T17:03:27.312Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:03:57.324Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:04:00.323Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:04:00.328Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:04:00.328Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:04:00.329Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:04:00.329Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:04:00.329Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:04:00.329Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:04:00.329Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:04:00.329Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:04:00.329Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:04:00.329Z] [console.log] [NAV] route: Login
+[2026-08-25T17:04:00.329Z] [console.log] Login successful: Object
+[2026-08-25T17:04:00.330Z] [console.log] [NAV] route: Home
+[2026-08-25T17:04:00.330Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:04:00.331Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:04:00.331Z] [console.log] [NAV] route: Home
+[2026-08-25T17:04:00.331Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:04:00.331Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:04:00.331Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:04:00.331Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:04:00.332Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:04:00.332Z] [console.log] [NAV] route: Login
+[2026-08-25T17:04:00.332Z] [console.log] Login successful: Object
+[2026-08-25T17:04:00.332Z] [console.log] [NAV] route: Home
+[2026-08-25T17:04:00.332Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:04:30.351Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:04:33.342Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:04:33.344Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:04:33.344Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:04:33.344Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:04:33.344Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:04:33.345Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:04:33.345Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:04:33.345Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:04:33.345Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:04:33.345Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:04:33.346Z] [console.log] [NAV] route: Login
+[2026-08-25T17:04:33.346Z] [console.log] Login successful: Object
+[2026-08-25T17:04:33.346Z] [console.log] [NAV] route: Home
+[2026-08-25T17:04:33.347Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:04:33.347Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:04:33.349Z] [console.log] [NAV] route: Home
+[2026-08-25T17:04:33.349Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:04:33.349Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:04:33.349Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:04:33.349Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:04:33.350Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:04:33.350Z] [console.log] [NAV] route: Login
+[2026-08-25T17:04:33.350Z] [console.log] Login successful: Object
+[2026-08-25T17:04:33.350Z] [console.log] [NAV] route: Home
+[2026-08-25T17:04:33.351Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:05:03.376Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:05:06.361Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:05:06.367Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:05:06.367Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:05:06.368Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:05:06.368Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:05:06.368Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:05:06.368Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:05:06.368Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:05:06.368Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:05:06.369Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:05:06.369Z] [console.log] [NAV] route: Login
+[2026-08-25T17:05:06.369Z] [console.log] Login successful: Object
+[2026-08-25T17:05:06.370Z] [console.log] [NAV] route: Home
+[2026-08-25T17:05:06.370Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:05:06.370Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:05:06.370Z] [console.log] [NAV] route: Home
+[2026-08-25T17:05:06.370Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:05:06.370Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:05:06.370Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:05:06.371Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:05:06.371Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:05:06.371Z] [console.log] [NAV] route: Login
+[2026-08-25T17:05:06.371Z] [console.log] Login successful: Object
+[2026-08-25T17:05:06.371Z] [console.log] [NAV] route: Home
+[2026-08-25T17:05:06.371Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:05:36.390Z] --- [capture] socket closed; reconnecting in 2s
+[2026-08-25T17:05:39.390Z] --- [capture] attached to inspector: ws://localhost:8081/inspector/debug?device=2051df57f308b7f8f20ee9c2fcb953eb404443b8&page=1
+[2026-08-25T17:05:39.393Z] [console.info] [48;2;253;247;231m[30m[1mNOTE: [22mYou are using an unsupported debugging client. Use the Dev Menu in your app (or type `j` in the Metro terminal) to open React Native DevTools.
+[2026-08-25T17:05:39.394Z] [log.info] [48;2;253;247;231m[30mDebugger integration: iOS Bridgeless (RCTHost)
+[2026-08-25T17:05:39.395Z] [console.warning] Require cycle: src/navigation/AppNavigator.tsx -> src/components/NotificationSetup.tsx -> src/services/notifications.ts -> src/navigation/AppNavigator.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[2026-08-25T17:05:39.397Z] [console.log] [ENTRY] registerRootComponent - App starting
+[2026-08-25T17:05:39.397Z] [console.log] Running "main" with {"rootTag":11,"initialProps":null,"fabric":true}
+[2026-08-25T17:05:39.398Z] [console.log] [NotificationAnalytics] Initializing analytics tracking...
+[2026-08-25T17:05:39.398Z] [console.log] [NotificationAnalytics] Analytics tracking initialized
+[2026-08-25T17:05:39.398Z] [console.debug] DEBUG  [Analytics] initAnalytics() called (COPPA-compliant defaults; SDK stub)
+[2026-08-25T17:05:39.398Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:05:39.398Z] [console.log] [NAV] route: Login
+[2026-08-25T17:05:39.399Z] [console.log] Login successful: Object
+[2026-08-25T17:05:39.399Z] [console.log] [NAV] route: Home
+[2026-08-25T17:05:39.399Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:05:39.399Z] [console.log] [NAV] route: Unsubscribe
+[2026-08-25T17:05:39.399Z] [console.log] [NAV] route: Home
+[2026-08-25T17:05:39.399Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:05:39.399Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"49243010-f458-4744-add1-a6c84ab95f1f","result_count":10,"limit":10}
+[2026-08-25T17:05:39.400Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:05:39.400Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:05:39.400Z] [console.log] [NAV] route: Landing
+[2026-08-25T17:05:39.400Z] [console.log] [NAV] route: Login
+[2026-08-25T17:05:39.400Z] [console.log] Login successful: Object
+[2026-08-25T17:05:39.400Z] [console.log] [NAV] route: Home
+[2026-08-25T17:05:39.400Z] [console.debug] DEBUG  [Analytics] Event tracked: view_recommendations {"user_id":"a1234567-0000-0000-0000-000000000011","result_count":10,"limit":10}
+[2026-08-25T17:05:44.522Z] [console.log] [QaLogoutDeepLink] Logging out via deep link
+[2026-08-25T17:05:45.087Z] [console.warning] [CartContext] Realtime subscription status: CLOSED Error Stack:
+    at overrideMethod (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:48605:31)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56268:35)
+    at apply (native)
+    at registerWarning (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13067:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:12963:28)
+    at apply (native)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:350533:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456297:23)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316058:91)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at onClose (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316330:24)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316337:20)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:79)
+    at forEach (native)
+    at _matchReceive (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316790:63)
+    at callback (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316750:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316499:26)
+    at map (native)
+    at _trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316480:17)
+    at trigger (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316760:49)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316347:30)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at unsubscribe (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:316334:27)
+    at ?anon_0_ (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314459:49)
+    at next (native)
+    at asyncGeneratorStep (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14082:19)
+    at _next (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14096:29)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14101:14)
+    at tryCallTwo (address at InternalBytecode.js:1:1222)
+    at doResolve (address at InternalBytecode.js:1:2541)
+    at Promise (address at InternalBytecode.js:1:1318)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:14093:25)
+    at apply (native)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:314466:38)
+    at removeChannel (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:311558:43)
+    at anonymous (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:456311:49)
+    at RootNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:118420:61)
+    at AppNavigator (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:119406:63)
+    at App (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:107028:68)
+    at withDevTools(App) (http://10.0.0.151:8081/index.ts.bundle//&platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable:106368:58)
+[2026-08-25T17:05:45.097Z] [console.log] [NAV] route: Landing

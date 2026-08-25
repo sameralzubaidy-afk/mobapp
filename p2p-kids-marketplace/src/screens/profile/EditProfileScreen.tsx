@@ -32,9 +32,18 @@ import {
   resolveAvatarUrl,
 } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
-import { requestPhoneVerification, verifyPhoneCode } from '@/services/phone';
+import {
+  sendPhoneVerificationCode,
+  verifyPhoneCode,
+  OTPRateLimitError,
+  OTPExpiredError,
+} from '@/services/phoneService';
+import {
+  requestEmailChange,
+  resendEmailChangeCode,
+  verifyEmailChangeCode,
+} from '@/services/emailChange';
 import { captureException } from '@/services/errorReporter';
-import { supabase } from '@/services/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner, OTPInput } from '@/components/ui';
 import type { ProfileUpdateData } from '@/types/profile.types';
@@ -89,9 +98,46 @@ export default function EditProfileScreen({ navigation, route }: any) {
   }>({ visible: false });
   const [resendCountdown, setResendCountdown] = useState(0);
 
+  // Email re-verification state (Dev Task B02 / ACC-TC-B02): changing the email
+  // does NOT apply immediately — a 6-digit code is emailed to the NEW address and
+  // the OLD email stays active until verified. This modal drives that flow.
+  const [emailVerification, setEmailVerification] = useState<{
+    visible: boolean;
+    newEmail?: string;
+    code?: string;
+    sending?: boolean;
+    verifying?: boolean;
+    message?: string;
+  }>({ visible: false });
+  const [emailResendCountdown, setEmailResendCountdown] = useState(0);
+  // If the parent changed BOTH email and phone in one save, the phone verification
+  // is deferred until the email code is verified (handleVerifyEmailCode resumes it).
+  const [deferredPhoneChange, setDeferredPhoneChange] = useState<{
+    newPhone: string;
+    prevPhone: string;
+  } | null>(null);
+
   const { refreshSession } = useAuth();
 
   const normalizePhone = useCallback((value: string) => value.replace(/\D/g, ''), []);
+
+  // Convert a phone to E.164 for the Twilio/SMS send + verify boundary. The
+  // send-phone-otp Edge Function requires +<country><number>; the Edit Profile
+  // form uses plain digits (guide ACC-TC-B03: "the phone normalizes to digits"),
+  // so we normalize only at the send/verify boundary and store/display digits.
+  const toE164 = useCallback((value: string): string => {
+    const digits = normalizePhone(value);
+    if (!digits) {
+      return value;
+    }
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+    if (digits.length === 11 && digits.startsWith('1')) {
+      return `+${digits}`;
+    }
+    return value.trim().startsWith('+') ? value.trim() : `+${digits}`;
+  }, [normalizePhone]);
 
   useEffect(() => {
     if (!phoneVerification.visible || resendCountdown <= 0) {
@@ -101,6 +147,15 @@ export default function EditProfileScreen({ navigation, route }: any) {
     const timer = setTimeout(() => setResendCountdown((prev) => prev - 1), 1000);
     return () => clearTimeout(timer);
   }, [phoneVerification.visible, resendCountdown]);
+
+  useEffect(() => {
+    if (!emailVerification.visible || emailResendCountdown <= 0) {
+      return;
+    }
+
+    const timer = setTimeout(() => setEmailResendCountdown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [emailVerification.visible, emailResendCountdown]);
 
   const hydrateForm = useCallback((authUser: any, profile: any, overridePhone?: string) => {
     setCurrentUser(authUser);
@@ -289,6 +344,77 @@ export default function EditProfileScreen({ navigation, route }: any) {
     }
   };
 
+  // Opens the phone verification modal when the phone changed. Returns true if
+  // the modal is now open (caller should stop and wait for verification). Used
+  // by handleSave and by handleVerifyEmailCode for the deferred
+  // email-then-phone case (Dev Task B02).
+  const startPhoneVerificationFlow = async (newPhone: string, prevPhone: string) => {
+    const currentAuthPhone = normalizePhone(prevPhone);
+
+    // Determine which phone numbers are already verified & active on this account.
+    // The legacy `phone_verification_codes.verified` column no longer exists (removed
+    // by the AUTH-V3 migration 20260420000014), so querying it used to error silently
+    // and always open the OTP modal even for an already-active phone (ACC-TC-B09).
+    // Verified-phone state now lives in auth.users.phone (set by auth-update-phone
+    // after OTP) and profiles.phone + profiles.phone_verified.
+    const accountVerifiedPhones = [
+      normalizePhone((currentUser as any)?.phone || ''),
+      ...(currentProfile?.phone_verified
+        ? [normalizePhone((currentProfile as any)?.phone || '')]
+        : []),
+    ].filter((normalized) => normalized.length > 0);
+
+    const alreadyVerified =
+      accountVerifiedPhones.length > 0 && accountVerifiedPhones.includes(normalizePhone(newPhone));
+
+    if (normalizePhone(newPhone) === currentAuthPhone || alreadyVerified) {
+      // Phone already present/verified — update local UI and don't trigger verification
+      setPhone(newPhone);
+      setOriginalPhone(newPhone);
+      Alert.alert('Info', 'This phone number is already verified and active on your account.');
+      return false;
+    }
+
+    setPhoneVerification({
+      visible: true,
+      phone: newPhone,
+      code: '',
+      sending: true,
+      message: undefined,
+    });
+    // Use the canonical phone-OTP stack (send-phone-otp Edge Function: Twilio SMS,
+    // bcrypt-hashed codes, server-enforced rate limits) — same as the listing-gate
+    // flow (ACC-TC-B03). The legacy direct-DB insert path (phone.ts) referenced
+    // dropped columns (code/verified) and never sent an SMS in production.
+    try {
+      await sendPhoneVerificationCode(toE164(newPhone));
+      setResendCountdown(60);
+      setPhoneVerification((prev) => ({
+        ...prev,
+        sending: false,
+        message: undefined,
+      }));
+      // Keep modal open and do not show overall success yet; wait for verification
+      return true;
+    } catch (err) {
+      if (err instanceof OTPRateLimitError) {
+        setResendCountdown(Math.min(err.retryAfterSeconds, 3600));
+        setPhoneVerification((prev) => ({
+          ...prev,
+          sending: false,
+          message: `Too many attempts. Please try again in ${err.retryAfterSeconds} seconds.`,
+        }));
+        return false;
+      }
+      setPhoneVerification((prev) => ({
+        ...prev,
+        sending: false,
+        message: 'Failed to send verification code. Please try again.',
+      }));
+      return false;
+    }
+  };
+
   const handleSave = async () => {
     if (!validateForm()) {
       return;
@@ -386,84 +512,48 @@ export default function EditProfileScreen({ navigation, route }: any) {
         error = updateResult.error;
       }
 
+      // Email change requires re-verification (Dev Task B02 / ACC-TC-B02): do NOT
+      // call supabase.auth.updateUser directly. Request a 6-digit code emailed to
+      // the NEW address; the OLD email stays active on auth + profiles until the
+      // code is verified, then the Edge Function applies the change.
+      let emailVerificationPending = false;
       if (emailChanged) {
-        const { error: emailUpdateError } = await supabase.auth.updateUser({
-          email: trimmedEmail,
-        } as any);
+        const emailResult = await requestEmailChange(trimmedEmail);
 
-        if (emailUpdateError) {
-          error = emailUpdateError;
+        if (!emailResult.success) {
+          error = new Error(
+            emailResult.error?.message || "We couldn't update your email. Please try again."
+          );
         } else {
-          setEmail(trimmedEmail);
-          setOriginalEmail(trimmedEmail);
-
-          const { error: profileEmailUpdateError } = await supabase
-            .from('profiles')
-            .update({ email: trimmedEmail })
-            .eq('user_id', currentUser.id);
-
-          if (profileEmailUpdateError) {
-            console.warn(
-              'Failed to sync profile email after auth email update:',
-              profileEmailUpdateError
-            );
-          }
+          emailVerificationPending = true;
+          setDeferredPhoneChange(
+            phoneChanged ? { newPhone: trimmedPhone, prevPhone: originalPhone } : null
+          );
+          setEmailVerification({
+            visible: true,
+            newEmail: trimmedEmail,
+            code: '',
+            sending: false,
+            message: undefined,
+          });
+          setEmailResendCountdown(60);
         }
       }
 
-      // If phone was changed, start verification flow (non-blocking)
-      if (phoneChanged) {
-        const currentAuthPhone = normalizePhone(originalPhone);
-
-        // Determine which phone numbers are already verified & active on this account.
-        // The legacy `phone_verification_codes.verified` column no longer exists (removed
-        // by the AUTH-V3 migration 20260420000014), so querying it used to error silently
-        // and always open the OTP modal even for an already-active phone (ACC-TC-B09).
-        // Verified-phone state now lives in auth.users.phone (set by auth-update-phone
-        // after OTP) and profiles.phone + profiles.phone_verified.
-        const accountVerifiedPhones = [
-          normalizePhone((currentUser as any)?.phone || ''),
-          ...(currentProfile?.phone_verified
-            ? [normalizePhone((currentProfile as any)?.phone || '')]
-            : []),
-        ].filter((normalized) => normalized.length > 0);
-
-        const alreadyVerified =
-          accountVerifiedPhones.length > 0 &&
-          accountVerifiedPhones.includes(normalizePhone(trimmedPhone));
-
-        if (normalizePhone(trimmedPhone) === currentAuthPhone || alreadyVerified) {
-          // Phone already present/verified — update local UI and don't trigger verification
-          setPhone(trimmedPhone);
-          setOriginalPhone(trimmedPhone);
-          Alert.alert('Info', 'This phone number is already verified and active on your account.');
-        } else {
-          setPhoneVerification({
-            visible: true,
-            phone: trimmedPhone,
-            code: '',
-            sending: true,
-            message: undefined,
-          });
-          const { success } = await requestPhoneVerification(currentUser.id, trimmedPhone);
-          if (!success) {
-            setPhoneVerification((prev) => ({
-              ...prev,
-              sending: false,
-              message: 'Failed to send verification code. Please try again.',
-            }));
-            return; // stop here, do not show success
-          } else {
-            setResendCountdown(60);
-            setPhoneVerification((prev) => ({
-              ...prev,
-              sending: false,
-              message: undefined,
-            }));
-            // Keep modal open and do not show overall success yet; wait for verification
-            return;
-          }
+      // If phone was changed, start verification flow (non-blocking).
+      // If the email also changed on the same save, defer phone verification until
+      // after the email code is verified (handleVerifyEmailCode resumes it).
+      if (phoneChanged && !emailVerificationPending) {
+        const phoneModalOpened = await startPhoneVerificationFlow(trimmedPhone, originalPhone);
+        if (phoneModalOpened) {
+          return; // keep modal open, do not show success yet
         }
+      }
+
+      // Email verification is in progress — the code modal is open; do not navigate
+      // away (and do not show the partial-update warning) until the code is verified.
+      if (emailVerificationPending) {
+        return;
       }
 
       if (error) {
@@ -605,26 +695,50 @@ export default function EditProfileScreen({ navigation, route }: any) {
       setPhoneVerification((prev) => ({ ...prev, message: 'Please enter all 6 digits.' }));
       return;
     }
-    setPhoneVerification((prev) => ({ ...prev, verifying: true }));
-    const { success, message, error } = await verifyPhoneCode(
-      currentUser!.id,
-      phoneVerification.code!,
-      phoneVerification.phone
-    );
-    setPhoneVerification((prev) => ({ ...prev, verifying: false }));
-    if (!success) {
-      const errMsg =
-        error instanceof Error
-          ? error.message
-          : (error && (error as any).message) || 'Verification failed';
-      setPhoneVerification((prev) => ({ ...prev, message: message || errMsg }));
-      return;
-    }
-
     const verifiedPhone = phoneVerification.phone || '';
-    if (verifiedPhone) {
-      setPhone(verifiedPhone);
-      setOriginalPhone(verifiedPhone);
+    setPhoneVerification((prev) => ({ ...prev, verifying: true }));
+    try {
+      // Canonical verify: bcrypt compare via the verify_otp_code RPC; on success it
+      // marks profiles.phone_verified/phone_verified_at/phone_verification_method
+      // (ACC-TC-B03).
+      await verifyPhoneCode(toE164(verifiedPhone), phoneVerification.code!);
+
+      // Persist the verified phone as the account phone — auth.users.phone via the
+      // auth-update-phone Edge Function (the canonical profile-service path). The
+      // canonical verifyPhoneCode only marks the phone verified; it does not move
+      // the account phone, which the Edit Profile hydration reads first.
+      const persistResult = await updateUserProfile(
+        currentUser!.id,
+        { phone: normalizePhone(verifiedPhone) },
+        { includeAuthUser: false }
+      );
+      setPhoneVerification((prev) => ({ ...prev, verifying: false }));
+
+      if (persistResult.error) {
+        // Code verified, but the account phone could not be saved — keep the modal
+        // open so the user can retry rather than silently dropping the change.
+        setPhoneVerification((prev) => ({
+          ...prev,
+          message:
+            'Your code was verified, but we couldn\u2019t save the new phone. Please try again.',
+        }));
+        return;
+      }
+
+      if (verifiedPhone) {
+        setPhone(verifiedPhone);
+        setOriginalPhone(verifiedPhone);
+      }
+    } catch (err) {
+      setPhoneVerification((prev) => ({ ...prev, verifying: false }));
+      const message =
+        err instanceof OTPExpiredError
+          ? 'Code expired. Please request a new one.'
+          : err instanceof Error
+            ? err.message
+            : 'Invalid verification code. Please try again.';
+      setPhoneVerification((prev) => ({ ...prev, message }));
+      return;
     }
 
     // Auto-redirect to Profile after successful verification (no extra confirmation tap)
@@ -649,14 +763,101 @@ export default function EditProfileScreen({ navigation, route }: any) {
   const handleResendCode = async () => {
     if (!phoneVerification.phone || !currentUser || resendCountdown > 0) return;
     setPhoneVerification((prev) => ({ ...prev, sending: true }));
-    const { success } = await requestPhoneVerification(currentUser.id, phoneVerification.phone!);
-    if (success) {
+    try {
+      await sendPhoneVerificationCode(toE164(phoneVerification.phone!));
       setResendCountdown(60);
+      setPhoneVerification((prev) => ({ ...prev, sending: false, message: undefined }));
+    } catch (err) {
+      if (err instanceof OTPRateLimitError) {
+        setResendCountdown(Math.min(err.retryAfterSeconds, 3600));
+        setPhoneVerification((prev) => ({
+          ...prev,
+          sending: false,
+          message: `Too many attempts. Please try again in ${err.retryAfterSeconds} seconds.`,
+        }));
+        return;
+      }
+      setPhoneVerification((prev) => ({
+        ...prev,
+        sending: false,
+        message: 'Failed to send verification code. Please try again.',
+      }));
     }
-    setPhoneVerification((prev) => ({
+  };
+
+  // Email verification handlers (Dev Task B02 / ACC-TC-B02)
+  const handleVerifyEmailCode = async () => {
+    if (!emailVerification.code || emailVerification.code.length !== 6) {
+      setEmailVerification((prev) => ({ ...prev, message: 'Please enter all 6 digits.' }));
+      return;
+    }
+    setEmailVerification((prev) => ({ ...prev, verifying: true }));
+    const result = await verifyEmailChangeCode(emailVerification.code!);
+    setEmailVerification((prev) => ({ ...prev, verifying: false }));
+
+    if (!result.success) {
+      setEmailVerification((prev) => ({
+        ...prev,
+        message: result.error?.message || 'Verification failed. Please try again.',
+      }));
+      return;
+    }
+
+    const newEmail = result.newEmail || emailVerification.newEmail || '';
+    setEmail(newEmail);
+    setOriginalEmail(newEmail);
+    setEmailResendCountdown(0);
+    setEmailVerification({ visible: false });
+
+    // Refresh the session so auth.user.email reflects the new address.
+    // Promise.resolve guards against a non-Promise (or absent) refreshSession.
+    Promise.resolve(refreshSession?.()).catch((refreshError) => {
+      console.warn(
+        '[EditProfileScreen] Failed to refresh session after email change',
+        refreshError
+      );
+    });
+
+    // If a phone change was deferred on the same save, resume it now.
+    if (deferredPhoneChange) {
+      const phoneModalOpened = await startPhoneVerificationFlow(
+        deferredPhoneChange.newPhone,
+        deferredPhoneChange.prevPhone
+      );
+      if (phoneModalOpened) {
+        return; // keep the phone modal open, wait for phone verification
+      }
+      setDeferredPhoneChange(null);
+    }
+
+    // Auto-redirect to Profile after successful email verification.
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'Profile',
+          params: {
+            optimisticUserPatch: { email: newEmail },
+            profileUpdatedAt: Date.now(),
+          },
+        },
+      ],
+    });
+  };
+
+  const handleResendEmailCode = async () => {
+    if (!emailVerification.newEmail || emailResendCountdown > 0) return;
+    setEmailVerification((prev) => ({ ...prev, sending: true, message: undefined }));
+    const result = await resendEmailChangeCode();
+    if (result.success) {
+      setEmailResendCountdown(60);
+    }
+    setEmailVerification((prev) => ({
       ...prev,
       sending: false,
-      message: success ? undefined : 'Failed to send verification code. Please try again.',
+      message: result.success
+        ? undefined
+        : result.error?.message || 'Failed to resend the code. Please try again.',
     }));
   };
 
@@ -747,6 +948,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
             <View style={styles.verificationOtpContainer}>
               <OTPInput
                 length={6}
+                testID="edit-profile-phone-otp-input"
                 value={phoneVerification.code || ''}
                 onChange={(newCode) =>
                   setPhoneVerification((prev) => ({ ...prev, code: newCode, message: undefined }))
@@ -764,6 +966,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
             )}
 
             <TouchableOpacity
+              testID="edit-profile-phone-verify-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Verify phone"
               style={[
                 styles.verificationPrimaryButton,
                 (phoneVerification.verifying || (phoneVerification.code || '').length !== 6) &&
@@ -785,7 +991,13 @@ export default function EditProfileScreen({ navigation, route }: any) {
               ) : resendCountdown > 0 ? (
                 <Text style={styles.verificationTimerText}>Resend code in {resendCountdown}s</Text>
               ) : (
-                <TouchableOpacity onPress={handleResendCode}>
+                <TouchableOpacity
+                  testID="edit-profile-phone-resend-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Resend verification code"
+                  onPress={handleResendCode}
+                >
                   <Text style={styles.verificationResendText}>Resend Code</Text>
                 </TouchableOpacity>
               )}
@@ -800,6 +1012,96 @@ export default function EditProfileScreen({ navigation, route }: any) {
             >
               <Text style={styles.verificationChangePhoneText}>Change Phone Number</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Email verification modal (Dev Task B02) — OLD email stays active until verified */}
+      <Modal
+        visible={emailVerification.visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          setEmailResendCountdown(0);
+          setEmailVerification({ visible: false });
+        }}
+      >
+        <View style={styles.verificationContainer}>
+          <View style={styles.verificationHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setEmailResendCountdown(0);
+                setEmailVerification({ visible: false });
+              }}
+              style={styles.verificationBackButton}
+            >
+              <Text style={styles.verificationBackButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.verificationTitle}>Verify Your Email</Text>
+            <View style={styles.verificationHeaderSpacer} />
+          </View>
+
+          <View style={styles.verificationContent}>
+            <Text style={styles.verificationSubtitle}>
+              We sent a 6-digit code to{`\n`}
+              <Text style={styles.verificationPhone}>{emailVerification.newEmail}</Text>
+            </Text>
+
+            <View style={styles.verificationOtpContainer}>
+              <OTPInput
+                length={6}
+                testID="edit-profile-email-otp-input"
+                value={emailVerification.code || ''}
+                onChange={(newCode) =>
+                  setEmailVerification((prev) => ({ ...prev, code: newCode, message: undefined }))
+                }
+                error={Boolean(emailVerification.message)}
+              />
+            </View>
+
+            {__DEV__ && (
+              <Text style={styles.verificationDevHint}>
+                Dev/QA mode: the code is 123456 on staging.
+              </Text>
+            )}
+
+            {emailVerification.message && (
+              <Text style={styles.verificationErrorText}>{emailVerification.message}</Text>
+            )}
+
+            <TouchableOpacity
+              testID="edit-profile-email-verify-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Verify email"
+              style={[
+                styles.verificationPrimaryButton,
+                (emailVerification.verifying || (emailVerification.code || '').length !== 6) &&
+                  styles.verificationPrimaryButtonDisabled,
+              ]}
+              onPress={handleVerifyEmailCode}
+              disabled={emailVerification.verifying || (emailVerification.code || '').length !== 6}
+            >
+              {emailVerification.verifying ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.verificationPrimaryButtonText}>Verify</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.verificationResendContainer}>
+              {emailVerification.sending ? (
+                <Text style={styles.verificationTimerText}>Sending...</Text>
+              ) : emailResendCountdown > 0 ? (
+                <Text style={styles.verificationTimerText}>
+                  Resend code in {emailResendCountdown}s
+                </Text>
+              ) : (
+                <TouchableOpacity onPress={handleResendEmailCode}>
+                  <Text style={styles.verificationResendText}>Resend Code</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       </Modal>

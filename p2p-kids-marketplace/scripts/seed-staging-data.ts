@@ -143,6 +143,16 @@ export const TEST_USERS = {
     name: 'Test Suspended User',
     phone: '5551234011',
   },
+  // ACC-TC-G07 (3-CTA leg): standing grace-period persona — see seedGracePersonaFixture().
+  // Stacks all 3 dashboard Action Items (id_verification=none + grace_period + 1 active
+  // draft) so the "Show 1 more action"/"Show less" toggle (MAX_VISIBLE=2) is demonstrable.
+  graceUser: {
+    id: 'a1234567-0000-0000-0000-000000000011', // Fixed UUID for G07 3-CTA grace persona
+    email: 'test-grace@kidsmarketplace.test',
+    password: 'TestGrace123!',
+    name: 'Test Grace User',
+    phone: '5551234012',
+  },
 };
 
 const TEST_CATEGORIES = [
@@ -714,6 +724,108 @@ async function seedSuspendedAccountFixture(): Promise<void> {
     console.log(`   ✓ F01/F04 VERIFY OK: account_status='suspended' (${su.email})`);
   } else {
     console.warn(`   ⚠️ F01/F04 VERIFY FAIL: account_status=${profile?.account_status ?? 'null'}`);
+  }
+}
+
+/**
+ * ACC-TC-G07 (3-CTA leg) — standing grace-period persona for the QA Test Agent
+ * ("Show 1 more action" / "Show less" toggle with 3 stacked Action Items).
+ *
+ * Why it exists: the dashboard's MAX_VISIBLE=2 toggle only renders when a persona
+ * stacks 3 CTAs (id_verification + grace_period + drafts). No login-able grace
+ * persona existed on staging, so the 3-CTA leg was not executable. Provisioning
+ * here mirrors the suspended-fixture pattern (full profile, then status-specific
+ * fields applied):
+ *   - subscriptions.status='grace' + future grace_ends_at → drives GracePeriodBanner
+ *     (get_subscription_status normalizes 'grace' → 'grace_period'; loadSubscriptionTimeline
+ *     reads subscriptions.grace_ends_at).
+ *   - NO id_badge_verification_requests row → getVerificationStatus returns 'none'
+ *     → IDVerificationCTABanner CTA.
+ *   - ONE active item_drafts row (expires_at future) → ResumeDraftBanner CTA.
+ *
+ * Idempotent: re-running re-signs the user (no-op if exists), re-applies the grace
+ * subscription state, and ensures exactly one active draft exists.
+ */
+async function seedGracePersonaFixture(): Promise<void> {
+  console.log('   ── G07 3-CTA grace-persona fixture ──');
+  const gu = TEST_USERS.graceUser;
+
+  // 1. Ensure the auth user + full profile exist (same as a normal persona).
+  await signupTestUser(gu, 'user');
+
+  // 2. Set subscription to grace. The signup trigger auto-creates a 'free' row;
+  //    upsert (onConflict user_id) is used so a missing row is created, not skipped.
+  //    status='grace' is valid (subscriptions CHECK includes 'grace').
+  const graceEndsAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(); // 60 days
+  const { error: subError } = await adminSupabase.from('subscriptions').upsert(
+    {
+      user_id: gu.id,
+      status: 'grace',
+      grace_started_at: new Date().toISOString(),
+      grace_ends_at: graceEndsAt,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  );
+
+  if (subError) {
+    console.warn(`   ⚠️ G07 grace subscription upsert failed: ${subError.message}`);
+  } else {
+    console.log(
+      `   ✓ test-grace subscription status='grace' (grace_ends_at ${graceEndsAt})`
+    );
+  }
+
+  // 3. Ensure exactly ONE active draft (ResumeDraftBanner CTA).
+  const { data: existingDrafts } = await adminSupabase
+    .from('item_drafts')
+    .select('id')
+    .eq('seller_id', gu.id)
+    .gt('expires_at', new Date().toISOString());
+
+  if (!existingDrafts || existingDrafts.length === 0) {
+    const { error: draftError } = await adminSupabase.from('item_drafts').insert({
+      seller_id: gu.id,
+      draft_data: { title: 'Grace Persona Draft', description: 'G07 3-CTA fixture' },
+      step: 'details',
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (draftError) {
+      console.warn(`   ⚠️ G07 draft insert failed: ${draftError.message}`);
+    } else {
+      console.log('   ✓ test-grace active draft created (ResumeDraftBanner CTA)');
+    }
+  } else {
+    console.log(`   ✓ test-grace active draft already present (${existingDrafts.length})`);
+  }
+
+  // 4. Ensure NO id_badge_verification_requests row (absence → status 'none').
+  const { data: idReq } = await adminSupabase
+    .from('id_badge_verification_requests')
+    .select('id')
+    .eq('user_id', gu.id)
+    .maybeSingle();
+  if (idReq) {
+    console.warn(
+      '   ⚠️ G07 id_badge_verification_requests row exists for test-grace — ID CTA may not render as "none"'
+    );
+  } else {
+    console.log("   ✓ test-grace id_verification status='none' (no requests row)");
+  }
+
+  // 5. Verify end-state (all 3 CTAs will stack → show-all toggle renders).
+  const { data: verifySub, error: verifyError } = await adminSupabase
+    .from('subscriptions')
+    .select('status, grace_ends_at')
+    .eq('user_id', gu.id)
+    .maybeSingle();
+
+  if (verifyError) {
+    console.warn(`   ⚠️ G07 VERIFY: subscription read failed: ${verifyError.message}`);
+  } else if (verifySub?.status === 'grace' && verifySub.grace_ends_at) {
+    console.log(`   ✓ G07 VERIFY OK: subscriptions.status='grace' + future grace_ends_at (${gu.email})`);
+  } else {
+    console.warn(`   ⚠️ G07 VERIFY FAIL: subscriptions.status=${verifySub?.status ?? 'null'}`);
   }
 }
 
@@ -1554,9 +1666,11 @@ async function main(): Promise<void> {
     await seedSocialOnlyFixture();
 
     // 2c. Account-file QA fixtures (ACC-TC-F01/F04 suspended-account gate,
-    //     ACC-TC-F02 valid unsubscribe token for the deep-link success leg)
+    //     ACC-TC-F02 valid unsubscribe token for the deep-link success leg,
+    //     ACC-TC-G07 3-CTA grace persona for the show-all/show-less toggle)
     await seedSuspendedAccountFixture();
     await seedUnsubscribeTokenFixture();
+    await seedGracePersonaFixture();
 
     // Get fresh sessions for both users
     const { data: buyerSession } = await supabase.auth.signInWithPassword({
