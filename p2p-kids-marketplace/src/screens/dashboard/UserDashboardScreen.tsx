@@ -44,11 +44,12 @@ import { Coins, CreditCard, Handshake, Heart, List, Sparkle, TrendUp } from 'pho
 type NavigationProp = NativeStackNavigationProp<any>;
 
 // ─── Helper: time-based greeting ──────────────────────────────────────────────
-function _getGreeting(): string {
+// G01 (ACC-TC-G01): renders as "Good morning/afternoon/evening, {first name}" in
+// the Home header/composer area. First name = first token of the display name.
+function _getGreeting(firstName: string): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  const prefix = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  return `${prefix}, ${firstName}`;
 }
 
 // ─── Quick Action tile config ──────────────────────────────────────────────────
@@ -308,6 +309,13 @@ export default function UserDashboardScreen() {
   return (
     <View testID="dashboard-screen" style={{ flex: 1 }}>
       <ScreenLayout variant="main" style={styles.container}>
+        {/* ── Home Greeting (header/composer area) — G01 (ACC-TC-G01) ──────── */}
+        <View style={styles.greetingRow}>
+          <Text style={styles.greetingText} testID="dashboard-greeting" accessible>
+            {_getGreeting(_displayName.split(' ')[0])}
+          </Text>
+        </View>
+
         {/* ── Home Composer Bar (persistent, directly below header) ─────────── */}
         <ComposerBar />
 
@@ -435,7 +443,11 @@ export default function UserDashboardScreen() {
 
             if (allCtas.length === 0) return null;
 
-            const MAX_VISIBLE = 3;
+            // G07 (ACC-TC-G07): MAX_VISIBLE must be < the number of possible CTA
+            // types (3: id_verification, grace_period, drafts) so the show-more /
+            // show-less toggle is actually reachable when a persona stacks 3 CTAs.
+            // 1–2 CTAs still render fully with no toggle (no regression).
+            const MAX_VISIBLE = 2;
             const visibleCtas = showAllCtas ? allCtas : allCtas.slice(0, MAX_VISIBLE);
             const hiddenCount = allCtas.length - MAX_VISIBLE;
 
@@ -671,6 +683,18 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: '#E85D75',
+  },
+
+  // ─── Home Greeting (header/composer area) ──────────────────────────────────
+  greetingRow: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  greetingText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
 
   // ─── Scroll ─────────────────────────────────────────────────────────────────

@@ -1,10 +1,13 @@
 // File: p2p-kids-marketplace/src/screens/error/OfflineScreen.tsx
 // FLOW-26 Screen 1/6: Offline / No Connection
+// F03 (ACC-TC-F03): "Try Again" re-checks connectivity (NetInfo) and returns to
+// the prior screen only when the connection is restored.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
 import { WifiX, ArrowCounterClockwise } from 'phosphor-react-native';
 import { useNavigation } from '@react-navigation/native';
+import NetInfo from '@react-native-community/netinfo';
 
 interface OfflineScreenProps {
   onRetry?: () => void;
@@ -12,14 +15,36 @@ interface OfflineScreenProps {
 
 const OfflineScreen: React.FC<OfflineScreenProps> = ({ onRetry }) => {
   const navigation = useNavigation();
+  const [retryFailed, setRetryFailed] = useState(false);
 
   const handleRetry = () => {
     if (onRetry) {
       onRetry();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
+      return;
     }
-    // Default behavior: go back
-    if (navigation.canGoBack()) {
-      navigation.goBack();
+    void checkConnectivityAndReturn();
+  };
+
+  // F03: only leave the offline gate once connectivity is actually restored.
+  const checkConnectivityAndReturn = async () => {
+    try {
+      const state = await NetInfo.fetch();
+      if (state.isConnected === true) {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        }
+      } else {
+        setRetryFailed(true);
+      }
+    } catch {
+      // If the connectivity check itself fails, fail open and return to the
+      // prior screen rather than trapping the user on the offline gate.
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
     }
   };
 
@@ -47,6 +72,12 @@ const OfflineScreen: React.FC<OfflineScreenProps> = ({ onRetry }) => {
           <ArrowCounterClockwise size={18} color="#FFFFFF" />
           <Text style={styles.retryBtnText}>Try Again</Text>
         </TouchableOpacity>
+
+        {retryFailed && (
+          <Text style={styles.retryFailedText} testID="offline-retry-failed">
+            Still offline. Check your connection and try again.
+          </Text>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -92,6 +123,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  retryFailedText: {
+    fontSize: 14,
+    color: '#E85D75',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 16,
+    paddingHorizontal: 8,
   },
 });
 

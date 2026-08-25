@@ -41,6 +41,13 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+// Mock @react-native-community/netinfo (native module) using its bundled jest
+// mock (same pattern as AsyncStorage above). Its `fetch` resolves to a
+// connected default state; individual tests override it via jest.mocked(...).
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock.js')
+);
+
 // TFV2-014: Mock react-native-safe-area-context so PersistentTabBar renders in tests
 // Must also expose SafeAreaInsetsContext / SafeAreaFrameContext: @react-navigation/stack
 // (StackView, via @react-navigation/elements SafeAreaProviderCompat) renders
@@ -56,8 +63,7 @@ jest.mock('react-native-safe-area-context', () => {
     useSafeAreaInsets: () => insets,
     useSafeAreaFrame: () => frame,
     SafeAreaProvider: ({ children }: any) => children,
-    SafeAreaView: ({ children, style }: any) =>
-      React.createElement('View', { style }, children),
+    SafeAreaView: ({ children, style }: any) => React.createElement('View', { style }, children),
     SafeAreaInsetsContext,
     SafeAreaFrameContext,
     initialWindowMetrics: {

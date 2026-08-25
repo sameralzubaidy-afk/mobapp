@@ -6056,6 +6056,18 @@ Satisfied Items:
 
 ---
 
+### FLOW-16: Home Dashboard — G01 greeting + G07 show-more reachability (2026-08-25)
+
+- **Change Classification**: C (mobile UI/screens only — no API/DB/Edge Function changes)
+- **Regression Tiers Required**: Tier 0 (always)
+- **Impacted Flows**: FLOW-16 (self)
+- **G01 (ACC-TC-G01) — Home greeting rendered**: `_getGreeting()` was dead code (defined, never called). Wired into the header/composer area of `UserDashboardScreen.tsx` as a fixed row above `ComposerBar`, rendering "Good morning/afternoon/evening, {first name}" using the session display name (first token; falls back to email prefix / 'User'). New `testID="dashboard-greeting"`. Unit tests added (display name, multi-word first-name extraction, email-prefix fallback).
+- **G07 (ACC-TC-G07) — Show-more toggle reachable**: `MAX_VISIBLE` lowered from 3 → 2 so the "Show {n} more action(s)" / "Show less" toggle renders when a persona stacks all 3 CTA types (ID verification + grace period + drafts). 1–2 CTA cases render fully with no toggle (no regression — verified by new unit tests). Dashboard test's `supabase` mock made table-aware so the grace-period CTA path is exercisable.
+- **Tests**: `src/screens/dashboard/__tests__/UserDashboardScreen.test.tsx` (greeting ×3, show-more ×3).
+- **Tier 0**: typecheck PASS, lint PASS (2026-08-25).
+
+---
+
 ### FLOW-13: Referrals UI
 
 ---
@@ -6262,6 +6274,21 @@ Satisfied Items:
   - ErrorBoundary MUST remain at root (inside `SafeAreaProvider`, outside `GlobalAlertProvider`).
   - `errorReporter` MUST never throw — every public function wraps in try/catch.
   - Never log raw PII via `captureException` `extra`/`tags`. Only hashed user id via `setUser`.
+
+---
+
+### FLOW-21: Offline boundary — F03 real connectivity gate (2026-08-25)
+
+- **Change Classification**: C (mobile UI/navigation — new behavioral gate; new dependency `@react-native-community/netinfo@11.4.1`)
+- **Regression Tiers Required**: Tier 0 (always)
+- **Impacted Flows**: FLOW-21 (self), FLOW-16 (dashboard renders the gate's nav target route)
+- **F03 (ACC-TC-F03) — real connectivity boundary for OfflineScreen**: `OfflineScreen` was registered in the navigator but had no trigger. Added:
+  - `src/components/ConnectivityGate.tsx` (new) — subscribes via `NetInfo.addEventListener`; edge-triggered (baseline first event never navigates, so no Offline push over auth/Landing on app start); navigates to `Offline` only on a live connected → disconnected transition while an authenticated session exists and the navigator is ready (and not already on `Offline`). Uses the shared `navigationRef` (not `useNavigation`), wired into `AppNavigator` inside the `NavigationContainer`.
+  - `src/screens/error/OfflineScreen.tsx` — "Try Again" now re-checks connectivity via `NetInfo.fetch()` and returns to the prior screen only when connected; while still offline it shows "Still offline. Check your connection and try again." (no silent no-op); fails open (goes back) if the check itself throws.
+  - `jest.setup.ts` — global mock of `@react-native-community/netinfo` using its bundled jest mock.
+- **Tests**: `src/components/__tests__/ConnectivityGate.test.tsx` (6 cases: baseline, drop→navigate, reconnect no-op, unauthenticated no-op, already-on-Offline no-op, nav-not-ready no-op); `src/screens/error/__tests__/OfflineScreen.test.tsx` (restored→back, still-offline→message, check-throws→fail open, canGoBack false).
+- **Native build note**: NetInfo is a native module — the iOS dev-client / simulator build must be rebuilt for the gate to run on-device.
+- **Tier 0**: typecheck PASS, lint PASS (2026-08-25).
 
 ---
 

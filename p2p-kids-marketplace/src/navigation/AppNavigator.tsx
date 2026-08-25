@@ -92,6 +92,9 @@ import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 // QA-only logout deep link handler (dev/staging only) — see component for the security gate.
 import QaLogoutDeepLinkHandler from '@/components/QaLogoutDeepLinkHandler';
+// F03 (ACC-TC-F03): real connectivity boundary — navigates to Offline when the
+// network drops during active (authenticated) use. Uses navigationRef.
+import ConnectivityGate from '@/components/ConnectivityGate';
 import {
   parseNotificationDeepLink,
   getFallbackRoute,
@@ -972,6 +975,11 @@ export function RootNavigator() {
             It re-appears automatically once the carousel completes and the
             navigator key flips to 'home'. */}
         {isAuthenticated && !isSuspended && !showOnboardingCarousel && <PersistentTabBar />}
+
+        {/* F03 (ACC-TC-F03): real connectivity boundary — navigates to the
+            Offline screen when the network drops during active (authenticated)
+            use. Renders nothing. Uses the shared navigationRef. */}
+        <ConnectivityGate />
       </CartProvider>
     </NavigationContainer>
   );

@@ -2,28 +2,45 @@
 // MODULE-15.1 FLOW-16: Tests for the redesigned Home Dashboard
 
 import React from 'react';
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import UserDashboardScreen from '../UserDashboardScreen';
 import { useAuth, useSPWallet } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNotificationBadge } from '@/hooks/useNotificationBadge';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { idBadgeService } from '@/services/idBadge';
+import { getActiveDrafts } from '@/services/draftService';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock('@/config/supabase', () => ({
-  supabase: {
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      not: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
-    })),
-  },
-}));
+jest.mock('@/config/supabase', () => {
+  const buildChain = (maybeData: any) => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    or: jest.fn().mockReturnThis(),
+    not: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    maybeSingle: jest.fn().mockResolvedValue(maybeData),
+  });
+  return {
+    supabase: {
+      from: jest.fn((table: string) => {
+        // Table-aware so the grace-banner CTA (G07) can be exercised: the
+        // subscriptions timeline returns a grace end date by default (the grace
+        // banner only renders when subscription.status is also 'grace', which
+        // tests control via setupMocks). Trades return no rows.
+        if (table === 'subscriptions') {
+          return buildChain({
+            data: { status: 'grace_period', grace_ends_at: '2026-09-01T00:00:00Z' },
+            error: null,
+          });
+        }
+        return buildChain({ data: null, error: null });
+      }),
+    },
+  };
+});
 
 jest.mock('@/services/idBadge', () => ({
   idBadgeService: { getVerificationStatus: jest.fn().mockResolvedValue({ status: 'approved' }) },
@@ -89,11 +106,13 @@ const DEFAULT_WALLET = {
   lifetime_spent: 160,
 };
 
-function setupMocks(overrides: {
-  canSpendSP?: boolean;
-  subStatus?: string;
-  unreadCount?: number;
-} = {}) {
+function setupMocks(
+  overrides: {
+    canSpendSP?: boolean;
+    subStatus?: string;
+    unreadCount?: number;
+  } = {}
+) {
   (useNavigation as jest.Mock).mockReturnValue({ navigate: mockNavigate });
   (useIsFocused as jest.Mock).mockReturnValue(true);
 
@@ -147,6 +166,87 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
     expect(mockNavigate).toHaveBeenCalledWith('ItemCreate', {
       prefilledTitle: 'Lego Set',
     });
+  });
+
+  // ── Home Greeting (G01 / ACC-TC-G01) ────────────────────────────────────────
+  it('renders a time-based greeting with the display name (G01)', () => {
+    const { getByTestId } = render(<UserDashboardScreen />);
+    const greeting = getByTestId('dashboard-greeting');
+    expect(greeting.props.children).toMatch(/^Good (morning|afternoon|evening), Samer$/);
+  });
+
+  it('greeting uses only the first name when display name has multiple words (G01)', () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      session: {
+        ...DEFAULT_SESSION,
+        user: { ...DEFAULT_SESSION.user, display_name: 'Samer Alzubaidi' },
+      },
+      refreshSession: mockRefreshSession,
+      isLoading: false,
+    });
+    const { getByTestId } = render(<UserDashboardScreen />);
+    expect(getByTestId('dashboard-greeting').props.children).toMatch(
+      /^Good (morning|afternoon|evening), Samer$/
+    );
+  });
+
+  it('greeting falls back to the email prefix when no display name (G01)', () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      session: {
+        ...DEFAULT_SESSION,
+        user: { ...DEFAULT_SESSION.user, display_name: '' },
+      },
+      refreshSession: mockRefreshSession,
+      isLoading: false,
+    });
+    const { getByTestId } = render(<UserDashboardScreen />);
+    expect(getByTestId('dashboard-greeting').props.children).toMatch(
+      /^Good (morning|afternoon|evening), test$/
+    );
+  });
+
+  // ── Action Items: Show More / Show Less (G07 / ACC-TC-G07) ──────────────────
+  it('shows "Show 1 more action" when 3 CTAs stack (ID + grace + drafts) (G07)', async () => {
+    (idBadgeService.getVerificationStatus as jest.Mock).mockResolvedValue({ status: 'none' });
+    (getActiveDrafts as jest.Mock).mockResolvedValue([{ id: 'draft-1', title: 'Draft' }]);
+    setupMocks({ canSpendSP: true, subStatus: 'grace' });
+
+    const { getByText, getByTestId, queryByTestId } = render(<UserDashboardScreen />);
+
+    await waitFor(() => expect(getByText('Show 1 more action')).toBeTruthy());
+    expect(getByTestId('action-items-show-all')).toBeTruthy();
+    expect(queryByTestId('action-items-show-less')).toBeNull();
+  });
+
+  it('expand + collapse toggles between Show more and Show less (G07)', async () => {
+    (idBadgeService.getVerificationStatus as jest.Mock).mockResolvedValue({ status: 'none' });
+    (getActiveDrafts as jest.Mock).mockResolvedValue([{ id: 'draft-1', title: 'Draft' }]);
+    setupMocks({ canSpendSP: true, subStatus: 'grace' });
+
+    const { getByTestId, queryByTestId } = render(<UserDashboardScreen />);
+
+    await waitFor(() => expect(getByTestId('action-items-show-all')).toBeTruthy());
+
+    // Expand
+    fireEvent.press(getByTestId('action-items-show-all'));
+    expect(getByTestId('action-items-show-less')).toBeTruthy();
+    expect(queryByTestId('action-items-show-all')).toBeNull();
+
+    // Collapse
+    fireEvent.press(getByTestId('action-items-show-less'));
+    expect(getByTestId('action-items-show-all')).toBeTruthy();
+    expect(queryByTestId('action-items-show-less')).toBeNull();
+  });
+
+  it('does NOT render a show-more toggle with 2 CTAs (no regression) (G07)', async () => {
+    // ID CTA + drafts = 2 CTAs → fully visible, no toggle.
+    (idBadgeService.getVerificationStatus as jest.Mock).mockResolvedValue({ status: 'none' });
+    (getActiveDrafts as jest.Mock).mockResolvedValue([{ id: 'draft-1', title: 'Draft' }]);
+
+    const { queryByTestId } = render(<UserDashboardScreen />);
+
+    await waitFor(() => expect(queryByTestId('action-items-show-all')).toBeNull());
+    expect(queryByTestId('action-items-show-less')).toBeNull();
   });
 
   // ── SP Strip ────────────────────────────────────────────────────────────────
