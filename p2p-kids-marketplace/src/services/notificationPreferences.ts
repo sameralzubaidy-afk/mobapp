@@ -82,11 +82,11 @@ export const updateNotificationPreference = async (
     if (!user) throw new Error('Not authenticated');
 
     // AUTH-TC-D02 (dev-only): allow QA to force a save failure via the
-    // `qa_force_pref_save_failure` admin_config toggle (mirrors the H03
-    // `qa_avatar_upload_failure` pattern). Fail-closed — release builds and
-    // unset/unknown toggles always run the real save. A simulated failure flows
-    // through NotificationPreferencesScreen's existing revert branch (optimistic
-    // update → revert + error alert).
+    // session-local `qa_force_pref_save_failure` toggle (AsyncStorage, armed via
+    // p2pkidsmarketplace://qa-dev-toggle). Fail-closed — release builds and
+    // unset/expired/unknown toggles always run the real save. A simulated
+    // failure flows through NotificationPreferencesScreen's existing revert
+    // branch (optimistic update → revert + error alert).
     const simulatedSaveError = await getSimulatedNotificationPrefSaveError();
     if (simulatedSaveError) {
       console.warn('[notificationPreferences] QA preference-save failure simulation active');

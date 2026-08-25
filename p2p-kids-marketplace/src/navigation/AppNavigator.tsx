@@ -92,6 +92,9 @@ import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 // QA-only logout deep link handler (dev/staging only) — see component for the security gate.
 import QaLogoutDeepLinkHandler from '@/components/QaLogoutDeepLinkHandler';
+// QA-only session-local toggle deep link handler (dev/staging only) — arms/disarms
+// the A03/D02/C04 QA toggles via p2pkidsmarketplace://qa-dev-toggle. See component.
+import QaDevToggleDeepLinkHandler from '@/components/QaDevToggleDeepLinkHandler';
 // F03 (ACC-TC-F03): real connectivity boundary — navigates to Offline when the
 // network drops during active (authenticated) use. Uses navigationRef.
 import ConnectivityGate from '@/components/ConnectivityGate';
@@ -998,6 +1001,9 @@ export default function AppNavigator() {
         {/* QA-only logout deep link handler — must live inside AuthProvider (uses useAuth).
             Inert in production builds (see QaLogoutDeepLinkHandler gate). */}
         <QaLogoutDeepLinkHandler />
+        {/* QA-only session-local toggle handler (no auth dependency — safe anywhere).
+            Inert in production builds (see QaDevToggleDeepLinkHandler gate). */}
+        <QaDevToggleDeepLinkHandler />
         <RootNavigator />
       </StripeProviderWrapper>
     </AuthProvider>

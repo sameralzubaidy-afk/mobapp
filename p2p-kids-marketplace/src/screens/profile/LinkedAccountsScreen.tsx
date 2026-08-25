@@ -124,10 +124,11 @@ export default function LinkedAccountsScreen({ navigation }: any) {
 
       // AUTH-TC-C04 (dev-only): simulate the OAuth callback returning a provider
       // email that mismatches the account email (EmailMismatchError). Reads the
-      // `qa_link_email_mismatch` admin_config toggle; when armed for this provider
-      // (or 'all') it throws a FAITHFUL EmailMismatchError that flows through the
+      // session-local `qa_link_email_mismatch` toggle (AsyncStorage, armed via
+      // p2pkidsmarketplace://qa-dev-toggle); when armed for this provider (or
+      // 'all') it throws a FAITHFUL EmailMismatchError that flows through the
       // existing catch → "Email Mismatch" alert. Fail-closed: release builds /
-      // unset / unknown → the simulated link-success alert is shown as before.
+      // unset / expired / unknown → the simulated link-success alert is shown as before.
       const simulatedMismatch = await getSimulatedLinkEmailMismatch();
       if (simulatedMismatch === provider || simulatedMismatch === 'all') {
         throw new EmailMismatchError('qa-mismatch@external.example', user?.email || 'unknown');

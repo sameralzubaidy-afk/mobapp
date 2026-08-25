@@ -8,6 +8,10 @@ import { supabase } from '../config/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { AuthSession, AuthError, SubscriptionStatus } from '../types/user';
 import { useUserStore } from '../stores/userStore';
+// Session-local QA toggles (A03/D02/C04) — cleared on logout so a
+// logout-then-different-persona sequence never leaks an armed toggle into an
+// unrelated run. No-op outside dev/test builds (devTestingService gate).
+import { clearQaLocalValues } from '../services/devTestingService';
 
 const SUPABASE_CONFIGURED = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
@@ -571,6 +575,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (signoutError) {
         throw new AuthError('Logout failed', 'LOGOUT_FAILED', signoutError);
       }
+
+      // Clear session-local QA toggles (A03/D02/C04) so a logout-then-different-
+      // persona sequence never leaks an armed toggle into an unrelated run.
+      // No-op outside dev/test builds (devTestingService gate) — release builds
+      // are unaffected.
+      await clearQaLocalValues();
 
       // Clear session
       setSession(null);

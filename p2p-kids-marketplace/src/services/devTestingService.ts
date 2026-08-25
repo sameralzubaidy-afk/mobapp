@@ -4,6 +4,7 @@
 
 import { supabase } from '../config/supabase';
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ========================================
 // CONFIGURATION & ENVIRONMENT CHECKS
@@ -707,11 +708,98 @@ export async function getSimulatedProviderOutage(): Promise<string | null> {
 }
 
 // ========================================
+// SESSION-LOCAL QA TOGGLE STORAGE (A03/D02/C04) — AsyncStorage-backed
+// ========================================
+
+/**
+ * TTL for the session-local QA toggles. A toggle armed via the
+ * `p2pkidsmarketplace://qa-dev-toggle` deep link auto-expires after this window
+ * even if it is never explicitly disarmed — a safety net that bounds leakage
+ * into unrelated later runs (a full app reinstall also wipes AsyncStorage, so
+ * that path is handled by the OS). Values are additionally cleared on logout
+ * (AuthContext.logout → clearQaLocalValues) so a logout-then-different-persona
+ * sequence starts clean.
+ */
+const QA_LOCAL_TOGGLE_TTL_MS = 60 * 60 * 1000; // 60 minutes
+
+/** Shape stored per QA toggle key. `setAt` drives the TTL expiry. */
+interface QaLocalValue {
+  value: string;
+  setAt: string; // ISO timestamp
+}
+
+/**
+ * Read a session-local QA toggle value, honoring the TTL. Returns null when
+ * unset, expired, unparsable, or on storage error (fail-closed).
+ */
+async function readQaLocalValue(key: string): Promise<string | null> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as QaLocalValue;
+    if (!parsed || typeof parsed.value !== 'string') return null;
+
+    const ageMs = Date.now() - new Date(parsed.setAt).getTime();
+    if (Number.isNaN(ageMs) || ageMs > QA_LOCAL_TOGGLE_TTL_MS) {
+      // Expired → fail-closed. Best-effort clear so the next read is clean.
+      await AsyncStorage.removeItem(key).catch(() => {});
+      return null;
+    }
+    return parsed.value;
+  } catch (err) {
+    console.warn(`[DevTestingService] ${key} read error: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+/**
+ * Write a session-local QA toggle value. Gated by `isDevEnvironment()` — a
+ * release build can never arm a toggle (the deep-link handler is inert there
+ * too, but this is the fail-closed backstop).
+ */
+export async function setQaLocalValue(
+  key: string,
+  value: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!isDevEnvironment()) {
+    return {
+      success: false,
+      error: 'QA local toggles are only available in development/test environments',
+    };
+  }
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify({ value, setAt: new Date().toISOString() }));
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+/**
+ * Clear every session-local QA toggle. Called from AuthContext.logout() so a
+ * logout-then-different-persona sequence never leaks an armed toggle into an
+ * unrelated run. No-op outside dev/test (same gate as the reads).
+ */
+export async function clearQaLocalValues(): Promise<void> {
+  if (!isDevEnvironment()) return;
+  try {
+    await AsyncStorage.multiRemove([
+      QA_PUSH_SIMULATION_KEY,
+      QA_FORCE_PREF_SAVE_FAILURE_KEY,
+      QA_LINK_EMAIL_MISMATCH_KEY,
+    ]);
+  } catch (err) {
+    console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
+  }
+}
+
+// ========================================
 // QA PUSH SIMULATION (A03 staging toggle — dev-only)
 // ========================================
 
 /**
- * Canonical admin_config key that arms the AUTH-TC-A03 push simulation.
+ * Session-local AsyncStorage key that arms the AUTH-TC-A03 push simulation.
  * Absence, 'none', or any unknown value = no simulation (fail-closed).
  * Values: 'token' | 'rate_limited' | 'quiet_hours' | 'none'
  *   - 'token'         → simulate a registered push token AND mock the send so the
@@ -719,32 +807,28 @@ export async function getSimulatedProviderOutage(): Promise<string | null> {
  *   - 'rate_limited'  → force the rate-limit state (10+/hr "Rate Limited" alert)
  *   - 'quiet_hours'   → force the quiet-hours state ("Quiet Hours" alert)
  */
-export const QA_PUSH_SIMULATION_KEY = 'qa_push_simulation';
+export const QA_PUSH_SIMULATION_KEY = 'qa_local_push_simulation';
 
 /**
- * QA staging toggle for AUTH-TC-A03 (Test Push Notification).
+ * QA staging toggle for AUTH-TC-A03 (Test Push Notification) — session-local.
  *
  * Why this exists: `sendPushNotification` hits "No push tokens registered" on the
  * simulator before the rate-limit / quiet-hours / send legs can be observed —
  * real Expo push tokens require a physical device (Device.isDevice is false on
- * sims). Dev/test builds read an admin_config toggle and force the exact leg the
- * QA run wants: a fake token + mocked send ('token'), a forced rate-limit
+ * sims). Dev/test builds read a SESSION-LOCAL toggle (AsyncStorage, set via the
+ * `p2pkidsmarketplace://qa-dev-toggle` deep link) and force the exact leg the QA
+ * run wants: a fake token + mocked send ('token'), a forced rate-limit
  * ('rate_limited'), or a forced quiet-hours ('quiet_hours'). The simulation never
  * alters server state and never makes a real Expo call.
  *
  * FAIL-CLOSED (never active outside dev/test):
  *  - `isDevEnvironment()` gates the whole read — release builds return 'none'
  *    immediately and the real push path always runs.
- *  - Toggle unset / read error / unknown value → 'none' (no simulation).
+ *  - Toggle unset / expired (TTL) / storage error / unknown value → 'none'.
  *
- * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
- *   supabase.rpc('upsert_admin_config_setting', {
- *     p_key: 'qa_push_simulation',
- *     p_value: 'token' | 'rate_limited' | 'quiet_hours' | 'none',
- *     p_category: 'feature_flags',
- *     p_data_type: 'string',
- *     p_admin_id: <admin user id>,   // records the editor (BP-48)
- *   })
+ * Arming (QA agent, self-service, session-local — see /memories/repo/qa-test-accounts.md):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_simulation&value=token"
+ *   values: token | rate_limited | quiet_hours | none
  */
 export async function getPushSimulationMode(): Promise<
   'token' | 'rate_limited' | 'quiet_hours' | 'none'
@@ -752,38 +836,14 @@ export async function getPushSimulationMode(): Promise<
   if (!isDevEnvironment()) {
     return 'none';
   }
-
-  try {
-    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
-      p_keys: [QA_PUSH_SIMULATION_KEY],
-    });
-
-    if (error || !data) {
-      console.warn(
-        `[DevTestingService] ${QA_PUSH_SIMULATION_KEY} read failed: ${error?.message ?? 'no data'}`
-      );
+  const value = await readQaLocalValue(QA_PUSH_SIMULATION_KEY);
+  switch (value) {
+    case 'token':
+    case 'rate_limited':
+    case 'quiet_hours':
+      return value;
+    default:
       return 'none';
-    }
-
-    const rows = Array.isArray(data) ? data : [data];
-    const row = rows.find(
-      (r) => (r as { out_key?: string })?.out_key === QA_PUSH_SIMULATION_KEY
-    );
-    const value = (row as { out_value?: string })?.out_value ?? 'none';
-
-    switch (value) {
-      case 'token':
-      case 'rate_limited':
-      case 'quiet_hours':
-        return value;
-      default:
-        return 'none';
-    }
-  } catch (err) {
-    console.warn(
-      `[DevTestingService] ${QA_PUSH_SIMULATION_KEY} read error: ${(err as Error).message}`
-    );
-    return 'none';
   }
 }
 
@@ -792,18 +852,19 @@ export async function getPushSimulationMode(): Promise<
 // ========================================
 
 /**
- * Canonical admin_config key that arms the AUTH-TC-D02 save-failure simulation.
+ * Session-local AsyncStorage key that arms the AUTH-TC-D02 save-failure simulation.
  * Absence, 'none', or any unknown value = no simulation (fail-closed).
  * Values: 'save_failure' | 'none'
  */
-export const QA_FORCE_PREF_SAVE_FAILURE_KEY = 'qa_force_pref_save_failure';
+export const QA_FORCE_PREF_SAVE_FAILURE_KEY = 'qa_local_pref_save_failure';
 
 /**
- * QA staging toggle for AUTH-TC-D02 (optimistic toggle reverts on failure).
+ * QA staging toggle for AUTH-TC-D02 (optimistic toggle reverts on failure) — session-local.
  *
  * Why this exists: `updateNotificationPreference` is a pure real-write path — a
  * genuine save failure cannot be reproduced on demand without breaking network
- * or DB permissions. Instead, dev/test builds read an admin_config toggle and
+ * or DB permissions. Instead, dev/test builds read a SESSION-LOCAL toggle
+ * (AsyncStorage, set via the `p2pkidsmarketplace://qa-dev-toggle` deep link) and
  * return a FAITHFUL failure result that flows through NotificationPreferencesScreen's
  * existing revert branch (optimistic update → revert + error alert), so the exact
  * behavior the ACC guide asserts for D02 renders on demand.
@@ -811,53 +872,24 @@ export const QA_FORCE_PREF_SAVE_FAILURE_KEY = 'qa_force_pref_save_failure';
  * FAIL-CLOSED (never active outside dev/test):
  *  - `isDevEnvironment()` gates the whole read — release builds return null and
  *    the real save always runs. The simulation never alters server state.
- *  - Toggle unset / read error / unknown value → null (no simulation).
+ *  - Toggle unset / expired (TTL) / storage error / unknown value → null.
  *
- * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
- *   supabase.rpc('upsert_admin_config_setting', {
- *     p_key: 'qa_force_pref_save_failure',
- *     p_value: 'save_failure' | 'none',
- *     p_category: 'feature_flags',
- *     p_data_type: 'string',
- *     p_admin_id: <admin user id>,   // records the editor (BP-48)
- *   })
+ * Arming (QA agent, self-service, session-local — see /memories/repo/qa-test-accounts.md):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=pref_save_failure&value=save_failure"
+ *   values: save_failure | none
  */
 export async function getSimulatedNotificationPrefSaveError(): Promise<Error | null> {
   if (!isDevEnvironment()) {
     return null;
   }
-
-  try {
-    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
-      p_keys: [QA_FORCE_PREF_SAVE_FAILURE_KEY],
-    });
-
-    if (error || !data) {
-      console.warn(
-        `[DevTestingService] ${QA_FORCE_PREF_SAVE_FAILURE_KEY} read failed: ${error?.message ?? 'no data'}`
-      );
-      return null;
-    }
-
-    const rows = Array.isArray(data) ? data : [data];
-    const row = rows.find(
-      (r) => (r as { out_key?: string })?.out_key === QA_FORCE_PREF_SAVE_FAILURE_KEY
-    );
-    const value = (row as { out_value?: string })?.out_value ?? 'none';
-
-    if (value === 'save_failure') {
-      // Faithful save-failure. Deliberately NOT an app-crash-style message —
-      // NotificationPreferencesScreen's D02 branch (revert + error alert) is
-      // what must be exercised.
-      return new Error('Simulated preference save failure (qa_force_pref_save_failure)');
-    }
-    return null;
-  } catch (err) {
-    console.warn(
-      `[DevTestingService] ${QA_FORCE_PREF_SAVE_FAILURE_KEY} read error: ${(err as Error).message}`
-    );
-    return null;
+  const value = await readQaLocalValue(QA_FORCE_PREF_SAVE_FAILURE_KEY);
+  if (value === 'save_failure') {
+    // Faithful save-failure. Deliberately NOT an app-crash-style message —
+    // NotificationPreferencesScreen's D02 branch (revert + error alert) is
+    // what must be exercised.
+    return new Error(`Simulated preference save failure (${QA_FORCE_PREF_SAVE_FAILURE_KEY})`);
   }
+  return null;
 }
 
 // ========================================
@@ -865,23 +897,24 @@ export async function getSimulatedNotificationPrefSaveError(): Promise<Error | n
 // ========================================
 
 /**
- * Canonical admin_config key that arms the AUTH-TC-C04 email-mismatch simulation.
+ * Session-local AsyncStorage key that arms the AUTH-TC-C04 email-mismatch simulation.
  * Absence, 'none', or any unknown value = no simulation (fail-closed).
  * Values: 'google' | 'facebook' | 'apple' | 'all' | 'none'
  *   - a provider name simulates THAT provider's OAuth callback returning a
  *     mismatched provider email
  *   - 'all' simulates every provider email mismatching
  */
-export const QA_LINK_EMAIL_MISMATCH_KEY = 'qa_link_email_mismatch';
+export const QA_LINK_EMAIL_MISMATCH_KEY = 'qa_local_link_email_mismatch';
 
 /**
- * QA staging toggle for AUTH-TC-C04 ("Email mismatch on link blocked").
+ * QA staging toggle for AUTH-TC-C04 ("Email mismatch on link blocked") — session-local.
  *
  * Why this exists: `EmailMismatchError` is only thrown when a REAL OAuth callback
  * returns a provider email that differs from the account email — the dev Link
  * flow on LinkedAccountsScreen is simulated (initiateSocialLogin + an "OAuth
- * Flow" alert), so the mismatch path is never exercised. Dev/test builds read an
- * admin_config toggle AFTER the simulated initiation and throw a FAITHFUL
+ * Flow" alert), so the mismatch path is never exercised. Dev/test builds read a
+ * SESSION-LOCAL toggle (AsyncStorage, set via the `p2pkidsmarketplace://qa-dev-toggle`
+ * deep link) AFTER the simulated initiation and throw a FAITHFUL
  * `EmailMismatchError` that flows through the screen's existing catch → "Email
  * Mismatch" alert, so the exact behavior the ACC guide asserts for C04 renders
  * on demand, with zero real provider round-trip.
@@ -889,55 +922,56 @@ export const QA_LINK_EMAIL_MISMATCH_KEY = 'qa_link_email_mismatch';
  * FAIL-CLOSED (never active outside dev/test):
  *  - `isDevEnvironment()` gates the whole read — release builds return null and
  *    the real link flow always runs. The simulation never alters server state.
- *  - Toggle unset / read error / unknown value → null (no simulation).
+ *  - Toggle unset / expired (TTL) / storage error / unknown value → null.
  *
- * Arming (dev team, staging only — see /memories/repo/qa-test-accounts.md):
- *   supabase.rpc('upsert_admin_config_setting', {
- *     p_key: 'qa_link_email_mismatch',
- *     p_value: 'google' | 'facebook' | 'apple' | 'all' | 'none',
- *     p_category: 'feature_flags',
- *     p_data_type: 'string',
- *     p_admin_id: <admin user id>,   // records the editor (BP-48)
- *   })
+ * Arming (QA agent, self-service, session-local — see /memories/repo/qa-test-accounts.md):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=link_email_mismatch&value=facebook"
+ *   values: google | facebook | apple | all | none
  */
 export async function getSimulatedLinkEmailMismatch(): Promise<string | null> {
   if (!isDevEnvironment()) {
     return null;
   }
-
-  try {
-    const { data, error } = await supabase.rpc('fn_get_admin_config_values', {
-      p_keys: [QA_LINK_EMAIL_MISMATCH_KEY],
-    });
-
-    if (error || !data) {
-      console.warn(
-        `[DevTestingService] ${QA_LINK_EMAIL_MISMATCH_KEY} read failed: ${error?.message ?? 'no data'}`
-      );
+  const value = await readQaLocalValue(QA_LINK_EMAIL_MISMATCH_KEY);
+  switch (value) {
+    case 'google':
+    case 'facebook':
+    case 'apple':
+    case 'all':
+      return value;
+    default:
       return null;
-    }
-
-    const rows = Array.isArray(data) ? data : [data];
-    const row = rows.find(
-      (r) => (r as { out_key?: string })?.out_key === QA_LINK_EMAIL_MISMATCH_KEY
-    );
-    const value = (row as { out_value?: string })?.out_value ?? 'none';
-
-    switch (value) {
-      case 'google':
-      case 'facebook':
-      case 'apple':
-      case 'all':
-        return value;
-      default:
-        return null;
-    }
-  } catch (err) {
-    console.warn(
-      `[DevTestingService] ${QA_LINK_EMAIL_MISMATCH_KEY} read error: ${(err as Error).message}`
-    );
-    return null;
   }
+}
+
+// ========================================
+// QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04)
+// ========================================
+
+/**
+ * Short-name → AsyncStorage key map for the `p2pkidsmarketplace://qa-dev-toggle`
+ * deep link (`key` query param). Single source of truth for which session-local
+ * toggles the QA agent can arm/disarm itself.
+ */
+export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
+  push_simulation: QA_PUSH_SIMULATION_KEY,
+  pref_save_failure: QA_FORCE_PREF_SAVE_FAILURE_KEY,
+  link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
+};
+
+/** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
+const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
+  [QA_PUSH_SIMULATION_KEY]: ['token', 'rate_limited', 'quiet_hours', 'none'],
+  [QA_FORCE_PREF_SAVE_FAILURE_KEY]: ['save_failure', 'none'],
+  [QA_LINK_EMAIL_MISMATCH_KEY]: ['google', 'facebook', 'apple', 'all', 'none'],
+};
+
+/**
+ * True when `value` is a valid arming value for the given QA toggle key.
+ * Unknown keys/values are rejected so the deep link can never write garbage.
+ */
+export function isValidQaToggleValue(key: string, value: string): boolean {
+  return (QA_TOGGLE_ALLOWED_VALUES[key] ?? []).includes(value);
 }
 
 // ========================================
@@ -996,4 +1030,10 @@ export default {
 
   // QA Link Email-Mismatch Simulation (C04)
   getSimulatedLinkEmailMismatch,
+
+  // Session-local QA toggle storage (A03/D02/C04)
+  setQaLocalValue,
+  clearQaLocalValues,
+  QA_TOGGLE_SHORT_NAMES,
+  isValidQaToggleValue,
 };
