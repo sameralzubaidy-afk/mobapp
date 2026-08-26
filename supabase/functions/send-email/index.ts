@@ -27,7 +27,8 @@ interface SendEmailRequest {
   type: 'welcome' | 'password_reset' | 'trade_notification' | 'transaction_confirmation' | 'subscription_status' | 
         'payment_failed' | 'trial_expiring' | 'subscription_cancelled' | 'security_alert' | 'password_changed' |
         'change_email' |
-        'id_badge_approved' | 'id_badge_rejected' | 'id_badge_submission';
+        'id_badge_approved' | 'id_badge_rejected' | 'id_badge_submission' |
+        'support_reply';
   to: string;
   userId?: string;
   category?: 'subscription' | 'sp_events' | 'badges' | 'trades' | 'system';
@@ -290,7 +291,8 @@ function validateRequest(req: SendEmailRequest): { valid: boolean; error?: strin
     'change_email',
     'id_badge_approved', 
     'id_badge_rejected', 
-    'id_badge_submission'
+    'id_badge_submission',
+    'support_reply'
   ];
   
   if (!validTypes.includes(req.type)) {
@@ -668,6 +670,95 @@ async function processChangeEmailEmail(
   }
 }
 
+/**
+ * Send a support reply to a user (admin reply to a support ticket).
+ * Uses a simple HTML body (like the change-email / ID-badge emails) so it works
+ * without a SendGrid template. Critical — always sent.
+ * data: { subject, originalMessage, reply }
+ */
+async function processSupportReplyEmail(
+  to: string,
+  data?: Record<string, any>
+): Promise<{ success: boolean; error?: string }> {
+  const subject = data?.subject ? String(data.subject) : 'Support response';
+  const originalMessage = data?.originalMessage ? String(data.originalMessage) : '';
+  const reply = data?.reply ? String(data.reply) : '';
+
+  if (!reply.trim()) {
+    return { success: false, error: 'Missing reply in request data' };
+  }
+
+  // Escape user/admin content before injecting into HTML
+  const escapeHtml = (value: string): string =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const originalHtml = originalMessage
+    ? `
+            <div style="margin-bottom: 20px; padding: 14px; background-color: #f3f4f6; border-left: 4px solid #9ca3af;">
+              <strong style="font-size: 12px; color: #6b7280; text-transform: uppercase;">Your message</strong>
+              <div style="white-space: pre-line; margin-top: 6px;">${escapeHtml(originalMessage)}</div>
+            </div>`
+    : '';
+
+  const htmlBody = `
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #5DBB8E;">${escapeHtml(subject)}</h2>
+          ${originalHtml}
+          <div style="margin-bottom: 20px; padding: 14px; background-color: #ecfdf5; border-left: 4px solid #5DBB8E;">
+            <strong style="font-size: 12px; color: #4DAA7A; text-transform: uppercase;">Our reply</strong>
+            <div style="white-space: pre-line; margin-top: 6px;">${escapeHtml(reply)}</div>
+          </div>
+          <p>If you still need help, you can submit a new message from the app's Help &amp; Support menu.</p>
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+            <p>Best regards,<br/>Kids P2P Marketplace Support Team</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  if (!SENDGRID_API_KEY) {
+    console.error('SendGrid API key not configured');
+    return { success: false, error: 'SendGrid API key not configured' };
+  }
+
+  const payload = {
+    personalizations: [{ to: [{ email: to }] }],
+    from: { email: SENDGRID_FROM_EMAIL },
+    reply_to: { email: SENDGRID_REPLY_TO_EMAIL },
+    subject: `Re: ${subject}`,
+    content: [{ type: 'text/html', value: htmlBody }],
+  };
+
+  try {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`SendGrid API error: ${response.status}`, errorData);
+      return { success: false, error: `SendGrid API returned ${response.status}: ${errorData}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('SendGrid request failed:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 serve(async (req: Request) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -799,6 +890,10 @@ serve(async (req: Request) => {
       case 'id_badge_rejected':
       case 'id_badge_submission':
         result = await processIDBadgeEmail(request.to, request.type, request.data);
+        break;
+
+      case 'support_reply':
+        result = await processSupportReplyEmail(request.to, request.data);
         break;
 
       default:

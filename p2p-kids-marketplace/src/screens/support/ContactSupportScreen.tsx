@@ -25,25 +25,38 @@ interface ContactSupportScreenProps {
 
 export default function ContactSupportScreen({ navigation }: ContactSupportScreenProps) {
   const { session } = useAuth();
+  const isGuest = !session;
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  // HONEYPOT (guest path only): a hidden field real users never see; bots often
+  // auto-fill it. If non-empty on submit we silently accept + discard (see
+  // handleSubmit).
+  const [company, setCompany] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Auth gate: user must be logged in to submit a support message
-  if (!session) {
-    return (
-      <ScreenLayout variant="detail" title="Contact Support" onBack={() => navigation.goBack()}>
-        <View style={styles.authGate}>
-          <Text style={styles.authGateText}>Please log in to contact support.</Text>
-          <Text style={styles.emailText}>
-            Or email us at <Text style={styles.emailHighlight}>support@passitup.com</Text>
-          </Text>
-        </View>
-      </ScreenLayout>
-    );
-  }
+  // Server-owned friendly copy when the guest rate limit is hit — the DB trigger
+  // raises SQLSTATE 'GRATL' (migration 20260826000004_support_guest_rate_limit);
+  // the client prefers the server message and only falls back to this constant.
+  const GUEST_RATE_LIMIT_COPY =
+    "You've reached the limit for support messages. Please try again later.";
 
   const handleSubmit = async () => {
+    // HONEYPOT: checked BEFORE validation so bots that fill it never learn the
+    // validation rules and never see an error — they get the same success alert
+    // a real user sees, but NO row is inserted.
+    if (isGuest && company.trim() !== '') {
+      Alert.alert('Message Sent', "Thank you for contacting us. We'll respond within 24 hours.", [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+      setSubject('');
+      setMessage('');
+      setContactEmail('');
+      setContactPhone('');
+      return;
+    }
+
     // Validation
     if (!subject.trim()) {
       Alert.alert('Missing Subject', 'Please enter a subject for your message.');
@@ -53,17 +66,48 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
       Alert.alert('Missing Message', 'Please enter your message.');
       return;
     }
+    if (isGuest) {
+      const email = contactEmail.trim();
+      if (!email) {
+        Alert.alert('Missing Email', 'Please enter your email so we can reply.');
+        return;
+      }
+      if (!/^\S+@\S+\.\S+$/.test(email)) {
+        Alert.alert('Invalid Email', 'Please enter a valid email address.');
+        return;
+      }
+    }
 
     try {
       setSubmitting(true);
 
-      const { error } = await supabase.from('support_messages').insert({
-        user_id: session.user.id,
-        subject: subject.trim(),
-        message: message.trim(),
-      });
+      // Unified support flow: authenticated rows carry user_id; guest rows carry
+      // contact_email (required) + contact_phone (optional). See migration
+      // 20260826000002_support_messages_anon_contact.
+      const payload = isGuest
+        ? {
+            user_id: null,
+            contact_email: contactEmail.trim(),
+            contact_phone: contactPhone.trim() || null,
+            subject: subject.trim(),
+            message: message.trim(),
+          }
+        : {
+            user_id: session!.user.id,
+            subject: subject.trim(),
+            message: message.trim(),
+          };
+
+      const { error } = await supabase.from('support_messages').insert(payload);
 
       if (error) {
+        // Guest rate limit — the server trigger raises SQLSTATE 'GRATL' (see
+        // migration 20260826000004_support_guest_rate_limit). Surface the
+        // friendly server message instead of the generic error below.
+        if (isGuest && error.code === 'GRATL') {
+          Alert.alert('Limit Reached', error.message || GUEST_RATE_LIMIT_COPY);
+          return;
+        }
         throw error;
       }
 
@@ -78,7 +122,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
       captureException(error, {
         tags: { screen: 'ContactSupportScreen', action: 'submit' },
       });
-      Alert.alert('Error', 'Failed to send message. Please try again or email us directly.');
+      Alert.alert('Error', 'Failed to send message. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -120,6 +164,64 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
             </View>
           </View>
 
+          {/* Guest reply channel — required email + optional phone (admin reply needs
+              these; no raw "email us" surfaces exist anywhere in the support flow). */}
+          {isGuest && (
+            <>
+              {/* HONEYPOT — positioned off-screen + zero opacity, invisible to real
+                  users but present in the tree so automated fillers pick it up. */}
+              <TextInput
+                style={styles.honeypot}
+                placeholder="Company (optional)"
+                placeholderTextColor="transparent"
+                value={company}
+                onChangeText={setCompany}
+                testID="company-input"
+                accessibilityLabel="Company"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={100}
+              />
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>YOUR EMAIL (SO WE CAN REPLY)</Text>
+                <View style={styles.inputWrapper}>
+                  <EnvelopeSimple size={20} color="#6B6B6B" />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="you@example.com"
+                    placeholderTextColor="#999999"
+                    value={contactEmail}
+                    onChangeText={setContactEmail}
+                    testID="contact-email-input"
+                    accessibilityLabel="Your email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={254}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>PHONE (OPTIONAL)</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="(XXX) XXX-XXXX"
+                    placeholderTextColor="#999999"
+                    value={contactPhone}
+                    onChangeText={setContactPhone}
+                    testID="contact-phone-input"
+                    accessibilityLabel="Phone"
+                    keyboardType="phone-pad"
+                    maxLength={20}
+                  />
+                </View>
+              </View>
+            </>
+          )}
+
           {/* Message Textarea */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>MESSAGE</Text>
@@ -154,13 +256,6 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
           >
             <Text style={styles.submitBtnText}>{submitting ? 'Sending…' : 'Send Message'}</Text>
           </TouchableOpacity>
-
-          {/* Email Fallback */}
-          <View style={styles.emailContainer}>
-            <Text style={styles.emailText}>
-              Or email us at <Text style={styles.emailHighlight}>support@passitup.com</Text>
-            </Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenLayout>
@@ -251,6 +346,16 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 4,
   },
+  honeypot: {
+    // Honeypot field: visually hidden (off-screen + transparent), still in the
+    // tree so bots that auto-fill forms will populate it. Never affects layout.
+    position: 'absolute',
+    left: -10000,
+    top: -10000,
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
   submitBtn: {
     backgroundColor: '#5DBB8E',
     borderRadius: 26,
@@ -266,30 +371,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  emailContainer: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  emailText: {
-    fontSize: 13,
-    color: '#6B6B6B',
-    textAlign: 'center',
-  },
-  emailHighlight: {
-    color: '#5DBB8E',
-    fontWeight: '500',
-  },
-  authGate: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  authGateText: {
-    fontSize: 16,
-    color: '#6B6B6B',
-    textAlign: 'center',
   },
 });

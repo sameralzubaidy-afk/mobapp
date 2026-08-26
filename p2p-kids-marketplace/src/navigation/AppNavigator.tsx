@@ -474,12 +474,19 @@ export function RootNavigator() {
           initialRouteName={isSubscriptionExpired ? 'SubscriptionExpired' : undefined}
         >
           {isAuthenticated && isSuspended ? (
-            // Authenticated + Suspended -> blocked account screen
-            <Stack.Screen
-              name="SuspendedAccount"
-              component={SuspendedAccountScreen}
-              options={{ headerShown: false }}
-            />
+            // Authenticated + Suspended -> blocked account screen (support available)
+            <>
+              <Stack.Screen
+                name="SuspendedAccount"
+                component={SuspendedAccountScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ContactSupport"
+                component={ContactSupportScreen}
+                options={{ headerShown: false }}
+              />
+            </>
           ) : isAuthenticated ? (
             // Authenticated users -> Dashboard stack
             <>
@@ -922,6 +929,12 @@ export function RootNavigator() {
             />
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
+            {/* MODULE-15.1 FLOW-19: Contact Support reachable logged-OUT (unified support flow) */}
+            <Stack.Screen
+              name="ContactSupport"
+              component={ContactSupportScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="PhoneVerification"
               component={PhoneVerificationScreen}

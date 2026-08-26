@@ -20,7 +20,6 @@ import {
   Camera,
   MapPin,
   Phone,
-  CaretLeft,
   CalendarBlank,
   EnvelopeSimple,
   Question,
@@ -46,11 +45,11 @@ import {
 import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner, OTPInput } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 import type { ProfileUpdateData } from '@/types/profile.types';
 // Temporary fallback: generated Database types may be missing in local dev.
 // Use `any` here to unblock type-checking until DB types are generated.
 type UserProfile = any;
-const SUPPORT_CONTACT_EMAIL = 'admin-support@kidsmarketplace.app';
 
 const formatErrorMessage = (error: unknown): string => {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -125,19 +124,22 @@ export default function EditProfileScreen({ navigation, route }: any) {
   // send-phone-otp Edge Function requires +<country><number>; the Edit Profile
   // form uses plain digits (guide ACC-TC-B03: "the phone normalizes to digits"),
   // so we normalize only at the send/verify boundary and store/display digits.
-  const toE164 = useCallback((value: string): string => {
-    const digits = normalizePhone(value);
-    if (!digits) {
-      return value;
-    }
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
-    if (digits.length === 11 && digits.startsWith('1')) {
-      return `+${digits}`;
-    }
-    return value.trim().startsWith('+') ? value.trim() : `+${digits}`;
-  }, [normalizePhone]);
+  const toE164 = useCallback(
+    (value: string): string => {
+      const digits = normalizePhone(value);
+      if (!digits) {
+        return value;
+      }
+      if (digits.length === 10) {
+        return `+1${digits}`;
+      }
+      if (digits.length === 11 && digits.startsWith('1')) {
+        return `+${digits}`;
+      }
+      return value.trim().startsWith('+') ? value.trim() : `+${digits}`;
+    },
+    [normalizePhone]
+  );
 
   useEffect(() => {
     if (!phoneVerification.visible || resendCountdown <= 0) {
@@ -271,9 +273,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
     navigation.navigate('Profile');
   }, [navigation]);
 
-  const showContactSupportAlert = useCallback(() => {
-    Alert.alert('Contact Support', `For profile help, contact ${SUPPORT_CONTACT_EMAIL}.`);
-  }, []);
+  const navigateToContactSupport = useCallback(() => {
+    navigation.navigate('ContactSupport');
+  }, [navigation]);
 
   const formatDobForDisplay = useCallback((value: string) => {
     const trimmedValue = value.trim();
@@ -870,377 +872,382 @@ export default function EditProfileScreen({ navigation, route }: any) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={navigateToProfile} style={styles.backButton}>
-          <CaretLeft size={20} color="#5DBB8E" weight="bold" style={{ marginRight: 4 }} />
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Edit Profile</Text>
-      </View>
-
-      {/* Avatar Picker */}
-      <View style={styles.avatarSection}>
-        <View style={styles.avatarContainer}>
-          <TouchableOpacity
-            testID="edit-profile-avatar-button"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Change profile photo"
-            style={styles.avatarButton}
-            onPress={handlePickImage}
-            disabled={uploadingImage}
-          >
-            {localImageUri || avatarUrl ? (
-              <Image
-                source={{ uri: localImageUri || avatarUrl || undefined }}
-                style={styles.avatarImage}
-              />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <User size={40} color="#6B6B6B" weight="regular" />
-              </View>
-            )}
-          </TouchableOpacity>
-          <View style={styles.cameraOverlay}>
-            <Camera size={14} color="#FFFFFF" weight="regular" />
-          </View>
-        </View>
-        <TouchableOpacity onPress={handlePickImage} disabled={uploadingImage}>
-          <Text style={styles.changePhotoText}>Tap to change</Text>
-        </TouchableOpacity>
-        {uploadingImage && (
-          <ActivityIndicator size="small" color="#5DBB8E" style={{ marginTop: 8 }} />
-        )}
-      </View>
-
-      {/* Phone verification modal */}
-      <Modal
-        visible={phoneVerification.visible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => {
-          setResendCountdown(0);
-          setPhoneVerification({ visible: false });
-        }}
-      >
-        <View style={styles.verificationContainer}>
-          <View style={styles.verificationHeader}>
+    <ScreenLayout variant="detail" title="Edit Profile" onBack={navigateToProfile}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        {/* Avatar Picker */}
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarContainer}>
             <TouchableOpacity
-              onPress={() => {
-                setResendCountdown(0);
-                setPhoneVerification({ visible: false });
-              }}
-              style={styles.verificationBackButton}
-            >
-              <Text style={styles.verificationBackButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.verificationTitle}>Verify Your Phone</Text>
-            <View style={styles.verificationHeaderSpacer} />
-          </View>
-
-          <View style={styles.verificationContent}>
-            <Text style={styles.verificationSubtitle}>
-              We sent a 6-digit code to{`\n`}
-              <Text style={styles.verificationPhone}>{phoneVerification.phone}</Text>
-            </Text>
-
-            <View style={styles.verificationOtpContainer}>
-              <OTPInput
-                length={6}
-                testID="edit-profile-phone-otp-input"
-                value={phoneVerification.code || ''}
-                onChange={(newCode) =>
-                  setPhoneVerification((prev) => ({ ...prev, code: newCode, message: undefined }))
-                }
-                error={Boolean(phoneVerification.message)}
-              />
-            </View>
-
-            {__DEV__ && (
-              <Text style={styles.verificationDevHint}>Dev mode: use 123456 to skip SMS.</Text>
-            )}
-
-            {phoneVerification.message && (
-              <Text style={styles.verificationErrorText}>{phoneVerification.message}</Text>
-            )}
-
-            <TouchableOpacity
-              testID="edit-profile-phone-verify-button"
+              testID="edit-profile-avatar-button"
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Verify phone"
-              style={[
-                styles.verificationPrimaryButton,
-                (phoneVerification.verifying || (phoneVerification.code || '').length !== 6) &&
-                  styles.verificationPrimaryButtonDisabled,
-              ]}
-              onPress={handleVerifyCode}
-              disabled={phoneVerification.verifying || (phoneVerification.code || '').length !== 6}
+              accessibilityLabel="Change profile photo"
+              style={styles.avatarButton}
+              onPress={handlePickImage}
+              disabled={uploadingImage}
             >
-              {phoneVerification.verifying ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+              {localImageUri || avatarUrl ? (
+                <Image
+                  source={{ uri: localImageUri || avatarUrl || undefined }}
+                  style={styles.avatarImage}
+                />
               ) : (
-                <Text style={styles.verificationPrimaryButtonText}>Verify</Text>
+                <View style={styles.avatarPlaceholder}>
+                  <User size={40} color="#6B6B6B" weight="regular" />
+                </View>
               )}
             </TouchableOpacity>
-
-            <View style={styles.verificationResendContainer}>
-              {phoneVerification.sending ? (
-                <Text style={styles.verificationTimerText}>Sending...</Text>
-              ) : resendCountdown > 0 ? (
-                <Text style={styles.verificationTimerText}>Resend code in {resendCountdown}s</Text>
-              ) : (
-                <TouchableOpacity
-                  testID="edit-profile-phone-resend-button"
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel="Resend verification code"
-                  onPress={handleResendCode}
-                >
-                  <Text style={styles.verificationResendText}>Resend Code</Text>
-                </TouchableOpacity>
-              )}
+            <View style={styles.cameraOverlay}>
+              <Camera size={14} color="#FFFFFF" weight="regular" />
             </View>
-
-            <TouchableOpacity
-              style={styles.verificationChangePhoneButton}
-              onPress={() => {
-                setResendCountdown(0);
-                setPhoneVerification({ visible: false });
-              }}
-            >
-              <Text style={styles.verificationChangePhoneText}>Change Phone Number</Text>
-            </TouchableOpacity>
           </View>
+          <TouchableOpacity onPress={handlePickImage} disabled={uploadingImage}>
+            <Text style={styles.changePhotoText}>Tap to change</Text>
+          </TouchableOpacity>
+          {uploadingImage && (
+            <ActivityIndicator size="small" color="#5DBB8E" style={{ marginTop: 8 }} />
+          )}
         </View>
-      </Modal>
 
-      {/* Email verification modal (Dev Task B02) — OLD email stays active until verified */}
-      <Modal
-        visible={emailVerification.visible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => {
-          setEmailResendCountdown(0);
-          setEmailVerification({ visible: false });
-        }}
-      >
-        <View style={styles.verificationContainer}>
-          <View style={styles.verificationHeader}>
-            <TouchableOpacity
-              onPress={() => {
-                setEmailResendCountdown(0);
-                setEmailVerification({ visible: false });
-              }}
-              style={styles.verificationBackButton}
-            >
-              <Text style={styles.verificationBackButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.verificationTitle}>Verify Your Email</Text>
-            <View style={styles.verificationHeaderSpacer} />
-          </View>
-
-          <View style={styles.verificationContent}>
-            <Text style={styles.verificationSubtitle}>
-              We sent a 6-digit code to{`\n`}
-              <Text style={styles.verificationPhone}>{emailVerification.newEmail}</Text>
-            </Text>
-
-            <View style={styles.verificationOtpContainer}>
-              <OTPInput
-                length={6}
-                testID="edit-profile-email-otp-input"
-                value={emailVerification.code || ''}
-                onChange={(newCode) =>
-                  setEmailVerification((prev) => ({ ...prev, code: newCode, message: undefined }))
-                }
-                error={Boolean(emailVerification.message)}
-              />
+        {/* Phone verification modal */}
+        <Modal
+          visible={phoneVerification.visible}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => {
+            setResendCountdown(0);
+            setPhoneVerification({ visible: false });
+          }}
+        >
+          <View style={styles.verificationContainer}>
+            <View style={styles.verificationHeader}>
+              <TouchableOpacity
+                onPress={() => {
+                  setResendCountdown(0);
+                  setPhoneVerification({ visible: false });
+                }}
+                style={styles.verificationBackButton}
+              >
+                <Text style={styles.verificationBackButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.verificationTitle}>Verify Your Phone</Text>
+              <View style={styles.verificationHeaderSpacer} />
             </View>
 
-            {__DEV__ && (
-              <Text style={styles.verificationDevHint}>
-                Dev/QA mode: the code is 123456 on staging.
+            <View style={styles.verificationContent}>
+              <Text style={styles.verificationSubtitle}>
+                We sent a 6-digit code to{`\n`}
+                <Text style={styles.verificationPhone}>{phoneVerification.phone}</Text>
               </Text>
-            )}
 
-            {emailVerification.message && (
-              <Text style={styles.verificationErrorText}>{emailVerification.message}</Text>
-            )}
+              <View style={styles.verificationOtpContainer}>
+                <OTPInput
+                  length={6}
+                  testID="edit-profile-phone-otp-input"
+                  value={phoneVerification.code || ''}
+                  onChange={(newCode) =>
+                    setPhoneVerification((prev) => ({ ...prev, code: newCode, message: undefined }))
+                  }
+                  error={Boolean(phoneVerification.message)}
+                />
+              </View>
 
-            <TouchableOpacity
-              testID="edit-profile-email-verify-button"
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Verify email"
-              style={[
-                styles.verificationPrimaryButton,
-                (emailVerification.verifying || (emailVerification.code || '').length !== 6) &&
-                  styles.verificationPrimaryButtonDisabled,
-              ]}
-              onPress={handleVerifyEmailCode}
-              disabled={emailVerification.verifying || (emailVerification.code || '').length !== 6}
-            >
-              {emailVerification.verifying ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.verificationPrimaryButtonText}>Verify</Text>
+              {__DEV__ && (
+                <Text style={styles.verificationDevHint}>Dev mode: use 123456 to skip SMS.</Text>
               )}
-            </TouchableOpacity>
 
-            <View style={styles.verificationResendContainer}>
-              {emailVerification.sending ? (
-                <Text style={styles.verificationTimerText}>Sending...</Text>
-              ) : emailResendCountdown > 0 ? (
-                <Text style={styles.verificationTimerText}>
-                  Resend code in {emailResendCountdown}s
-                </Text>
-              ) : (
-                <TouchableOpacity onPress={handleResendEmailCode}>
-                  <Text style={styles.verificationResendText}>Resend Code</Text>
-                </TouchableOpacity>
+              {phoneVerification.message && (
+                <Text style={styles.verificationErrorText}>{phoneVerification.message}</Text>
               )}
+
+              <TouchableOpacity
+                testID="edit-profile-phone-verify-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Verify phone"
+                style={[
+                  styles.verificationPrimaryButton,
+                  (phoneVerification.verifying || (phoneVerification.code || '').length !== 6) &&
+                    styles.verificationPrimaryButtonDisabled,
+                ]}
+                onPress={handleVerifyCode}
+                disabled={
+                  phoneVerification.verifying || (phoneVerification.code || '').length !== 6
+                }
+              >
+                {phoneVerification.verifying ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.verificationPrimaryButtonText}>Verify</Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.verificationResendContainer}>
+                {phoneVerification.sending ? (
+                  <Text style={styles.verificationTimerText}>Sending...</Text>
+                ) : resendCountdown > 0 ? (
+                  <Text style={styles.verificationTimerText}>
+                    Resend code in {resendCountdown}s
+                  </Text>
+                ) : (
+                  <TouchableOpacity
+                    testID="edit-profile-phone-resend-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Resend verification code"
+                    onPress={handleResendCode}
+                  >
+                    <Text style={styles.verificationResendText}>Resend Code</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.verificationChangePhoneButton}
+                onPress={() => {
+                  setResendCountdown(0);
+                  setPhoneVerification({ visible: false });
+                }}
+              >
+                <Text style={styles.verificationChangePhoneText}>Change Phone Number</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* Full Name (locked) */}
-      <View style={styles.inputGroup}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>FULL NAME (CANNOT BE CHANGED)</Text>
-          <TouchableOpacity
-            style={styles.supportIconButton}
-            onPress={showContactSupportAlert}
-            accessibilityLabel="Contact support to change full name"
-          >
-            <Question size={16} color="#5DBB8E" weight="fill" />
-          </TouchableOpacity>
-        </View>
-        <View style={[styles.inputWrapper, styles.inputDisabled]}>
-          <User size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
-          <TextInput
-            style={[styles.input, styles.inputTextDisabled]}
-            value={displayName}
-            editable={false}
-          />
-        </View>
-      </View>
+        {/* Email verification modal (Dev Task B02) — OLD email stays active until verified */}
+        <Modal
+          visible={emailVerification.visible}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => {
+            setEmailResendCountdown(0);
+            setEmailVerification({ visible: false });
+          }}
+        >
+          <View style={styles.verificationContainer}>
+            <View style={styles.verificationHeader}>
+              <TouchableOpacity
+                onPress={() => {
+                  setEmailResendCountdown(0);
+                  setEmailVerification({ visible: false });
+                }}
+                style={styles.verificationBackButton}
+              >
+                <Text style={styles.verificationBackButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.verificationTitle}>Verify Your Email</Text>
+              <View style={styles.verificationHeaderSpacer} />
+            </View>
 
-      {/* Date of Birth (locked) */}
-      <View style={styles.inputGroup}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>DATE OF BIRTH (CANNOT BE CHANGED)</Text>
-          <TouchableOpacity
-            style={styles.supportIconButton}
-            onPress={showContactSupportAlert}
-            accessibilityLabel="Contact support to change date of birth"
-          >
-            <Question size={16} color="#5DBB8E" weight="fill" />
-          </TouchableOpacity>
-        </View>
-        <View style={[styles.inputWrapper, styles.inputDisabled]}>
-          <CalendarBlank size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
-          <TextInput
-            style={[styles.input, styles.inputTextDisabled]}
-            value={formatDobForDisplay(dob)}
-            editable={false}
-          />
-        </View>
-      </View>
+            <View style={styles.verificationContent}>
+              <Text style={styles.verificationSubtitle}>
+                We sent a 6-digit code to{`\n`}
+                <Text style={styles.verificationPhone}>{emailVerification.newEmail}</Text>
+              </Text>
 
-      {/* Email Address */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>EMAIL ADDRESS</Text>
-        <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
-          <EnvelopeSimple size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
+              <View style={styles.verificationOtpContainer}>
+                <OTPInput
+                  length={6}
+                  testID="edit-profile-email-otp-input"
+                  value={emailVerification.code || ''}
+                  onChange={(newCode) =>
+                    setEmailVerification((prev) => ({ ...prev, code: newCode, message: undefined }))
+                  }
+                  error={Boolean(emailVerification.message)}
+                />
+              </View>
+
+              {__DEV__ && (
+                <Text style={styles.verificationDevHint}>
+                  Dev/QA mode: the code is 123456 on staging.
+                </Text>
+              )}
+
+              {emailVerification.message && (
+                <Text style={styles.verificationErrorText}>{emailVerification.message}</Text>
+              )}
+
+              <TouchableOpacity
+                testID="edit-profile-email-verify-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Verify email"
+                style={[
+                  styles.verificationPrimaryButton,
+                  (emailVerification.verifying || (emailVerification.code || '').length !== 6) &&
+                    styles.verificationPrimaryButtonDisabled,
+                ]}
+                onPress={handleVerifyEmailCode}
+                disabled={
+                  emailVerification.verifying || (emailVerification.code || '').length !== 6
+                }
+              >
+                {emailVerification.verifying ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.verificationPrimaryButtonText}>Verify</Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.verificationResendContainer}>
+                {emailVerification.sending ? (
+                  <Text style={styles.verificationTimerText}>Sending...</Text>
+                ) : emailResendCountdown > 0 ? (
+                  <Text style={styles.verificationTimerText}>
+                    Resend code in {emailResendCountdown}s
+                  </Text>
+                ) : (
+                  <TouchableOpacity onPress={handleResendEmailCode}>
+                    <Text style={styles.verificationResendText}>Resend Code</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Full Name (locked) */}
+        <View style={styles.inputGroup}>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>FULL NAME (CANNOT BE CHANGED)</Text>
+            <TouchableOpacity
+              style={styles.supportIconButton}
+              onPress={navigateToContactSupport}
+              accessibilityLabel="Contact support to change full name"
+            >
+              <Question size={16} color="#5DBB8E" weight="fill" />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.inputWrapper, styles.inputDisabled]}>
+            <User size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
+            <TextInput
+              style={[styles.input, styles.inputTextDisabled]}
+              value={displayName}
+              editable={false}
+            />
+          </View>
+        </View>
+
+        {/* Date of Birth (locked) */}
+        <View style={styles.inputGroup}>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>DATE OF BIRTH (CANNOT BE CHANGED)</Text>
+            <TouchableOpacity
+              style={styles.supportIconButton}
+              onPress={navigateToContactSupport}
+              accessibilityLabel="Contact support to change date of birth"
+            >
+              <Question size={16} color="#5DBB8E" weight="fill" />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.inputWrapper, styles.inputDisabled]}>
+            <CalendarBlank size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
+            <TextInput
+              style={[styles.input, styles.inputTextDisabled]}
+              value={formatDobForDisplay(dob)}
+              editable={false}
+            />
+          </View>
+        </View>
+
+        {/* Email Address */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>EMAIL ADDRESS</Text>
+          <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
+            <EnvelopeSimple
+              size={20}
+              color="#6B6B6B"
+              weight="regular"
+              style={{ marginRight: 12 }}
+            />
+            <TextInput
+              testID="edit-profile-email-input"
+              accessibilityLabel="Email address"
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor="#999999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+        </View>
+
+        {/* Phone Number */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>PHONE NUMBER</Text>
+          <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
+            <Phone size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
+            <TextInput
+              testID="edit-profile-phone-input"
+              accessibilityLabel="Phone number"
+              style={styles.input}
+              placeholder="(XXX) XXX-XXXX"
+              placeholderTextColor="#999999"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              maxLength={14}
+            />
+          </View>
+          {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+        </View>
+
+        {/* Zip Code */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>ZIP CODE (CANNOT BE CHANGED)</Text>
+          <View style={[styles.inputWrapper, styles.inputDisabled]}>
+            <MapPin size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
+            <TextInput
+              style={[styles.input, styles.inputTextDisabled]}
+              value={zipCode}
+              editable={false}
+            />
+          </View>
+          <Text style={styles.helperText}>Zip codes are locked to your node.</Text>
+        </View>
+
+        {/* Bio */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>BIO</Text>
           <TextInput
-            testID="edit-profile-email-input"
-            accessibilityLabel="Email address"
-            style={styles.input}
-            placeholder="Enter your email"
+            testID="edit-profile-bio-input"
+            accessibilityLabel="Bio"
+            style={styles.textArea}
+            placeholder="Tell us a bit about yourself..."
             placeholderTextColor="#999999"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
+            value={bio}
+            onChangeText={setBio}
+            multiline
+            numberOfLines={4}
+            maxLength={200}
+            textAlignVertical="top"
           />
+          <Text style={styles.charCount}>{bio.length}/200 characters</Text>
         </View>
-        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-      </View>
 
-      {/* Phone Number */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>PHONE NUMBER</Text>
-        <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
-          <Phone size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
-          <TextInput
-            testID="edit-profile-phone-input"
-            accessibilityLabel="Phone number"
-            style={styles.input}
-            placeholder="(XXX) XXX-XXXX"
-            placeholderTextColor="#999999"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            maxLength={14}
-          />
-        </View>
-        {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-      </View>
-
-      {/* Zip Code */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>ZIP CODE (CANNOT BE CHANGED)</Text>
-        <View style={[styles.inputWrapper, styles.inputDisabled]}>
-          <MapPin size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
-          <TextInput
-            style={[styles.input, styles.inputTextDisabled]}
-            value={zipCode}
-            editable={false}
-          />
-        </View>
-        <Text style={styles.helperText}>Zip codes are locked to your node.</Text>
-      </View>
-
-      {/* Bio */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>BIO</Text>
-        <TextInput
-          testID="edit-profile-bio-input"
-          accessibilityLabel="Bio"
-          style={styles.textArea}
-          placeholder="Tell us a bit about yourself..."
-          placeholderTextColor="#999999"
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          numberOfLines={4}
-          maxLength={200}
-          textAlignVertical="top"
-        />
-        <Text style={styles.charCount}>{bio.length}/200 characters</Text>
-      </View>
-
-      {/* Save Button */}
-      <TouchableOpacity
-        testID="edit-profile-save-button"
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel="Save Changes"
-        style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-        onPress={handleSave}
-        disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text style={styles.saveButtonText}>Save Changes</Text>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Save Button */}
+        <TouchableOpacity
+          testID="edit-profile-save-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Save Changes"
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </ScreenLayout>
   );
 }
 
@@ -1267,24 +1274,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B6B6B',
   },
-  header: {
-    marginBottom: 24,
-    marginTop: 20,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#5DBB8E',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
+
   avatarSection: {
     alignItems: 'center',
     marginBottom: 32,

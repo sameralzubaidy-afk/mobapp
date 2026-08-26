@@ -392,7 +392,7 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
     if ((profile as UserProfile & { deleted_at?: string | null }).deleted_at) {
       await supabase.auth.signOut({ scope: 'global' });
       throw new AuthError(
-        'Your account has been deleted. Please contact admin-support@kidsmarketplace.app.',
+        'Your account has been deleted. Please contact support.',
         'ACCOUNT_DELETED'
       );
     }

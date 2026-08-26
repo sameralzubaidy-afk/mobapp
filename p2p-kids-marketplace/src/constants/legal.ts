@@ -18,7 +18,9 @@ export const LEGAL_URLS = {
   TERMS_OF_SERVICE:
     process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL ||
     'https://kidsp2p.example.com/terms',
-  SUPPORT_EMAIL: 'support@kidsp2p.example.com',
+  // Internal canonical support address (legal/notification email config only).
+  // User-facing support routes to the in-app Contact Support form — no raw email surfaces.
+  SUPPORT_EMAIL: 'support@p2pkidsmarketplace.com',
   PRIVACY_EMAIL: 'privacy@kidsp2p.example.com',
 } as const;
 

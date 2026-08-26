@@ -125,8 +125,9 @@
 | **R — Education & FAQ CMS** | ADM-TC-R01 | Education sections/examples/analytics |
 | | ADM-TC-R02 | FAQ management (questions/categories/analytics) |
 | | ADM-TC-R03 | Publish FAQ / education content |
-| **S — Support Messages** | ADM-TC-S01 | Support inbox + unread filter |
+| **S — Support Messages** | ADM-TC-S01 | Support inbox + unread filter (incl. Guest tickets) |
 | | ADM-TC-S02 | Support detail + mark as read |
+| | ADM-TC-S03 | Support reply (stored + emailed to user) |
 | **T — Analytics** | ADM-TC-T01 | Revenue & Analytics dashboard |
 | | ADM-TC-T02 | Notification analytics (category/type/variant) |
 | **U — Audit Logs** | ADM-TC-U01 | Audit logs view |
@@ -2141,6 +2142,10 @@
 
 **Expected Result:**
 - "Support Messages" with an unread count badge; table with user, subject, status badge, created date, View Details; the inline mark-as-read updates without a full reload; filters/pagination work.
+- Logged-out (guest) tickets show a **Guest** pill in the User column (reply email/phone visible on the detail page).
+
+**Setup:**
+- Requires at least one guest ticket: log out → Login → **Need help? Contact Support** → submit with a reply email (+ optional phone) → /support should list it as **Guest**.
 
 ---
 
@@ -2155,7 +2160,33 @@
 1. Open a message's **View Details**; click **Mark as Read** (if unread).
 
 **Expected Result:**
-- Shows subject, status badge, from (name/email), contact info, submitted date/time, full message; Mark as Read changes the status; back navigation works.
+- Shows subject, status badge, from (name/email or **Guest (not logged in)** + reply email + optional phone), submitted date/time, full message; Mark as Read changes the status; back navigation works.
+- If replies exist, a **Replies** thread renders under the message.
+
+---
+
+### ADM-TC-S03 · Support reply (stored + emailed to user)
+
+**Ref:** FLOW-19 · /api/support/[id]/reply
+**Actors:** test-admin
+
+**Objective:** Verify an admin can reply to a support ticket and the user receives the reply by email.
+
+**Steps:**
+1. Open a ticket's **View Details**; type a reply in the composer; click **Send Reply**.
+2. After sending, verify the reply appears in the **Replies** thread and the ticket is marked read.
+
+**Expected Result:**
+- Reply is stored (`support_message_replies`) and the ticket status becomes **Read**.
+- The user receives an email (guest → `contact_email`; logged-in → profile email) via the `send-email` `support_reply` path.
+- If email delivery fails, the UI shows a warning but the reply is still stored.
+- Guest tickets show **Guest (not logged in)** with the reply email + optional phone.
+
+**Setup:**
+- Requires at least one ticket with a reachable email (guest ticket with `contact_email`, or a logged-in test-buyer ticket).
+
+**Locator hints:**
+- Composer: `support-reply-input` · Send: `btn-support-reply` · thread rows render under "Replies".
 
 ---
 
@@ -3119,8 +3150,9 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 | Education CMS (FLOW-21/EDU-001) | ADM-TC-R01 |
 | FAQ management | ADM-TC-R02 |
 | Publish content reflects in app | ADM-TC-R03 |
-| Support inbox + unread filter | ADM-TC-S01 |
+| Support inbox + unread filter (incl. Guest tickets) | ADM-TC-S01 |
 | Support detail + mark read | ADM-TC-S02 |
+| Support reply (stored + emailed) | ADM-TC-S03 |
 | Revenue & Analytics dashboard | ADM-TC-T01 |
 | Notification analytics (FLOW-17) | ADM-TC-T02 |
 | Audit logs view (FLOW-20) | ADM-TC-U01, ADM-TC-R05 |

@@ -5,14 +5,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/hooks/useAuth';
 import { captureException } from '@/services/errorReporter';
 import { Button } from '@/components/ui';
 import { theme } from '@/theme';
 
-const PLACEHOLDER_SUPPORT_EMAIL = 'admin-support@kidsmarketplace.app';
-
 export default function SuspendedAccountScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { logout } = useAuth();
 
   const handleLogout = async () => {
@@ -32,10 +34,18 @@ export default function SuspendedAccountScreen() {
           <Text style={styles.icon}>🚫</Text>
           <Text style={styles.title}>Account Suspended</Text>
           <Text style={styles.message}>
-            Your account is currently suspended. Please contact admin for help.
+            Your account is currently suspended. Please contact our support team for help.
           </Text>
-          <Text style={styles.supportLabel}>Support Email</Text>
-          <Text style={styles.supportEmail}>{PLACEHOLDER_SUPPORT_EMAIL}</Text>
+
+          <Button
+            variant="secondary"
+            size="large"
+            onPress={() => navigation.navigate('ContactSupport')}
+            testID="suspended-contact-support-button"
+            style={styles.contactSupportButton}
+          >
+            Contact Support
+          </Button>
 
           <Button
             variant="primary"
@@ -95,18 +105,9 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
 
-  supportLabel: {
-    ...theme.typography.label,
-    color: theme.textColors.secondary,
-    textTransform: 'uppercase',
-  },
-
-  supportEmail: {
-    ...theme.typography.body,
-    color: theme.colors.secondary[500],
-    fontFamily: theme.fontFamily.semiBold,
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.lg,
+  contactSupportButton: {
+    width: '100%',
+    marginBottom: theme.spacing.md,
   },
 
   logoutButton: {

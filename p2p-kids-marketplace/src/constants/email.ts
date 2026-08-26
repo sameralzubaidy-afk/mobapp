@@ -5,6 +5,9 @@
 export const EMAIL_CONFIG = {
   FROM_EMAIL: 'noreply@p2pkidsmarketplace.com',
   REPLY_TO_EMAIL: 'support@p2pkidsmarketplace.com',
+  // Single canonical support address (internal email config). Users are directed to
+  // the in-app Contact Support form — support emails must NOT be shown as user-facing
+  // "email us" surfaces (unified support-flow decision, 2026-08-26).
   SUPPORT_EMAIL: 'support@p2pkidsmarketplace.com',
 };
 

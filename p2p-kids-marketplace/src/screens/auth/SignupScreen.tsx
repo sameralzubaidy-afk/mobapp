@@ -646,6 +646,18 @@ export default function SignupScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* Contact Support Link (logged-out users can submit a ticket) */}
+            <TouchableOpacity
+              style={styles.contactSupportLink}
+              onPress={() => (navigation as any).navigate('ContactSupport')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Contact Support"
+              testID="signup-contact-support-link"
+            >
+              <Text style={styles.contactSupportLinkText}>Need help? Contact Support</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -818,5 +830,16 @@ const styles = StyleSheet.create({
   termsLink: {
     color: theme.textColors.link,
     fontFamily: theme.fontFamily.semiBold,
+  },
+
+  contactSupportLink: {
+    marginTop: theme.spacing.lg,
+    alignItems: 'center',
+  },
+
+  contactSupportLinkText: {
+    ...theme.typography.bodySmall,
+    color: theme.textColors.secondary,
+    textDecorationLine: 'underline',
   },
 });

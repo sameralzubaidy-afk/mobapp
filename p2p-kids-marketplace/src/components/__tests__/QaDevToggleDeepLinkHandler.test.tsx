@@ -16,6 +16,7 @@ import {
   getPushSimulationMode,
   getSimulatedNotificationPrefSaveError,
   getSimulatedLinkEmailMismatch,
+  getQaCrashTriggerMode,
   QA_PUSH_SIMULATION_KEY,
   QA_FORCE_PREF_SAVE_FAILURE_KEY,
   QA_LINK_EMAIL_MISMATCH_KEY,
@@ -92,6 +93,17 @@ describe('QaDevToggleDeepLinkHandler', () => {
 
     await waitFor(async () => {
       expect(await getSimulatedLinkEmailMismatch()).toBe('facebook');
+    });
+  });
+
+  it('arms crash_trigger=persist via the deep link (read-back through getter)', async () => {
+    parseAs('crash_trigger', 'persist');
+    render(<QaDevToggleDeepLinkHandler />);
+
+    triggerUrl('p2pkidsmarketplace://qa-dev-toggle?key=crash_trigger&value=persist');
+
+    await waitFor(async () => {
+      expect(await getQaCrashTriggerMode()).toBe('persist');
     });
   });
 

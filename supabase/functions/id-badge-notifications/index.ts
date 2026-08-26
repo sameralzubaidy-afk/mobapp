@@ -182,7 +182,6 @@ serve(async (req: Request) => {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
             },
             body: JSON.stringify({
               type: type as any,
@@ -216,7 +215,6 @@ serve(async (req: Request) => {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
             },
             body: JSON.stringify({
               userId: userId,
@@ -251,6 +249,7 @@ serve(async (req: Request) => {
 
   } catch (error) {
     console.error('[ID-BADGE-OUTCOME] Fatal error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500 });
   }
 });

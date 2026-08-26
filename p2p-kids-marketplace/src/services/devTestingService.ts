@@ -788,6 +788,7 @@ export async function clearQaLocalValues(): Promise<void> {
       QA_PUSH_SIMULATION_KEY,
       QA_FORCE_PREF_SAVE_FAILURE_KEY,
       QA_LINK_EMAIL_MISMATCH_KEY,
+      QA_CRASH_TRIGGER_KEY,
     ]);
   } catch (err) {
     console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
@@ -945,7 +946,59 @@ export async function getSimulatedLinkEmailMismatch(): Promise<string | null> {
 }
 
 // ========================================
-// QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04)
+// QA RENDER-CRASH TRIGGER (L01-L04 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that arms the ACC-TC-L01-L04 render-time crash
+ * trigger. Absence, 'none', or any unknown value = no crash (fail-closed).
+ * Values: 'once' | 'persist' | 'none'
+ *   - 'once'    → QaCrashProbe throws a render-time error ONCE, then disarms
+ *                 itself so the ErrorBoundary's "Try Again" recovers (L01 + L02).
+ *   - 'persist' → QaCrashProbe throws on every render while armed, so "Try
+ *                 Again" re-crashes and the fallback persists, proving the
+ *                 error is contained (L03).
+ */
+export const QA_CRASH_TRIGGER_KEY = 'qa_local_crash_trigger';
+
+/**
+ * QA staging toggle for ACC-TC-L01-L04 (ErrorBoundary fallback + recovery) —
+ * session-local.
+ *
+ * Why this exists: ErrorBoundary is wired at the app root but there was no way
+ * to trigger a render-time crash on demand. Dev/test builds read a SESSION-LOCAL
+ * toggle (AsyncStorage, set via the `p2pkidsmarketplace://qa-dev-toggle` deep
+ * link) and QaCrashProbe throws a CONTROLLED Error during render, which the root
+ * ErrorBoundary catches → friendly fallback + recovery path, on demand.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return 'none'
+ *    immediately and the probe renders nothing (it never throws).
+ *  - Toggle unset / expired (TTL) / storage error / unknown value → 'none'.
+ *
+ * Arming (QA agent, self-service, session-local — see /memories/repo/qa-test-accounts.md):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=crash_trigger&value=once"
+ *   values: once | persist | none
+ *   Recovering from an armed 'persist' crash: cold-start the app with the
+ *   disarm URL (value=none) so QaDevToggleDeepLinkHandler processes it before
+ *   QaCrashProbe reads the toggle.
+ */
+export async function getQaCrashTriggerMode(): Promise<'once' | 'persist' | 'none'> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_CRASH_TRIGGER_KEY);
+  switch (value) {
+    case 'once':
+    case 'persist':
+      return value;
+    default:
+      return 'none';
+  }
+}
+
+// ========================================
+// QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04)
 // ========================================
 
 /**
@@ -957,6 +1010,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   push_simulation: QA_PUSH_SIMULATION_KEY,
   pref_save_failure: QA_FORCE_PREF_SAVE_FAILURE_KEY,
   link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
+  crash_trigger: QA_CRASH_TRIGGER_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -964,6 +1018,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_PUSH_SIMULATION_KEY]: ['token', 'rate_limited', 'quiet_hours', 'none'],
   [QA_FORCE_PREF_SAVE_FAILURE_KEY]: ['save_failure', 'none'],
   [QA_LINK_EMAIL_MISMATCH_KEY]: ['google', 'facebook', 'apple', 'all', 'none'],
+  [QA_CRASH_TRIGGER_KEY]: ['once', 'persist', 'none'],
 };
 
 /**

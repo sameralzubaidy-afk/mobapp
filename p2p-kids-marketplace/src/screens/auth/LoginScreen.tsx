@@ -147,8 +147,7 @@ export default function LoginScreen() {
             errorMessage = 'Profile not found. Please contact support.';
             break;
           case 'ACCOUNT_DELETED':
-            errorMessage =
-              'Your account has been deleted. Please contact admin-support@kidsmarketplace.app.';
+            errorMessage = 'Your account has been deleted. Please contact support.';
             break;
           default:
             errorMessage = error.message;
@@ -280,6 +279,19 @@ export default function LoginScreen() {
               >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
+
+              {/* Contact Support Link (logged-out users can submit a ticket) */}
+              <TouchableOpacity
+                style={styles.contactSupportLink}
+                onPress={() => navigation.navigate('ContactSupport' as any)}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Contact Support"
+                testID="login-contact-support-link"
+                disabled={loading}
+              >
+                <Text style={styles.contactSupportLinkText}>Need help? Contact Support</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -401,6 +413,17 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     ...theme.typography.body,
     color: theme.textColors.link,
+  },
+
+  contactSupportLink: {
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+  },
+
+  contactSupportLinkText: {
+    ...theme.typography.bodySmall,
+    color: theme.textColors.secondary,
+    textDecorationLine: 'underline',
   },
 });
 

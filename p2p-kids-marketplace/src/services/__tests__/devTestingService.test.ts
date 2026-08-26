@@ -22,6 +22,8 @@ import {
   getSimulatedNotificationPrefSaveError,
   QA_LINK_EMAIL_MISMATCH_KEY,
   getSimulatedLinkEmailMismatch,
+  QA_CRASH_TRIGGER_KEY,
+  getQaCrashTriggerMode,
   setQaLocalValue,
   clearQaLocalValues,
   isValidQaToggleValue,
@@ -190,6 +192,59 @@ describe('devTestingService — getSimulatedLinkEmailMismatch (AUTH-TC-C04, sess
   });
 });
 
+describe('devTestingService — getQaCrashTriggerMode (ACC-TC-L01-L04, session-local)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+  });
+
+  it('returns "none" when the toggle is unset (fail-closed)', async () => {
+    await expect(getQaCrashTriggerMode()).resolves.toBe('none');
+  });
+
+  it('returns "once" and "persist" modes', async () => {
+    await setQaLocalValue(QA_CRASH_TRIGGER_KEY, 'once');
+    await expect(getQaCrashTriggerMode()).resolves.toBe('once');
+
+    await setQaLocalValue(QA_CRASH_TRIGGER_KEY, 'persist');
+    await expect(getQaCrashTriggerMode()).resolves.toBe('persist');
+  });
+
+  it('returns "none" for "none" and unknown values (fail-closed)', async () => {
+    await setQaLocalValue(QA_CRASH_TRIGGER_KEY, 'none');
+    await expect(getQaCrashTriggerMode()).resolves.toBe('none');
+
+    await setQaLocalValue(QA_CRASH_TRIGGER_KEY, 'random_junk');
+    await expect(getQaCrashTriggerMode()).resolves.toBe('none');
+  });
+
+  it('expires the toggle after the TTL (fail-closed)', async () => {
+    const expired = JSON.stringify({
+      value: 'persist',
+      setAt: new Date(Date.now() - 61 * 60 * 1000).toISOString(),
+    });
+    await AsyncStorage.setItem(QA_CRASH_TRIGGER_KEY, expired);
+
+    await expect(getQaCrashTriggerMode()).resolves.toBe('none');
+  });
+
+  it('registers crash_trigger in the deep-link short-name map + validation', () => {
+    expect(QA_TOGGLE_SHORT_NAMES.crash_trigger).toBe(QA_CRASH_TRIGGER_KEY);
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'once')).toBe(true);
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'persist')).toBe(true);
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'bogus')).toBe(false);
+  });
+
+  it('clearQaLocalValues removes the crash trigger', async () => {
+    await setQaLocalValue(QA_CRASH_TRIGGER_KEY, 'persist');
+    await expect(getQaCrashTriggerMode()).resolves.toBe('persist');
+
+    await clearQaLocalValues();
+    await expect(getQaCrashTriggerMode()).resolves.toBe('none');
+  });
+});
+
 describe('devTestingService — session-local QA toggle storage + validation', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -223,6 +278,7 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       push_simulation: QA_PUSH_SIMULATION_KEY,
       pref_save_failure: QA_FORCE_PREF_SAVE_FAILURE_KEY,
       link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
+      crash_trigger: QA_CRASH_TRIGGER_KEY,
     });
   });
 
@@ -246,6 +302,12 @@ describe('devTestingService — session-local QA toggle storage + validation', (
     expect(isValidQaToggleValue(QA_LINK_EMAIL_MISMATCH_KEY, 'all')).toBe(true);
     expect(isValidQaToggleValue(QA_LINK_EMAIL_MISMATCH_KEY, 'none')).toBe(true);
     expect(isValidQaToggleValue(QA_LINK_EMAIL_MISMATCH_KEY, 'save_failure')).toBe(false);
+
+    // crash_trigger
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'once')).toBe(true);
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'persist')).toBe(true);
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'save_failure')).toBe(false);
 
     // Unknown storage key → always invalid.
     expect(isValidQaToggleValue('qa_unknown', 'token')).toBe(false);

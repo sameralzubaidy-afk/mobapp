@@ -82,6 +82,22 @@ serve(async (req) => {
       });
     }
 
+    // Keep profiles.phone in sync with the account phone (auth.users.phone).
+    // Mirrors auth-email-change, which syncs profiles.email right after the
+    // auth email update. The DB trigger on_auth_user_updated also syncs this
+    // transactionally with the auth.users UPDATE (20260826000001 fixes its
+    // precedence); this explicit service-role write is a deterministic
+    // fallback so profiles.phone is never stale even if the trigger is not
+    // attached in the target DB. Non-blocking on failure (the auth phone is
+    // already updated; a stale mirror is a warning, not a failed change).
+    const { error: profileSyncError } = await admin
+      .from('profiles')
+      .update({ phone })
+      .eq('user_id', userId);
+    if (profileSyncError) {
+      console.warn('auth-update-phone profiles.phone sync failed (non-blocking):', profileSyncError);
+    }
+
     return new Response(JSON.stringify({ success: true, user: data }), {
       status: 200,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },

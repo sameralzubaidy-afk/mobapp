@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -27,7 +27,6 @@ import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-const SUPPORT_CONTACT_EMAIL = 'admin-support@kidsmarketplace.app';
 
 function formatRenewalDate(dateString: string | null | undefined): string {
   if (!dateString) {
@@ -89,7 +88,7 @@ export default function MySubscriptionScreen() {
   };
 
   const handleGetHelp = () => {
-    Alert.alert('Contact Support', `For subscription help, contact ${SUPPORT_CONTACT_EMAIL}.`);
+    navigation.navigate('ContactSupport');
   };
 
   const handleLearnMore = () => {

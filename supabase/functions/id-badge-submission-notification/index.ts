@@ -112,7 +112,6 @@ serve(async (req: Request) => {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
             },
             body: JSON.stringify({
               type: 'id_badge_submission',
@@ -149,7 +148,6 @@ serve(async (req: Request) => {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
             },
             body: JSON.stringify({
               userId: userId,

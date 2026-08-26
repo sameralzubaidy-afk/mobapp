@@ -444,12 +444,12 @@
 - Alert **Info** reads `This phone number is already verified and active on your account.`
 - No **Verify Your Phone** modal appears; the phone is saved without re-verification.
 
-### ACC-TC-B10 · Locked-field "cannot be changed" alerts
+### ACC-TC-B10 · Locked-field "cannot be changed" + contact-support affordances
 
 **Ref:** FLOW-02 · EditProfileScreen
 **Actors:** test-buyer
 
-**Objective:** Verify the locked-field labels and their contact-support affordances.
+**Objective:** Verify the locked-field labels and that the contact-support affordances route to the in-app Contact Support form (no email/Alert).
 
 **Steps:**
 1. Tap the **Question** icon next to **FULL NAME (CANNOT BE CHANGED)**.
@@ -457,15 +457,17 @@
 3. Observe the ZIP field.
 
 **Expected Result:**
-- Full Name and Date of Birth each show alert **Contact Support** / `For profile help, contact admin-support@kidsmarketplace.app.`
+- Tapping either **Question** icon navigates to the **Contact Support** screen (the in-app support form) — NOT an Alert, and no support email is shown anywhere.
 - Full Name and Date of Birth inputs are disabled (`editable={false}`).
 - ZIP renders **ZIP CODE (CANNOT BE CHANGED)** with the helper `Zip codes are locked to your node.` (no Question icon).
+- No raw support-email address appears on Edit Profile.
 
 **Locator hints:**
-- Contact Support alerts are native `Alert.alert` — dialog locator: N/A — see Dependencies.
+- Question icons: `accessibilityLabel="Contact support to change full name"` / `"Contact support to change date of birth"`.
+- After tapping, assert the Contact Support screen header title "Contact Support" and the `subject-input`/`send-message-button` testIDs.
 
 **Dependencies:**
-- Native `Alert.alert` ('Contact Support' title) — match 'OK' by text via Detox (`by.text('OK')`) / Appium; assert by title and the support-email body.
+- Unified support flow (D1–D2, 2026-08-26): support affordances navigate to `ContactSupport`; the Contact Support form is reachable logged-in and logged-out.
 
 ---
 
@@ -992,20 +994,68 @@
 
 ---
 
-### ACC-TC-H05 · Contact Support form (auth gate + validation)
+### ACC-TC-H05 · Contact Support form (unified flow — logged-in AND logged-out)
 
 **Ref:** FLOW-19 · ContactSupportScreen
-**Actors:** test-buyer (logged in) + logged-out
+**Actors:** test-buyer (logged in) + logged-out (guest)
 
-**Objective:** Verify the contact form and its validation.
+**Objective:** Verify the contact form works for logged-in and logged-out users, with NO raw support-email surfaces.
 
 **Steps:**
-1. Logged out: open Contact Support.
+1. Logged out (guest): from **Login** tap **Need help? Contact Support**; also confirm the same link on **Signup**. Submit a guest ticket.
 2. Logged in: submit with empty fields, then with a Subject + Message.
 
+**Expected Result (guest, logged out):**
+- The **Contact Support** form renders (no "Please log in" gate, no email fallback) with an extra **"YOUR EMAIL (SO WE CAN REPLY)"** (required) and **"PHONE (OPTIONAL)"** field.
+- Submitting without an email alerts `Missing Email` / `Please enter your email so we can reply.`; a bad email alerts `Invalid Email`.
+- A valid guest submit (email + subject + message, optional phone) shows "Sending…" then "Message Sent…We'll respond within 24 hours." and returns.
+- Admin `/support` shows this ticket as **Guest** with the reply email (+ phone if provided).
+
+**Expected Result (logged in):**
+- Subject (≤100) and Message (≤1000 with counter) are required; empty fields alert. No guest email/phone fields shown.
+- A valid submit shows "Sending…" then "Message Sent…We'll respond within 24 hours." and returns back.
+- Failure shows an error alert **without** an email fallback.
+
+**No raw email surfaces:**
+- No `support@…` / `admin-support@…` / "email us" text appears anywhere on the Contact Support screen (logged-in or logged-out).
+
+**Locator hints:**
+- `login-contact-support-link` / `signup-contact-support-link` (logged-out entry) · `contact-email-input` / `contact-phone-input` (guest only) · `subject-input`, `message-input`, `send-message-button`.
+
+### ACC-TC-H06 · No raw support-email surfaces (cross-screen sweep)
+
+**Ref:** D1 · design-system-passitup.md
+**Actors:** test-buyer + guest
+
+**Objective:** Verify NO screen shows a support email address or "email us" copy — every support/contact affordance routes to the in-app Contact Support form.
+
+**Steps:**
+1. Visit every screen with a support/contact affordance: Login, Signup, Help & Support menu, FAQ list/detail, education Help (footer), Contact Support (logged-in AND logged-out), Edit Profile (`?` icons), My Subscription (Get Help), Suspended Account, and any alert/empty/error state reached during the case.
+2. Grep/OCR each screen for `support@`, `admin-support@`, `mailto:`, or the phrase "email us".
+
 **Expected Result:**
-- Logged out: "Please log in to contact support." + the email fallback.
-- Logged in: Subject (≤100) and Message (≤1000 with counter) are required; empty fields alert; a valid submit shows "Sending…" then "Message Sent…We'll respond within 24 hours." and returns back. Failure shows an error alert with the email fallback.
+- No visible support email address, `mailto:` link, or "email us" copy on any screen (logged-in or logged-out).
+- Every support/contact affordance navigates to the **Contact Support** screen.
+- The only email input in the app is the Contact Support form's logged-out **"YOUR EMAIL (SO WE CAN REPLY)"** field.
+
+**Verdict:** any visible raw email surface = FAIL (report the screen + file/line).
+
+### ACC-TC-H07 · Contact Support reachable logged-out (Login + Signup entry)
+
+**Ref:** D2 · AppNavigator (unauth branch)
+**Actors:** guest (not logged in)
+
+**Objective:** Verify a logged-out user can reach and submit the in-app Contact Support form.
+
+**Steps:**
+1. From **Login**, tap **Need help? Contact Support** (`login-contact-support-link`).
+2. From **Signup**, tap **Need help? Contact Support** (`signup-contact-support-link`).
+3. Submit a guest ticket (email required, phone optional).
+
+**Expected Result:**
+- Both links open the **Contact Support** form (not the auth stack / not a "log in first" gate).
+- Back returns to Login/Signup respectively.
+- The submitted ticket appears in admin `/support` as **Guest** with the reply email.
 
 ---
 
@@ -1024,7 +1074,7 @@
 
 **Expected Result:**
 - Header "Help"; a hero card and published sections (title + markdown body + optional image); `sp_definition` is expanded by default; a deep link auto-expands and scrolls to the target section.
-- Footer support email is shown.
+- Footer shows a **"Still have questions? Contact Support"** link (`help-contact-support-link`) that routes to the in-app Contact Support form — **no support email is shown**.
 
 ---
 

@@ -24,7 +24,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || SERVICE_ROLE_KEY;
+// NOTE: EF→EF calls to send-email/send-push-notification (verify_jwt=true) must send
+// ONLY `Authorization: Bearer <service-role>` — an `apikey: <anon>` header alongside the
+// service-role JWT causes 401 UNAUTHORIZED_API_KEY_CONFLICTS (fixed 2026-08-26).
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -78,7 +80,6 @@ async function sendVerificationEmail(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        'apikey': ANON_KEY,
       },
       body: JSON.stringify({
         type: 'change_email',
@@ -114,7 +115,6 @@ async function sendOldEmailSecurityAlert(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        'apikey': ANON_KEY,
       },
       body: JSON.stringify({
         type: 'security_alert',

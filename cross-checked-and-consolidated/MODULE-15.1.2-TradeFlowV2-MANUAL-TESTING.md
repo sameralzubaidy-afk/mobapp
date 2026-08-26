@@ -5892,10 +5892,11 @@ FROM items;
 | Swap Points | Profile → Swap Points |
 | My Trades | Trades from Home or Profile |
 | Create Listing | Sell FAB → List One Item |
+| Edit Profile | Profile → Edit |
 
 **Steps:**
 1. Navigate to each screen in the table above.
-2. For each screen, inspect the top header area.
+2. For each screen, inspect the top header area AND the back control (per-screen back-button check — do NOT sample).
 
 **Expected Result (all screens):**
 - Left: ← Back button (40px round, gray `#F4F4F4` background, centered CaretLeft icon).
@@ -5903,6 +5904,11 @@ FROM items;
 - Right: Notification bell (same icon, size, badge logic as root screens).
 - Tapping the back button navigates to the previous screen.
 - Tapping the bell navigates to Notifications.
+
+**Per-screen back-button criteria (check EVERY secondary/detail screen):**
+- Back icon: `CaretLeft`, **24px, `#1A1A1A`, weight `regular`**, **icon-only (NO "Back"/"< Back" text label)**.
+- Touch target: **40×40 round `#F4F4F4`** with `hitSlop` ≥8 (effective ≥44×44); `accessibilityRole="button"`, label "Go back", `testID="back-button"`.
+- **A back control using the primary green `#5DBB8E`, a non-standard size/weight, a visible text label, no gray circle, no hitSlop/accessibility props, or a stacked (non-header-bar) position is a DEVIATION.** (Real miss: Edit Profile kept a hand-rolled green "← Back" header; fixed 2026-08-26 to the canonical header.)
 
 ---
 
@@ -5929,7 +5935,7 @@ FROM items;
 
 ### TRD-TC-U04 · Screens without ScreenLayout still have working headers
 
-**Screens under test:** EditListing, SubmitReview
+**Screens under test:** EditListing, SubmitReview, Edit Profile
 
 **Steps:**
 1. Log in as test-seller.
@@ -5937,10 +5943,12 @@ FROM items;
 3. Verify EditListingScreen shows a consistent detail header (back button + "Edit Listing" title + bell).
 4. Complete a trade as test-buyer → navigate to the review prompt.
 5. Verify SubmitReviewScreen shows a consistent detail header (back button + "Review [name]" title + bell).
+6. Log in as test-buyer → Profile → Edit → verify Edit Profile shows the canonical detail header (back button + "Edit Profile" title + bell).
 
 **Expected Result:**
-- Both screens now use ScreenLayout (not bare View or native navigation header).
+- All three screens use ScreenLayout (not bare View or native navigation header).
 - Header matches variant="detail" pattern exactly: back button (left) + title (center) + bell (right).
+- Back button satisfies the per-screen criteria in TRD-TC-U02 (40×40 round `#F4F4F4`, `CaretLeft` 24px `#1A1A1A` regular, icon-only, hitSlop, "Go back", `back-button` testID) — a green/undersized/labeled/stacked back control is a deviation.
 - Back button navigates to the previous screen.
 - Bell navigates to Notifications.
 

@@ -2,7 +2,7 @@
 // MODULE-18 EDU-005: Help screen with accordion sections, calculator, and bonus categories
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, RefreshControl, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ChartLine, CurrencyCircleDollar } from 'phosphor-react-native';
 import { getPublishedSections } from '../../services/educationContentService';
@@ -187,11 +187,20 @@ export default function HelpScreen({ navigation: _navigation, route }: HelpScree
             <BonusCategoriesList testID="help-bonus-categories" refreshKey={dataVersion} />
           </View>
 
-          {/* Footer */}
+          {/* Footer — routes to the in-app Contact Support form (no raw email surfaces) */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Still have questions? Contact us at support@p2pkidsmarketplace.com
-            </Text>
+            <TouchableOpacity
+              style={styles.contactSupportBtn}
+              onPress={() => _navigation.navigate('ContactSupport')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Contact Support"
+              testID="help-contact-support-link"
+            >
+              <Text style={styles.contactSupportBtnText}>
+                Still have questions? Contact Support
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -306,5 +315,15 @@ const styles = StyleSheet.create({
     color: '#BBBBBB',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  contactSupportBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  contactSupportBtnText: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

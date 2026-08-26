@@ -14,10 +14,14 @@ jest.mock('@/hooks/useAuth', () => ({
   useAuth: jest.fn(),
 }));
 
+// Stable mock reference (mock-prefixed so jest.mock can reference it) — lets
+// tests assert insert() was NOT called (honeypot silent-discard path).
+const mockInsert = jest.fn().mockResolvedValue({ error: null });
+
 jest.mock('@/config/supabase', () => ({
   supabase: {
     from: jest.fn(() => ({
-      insert: jest.fn().mockResolvedValue({ error: null }),
+      insert: mockInsert,
     })),
   },
 }));
@@ -91,10 +95,38 @@ describe('ContactSupportScreen', () => {
       expect(getByText('Send Message')).toBeTruthy();
     });
 
-    it('should render email fallback text with highlighted email', () => {
-      const { getByText } = render(<ContactSupportScreen navigation={mockNavigation} />);
-      expect(getByText(/Or email us at/)).toBeTruthy();
-      expect(getByText('support@passitup.com')).toBeTruthy();
+    it('should NOT render a raw email fallback when logged in (no raw email surfaces)', () => {
+      const { queryByText } = render(<ContactSupportScreen navigation={mockNavigation} />);
+      expect(queryByText(/Or email us at/)).toBeNull();
+      expect(queryByText(/support@/)).toBeNull();
+    });
+
+    it('should render the reply-email + optional phone fields for logged-out users', () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      const { getByTestId, getByLabelText } = render(
+        <ContactSupportScreen navigation={mockNavigation} />
+      );
+      expect(getByTestId('contact-email-input')).toBeTruthy();
+      expect(getByLabelText('Your email')).toBeTruthy();
+      expect(getByTestId('contact-phone-input')).toBeTruthy();
+      expect(getByLabelText('Phone')).toBeTruthy();
+    });
+
+    it('should NOT render the reply-email/phone fields for logged-in users', () => {
+      const { queryByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+      expect(queryByTestId('contact-email-input')).toBeNull();
+      expect(queryByTestId('contact-phone-input')).toBeNull();
+    });
+
+    it('should render the hidden honeypot field for logged-out users only', () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+      expect(getByTestId('company-input')).toBeTruthy();
+    });
+
+    it('should NOT render the honeypot field for logged-in users', () => {
+      const { queryByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+      expect(queryByTestId('company-input')).toBeNull();
     });
 
     it('should display character count for message (0 / 1000)', () => {
@@ -127,9 +159,25 @@ describe('ContactSupportScreen', () => {
       fireEvent.press(sendButton);
 
       await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Missing Message', 'Please enter your message.');
+      });
+    });
+
+    it('should alert when a logged-out user omits their reply email', async () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+      const subjectInput = getByTestId('subject-input');
+      const messageInput = getByTestId('message-input');
+      const sendButton = getByTestId('send-message-button');
+
+      fireEvent.changeText(subjectInput, 'Test Subject');
+      fireEvent.changeText(messageInput, 'Test message body');
+      fireEvent.press(sendButton);
+
+      await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Missing Message',
-          'Please enter your message.'
+          'Missing Email',
+          'Please enter your email so we can reply.'
         );
       });
     });
@@ -287,6 +335,100 @@ describe('ContactSupportScreen', () => {
     });
   });
 
+  describe('Abuse Protection (guest rate limit + honeypot)', () => {
+    it('shows a friendly Limit Reached alert when the guest rate limit is hit (SQLSTATE GRATL)', async () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      mockInsert.mockResolvedValueOnce({
+        error: {
+          code: 'GRATL',
+          message: 'You have reached the limit for support messages. Please try again later.',
+        },
+      });
+      const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+
+      fireEvent.changeText(getByTestId('subject-input'), 'Test Subject');
+      fireEvent.changeText(getByTestId('message-input'), 'Test message');
+      fireEvent.changeText(getByTestId('contact-email-input'), 'guest@example.com');
+      fireEvent.press(getByTestId('send-message-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Limit Reached',
+          'You have reached the limit for support messages. Please try again later.'
+        );
+      });
+      // Not the generic error and not a false success.
+      expect(Alert.alert).not.toHaveBeenCalledWith(
+        'Error',
+        'Failed to send message. Please try again.'
+      );
+    });
+
+    it('shows the generic error for a non-rate-limit DB failure', async () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      mockInsert.mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate' } });
+      const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+
+      fireEvent.changeText(getByTestId('subject-input'), 'Test Subject');
+      fireEvent.changeText(getByTestId('message-input'), 'Test message');
+      fireEvent.changeText(getByTestId('contact-email-input'), 'guest@example.com');
+      fireEvent.press(getByTestId('send-message-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Error',
+          'Failed to send message. Please try again.'
+        );
+      });
+    });
+
+    it('silently discards the submission (no insert) when the honeypot is filled', async () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+
+      // Bot fills the hidden honeypot (everything else may be empty).
+      fireEvent.changeText(getByTestId('company-input'), 'bot-value');
+      fireEvent.press(getByTestId('send-message-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Message Sent',
+          "Thank you for contacting us. We'll respond within 24 hours.",
+          expect.any(Array)
+        );
+      });
+      // Success is shown to the bot but NO row is inserted.
+      expect(mockInsert).not.toHaveBeenCalled();
+    });
+
+    it('does not hit the honeypot discard path for real users (empty honeypot) and inserts the guest payload', async () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+
+      fireEvent.changeText(getByTestId('subject-input'), 'Test Subject');
+      fireEvent.changeText(getByTestId('message-input'), 'Test message');
+      fireEvent.changeText(getByTestId('contact-email-input'), 'guest@example.com');
+      fireEvent.press(getByTestId('send-message-button'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Message Sent',
+          "Thank you for contacting us. We'll respond within 24 hours.",
+          expect.any(Array)
+        );
+      });
+      // Insert ran once with the guest payload; the honeypot is NOT part of it.
+      expect(mockInsert).toHaveBeenCalledTimes(1);
+      expect(mockInsert).toHaveBeenCalledWith({
+        user_id: null,
+        contact_email: 'guest@example.com',
+        contact_phone: null,
+        subject: 'Test Subject',
+        message: 'Test message',
+      });
+    });
+  });
+
   describe('Design System Compliance - MODULE-15.1', () => {
     it('should use filled input style (#F0F0F0 background)', () => {
       const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
@@ -315,18 +457,17 @@ describe('ContactSupportScreen', () => {
       expect(sendButton).toBeTruthy();
     });
 
-    it('should highlight email address in green (#5DBB8E)', () => {
-      const { getByText } = render(<ContactSupportScreen navigation={mockNavigation} />);
-      const emailText = getByText('support@passitup.com');
-      // Text style verification requires accessing TextStyle props
-      expect(emailText).toBeTruthy();
+    it('should render the guest reply-email field with a filled input style', () => {
+      (useAuth as jest.Mock).mockReturnValue({ session: null });
+      const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
+      expect(getByTestId('contact-email-input')).toBeTruthy();
     });
   });
 
   describe('Accessibility', () => {
     it('should have proper accessibility labels for all inputs', () => {
       const { getByLabelText } = render(<ContactSupportScreen navigation={mockNavigation} />);
-      
+
       expect(getByLabelText('Go back')).toBeTruthy();
       expect(getByLabelText('Subject')).toBeTruthy();
       expect(getByLabelText('Message')).toBeTruthy();

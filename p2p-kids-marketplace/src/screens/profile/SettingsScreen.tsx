@@ -30,6 +30,9 @@ import { sendTestPushNotification } from '../../services/pushDelivery';
 import { captureException } from '@/services/errorReporter';
 import { useAuth } from '../../hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
+// QA-only render-crash trigger (ACC-TC-L01-L04) — inert in production builds
+// (see QaCrashProbe + devTestingService.getQaCrashTriggerMode gate).
+import QaCrashProbe from '@/components/QaCrashProbe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SettingsRow {
@@ -245,6 +248,8 @@ export default function SettingsScreen({ navigation }: any) {
 
   return (
     <ScreenLayout variant="detail" title="Settings">
+      {/* QA render-crash trigger (ACC-TC-L01-L04) — inert in production. */}
+      <QaCrashProbe screenName="Settings" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

@@ -55,6 +55,9 @@ import { useUserBadges } from '@/hooks/useUserBadges';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import ScreenLayout from '@/components/ScreenLayout';
+// QA-only render-crash trigger (ACC-TC-L01-L04) — inert in production builds
+// (see QaCrashProbe + devTestingService.getQaCrashTriggerMode gate).
+import QaCrashProbe from '@/components/QaCrashProbe';
 
 type UserProfile = any;
 
@@ -350,6 +353,8 @@ export default function ProfileScreen({ route }: any) {
 
   return (
     <ScreenLayout variant="detail" title="My Profile">
+      {/* QA render-crash trigger (ACC-TC-L01-L04) — inert in production. */}
+      <QaCrashProbe screenName="Profile" />
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
           {showProfileSavedBanner && (
