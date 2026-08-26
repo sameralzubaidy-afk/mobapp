@@ -789,6 +789,7 @@ export async function clearQaLocalValues(): Promise<void> {
       QA_FORCE_PREF_SAVE_FAILURE_KEY,
       QA_LINK_EMAIL_MISMATCH_KEY,
       QA_CRASH_TRIGGER_KEY,
+      QA_POLICY_LOAD_FAILURE_KEY,
     ]);
   } catch (err) {
     console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
@@ -998,7 +999,60 @@ export async function getQaCrashTriggerMode(): Promise<'once' | 'persist' | 'non
 }
 
 // ========================================
-// QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04)
+// QA POLICY LOAD FAILURE SIMULATION (J07/J08/J12 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that arms the ACC-TC-J07/J08/J12 legal-screen
+ * unavailable / load-failure simulation. Absence, 'none', or any unknown value
+ * = no simulation (fail-closed). Values: 'no_policy' | 'fetch_failure' | 'none'
+ *   - 'no_policy'     → simulate "no published policy" (get_current_policy
+ *                       returns null/empty) → the J07/J12 "…not available"
+ *                       states on TOS / Privacy / Disclaimer.
+ *   - 'fetch_failure' → simulate a network/RPC failure (the load throws) → the
+ *                       J08 "Failed to load …" + Retry states.
+ */
+export const QA_POLICY_LOAD_FAILURE_KEY = 'qa_local_policy_failure';
+
+export type QaPolicyLoadFailureMode = 'no_policy' | 'fetch_failure' | 'none';
+
+/**
+ * QA staging toggle for ACC-TC-J07/J08/J12 (legal-screen unavailable +
+ * load-failure states) — session-local.
+ *
+ * Why this exists: the TOS/Privacy/Disclaimer "no published policy" and
+ * fetch-failure states cannot be induced on healthy staging without an admin
+ * unpublish or network manipulation. Dev/test builds read a SESSION-LOCAL
+ * toggle (AsyncStorage, armed via the `p2pkidsmarketplace://qa-dev-toggle` deep
+ * link) and short-circuit the policy load path so the exact states the guide
+ * asserts for J07/J08/J12 render on demand.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return 'none'
+ *    immediately, so the real load always runs.
+ *  - Toggle unset / expired (TTL) / storage error / unknown value → 'none'.
+ *
+ * Arming (QA agent, self-service, session-local — see /memories/repo/qa-test-accounts.md):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=policy_failure&value=no_policy"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=policy_failure&value=fetch_failure"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=policy_failure&value=none"
+ */
+export async function getQaPolicyLoadFailureMode(): Promise<QaPolicyLoadFailureMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_POLICY_LOAD_FAILURE_KEY);
+  switch (value) {
+    case 'no_policy':
+    case 'fetch_failure':
+      return value;
+    default:
+      return 'none';
+  }
+}
+
+// ========================================
+// QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04/J07-J12)
 // ========================================
 
 /**
@@ -1011,6 +1065,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   pref_save_failure: QA_FORCE_PREF_SAVE_FAILURE_KEY,
   link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
   crash_trigger: QA_CRASH_TRIGGER_KEY,
+  policy_failure: QA_POLICY_LOAD_FAILURE_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1019,6 +1074,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_FORCE_PREF_SAVE_FAILURE_KEY]: ['save_failure', 'none'],
   [QA_LINK_EMAIL_MISMATCH_KEY]: ['google', 'facebook', 'apple', 'all', 'none'],
   [QA_CRASH_TRIGGER_KEY]: ['once', 'persist', 'none'],
+  [QA_POLICY_LOAD_FAILURE_KEY]: ['no_policy', 'fetch_failure', 'none'],
 };
 
 /**

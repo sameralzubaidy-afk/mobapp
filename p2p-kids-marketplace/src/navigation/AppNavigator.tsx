@@ -98,6 +98,10 @@ import QaDevToggleDeepLinkHandler from '@/components/QaDevToggleDeepLinkHandler'
 // F03 (ACC-TC-F03): real connectivity boundary — navigates to Offline when the
 // network drops during active (authenticated) use. Uses navigationRef.
 import ConnectivityGate from '@/components/ConnectivityGate';
+// J05 (ACC-TC-J05): soft-gate policy re-prompt — routes an authenticated user to
+// the acceptance-mode TOS/Privacy screen when the current published policy is
+// not accepted (also makes the J02 acceptance path reachable). Uses navigationRef.
+import PolicyReacceptanceGate from '@/components/PolicyReacceptanceGate';
 import {
   parseNotificationDeepLink,
   getFallbackRoute,
@@ -996,6 +1000,15 @@ export function RootNavigator() {
             Offline screen when the network drops during active (authenticated)
             use. Renders nothing. Uses the shared navigationRef. */}
         <ConnectivityGate />
+
+        {/* J05 (ACC-TC-J05): soft-gate policy re-prompt — on authenticated app
+            launch (post-onboarding), if the current published TOS/Privacy isn't
+            accepted, navigates to the acceptance-mode screen once per user per
+            session (J02 path). Decline/dismiss lets the user continue; the
+            re-prompt returns on the next app launch. Renders nothing. */}
+        {isAuthenticated && !isSuspended && !showOnboardingCarousel && (
+          <PolicyReacceptanceGate enabled />
+        )}
       </CartProvider>
     </NavigationContainer>
   );

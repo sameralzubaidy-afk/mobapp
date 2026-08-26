@@ -24,6 +24,8 @@ import {
   getSimulatedLinkEmailMismatch,
   QA_CRASH_TRIGGER_KEY,
   getQaCrashTriggerMode,
+  QA_POLICY_LOAD_FAILURE_KEY,
+  getQaPolicyLoadFailureMode,
   setQaLocalValue,
   clearQaLocalValues,
   isValidQaToggleValue,
@@ -245,6 +247,49 @@ describe('devTestingService — getQaCrashTriggerMode (ACC-TC-L01-L04, session-l
   });
 });
 
+describe('devTestingService — getQaPolicyLoadFailureMode (ACC-TC-J07/J08/J12, session-local)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+  });
+
+  it('returns "none" when the toggle is unset (fail-closed)', async () => {
+    await expect(getQaPolicyLoadFailureMode()).resolves.toBe('none');
+  });
+
+  it('returns "no_policy" and "fetch_failure" modes', async () => {
+    await setQaLocalValue(QA_POLICY_LOAD_FAILURE_KEY, 'no_policy');
+    await expect(getQaPolicyLoadFailureMode()).resolves.toBe('no_policy');
+
+    await setQaLocalValue(QA_POLICY_LOAD_FAILURE_KEY, 'fetch_failure');
+    await expect(getQaPolicyLoadFailureMode()).resolves.toBe('fetch_failure');
+  });
+
+  it('returns "none" for "none" and unknown values (fail-closed)', async () => {
+    await setQaLocalValue(QA_POLICY_LOAD_FAILURE_KEY, 'none');
+    await expect(getQaPolicyLoadFailureMode()).resolves.toBe('none');
+
+    await setQaLocalValue(QA_POLICY_LOAD_FAILURE_KEY, 'random_junk');
+    await expect(getQaPolicyLoadFailureMode()).resolves.toBe('none');
+  });
+
+  it('registers policy_failure in the deep-link short-name map + validation', () => {
+    expect(QA_TOGGLE_SHORT_NAMES.policy_failure).toBe(QA_POLICY_LOAD_FAILURE_KEY);
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'no_policy')).toBe(true);
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'fetch_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'bogus')).toBe(false);
+  });
+
+  it('clearQaLocalValues removes the policy failure toggle', async () => {
+    await setQaLocalValue(QA_POLICY_LOAD_FAILURE_KEY, 'fetch_failure');
+    await expect(getQaPolicyLoadFailureMode()).resolves.toBe('fetch_failure');
+
+    await clearQaLocalValues();
+    await expect(getQaPolicyLoadFailureMode()).resolves.toBe('none');
+  });
+});
+
 describe('devTestingService — session-local QA toggle storage + validation', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -261,16 +306,18 @@ describe('devTestingService — session-local QA toggle storage + validation', (
     expect(parsed.setAt).toBeTruthy();
   });
 
-  it('clearQaLocalValues clears all three QA toggle keys', async () => {
+  it('clearQaLocalValues clears all QA toggle keys', async () => {
     await setQaLocalValue(QA_PUSH_SIMULATION_KEY, 'token');
     await setQaLocalValue(QA_FORCE_PREF_SAVE_FAILURE_KEY, 'save_failure');
     await setQaLocalValue(QA_LINK_EMAIL_MISMATCH_KEY, 'facebook');
+    await setQaLocalValue(QA_POLICY_LOAD_FAILURE_KEY, 'fetch_failure');
 
     await clearQaLocalValues();
 
     await expect(AsyncStorage.getItem(QA_PUSH_SIMULATION_KEY)).resolves.toBeNull();
     await expect(AsyncStorage.getItem(QA_FORCE_PREF_SAVE_FAILURE_KEY)).resolves.toBeNull();
     await expect(AsyncStorage.getItem(QA_LINK_EMAIL_MISMATCH_KEY)).resolves.toBeNull();
+    await expect(AsyncStorage.getItem(QA_POLICY_LOAD_FAILURE_KEY)).resolves.toBeNull();
   });
 
   it('QA_TOGGLE_SHORT_NAMES maps each deep-link key to its storage key', () => {
@@ -279,6 +326,7 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       pref_save_failure: QA_FORCE_PREF_SAVE_FAILURE_KEY,
       link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
       crash_trigger: QA_CRASH_TRIGGER_KEY,
+      policy_failure: QA_POLICY_LOAD_FAILURE_KEY,
     });
   });
 
@@ -308,6 +356,12 @@ describe('devTestingService — session-local QA toggle storage + validation', (
     expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'persist')).toBe(true);
     expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'none')).toBe(true);
     expect(isValidQaToggleValue(QA_CRASH_TRIGGER_KEY, 'save_failure')).toBe(false);
+
+    // policy_failure
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'no_policy')).toBe(true);
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'fetch_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'random_junk')).toBe(false);
 
     // Unknown storage key → always invalid.
     expect(isValidQaToggleValue('qa_unknown', 'token')).toBe(false);

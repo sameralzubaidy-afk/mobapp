@@ -235,6 +235,11 @@ jest.mock('@stripe/stripe-react-native', () => {
   };
 });
 
+// J05 policy re-prompt gate — inert in navigation tests (its own unit suite
+// covers the behavior). Prevents spurious navigations / timer leaks during the
+// onboarding + tab-bar flows under test.
+jest.mock('@/components/PolicyReacceptanceGate', () => () => null);
+
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 const TAB_TEST_IDS = ['tab-home', 'tab-discover', 'tab-sell', 'tab-trades', 'tab-basket'];

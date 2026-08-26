@@ -20,7 +20,13 @@ import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
 
 import DeleteAccountScreen from '@/screens/settings/DeleteAccountScreen';
 
+import { getQaPolicyLoadFailureMode } from '@/services/devTestingService';
+
 // ─── Shared mocks ─────────────────────────────────────────────────────────────
+
+jest.mock('@/services/devTestingService', () => ({
+  getQaPolicyLoadFailureMode: jest.fn().mockResolvedValue('none'),
+}));
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
@@ -86,16 +92,21 @@ jest.mock('@/config/supabase', () => ({
 
 jest.mock('@/components/ScreenLayout', () => {
   const R = require('react');
-  const { View, Text, TouchableOpacity } = require('react-native');
+  const { Text, TouchableOpacity } = require('react-native');
   return {
     __esModule: true,
     default: ({ children, variant }: any) =>
-      R.createElement(R.Fragment, null,
+      R.createElement(
+        R.Fragment,
+        null,
         variant === 'detail'
-          ? R.createElement(TouchableOpacity, { testID: 'back-button' },
-              R.createElement(Text, null, 'Back'))
+          ? R.createElement(
+              TouchableOpacity,
+              { testID: 'back-button' },
+              R.createElement(Text, null, 'Back')
+            )
           : null,
-        children,
+        children
       ),
   };
 });
@@ -205,7 +216,11 @@ describe('PrivacyPolicyScreen (FLOW-25)', () => {
     effective_date: '2026-01-01T00:00:00Z',
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Fail-closed default so a toggle armed in a prior test never leaks (BP-60).
+    (getQaPolicyLoadFailureMode as jest.Mock).mockResolvedValue('none');
+  });
 
   it('shows loading state initially', () => {
     mockGetCurrentPrivacyPolicy.mockReturnValue(new Promise(() => {}));
@@ -226,6 +241,17 @@ describe('PrivacyPolicyScreen (FLOW-25)', () => {
     const { getByTestId } = render(<PrivacyPolicyScreen navigation={nav} route={route as any} />);
     await waitFor(() => {
       expect(getByTestId('privacy-policy-effective-date')).toBeTruthy();
+    });
+  });
+
+  it('renders the Privacy Policy version badge (J03)', async () => {
+    mockGetCurrentPrivacyPolicy.mockResolvedValue(mockPolicy);
+    const { getByTestId, getByText } = render(
+      <PrivacyPolicyScreen navigation={nav} route={route as any} />
+    );
+    await waitFor(() => {
+      expect(getByTestId('privacy-policy-version')).toBeTruthy();
+      expect(getByText('Version 2.0')).toBeTruthy();
     });
   });
 
@@ -269,7 +295,11 @@ describe('TermsOfServiceScreen (FLOW-25)', () => {
     effective_date: '2026-01-01T00:00:00Z',
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Fail-closed default so a toggle armed in a prior test never leaks (BP-60).
+    (getQaPolicyLoadFailureMode as jest.Mock).mockResolvedValue('none');
+  });
 
   it('shows loading state initially', () => {
     mockGetCurrentTOS.mockReturnValue(new Promise(() => {}));
@@ -286,6 +316,36 @@ describe('TermsOfServiceScreen (FLOW-25)', () => {
     );
     await waitFor(() => {
       expect(getByTestId('tos-content')).toBeTruthy();
+    });
+  });
+
+  it('renders the TOS version badge (J03)', async () => {
+    mockGetCurrentTOS.mockResolvedValue(mockTOS);
+    const { getByTestId, getByText } = render(
+      <TermsOfServiceScreen navigation={nav} route={{ params: {} } as any} />
+    );
+    await waitFor(() => {
+      expect(getByTestId('tos-version')).toBeTruthy();
+      expect(getByText('Version 1.0')).toBeTruthy();
+    });
+  });
+
+  it('shows "not available" when the QA no_policy toggle is armed (J07)', async () => {
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    (getQaPolicyLoadFailureMode as jest.Mock).mockResolvedValue('no_policy');
+    render(<TermsOfServiceScreen navigation={nav} route={{ params: {} } as any} />);
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Error', 'Terms of Service not available');
+      expect(nav.goBack).toHaveBeenCalled();
+    });
+  });
+
+  it('shows the load-failure alert when the QA fetch_failure toggle is armed (J08)', async () => {
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    (getQaPolicyLoadFailureMode as jest.Mock).mockResolvedValue('fetch_failure');
+    render(<TermsOfServiceScreen navigation={nav} route={{ params: {} } as any} />);
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Error', 'Failed to load Terms of Service');
     });
   });
 

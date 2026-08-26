@@ -17,6 +17,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getPrivacyPolicyService } from '../../services/privacyPolicy';
 import { captureException } from '@/services/errorReporter';
+import { getQaPolicyLoadFailureMode } from '@/services/devTestingService';
+import { formatPolicyEffectiveDate } from '@/utils/policyDate';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -45,6 +47,18 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
 
   const loadPolicy = async () => {
     try {
+      // ACC-TC-J07/J08 QA toggle: arm via the qa-dev-toggle deep link
+      // (key=policy_failure, value=no_policy|fetch_failure) — dev-only, fail-closed.
+      const qaMode = await getQaPolicyLoadFailureMode();
+      if (qaMode === 'no_policy') {
+        Alert.alert('Error', 'Privacy Policy not available');
+        navigation.goBack();
+        return;
+      }
+      if (qaMode === 'fetch_failure') {
+        throw new Error('Simulated fetch failure (ACC-TC-J08)');
+      }
+
       const privacyPolicyService = getPrivacyPolicyService();
       const currentPolicy = await privacyPolicyService.getCurrentPrivacyPolicy();
 
@@ -119,9 +133,15 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.scrollContent} testID="privacy-policy-content">
         {policy.effective_date && (
           <Text style={styles.lastUpdated} testID="privacy-policy-effective-date">
-            Last updated: {new Date(policy.effective_date).toLocaleDateString()}
+            Last updated: {formatPolicyEffectiveDate(policy.effective_date)}
           </Text>
         )}
+
+        {policy.version ? (
+          <Text style={styles.versionBadge} testID="privacy-policy-version">
+            Version {policy.version}
+          </Text>
+        ) : null}
 
         <View style={styles.contentContainer}>
           <Markdown style={markdownStyles}>{policy.content}</Markdown>
@@ -205,6 +225,17 @@ const styles = StyleSheet.create({
   lastUpdated: {
     fontSize: 13,
     color: '#999999',
+    marginBottom: 8,
+  },
+  versionBadge: {
+    alignSelf: 'flex-start',
+    fontSize: 13,
+    color: '#666666',
+    backgroundColor: '#F2F2F2',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
     marginBottom: 16,
   },
   contentContainer: {

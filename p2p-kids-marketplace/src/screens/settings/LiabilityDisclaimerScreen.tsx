@@ -13,6 +13,8 @@ import { useNavigation } from '@react-navigation/native';
 import { WarningCircle } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
 import { captureException } from '@/services/errorReporter';
+import { getQaPolicyLoadFailureMode } from '@/services/devTestingService';
+import { formatPolicyEffectiveDate } from '@/utils/policyDate';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -40,6 +42,17 @@ export default function LiabilityDisclaimerScreen() {
     try {
       setLoading(true);
       setError(null);
+
+      // ACC-TC-J07/J12 QA toggle: arm via the qa-dev-toggle deep link
+      // (key=policy_failure, value=no_policy|fetch_failure) — dev-only, fail-closed.
+      const qaMode = await getQaPolicyLoadFailureMode();
+      if (qaMode === 'no_policy') {
+        setError('No published liability disclaimer available.');
+        return;
+      }
+      if (qaMode === 'fetch_failure') {
+        throw new Error('Simulated fetch failure (ACC-TC-J08)');
+      }
 
       const { data, error: rpcError } = await supabase.rpc('get_current_policy', {
         p_policy_type: 'liability_disclaimer',
@@ -100,7 +113,7 @@ export default function LiabilityDisclaimerScreen() {
 
         {policy.effective_date && (
           <Text style={styles.lastUpdated}>
-            Last updated: {new Date(policy.effective_date).toLocaleDateString()}
+            Last updated: {formatPolicyEffectiveDate(policy.effective_date)}
           </Text>
         )}
 

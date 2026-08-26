@@ -8,12 +8,17 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
 import { supabase } from '@/config/supabase';
+import { getQaPolicyLoadFailureMode } from '@/services/devTestingService';
 
 // Mock dependencies
 jest.mock('@/config/supabase', () => ({
   supabase: {
     rpc: jest.fn(),
   },
+}));
+
+jest.mock('@/services/devTestingService', () => ({
+  getQaPolicyLoadFailureMode: jest.fn().mockResolvedValue('none'),
 }));
 
 jest.mock('@react-navigation/native', () => ({
@@ -54,6 +59,8 @@ describe('LiabilityDisclaimerScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Fail-closed default so a toggle armed in a prior test never leaks (BP-60).
+    (getQaPolicyLoadFailureMode as jest.Mock).mockResolvedValue('none');
   });
 
   describe('Loading State', () => {
@@ -97,7 +104,9 @@ describe('LiabilityDisclaimerScreen', () => {
     });
 
     it('renders WarningCircle icon and no action buttons', async () => {
-      const { UNSAFE_getByType: _UNSAFE_getByType, queryByText } = render(<LiabilityDisclaimerScreen />);
+      const { UNSAFE_getByType: _UNSAFE_getByType, queryByText } = render(
+        <LiabilityDisclaimerScreen />
+      );
 
       await waitFor(() => {
         // No accept/decline buttons — read-only screen
@@ -150,6 +159,28 @@ describe('LiabilityDisclaimerScreen', () => {
       const { getByText } = render(<LiabilityDisclaimerScreen />);
 
       await waitFor(() => {
+        expect(getByText('Retry')).toBeTruthy();
+      });
+    });
+
+    it('shows "no published disclaimer" + Retry when QA no_policy toggle is armed (J12)', async () => {
+      (getQaPolicyLoadFailureMode as jest.Mock).mockResolvedValue('no_policy');
+
+      const { getByText } = render(<LiabilityDisclaimerScreen />);
+
+      await waitFor(() => {
+        expect(getByText(/No published liability disclaimer available/i)).toBeTruthy();
+        expect(getByText('Retry')).toBeTruthy();
+      });
+    });
+
+    it('shows load-failure + Retry when QA fetch_failure toggle is armed (J08)', async () => {
+      (getQaPolicyLoadFailureMode as jest.Mock).mockResolvedValue('fetch_failure');
+
+      const { getByText } = render(<LiabilityDisclaimerScreen />);
+
+      await waitFor(() => {
+        expect(getByText(/Failed to load disclaimer/i)).toBeTruthy();
         expect(getByText('Retry')).toBeTruthy();
       });
     });

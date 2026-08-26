@@ -64,6 +64,20 @@ const formatErrorMessage = (error: unknown): string => {
   return JSON.stringify(error) || 'Unknown error';
 };
 
+// Format the verify-modal resend countdown so it can express long rate-limit
+// retry windows (>1h, e.g. the send-phone-otp 86400s daily cap) without dumping
+// a huge raw-seconds number. The underlying value is never truncated — we only
+// change how it is displayed, keeping it in agreement with the sibling
+// "Too many attempts..." message that reports the same retryAfterSeconds.
+const formatResendCountdown = (seconds: number): string => {
+  if (seconds >= 3600) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  return `${seconds}s`;
+};
+
 export default function EditProfileScreen({ navigation, route }: any) {
   const preloadedUser = route?.params?.preloadedUser;
   const preloadedProfile = route?.params?.preloadedProfile;
@@ -400,7 +414,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
       return true;
     } catch (err) {
       if (err instanceof OTPRateLimitError) {
-        setResendCountdown(Math.min(err.retryAfterSeconds, 3600));
+        // Use the real retry window (no 3600s cap) so the countdown agrees with
+        // the message below — the EF can return up to 86400s (daily cap).
+        setResendCountdown(err.retryAfterSeconds);
         setPhoneVerification((prev) => ({
           ...prev,
           sending: false,
@@ -771,7 +787,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
       setPhoneVerification((prev) => ({ ...prev, sending: false, message: undefined }));
     } catch (err) {
       if (err instanceof OTPRateLimitError) {
-        setResendCountdown(Math.min(err.retryAfterSeconds, 3600));
+        // Use the real retry window (no 3600s cap) so the countdown agrees with
+        // the message below — the EF can return up to 86400s (daily cap).
+        setResendCountdown(err.retryAfterSeconds);
         setPhoneVerification((prev) => ({
           ...prev,
           sending: false,
@@ -991,7 +1009,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                   <Text style={styles.verificationTimerText}>Sending...</Text>
                 ) : resendCountdown > 0 ? (
                   <Text style={styles.verificationTimerText}>
-                    Resend code in {resendCountdown}s
+                    Resend code in {formatResendCountdown(resendCountdown)}
                   </Text>
                 ) : (
                   <TouchableOpacity
@@ -1103,7 +1121,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                   <Text style={styles.verificationTimerText}>Sending...</Text>
                 ) : emailResendCountdown > 0 ? (
                   <Text style={styles.verificationTimerText}>
-                    Resend code in {emailResendCountdown}s
+                    Resend code in {formatResendCountdown(emailResendCountdown)}
                   </Text>
                 ) : (
                   <TouchableOpacity onPress={handleResendEmailCode}>
