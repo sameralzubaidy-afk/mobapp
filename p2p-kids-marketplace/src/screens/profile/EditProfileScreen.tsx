@@ -1435,7 +1435,15 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   verificationBackButton: {
-    paddingVertical: 4,
+    // ≥44pt touch target (accessibility minimum) so the AX-reported frame and the
+    // tappable region coincide. The button was previously only ~27pt tall
+    // (paddingVertical 4 + fontSize-16 text): the reported AX frame center missed
+    // the actual touch region in the fullScreen verify modal, and QA's empirically
+    // working tap (~pt y=58) landed exactly at the center of a 44pt target.
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   verificationBackButtonText: {
     fontSize: 16,

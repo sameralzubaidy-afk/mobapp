@@ -38,11 +38,19 @@ jest.mock('@/services/referralCodeV2', () => ({
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
+  const React = jest.requireActual('react');
   return {
     ...actual,
     useNavigation: jest.fn(),
+    // Defer the focus callback until AFTER the component's own effects have run,
+    // mirroring the real navigation-reset ordering where the optimistic-patch
+    // effect sets skipNextFocusRefreshRef BEFORE the focus handler reads it.
+    // (A synchronous `cb()` call would run during render, before the patch effect,
+    // and would mask the "fresh mount + optimistic params" stall regression.)
     useFocusEffect: (cb: () => void | (() => void)) => {
-      cb();
+      React.useEffect(() => {
+        cb();
+      }, [cb]);
     },
   };
 });
@@ -139,13 +147,16 @@ describe('ProfileScreen', () => {
     mockGetReferralCode.mockResolvedValue('abc12345' as any);
   });
 
-  const renderScreen = (navigation: any = { navigate: jest.fn(), goBack: jest.fn() }) => {
+  const renderScreen = (
+    navigation: any = { navigate: jest.fn(), goBack: jest.fn() },
+    route: any = undefined
+  ) => {
     // ProfileScreen uses useNavigation() (not the prop), so point the hook at the
     // navigation object each test asserts against.
     mockUseNavigation.mockReturnValue(navigation);
     return render(
       <AuthContext.Provider value={{ logout: logoutMock } as any}>
-        <ProfileScreen navigation={navigation} />
+        <ProfileScreen navigation={navigation} route={route} />
       </AuthContext.Provider>
     );
   };
@@ -164,6 +175,35 @@ describe('ProfileScreen', () => {
       expect(getByText('SP Balance')).toBeTruthy();
       expect(getByText('150')).toBeTruthy();
     });
+  });
+
+  it('loads the profile on a fresh mount carrying optimistic params (post-verify navigation.reset)', async () => {
+    // Simulates Profile remounting after email/phone verification, which uses
+    // navigation.reset with optimisticUserPatch + profileUpdatedAt params. On a
+    // fresh mount there is NO cached data yet, so the screen must run a real
+    // load instead of honoring the skip-next-focus-refresh guard — otherwise it
+    // stalls on "Loading profile..." until the user navigates away and back.
+    const navigation = {
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+      setParams: jest.fn(),
+    };
+    const route = {
+      params: {
+        optimisticUserPatch: { email: 'new@example.com' },
+        profileUpdatedAt: 12345,
+      },
+    };
+
+    const { getByText, queryByText } = renderScreen(navigation, route);
+
+    // Must not be stuck on the loading spinner once the real load resolves.
+    await waitFor(() => {
+      expect(getByText('Test User')).toBeTruthy();
+    });
+    expect(queryByText('Loading profile...')).toBeNull();
+    // A real profile fetch must have run (not skipped).
+    expect(mockGetUserProfile).toHaveBeenCalled();
   });
 
   it('navigates to EditProfile when edit action is pressed', async () => {

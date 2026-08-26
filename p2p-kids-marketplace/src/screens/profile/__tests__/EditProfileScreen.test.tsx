@@ -2,6 +2,7 @@
 // TASK FLOW-15: Unit tests for Edit Profile screen (redesigned with filled inputs)
 
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import EditProfileScreen from '../EditProfileScreen';
 import { getUserProfile, updateUserProfile } from '@/services/profile';
@@ -257,6 +258,40 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
         ],
       });
     });
+  });
+
+  it('gives the verify-modal Cancel a ≥44pt touch target so the AX frame matches the tappable region', async () => {
+    const mockRequestEmailChange = requestEmailChange as jest.MockedFunction<
+      typeof requestEmailChange
+    >;
+    mockRequestEmailChange.mockResolvedValue({
+      success: true,
+      message: 'Verification code sent to your new email.',
+      newEmail: 'new@example.com',
+    });
+
+    const { getByPlaceholderText, getByTestId, getByText } = render(
+      <EditProfileScreen navigation={{ goBack: jest.fn() }} />
+    );
+
+    await waitFor(() => {
+      fireEvent.changeText(getByPlaceholderText('Enter your email'), 'new@example.com');
+    });
+    fireEvent.press(getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(getByText('Verify Your Email')).toBeTruthy();
+    });
+
+    const cancelButton = getByTestId('edit-profile-email-verify-cancel');
+    const style = StyleSheet.flatten(cancelButton.props.style);
+    // QA found the reported AX-frame center of the old ~27pt button missed the
+    // actual touch region; a ≥44pt centered target makes the frame and hit area
+    // coincide (their empirically working tap was the 44pt center).
+    expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    expect(style.minWidth).toBeGreaterThanOrEqual(44);
+    expect(style.alignItems).toBe('center');
+    expect(style.justifyContent).toBe('center');
   });
 
   // ---- ACC-TC-B03: phone change → OTP verification modal ----

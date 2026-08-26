@@ -277,8 +277,17 @@ export default function ProfileScreen({ route }: any) {
   useFocusEffect(
     useCallback(() => {
       if (skipNextFocusRefreshRef.current) {
+        // Always consume the flag so it can't leak into a later focus.
         skipNextFocusRefreshRef.current = false;
-        return;
+        // Only honor the skip when we have already rendered once — the
+        // already-mounted navigate-back case, where optimistic data is already
+        // on screen. On a FRESH mount (e.g. navigation.reset after email/phone
+        // verification passes optimisticUserPatch + profileUpdatedAt) there is
+        // no cached data yet, so skipping would leave the screen stuck on
+        // "Loading profile..." until the user navigates away and back.
+        if (hasFocusedOnceRef.current) {
+          return;
+        }
       }
 
       const isFirstFocus = !hasFocusedOnceRef.current;
