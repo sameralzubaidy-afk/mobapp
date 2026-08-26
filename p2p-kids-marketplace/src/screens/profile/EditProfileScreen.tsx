@@ -922,6 +922,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
           <View style={styles.verificationContainer}>
             <View style={styles.verificationHeader}>
               <TouchableOpacity
+                testID="edit-profile-phone-verify-cancel"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
                 onPress={() => {
                   setResendCountdown(0);
                   setPhoneVerification({ visible: false });
@@ -1028,6 +1032,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
           <View style={styles.verificationContainer}>
             <View style={styles.verificationHeader}>
               <TouchableOpacity
+                testID="edit-profile-email-verify-cancel"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
                 onPress={() => {
                   setEmailResendCountdown(0);
                   setEmailVerification({ visible: false });
@@ -1112,6 +1120,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
           <View style={styles.labelRow}>
             <Text style={styles.label}>FULL NAME (CANNOT BE CHANGED)</Text>
             <TouchableOpacity
+              testID="edit-profile-full-name-help"
+              accessible
+              accessibilityRole="button"
               style={styles.supportIconButton}
               onPress={navigateToContactSupport}
               accessibilityLabel="Contact support to change full name"
@@ -1134,6 +1145,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
           <View style={styles.labelRow}>
             <Text style={styles.label}>DATE OF BIRTH (CANNOT BE CHANGED)</Text>
             <TouchableOpacity
+              testID="edit-profile-dob-help"
+              accessible
+              accessibilityRole="button"
               style={styles.supportIconButton}
               onPress={navigateToContactSupport}
               accessibilityLabel="Contact support to change date of birth"

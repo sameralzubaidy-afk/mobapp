@@ -23,6 +23,9 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
 - BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`); if the MCP bundler still cannot resolve `../_shared/*`, INLINE the helper into the function file (canonical repo pattern — see `archive/misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`) and keep the `_shared/` source in sync.
 - BP-51 Pre-deploy verification — run `git diff` / grep the function for the new symbol before deploying an Edge Function; edits can be lost if the working tree is reverted between turns.
+- BP-62 TABLE-returning RPCs — supabase-js returns `RETURNS TABLE(...)` RPC results as an ARRAY even for a single row; read `.success`/fields from `data[0]` (or an unwrap helper), never off the raw array (`verify_email_change_code` always-“Verification failed” bug, 2026-08-26).
+- BP-63 Cross-schema PostgREST uniqueness — `admin.schema('auth').from('users').maybeSingle()` returns HTTP 406 (code treated it as “no row”) → use a SECURITY DEFINER RPC (e.g. `check_account_exists_by_email`) for email-uniqueness checks and fail CLOSED on RPC error (account-email-takeover hazard, 2026-08-26).
+- BP-64 Never log OTP codes in plaintext — not even on staging (logs are more broadly accessible than the DB); log only the destination (`send-phone-otp`, 2026-08-26).
 - Backward compatibility — API response shapes are additive-only; new request params need defaults for old clients; deploy order is migration-first; version the contract if a break is unavoidable.
 
 ## HP-3: Supabase auth/RLS rule (be explicit)
@@ -177,3 +180,73 @@ Rules:
 2. Grep the function for the specific new symbol/call (e.g. `grep -n "resolveSpRedemption" supabase/functions/create-trade-offer/index.ts`) as a cheap presence check before a large deploy.
 3. If the change is missing, re-apply it and re-run the pre-deployment gate (`deno check --no-lock`, BP-25) before deploying.
 4. After deploying, verify the returned `version` incremented (mirrors BP-41 rule 7) so a lost-edit is caught at the deploy boundary, not after.
+
+## BP-62: TABLE-Returning RPC Results Arrive as an ARRAY in supabase-js
+Problem: A Postgres function declared `RETURNS TABLE(...)` is returned by
+supabase-js as an **array of rows** even when it returns exactly one row. Code
+that reads `result.success` / `result.new_email` directly off the raw value gets
+`undefined`, so the branch is treated as a failure even when the RPC genuinely
+succeeded. Confirmed 2026-08-26 on `auth-email-change`: `verify_email_change_code`
+(which returns `RETURNS TABLE(success BOOLEAN, message TEXT, new_email TEXT)`) set
+`verified_at` server-side, but the EF read `verifyResult.success` off the array →
+"Verification failed" every time → `admin.auth.admin.updateUserById` never ran →
+the email was never applied.
+
+Rules:
+1. Know the RPC's return type before reading its result. JSONB / primitive RPCs
+   come back as a single object/value; `RETURNS TABLE(...)` comes back as an array.
+2. For TABLE-returning RPCs, ALWAYS unwrap the first row before reading fields:
+   `const row = Array.isArray(result) ? result[0] : result;` (or a shared
+   `unwrapRpcResult()` helper — see `auth-email-change/index.ts`).
+3. Treat an empty array as "no row" (never a false success) and a non-array
+   object as pass-through, so JSONB RPCs keep working unchanged.
+4. Prefer JSONB return types for single-row RPCs when the caller is a client/EF
+   that reads object fields — the existing `check_account_exists_by_email`
+   migration documents this exact rationale.
+5. When a RPC "always fails" but the DB shows the side effect ran (e.g.
+   `verified_at` set, `attempts` incremented), suspect the array-unwrap bug before
+   touching the RPC logic.
+
+## BP-63: Cross-Schema PostgREST Queries Return 406 — Never Use Them for Uniqueness Checks
+Problem: `admin.schema('auth').from('users').select('id').eq('email', x).maybeSingle()`
+returns **HTTP 406 Not Acceptable** for the cross-schema read, which supabase-js
+surfaces as `data: null` (the code treats it as "no existing user"). A uniqueness
+guard built on it never fires → a user can change their email to an address already
+registered to a DIFFERENT account (account-email-takeover hazard). Confirmed
+2026-08-26 on `auth-email-change`: edge_logs showed
+`GET | 406 | .../rest/v1/users?select=id&email=eq...` and a change to
+`samer.alzubaidi82@gmail.com` (a real registered user) was accepted with a real
+`change_email` sent.
+
+Rules:
+1. Never rely on `admin.schema('auth').from('users')` PostgREST queries for
+   uniqueness/existence checks — they return 406 and read as "no row".
+2. Use a SECURITY DEFINER RPC that queries `auth.users` directly instead. The
+   repo already has `check_account_exists_by_email(p_email)` (returns jsonb
+   `{exists, user_id, providers, has_password}`; migration
+   `20260420000015_check_account_exists_rpc.sql`) — reuse it, don't create a
+   duplicate. GoTrue admin `listUsers` with a filter is the alternative.
+3. FAIL CLOSED: if the uniqueness RPC itself errors, reject the operation
+   (`INTERNAL`, 500) — never allow a change when uniqueness cannot be verified.
+4. When a "uniqueness guard exists but duplicates slip through," check the edge
+   logs for a 406 on the guard query before assuming the guard logic is wrong.
+5. Add an explicit test that attempts the rejected operation (e.g. change email
+   to one already in use → 409 `EMAIL_IN_USE`) — see
+   `supabase/functions/auth-email-change/__tests__/index.test.ts`.
+
+## BP-64: Never Log OTP / Verification Codes in Plaintext
+Problem: `send-phone-otp` logged the generated OTP value
+(`console.log('[send-phone-otp] Generated OTP:', code, ...)`), and the staging
+`change_email` email's `template_data` carried the plain code. Logs are more
+broadly accessible than the DB (platform log streams, support triage) — a
+plaintext OTP in a log is a credential leak. Confirmed 2026-08-26 during the
+B02/B03 investigation.
+
+Rules:
+1. Never log an OTP / verification code value — not even on staging or in dev.
+2. Log only non-secret correlation data (e.g. the destination phone/email).
+3. If an OTP must be inspectable for QA (e.g. the fixed `123456` dev gate), make
+   it a server env toggle that surfaces the value to the USER in the UI (client
+   `__DEV__` hint), never to the logs.
+4. Grep for `code` / `OTP` in `console.log`/`console.error` when reviewing any
+   verification/send-code function.

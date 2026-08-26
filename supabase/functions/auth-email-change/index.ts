@@ -20,7 +20,7 @@
 // path).
 
 import { serve } from 'https://deno.land/std@0.201.0/http/server.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -61,6 +61,49 @@ function generateCode(): string {
   crypto.getRandomValues(array);
   const num = Array.from(array).reduce((acc, val) => acc * 256 + val, 0);
   return ((num % 900000) + 100000).toString(); // 100000-999999
+}
+
+/**
+ * Unwrap a PostgREST RPC result. Functions declared RETURNS TABLE(...) come
+ * back from supabase-js as an ARRAY of rows even for a single row; JSONB /
+ * primitive RPCs come back as a single value. Reading .success/.new_email off
+ * the raw array yields undefined — which silently made verification look like
+ * it "always failed" even when the RPC had verified the code (BP-62).
+ */
+export function unwrapRpcResult(
+  result: unknown
+): Record<string, unknown> | undefined {
+  if (Array.isArray(result)) {
+    const first = result[0];
+    return first && typeof first === 'object'
+      ? (first as Record<string, unknown>)
+      : undefined;
+  }
+  return result && typeof result === 'object'
+    ? (result as Record<string, unknown>)
+    : undefined;
+}
+
+/**
+ * Decides whether the target email is already owned by a DIFFERENT account.
+ * The uniqueness source is the SECURITY DEFINER RPC check_account_exists_by_email
+ * (returns jsonb {exists, user_id, ...} as a single object). The previous
+ * cross-schema PostgREST query (admin.schema('auth').from('users').maybeSingle())
+ * returned HTTP 406, which was treated as "no user" — a real account-takeover
+ * hazard (BP-63). Always fail CLOSED: only a well-formed {exists:true} result
+ * for another user counts as a conflict.
+ */
+export function emailOwnedByOtherUser(
+  existing: { exists?: boolean; user_id?: string | null } | null | undefined,
+  currentUserId: string
+): boolean {
+  return Boolean(
+    existing &&
+      existing.exists === true &&
+      typeof existing.user_id === 'string' &&
+      existing.user_id.length > 0 &&
+      existing.user_id !== currentUserId
+  );
 }
 
 /**
@@ -132,34 +175,21 @@ async function sendOldEmailSecurityAlert(
   }
 }
 
-serve(async (req: Request) => {
-  try {
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
-    }
-    if (req.method !== 'POST') {
-      return new Response('Method Not Allowed', { status: 405, headers: CORS_HEADERS });
-    }
-    if (!SERVICE_ROLE_KEY || !SUPABASE_URL) {
-      return jsonError('SERVER_NOT_CONFIGURED', 'Server not configured: missing service role key', 500);
-    }
-
-    // ---- Authenticate the caller via their JWT (mirrors auth-update-phone) ----
-    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
-    const token = authHeader.replace(/Bearer\s+/i, '').trim();
-    if (!token) {
-      return jsonError('UNAUTHORIZED', 'Missing authorization token', 401);
-    }
-
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-    const { data: authData, error: authError } = await admin.auth.getUser(token);
-    if (authError || !authData?.user) {
-      return jsonError('UNAUTHORIZED', 'Invalid or expired session', 401);
-    }
-    const userId = authData.user.id;
-
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const action = typeof body.action === 'string' ? body.action : '';
+/**
+ * Dispatch a single email-change action (request / resend / verify).
+ *
+ * Extracted from serve() so the request + verify logic is unit-testable with a
+ * mock admin client (see __tests__/index.test.ts). The caller (serve) has
+ * already verified the caller's JWT and passes the resolved userId + current
+ * account email; this function owns only the business logic.
+ */
+export async function handleAction(
+  admin: SupabaseClient,
+  userId: string,
+  authEmail: string | undefined,
+  body: Record<string, unknown>
+): Promise<Response> {
+  const action = typeof body.action === 'string' ? body.action : '';
 
     // =============================================================
     // ACTION: request — mint a pending email change + email the code
@@ -169,19 +199,26 @@ serve(async (req: Request) => {
       if (!EMAIL_RE.test(newEmail)) {
         return jsonError('INVALID_EMAIL', 'Please enter a valid email address.', 400);
       }
-      const currentEmail = (authData.user.email || '').toLowerCase();
+      const currentEmail = (authEmail || '').toLowerCase();
       if (newEmail === currentEmail) {
         return jsonError('SAME_EMAIL', 'That is already your account email.', 400);
       }
 
-      // Uniqueness: no other user may already have this email.
-      const { data: existing } = await admin
-        .schema('auth')
-        .from('users')
-        .select('id')
-        .eq('email', newEmail)
-        .maybeSingle();
-      if (existing && existing.id !== userId) {
+      // Uniqueness: no other user may already have this email (BP-63). The old
+      // cross-schema PostgREST query (admin.schema('auth').from('users').maybeSingle())
+      // returned HTTP 406 → treated as "no user" → account-email-takeover hazard.
+      // Use the existing SECURITY DEFINER RPC check_account_exists_by_email (jsonb
+      // → single object; already used by accountService.checkAccountExists) instead.
+      const { data: existing, error: existingError } = await admin.rpc(
+        'check_account_exists_by_email',
+        { p_email: newEmail }
+      );
+      if (existingError) {
+        // Fail CLOSED: never allow a change when we cannot verify uniqueness.
+        console.error('[auth-email-change] check_account_exists_by_email failed:', existingError);
+        return jsonError('INTERNAL', 'We couldn\'t verify that email is available. Please try again.', 500);
+      }
+      if (emailOwnedByOtherUser(existing as { exists?: boolean; user_id?: string | null }, userId)) {
         return jsonError('EMAIL_IN_USE', 'That email is already used by another account.', 409);
       }
 
@@ -274,8 +311,17 @@ serve(async (req: Request) => {
         return jsonError('INTERNAL', 'We couldn\'t verify that code. Please try again.', 500);
       }
 
-      if (!verifyResult?.success) {
-        const message = verifyResult?.message || 'Verification failed. Please try again.';
+      // BP-62: verify_email_change_code is RETURNS TABLE(...) so supabase-js
+      // returns an ARRAY of rows even for a single row. Unwrap to the first row
+      // before reading .success/.message/.new_email — reading them off the array
+      // yielded undefined, so verification ALWAYS looked like it failed even when
+      // the RPC had verified the code and set verified_at.
+      const verifyRow = unwrapRpcResult(verifyResult);
+      if (!verifyRow?.success) {
+        const message =
+          typeof verifyRow?.message === 'string' && verifyRow.message
+            ? verifyRow.message
+            : 'Verification failed. Please try again.';
         const map: Record<string, { code: string; status: number }> = {
           'No active verification request. Request a new code.': { code: 'NO_PENDING_REQUEST', status: 400 },
           'This code has expired. Request a new one.': { code: 'CODE_EXPIRED', status: 400 },
@@ -286,12 +332,12 @@ serve(async (req: Request) => {
         return jsonError(mapped.code, message, mapped.status);
       }
 
-      const newEmail = verifyResult.new_email;
+      const newEmail = typeof verifyRow.new_email === 'string' ? verifyRow.new_email : '';
       if (!newEmail) {
         return jsonError('INTERNAL', 'Verification succeeded but no target email was found. Please try again.', 500);
       }
 
-      const oldEmail = (authData.user.email || '').toLowerCase();
+      const oldEmail = (authEmail || '').toLowerCase();
 
       // 1. Apply the new email via the admin API (confirmed — we verified it ourselves).
       const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
@@ -331,7 +377,37 @@ serve(async (req: Request) => {
       );
     }
 
-    return jsonError('INVALID_ACTION', 'Unknown action. Use request, resend, or verify.', 400);
+  return jsonError('INVALID_ACTION', 'Unknown action. Use request, resend, or verify.', 400);
+}
+
+serve(async (req: Request) => {
+  try {
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
+    if (req.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405, headers: CORS_HEADERS });
+    }
+    if (!SERVICE_ROLE_KEY || !SUPABASE_URL) {
+      return jsonError('SERVER_NOT_CONFIGURED', 'Server not configured: missing service role key', 500);
+    }
+
+    // ---- Authenticate the caller via their JWT (mirrors auth-update-phone) ----
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+    const token = authHeader.replace(/Bearer\s+/i, '').trim();
+    if (!token) {
+      return jsonError('UNAUTHORIZED', 'Missing authorization token', 401);
+    }
+
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: authData, error: authError } = await admin.auth.getUser(token);
+    if (authError || !authData?.user) {
+      return jsonError('UNAUTHORIZED', 'Invalid or expired session', 401);
+    }
+    const userId = authData.user.id;
+
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    return await handleAction(admin, userId, authData.user.email, body);
   } catch (err) {
     console.error('[auth-email-change] exception:', err);
     return jsonError('INTERNAL', 'Something went wrong. Please try again.', 500);

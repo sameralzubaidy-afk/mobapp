@@ -195,7 +195,10 @@ serve(async (req) => {
 
     // 2. Generate OTP
     const code = generateOTP();
-    console.log('[send-phone-otp] Generated OTP:', code, 'for phone:', phone);
+    // Never log the OTP value — it must not appear in logs even on staging (logs
+    // are more broadly accessible than the DB; BP-64). Log only the destination
+    // for correlation.
+    console.log('[send-phone-otp] OTP generated for phone:', phone);
 
     // 3. Hash OTP using bcrypt
     const codeHash = await hashOTP(code);
