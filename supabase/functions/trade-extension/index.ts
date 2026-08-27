@@ -313,21 +313,27 @@ serve(async (req) => {
     return errResp(400, 'INVALID_STATE', 'Extensions can only be requested during the pickup window (after the offer is accepted).');
   }
 
-  // ── R15-3: exactly one extension per trade (any prior activity blocks) ──
-  if (trade.extension_status !== null) {
-    return errResp(409, 'EXTENSION_ALREADY_USED', 'This trade has already used its one extension.');
-  }
-
   if (action === 'request') {
-    // Idempotent duplicate: a concurrent double-tap returns the same pending request.
-    if (trade.extension_status === 'requested') {
-      return okResp({
-        data: {
-          extension_status: 'requested',
-          extension_request_expires_at: trade.extension_request_expires_at,
-          idempotent: true,
-        },
-      });
+    // R15-3: exactly one extension per trade — any prior activity (requested /
+    // accepted / denied / auto_denied / reauth_failed) blocks a NEW request. The
+    // request RPC row-locks and re-enforces this (EXTENSION_ALREADY_USED); the
+    // fast-fail below gives a clean 409 before the RPC call.
+    // (FIX 2026-08-27: this guard was previously applied to ALL actions, which
+    // made accept/decline unreachable — a pending request sets extension_status
+    // to 'requested', so the accept/decline path below never ran. accept/decline
+    // have their own NO_PENDING_REQUEST / CANNOT_SELF_RESPOND guards.)
+    if (trade.extension_status !== null) {
+      // Idempotent duplicate: a concurrent double-tap returns the same pending request.
+      if (trade.extension_status === 'requested') {
+        return okResp({
+          data: {
+            extension_status: 'requested',
+            extension_request_expires_at: trade.extension_request_expires_at,
+            idempotent: true,
+          },
+        });
+      }
+      return errResp(409, 'EXTENSION_ALREADY_USED', 'This trade has already used its one extension.');
     }
 
     const { data: rpcData, error: rpcErr } = await svcClient.rpc('rpc_request_trade_extension', {
@@ -503,6 +509,10 @@ serve(async (req) => {
   let newPiId: string | null = null;
   try {
     const piKey = `pi_ext_${trade_id}`;
+    // STRIPE-IDEMPOTENCY-FIX (2026-08-27): idempotencyKey MUST be the OPTIONS argument,
+    // never inside the create params. Stripe SDK v14 (esm.sh denonext) detects
+    // `idempotencyKey` inside params as an options-object signal and silently DROPS all
+    // params (amount, currency, ...) -> Stripe returns "Missing required param: amount."
     const pi = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'usd',
@@ -512,7 +522,6 @@ serve(async (req) => {
       capture_method: 'manual',
       off_session: true,
       confirm: true,
-      idempotencyKey: piKey,
       description: `Kids P2P · extension re-auth · ${trade_id.slice(0, 8)}`,
       metadata: {
         type: 'trade_extension_hold',
@@ -524,7 +533,7 @@ serve(async (req) => {
         sp_amount: String(trade.sp_amount ?? 0),
         idempotency_key: piKey,
       },
-    });
+    }, { idempotencyKey: piKey });
     if (pi.status !== 'requires_capture') {
       const declineMsg = pi.last_payment_error?.message ?? 'Your card was declined. Please try another card.';
       console.warn('[trade-extension] fresh PI not requires_capture', pi.status, declineMsg);

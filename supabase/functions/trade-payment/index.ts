@@ -485,6 +485,9 @@ serve(async (req) => {
     // trade 'in_progress' with no PI, and a retry hit the idempotent
     // short-circuit and returned success without ever paying.
     console.log('[trade-payment] Creating PaymentIntent (manual capture) for amount:', cashAmountCents);
+    // STRIPE-IDEMPOTENCY-FIX (2026-08-27): idempotencyKey MUST be the OPTIONS argument,
+    // never inside the create params. Stripe SDK v14 silently DROPS all params when
+    // `idempotencyKey` sits inside the params object -> "Missing required param: amount."
     const paymentIntent = await stripe.paymentIntents.create({
       amount: cashAmountCents,
       currency: trade.cash_currency || 'usd',
@@ -494,14 +497,13 @@ serve(async (req) => {
       capture_method: 'manual', // We will capture only if SP debit succeeds
       off_session: false,
       automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-      idempotencyKey: `pi_trade_${trade.id}`,
       metadata: {
         supabase_trade_id: trade.id,
         buyer_id: trade.buyer_id,
         seller_id: trade.seller_id,
         idempotency_key: `pi_trade_${trade.id}`,
       },
-    });
+    }, { idempotencyKey: `pi_trade_${trade.id}` });
 
     if (paymentIntent.status !== 'requires_capture' && paymentIntent.status !== 'succeeded') {
       console.error('[trade-payment] Payment authorization failed status:', paymentIntent.status);
