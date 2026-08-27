@@ -1,4 +1,4 @@
-import { serve } from 'std/server';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { validatePurgeRequest, type PurgeResponse } from '../_shared/purge-validator.ts';
 
 /**

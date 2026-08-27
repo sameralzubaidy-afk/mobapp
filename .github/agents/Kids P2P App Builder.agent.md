@@ -1066,6 +1066,7 @@ After editing any .ts/.tsx file, you MUST:
 
 run Prettier on the changed file(s) OR ensure editor format-on-save is enabled
 run Prettier from INSIDE each project directory (p2p-kids-marketplace/ or p2p-kids-admin/) — invoking it from the monorepo root hangs (observed under p2p-kids-admin/)
+never run Prettier on files that predate Prettier normalization (the committed file isn't Prettier-shaped, e.g. src/navigation/AppNavigator.tsx) — a wholesale `prettier --write` there rewrites hundreds of unrelated lines (~900-line churn observed). For such files, make logical edits only, matching the file's existing style; Prettier-clean only files whose diff is already "changed".
 never leave JSX in a partially edited state If Prettier would fail, STOP and fix syntax first.
 Layout safety rule (Admin Portal)
 Avoid complex inline JSX edits inside src/app/layout.tsx. If adding nav links or sidebar items:

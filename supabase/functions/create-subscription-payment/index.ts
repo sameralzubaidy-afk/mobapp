@@ -29,7 +29,11 @@ type ResolvedTier = {
 };
 
 async function getAdminConfigNumber(
-  supabase: ReturnType<typeof createClient>,
+  // Use the concrete (permissive) service-role client type so these helpers
+  // type-check cleanly under `deno check` (BP-25). `ReturnType<typeof
+  // createClient>` alone resolves to a `never` schema that makes the `.from(...)`
+  // builders and `.value` reads below fail to type-check.
+  supabase: ReturnType<typeof createClient<any, 'public', any>>,
   key: string,
 ): Promise<number> {
   const { data, error } = await supabase
@@ -68,10 +72,14 @@ function normalizeAdminPriceToCents(rawValue: number): number {
 }
 
 async function resolveTierConfig(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, 'public', any>>,
 ): Promise<ResolvedTier> {
   const selection = '*';
-  const attempts: Array<Promise<{ data: any; error: any }>> = [
+  // NOTE: the `attempts` array is intentionally left un-annotated — each
+  // element is a PostgrestBuilder (a thenable, not a Promise), so annotating it
+  // as Promise<{data,error}> fails `deno check` (BP-25). `await` still works on
+  // each thenable at runtime.
+  const attempts = [
     supabase.from('subscription_tiers').select(selection).eq('name', 'kids_club_plus').eq('is_active', true).maybeSingle(),
     supabase.from('subscription_tiers').select(selection).eq('name', 'kids_club_plus').maybeSingle(),
     supabase.from('subscription_tiers').select(selection).eq('is_default', true).eq('is_active', true).maybeSingle(),

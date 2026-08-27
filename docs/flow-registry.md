@@ -2504,6 +2504,20 @@ add one section on the top give summary on what this file covers from testing an
     - `npm run test:maestro:ios -- .maestro/cart-flow.yaml` (all 13 states pass)
 
 ### FLOW-08: Trade Flow – Checkout + Transaction State Machine
+- **CTO-402-REDEPLOY-AND-GUARD (2026-08-27):** Redeployed `create-trade-offer` to staging from committed source `c1b4ebc5` (WAVE3) + two hardening changes; verified live body + E2E
+  - Module: TradeFlowV2 (FLOW-08 offer submission / D-30 Stripe pre-auth hold; touches FLOW-11 SP reserve)
+  - Scope:
+    - Edge Function `supabase/functions/create-trade-offer/index.ts`:
+      - `STRIPE-AMOUNT-GUARD` (both single-item + bundle background paths): verify `stripeAmount` is a finite positive integer immediately before `paymentIntents.create()`; otherwise return structured `INVALID_PAYMENT_AMOUNT` (500) / route bundle path through `handleBackgroundHoldFailure` instead of calling Stripe with a bad value.
+      - `STRIPE-IDEMPOTENCY-FIX` (both create call sites): moved `idempotencyKey` OUT of the create params into the options argument (`create(params, { idempotencyKey })`). Stripe SDK v14 via esm.sh (denonext) detects `idempotencyKey` inside params as an options-object signal and silently DROPS all params → `Missing required param: amount.` (reproduced locally with stripe@14.11.0 on Deno; fix verified → PI created `requires_capture`).
+  - Deploy note: plain `supabase functions deploy` with Docker NOT running prints "Deployed" but does not actually deploy (version never bumps). Must use `--use-api` (server-side bundle). Live body verified byte-identical to committed source via `supabase functions download` + diff (Edge-Function analogue of the `pg_get_functiondef` discipline).
+  - Tests / verification:
+    - Tier 0: `deno check --no-lock supabase/functions/create-trade-offer/index.ts` (exit 0).
+    - Guard probe: `cash_amount_cents: 2500.5` → HTTP 500 `INVALID_PAYMENT_AMOUNT` (guard live).
+    - E2E (direct EF invocation, test-buyer, staging): Cash-Only (item `83c8823b…`, $25) + Accept-SP (item `36d27564…`, $10, 5 SP) → both `pending`, Stripe PIs `pi_3U91PB…`/`pi_3U91PD…` attached, `buyer_fee_state=active_member` fee 149¢, SP reserved 5 (`reserved_sp` 10→15, available 46→41), `sp_reserved_at` set, `offer_submitted` event + `financial_audit_log` (offer_created / buyer_fee_charged / payment_intent_created) all present. Test trades then cancelled via `cancel-trade` (wallet restored to baseline 46/10) to keep the shared persona clean.
+  - Notes:
+    - The task's "known-good" premise was partially wrong: `c1b4ebc5` fixed the fee-engine/CONFIG_UNAVAILABLE behavior (no deploy drift) but its Stripe `paymentIntents.create` still carried the idempotencyKey-in-params bug that broke EVERY offer hold. See `/memories/repo/stripe-idempotency-key-params-bug.md`.
+    - Sibling functions using `idempotencyKey` inside Stripe method params should be audited for the same bug (trade-payment, subscriptions-webhook, etc.).
 - **MODULE-15.1-UI-REDESIGN-FLOW-08 (2025-01-20):** Trade flow screens redesigned to Whisk-inspired design system
   - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-08)
   - Scope:

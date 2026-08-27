@@ -16,6 +16,13 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+# PayPal webhooks are delivered by PayPal servers with no Supabase JWT.
+# MUST stay verify_jwt=false (verified deployed state 2026-08-27); the CLI deploy
+# reads this entry, so without it a redeploy would flip the function to
+# verify_jwt=true and reject all PayPal webhook events at the gateway.
+[functions.paypal-webhook]
+verify_jwt = false
+
 [functions.stripe-webhook-subscriptions]
 verify_jwt = false
 
@@ -23,6 +30,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.detach-payment-method]
+verify_jwt = false
+
+# release-payment is invoked server-to-server (cron / other functions) without a
+# user JWT. MUST stay verify_jwt=false (verified deployed state 2026-08-27); the
+# CLI deploy reads this entry, so without it a redeploy would flip the function
+# to verify_jwt=true and break scheduled/serviced payment releases.
+[functions.release-payment]
 verify_jwt = false
 
 [functions.send-offer-reminders]

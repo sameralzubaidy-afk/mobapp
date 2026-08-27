@@ -860,6 +860,15 @@ serve(async (req) => {
     let authExpiresAt: string | null = null;
     if (cashCents > 0) {
       const stripeAmount = cashCents + finalTaxCents;
+      // STRIPE-AMOUNT-GUARD (defense-in-depth, 2026-08-27): Stripe requires `amount` to be
+      // a finite positive integer (whole cents). Number.isInteger() already excludes NaN and
+      // ±Infinity. If this ever fires, an upstream calculation produced a malformed amount —
+      // fail loud (structured 500) rather than hand Stripe a bad value, which would either 400
+      // or authorize the wrong amount.
+      if (!Number.isInteger(stripeAmount) || stripeAmount <= 0) {
+        console.error(`[create-trade-offer] req=${requestId} INVALID stripeAmount=${stripeAmount} (cashCents=${cashCents}, finalTaxCents=${finalTaxCents}) — refusing to call Stripe`);
+        return { error: 'Internal payment calculation error. Please try again.', code: 'INVALID_PAYMENT_AMOUNT', status: 500 };
+      }
       // PAYMENT-ITEMIZATION (2026-07-30): Surface the money breakdown (item price after
       // SP, platform fee, sales tax, SP) to Stripe via a human-readable description + rich
       // metadata, so the Stripe dashboard is auditable without querying Postgres.
@@ -873,6 +882,11 @@ serve(async (req) => {
         // double-tap/retry of the SAME offer dedupes to one PaymentIntent on
         // Stripe's side — no orphaned duplicate auth holds.
         const piKey = `pi_offer_${buyerId}_${itemId}_${hashContent(cashCents, spAmt, txFeeCents, finalTaxCents, payment_method_id ?? '')}`;
+        // STRIPE-IDEMPOTENCY-FIX (2026-08-27): idempotencyKey MUST be the OPTIONS argument,
+        // never inside the create params. Stripe SDK v14 (esm.sh denonext) detects
+        // `idempotencyKey` inside params as an options-object signal and silently DROPS all
+        // params (amount, currency, ...) -> Stripe returns "Missing required param: amount."
+        // (reproduced with stripe@14.11.0 on Deno; fix verified).
         const pi = await stripe.paymentIntents.create({
           amount: stripeAmount,
           currency: 'usd',
@@ -882,7 +896,6 @@ serve(async (req) => {
           capture_method: 'manual',
           off_session: true,
           confirm: true,
-          idempotencyKey: piKey,
           description: `Kids P2P · ${itemTitle.slice(0, 60)}`,
           metadata: {
             type: 'trade_offer_hold',
@@ -896,7 +909,7 @@ serve(async (req) => {
             sp_amount: String(spAmt),
             idempotency_key: piKey,
           },
-        });
+        }, { idempotencyKey: piKey });
         console.log(`[perf][${itemId}] stripeCreate done t=${Date.now() - tStart}ms (stripe call itself took ${Date.now() - tStripeStart}ms)`);
 
         if (pi.status !== 'requires_capture') {
@@ -1457,11 +1470,27 @@ serve(async (req) => {
     // PAYMENT-ITEMIZATION: bundle_fee_mode is read once in the batch branch (server-side
     // enforcement) and shared here for the PI metadata. Single-item offers leave it false.
     const bundleFeeMode = oneFeePerBundle;
+    // STRIPE-AMOUNT-GUARD (defense-in-depth, 2026-08-27): Stripe requires `amount` to be
+    // a finite positive integer (whole cents). Number.isInteger() already excludes NaN and
+    // ±Infinity. If this ever fires, an upstream calculation produced a malformed amount —
+    // fail loud through the same failure path as a declined hold (mark payment_failed,
+    // re-affirm item availability, notify buyer) rather than hand Stripe a bad value.
+    if (!Number.isInteger(stripeAmount) || stripeAmount <= 0) {
+      await handleBackgroundHoldFailure(
+        tradeId,
+        itemId,
+        listingTitle,
+        `Internal payment calculation error — invalid hold amount (${stripeAmount}).`
+      );
+      return;
+    }
     try {
       const tStripeStart = Date.now();
       // N2 idempotency: deterministic key per (bundle, item, hold content) so a
       // re-run of this background job cannot create a second orphaned hold.
       const piKey = `pi_bundle_${bundle_id ?? ''}_${itemId}_${hashContent(stripeAmount, platformFeeCents, taxCents, jobSpAmount)}`;
+      // STRIPE-IDEMPOTENCY-FIX (2026-08-27): idempotencyKey MUST be the OPTIONS argument,
+      // never inside the create params (see note above — SDK v14 drops all params otherwise).
       const pi = await stripe.paymentIntents.create({
         amount: stripeAmount,
         currency: 'usd',
@@ -1471,7 +1500,6 @@ serve(async (req) => {
         capture_method: 'manual',
         off_session: true,
         confirm: true,
-        idempotencyKey: piKey,
         description: `Kids P2P · Bundle · ${listingTitle.slice(0, 50)}`,
         metadata: {
           type: 'trade_offer_hold',
@@ -1487,7 +1515,7 @@ serve(async (req) => {
           bundle_fee_mode: bundleFeeMode ? 'one_per_bundle' : 'per_item',
           idempotency_key: piKey,
         },
-      });
+      }, { idempotencyKey: piKey });
       console.log(`[perf][${itemId}] (bundle) background stripeCreate done in ${Date.now() - tStripeStart}ms`);
 
       if (pi.status !== 'requires_capture') {
