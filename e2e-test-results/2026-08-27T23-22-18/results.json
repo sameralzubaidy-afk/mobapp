@@ -1,0 +1,163 @@
+{
+  "module": "MODULE-15.1.2 TradeFlowV2",
+  "generatedAt": "2026-08-27T23:24:16.802Z",
+  "options": {
+    "list": false,
+    "dryRun": false,
+    "help": false,
+    "noPreflight": false,
+    "bail": false,
+    "json": false,
+    "includePending": false,
+    "includeManual": false,
+    "platform": "ios",
+    "runner": null,
+    "groups": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "F"
+    ],
+    "cases": null,
+    "statuses": null,
+    "retries": 1,
+    "timeoutMs": 600000,
+    "outDir": "/Users/sameralzubaidi/Desktop/kids_marketplace_app/e2e-test-results/2026-08-27T23-22-18"
+  },
+  "totals": {
+    "casesSelected": 23,
+    "casesPassed": 0,
+    "casesFailed": 23,
+    "casesSkipped": 3,
+    "unitsExecuted": 6,
+    "unitsPassed": 0,
+    "unitsFailed": 6
+  },
+  "units": [
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-full-trade-flow-v2.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-A01",
+        "TRD-TC-A02",
+        "TRD-TC-A03"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 7684,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit --device 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-full-trade-flow-v2.yaml",
+      "stderrTail": "Invalid File Path at /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/helpers/tfv2-login-seller.yaml:98:3\n"
+    },
+    {
+      "runner": "maestro",
+      "asset": "trade-flow.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-A04",
+        "TRD-TC-B01",
+        "TRD-TC-B03",
+        "TRD-TC-B04",
+        "TRD-TC-B05"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 8271,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit --device 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/trade-flow.yaml",
+      "stderrTail": "Invalid File Path at /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/helpers/tfv2-login-seller.yaml:98:3\n"
+    },
+    {
+      "runner": "maestro",
+      "asset": "swap-points-wallet.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-C01",
+        "TRD-TC-C02",
+        "TRD-TC-C04",
+        "TRD-TC-C05",
+        "TRD-TC-C06"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 17361,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit --device 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/swap-points-wallet.yaml",
+      "stderrTail": "Invalid File Path at /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/helpers/tfv2-login-buyer.yaml:98:3\n"
+    },
+    {
+      "runner": "maestro",
+      "asset": "checkout-sp-cap.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-C07",
+        "TRD-TC-C08"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 6924,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit --device 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/checkout-sp-cap.yaml",
+      "stderrTail": "Invalid File Path at /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/helpers/tfv2-login-seller.yaml:98:3\n"
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-flow-08-trade-v2-components.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-D01",
+        "TRD-TC-D02",
+        "TRD-TC-D03",
+        "TRD-TC-D04",
+        "TRD-TC-D05"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 10017,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit --device 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-flow-08-trade-v2-components.yaml",
+      "stderrTail": "Invalid File Path at /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/helpers/tfv2-login-seller.yaml:98:3\n"
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1-flow-22-payouts.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-F01",
+        "TRD-TC-F02",
+        "TRD-TC-F03"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 9889,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit --device 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1-flow-22-payouts.yaml",
+      "stderrTail": "Invalid File Path at /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/helpers/tfv2-login-seller.yaml:98:3\n"
+    }
+  ],
+  "skipped": [
+    {
+      "id": "TRD-TC-B02",
+      "status": "manual",
+      "reason": "Requires clock fast-forward to expiry window not controllable from the app UI."
+    },
+    {
+      "id": "TRD-TC-B06",
+      "status": "manual",
+      "reason": "Requires Stripe test decline card path; not deterministic from UI without a seeded decline fixture."
+    },
+    {
+      "id": "TRD-TC-C03",
+      "status": "manual",
+      "reason": "Needs clock fast-forward to expiry."
+    }
+  ]
+}
