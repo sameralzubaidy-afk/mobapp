@@ -7,8 +7,14 @@ verify_jwt = false
 [functions.create-stripe-connect-account]
 verify_jwt = false
 
+# create-stripe-account-link is called from the mobile app with the user's JWT
+# and the function enforces its own auth internally. Deployed state is
+# verify_jwt=true (empirically probed 2026-08-27: gateway 401 on unauth
+# request). MUST stay true — the CLI deploy reads this entry, so setting it
+# false here would silently flip the gateway check off and break the auth
+# boundary. (Re-applied 2026-08-27 after a concurrent commit reverted it.)
 [functions.create-stripe-account-link]
-verify_jwt = false
+verify_jwt = true
 
 [functions.trade-payment]
 verify_jwt = false
@@ -48,6 +54,16 @@ verify_jwt = false
 # R7 — Web-first subscription purchase: called by the consumer web app server
 # (passitup.com) with the x-web-secret shared header OR a user JWT.
 [functions.create-checkout-session]
+verify_jwt = false
+
+# purge-cache is an admin-only cache purge invoked server-to-server with an
+# x-api-key header (the function enforces its own auth — no user JWT). Deployed
+# state is verify_jwt=false (empirically probed 2026-08-27: an unauth request
+# reaches the function body and returns its own 405/401, not a gateway 401).
+# MUST stay false — without this entry the CLI deploy defaults to
+# verify_jwt=true and a redeploy would flip the gateway check on and block
+# admin cache purges.
+[functions.purge-cache]
 verify_jwt = false
 
 
