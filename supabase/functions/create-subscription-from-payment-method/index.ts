@@ -345,6 +345,33 @@ serve(async (req) => {
       });
     }
 
+    // DT-11 (2026-08-27): already-subscribed guard. A timeout-retry AFTER a successful
+    // activation must NOT create a second subscription — the per-activation idempotency
+    // key below cannot dedupe a post-success retry (the row now points at the new sub, so
+    // the key differs). If the row shows an active/trialing Stripe subscription, return it.
+    if (['trial', 'active'].includes((subscription as any).status) && subscription.stripe_subscription_id) {
+      try {
+        const existingStripeSub = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+        if (['active', 'trialing'].includes(existingStripeSub.status)) {
+          console.log('[create-subscription-from-payment-method] Already subscribed, returning existing:', existingStripeSub.id);
+          return new Response(JSON.stringify({
+            success: true,
+            subscription_id: existingStripeSub.id,
+            status: existingStripeSub.status,
+            current_period_end: new Date(existingStripeSub.current_period_end * 1000).toISOString(),
+            trial_end: existingStripeSub.trial_end
+              ? new Date(existingStripeSub.trial_end * 1000).toISOString()
+              : null,
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          });
+        }
+      } catch (err: any) {
+        console.warn('[create-subscription-from-payment-method] Existing-sub check failed, proceeding:', err?.message);
+      }
+    }
+
     let customerId = (subscription as SubscriptionCustomerRow).stripe_customer_id;
 
     // Backward compatibility fallback in case some legacy rows still store customer ID in profiles.
@@ -461,7 +488,15 @@ serve(async (req) => {
         }
       }
 
-      stripeSubscription = await stripe.subscriptions.create(subscriptionParams);
+      // DEV-TASK-6 (2026-08-27) + DT-11 (2026-08-27): per-activation idempotency key.
+      // Key includes the row's current stripe_subscription_id (or 'initial' for a first
+      // activation) so each DISTINCT activation/renewal gets a unique key — a later
+      // legitimate renewal must NOT be deduped against a prior activation (the constant
+      // `sub_<row_id>` key broke renewals: every activation mints a fresh price, so Stripe
+      // rejects a re-used key whose params differ). Key is the options arg (BP-65).
+      stripeSubscription = await stripe.subscriptions.create(subscriptionParams, {
+        idempotencyKey: `sub_${subscription.id}_${subscription.stripe_subscription_id || 'initial'}`,
+      });
 
       console.log('[create-subscription-from-payment-method] Created new subscription:', {
         subscription_id: stripeSubscription.id,

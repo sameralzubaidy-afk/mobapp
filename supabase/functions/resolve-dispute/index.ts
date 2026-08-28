@@ -167,12 +167,44 @@ serve(async (req) => {
             } else if (pi.status === 'succeeded') {
               // Captured payment — issue a refund
               console.log(`[resolve-dispute] Issuing Stripe refund for PI: ${trade.stripe_payment_intent_id}`);
-              const refund = await stripe.refunds.create({
-                payment_intent: trade.stripe_payment_intent_id,
-                reason: 'requested_by_customer',
-                metadata: { supabase_trade_id: trade_id, admin_action: 'resolve_dispute_refund' },
-              });
-              await svcClient.from('trades').update({ stripe_refund_id: refund.id }).eq('id', trade_id);
+              // DEV-TASK-6 (2026-08-27): idempotency key (options arg, BP-65) so a
+              // timeout-retry of the same dispute refund can never issue a duplicate
+              // Stripe refund. Close the check-then-act gap: if the charge was ALREADY
+              // refunded by a prior attempt, reconcile the existing refund id from
+              // Stripe instead of silently leaving trades.stripe_refund_id null.
+              let refundId: string;
+              let refundStatus = 'succeeded';
+              try {
+                const refund = await stripe.refunds.create(
+                  {
+                    payment_intent: trade.stripe_payment_intent_id,
+                    reason: 'requested_by_customer',
+                    metadata: { supabase_trade_id: trade_id, admin_action: 'resolve_dispute_refund' },
+                  },
+                  { idempotencyKey: `refund_${trade_id}` },
+                );
+                refundId = refund.id;
+                refundStatus = refund.status;
+              } catch (refundErr: unknown) {
+                const err = refundErr as { code?: string; message?: string };
+                const alreadyRefunded =
+                  err?.code === 'charge_already_refunded' ||
+                  /already been refunded/i.test(err?.message ?? '');
+                if (!alreadyRefunded) throw refundErr;
+                const existing = await stripe.refunds.list({
+                  payment_intent: trade.stripe_payment_intent_id,
+                  limit: 5,
+                });
+                const prior = existing?.data?.[0];
+                if (!prior?.id) throw refundErr;
+                refundId = prior.id;
+                refundStatus = prior.status ?? 'succeeded';
+                console.log(
+                  `[resolve-dispute] Charge already refunded — reconciled existing refund ${refundId} for trade ${trade_id}`,
+                );
+              }
+
+              await svcClient.from('trades').update({ stripe_refund_id: refundId }).eq('id', trade_id);
 
               // TAX-REFUND-INTEGRITY (2026-07-24): Use the new rpc_record_stripe_refund
               // which is idempotent and only reverses tax after Stripe confirms the refund.
@@ -186,9 +218,9 @@ serve(async (req) => {
                 if (taxRecord && (taxRecord as { tax_amount_cents: number }).tax_amount_cents > 0) {
                   await svcClient.rpc('rpc_record_stripe_refund', {
                     p_trade_id: trade_id,
-                    p_stripe_refund_id: refund.id,
+                    p_stripe_refund_id: refundId,
                     p_refund_amount_cents: (taxRecord as { tax_amount_cents: number }).tax_amount_cents,
-                    p_refund_status: refund.status,
+                    p_refund_status: refundStatus,
                     p_refund_reason: 'dispute_resolved_refund',
                     p_initiating_actor: 'admin',
                   });

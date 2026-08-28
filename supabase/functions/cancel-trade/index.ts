@@ -249,14 +249,44 @@ serve(async (req: Request) => {
             await supabaseClient.from('trades').update({ stripe_refund_id: `cancelled_${cancelled.id}` }).eq('id', tradeId);
           } else if (pi.status === 'succeeded') {
             // Captured payment — issue a refund
-            const refund = await stripe.refunds.create({
-              payment_intent: trade.stripe_payment_intent_id,
-              reason: 'requested_by_customer',
-              metadata: { supabase_trade_id: tradeId },
-            });
-            console.log('[cancel-trade] Stripe refund issued:', refund.id);
+            // DEV-TASK-6 (2026-08-27): idempotency key (options arg, BP-65) so a
+            // timeout-retry of the same cancel can never issue a duplicate Stripe
+            // refund. Close the check-then-act gap: if the charge was ALREADY
+            // refunded (refund made but DB update never landed on a prior attempt),
+            // reconcile the existing refund id from Stripe instead of silently
+            // dropping it — otherwise trades.stripe_refund_id stays null and the
+            // reconciliation/tax-reversal gap persists.
+            let refundId: string;
+            try {
+              const refund = await stripe.refunds.create(
+                {
+                  payment_intent: trade.stripe_payment_intent_id,
+                  reason: 'requested_by_customer',
+                  metadata: { supabase_trade_id: tradeId },
+                },
+                { idempotencyKey: `refund_${tradeId}` },
+              );
+              refundId = refund.id;
+            } catch (refundErr: unknown) {
+              const err = refundErr as { code?: string; message?: string };
+              const alreadyRefunded =
+                err?.code === 'charge_already_refunded' ||
+                /already been refunded/i.test(err?.message ?? '');
+              if (!alreadyRefunded) throw refundErr;
+              const existing = await stripe.refunds.list({
+                payment_intent: trade.stripe_payment_intent_id,
+                limit: 5,
+              });
+              const prior = existing?.data?.[0];
+              if (!prior?.id) throw refundErr;
+              refundId = prior.id;
+              console.log(
+                `[cancel-trade] Charge already refunded — reconciled existing refund ${refundId} for trade ${tradeId}`,
+              );
+            }
+            console.log('[cancel-trade] Stripe refund issued:', refundId);
             // Store refund id (service role) to prevent duplicate refunds
-            await supabaseClient.from('trades').update({ stripe_refund_id: refund.id }).eq('id', tradeId);
+            await supabaseClient.from('trades').update({ stripe_refund_id: refundId }).eq('id', tradeId);
           } else {
             // canceled / requires_payment_method / etc — nothing to refund or cancel
             console.log('[cancel-trade] PI status is', pi.status, '- no refund/cancel needed for trade:', tradeId);

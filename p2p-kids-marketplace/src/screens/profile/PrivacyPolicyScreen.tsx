@@ -220,7 +220,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 40,
+    // BP-58: the floating pill nav overlays the stack bottom (~110pt up). The
+    // in-flow Accept button is the last child, so give the scroll enough bottom
+    // padding that it can scroll fully clear of the pill.
+    paddingBottom: 100,
   },
   lastUpdated: {
     fontSize: 13,

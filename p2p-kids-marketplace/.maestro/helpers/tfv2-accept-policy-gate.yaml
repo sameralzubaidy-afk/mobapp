@@ -1,0 +1,49 @@
+# FLOW: tfv2-accept-policy-gate
+# Purpose: Dismiss/accept the Terms of Service / Privacy Policy soft-gate (J05,
+# PolicyReacceptanceGate) that can appear AFTER login for a returning user who
+# hasn't accepted the current published policy version. Conditional + safe:
+# each block only runs when its accept button is actually visible, so a user who
+# has already accepted (or a fresh user who never triggers the gate) is
+# unaffected and the flow proceeds normally.
+#
+# Call site: helpers/tfv2-login-seller.yaml, helpers/tfv2-login-buyer.yaml, and
+# any flow with an inlined login (e.g. menu-bar-navigation.yaml).
+# Place AFTER login submit, BEFORE the "authenticated stack loaded" assert.
+#
+# Maestro 2.6.1-compatible: uses only `id:` under `visible:` (no bare props on
+# top-level commands, no `direction:` on scroll:), matching this week's fixes.
+#
+# The gate navigates ASYNCHRONOUSLY post-login and the accept button renders only
+# after the policy fetch completes, so we POLL (repeat) rather than check once.
+# Each `runFlow when` is a no-op when the button isn't present, so a user who has
+# already accepted (or never triggers the gate) passes through untouched.
+
+appId: com.sameralzubaidi.p2pmarketplace
+---
+# ── Poll for TOS / Privacy acceptance gate (J05) ────────────────────────────
+- repeat:
+    times: 4
+    commands:
+      # Terms of Service acceptance button
+      - runFlow:
+          when:
+            visible:
+              id: "accept-tos-button"
+          commands:
+            - tapOn:
+                id: "accept-tos-button"
+            - waitForAnimationToEnd
+            - waitForAnimationToEnd
+
+      # Privacy Policy acceptance button
+      - runFlow:
+          when:
+            visible:
+              id: "privacy-policy-accept-button"
+          commands:
+            - tapOn:
+                id: "privacy-policy-accept-button"
+            - waitForAnimationToEnd
+            - waitForAnimationToEnd
+
+      - waitForAnimationToEnd

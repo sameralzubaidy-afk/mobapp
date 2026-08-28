@@ -168,13 +168,46 @@ serve(async (req: Request): Promise<Response> => {
 
     const invoice = invoices.data[0];
 
+    // ── DEV-TASK-6 (2026-08-27): Reset retry gate BEFORE invoking Stripe ─────
+    // The payment_retry_count / payment_failed_at reset used to run only AFTER a
+    // successful invoices.pay. A timeout between the Stripe charge and that DB
+    // reset left a stale count that could re-enable this retry path (an unintended
+    // re-invocation). Clearing the gate first — the user is explicitly retrying —
+    // means a timeout can never leave a stale count. `status` is intentionally NOT
+    // touched here: a declined retry is re-marked by the invoice.payment_failed
+    // webhook (record_payment_attempt p_success=false), and a successful charge
+    // transitions to active in the success branch below.
+    const { error: resetError } = await supabaseClient
+      .from('subscriptions')
+      .update({
+        payment_retry_count: 0,
+        payment_failed_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', sub.id);
+
+    if (resetError) {
+      console.error('[retry-failed-payment] Failed to reset retry gate before Stripe pay:', resetError);
+      // Non-fatal — the idempotency key below is the real double-charge guard.
+    }
+
     // Retry the invoice payment (this will use the default payment method on customer)
-    const retriedInvoice = await stripe.invoices.pay(invoice.id, {
-      paid_out_of_band: false, // Attempt real charge
-    });
+    // DEV-TASK-6 (2026-08-27): per-invoice idempotency key so a timeout-retry of the
+    // SAME invoice can never double-charge. STRIPE-IDEMPOTENCY-FIX: key is the options
+    // arg, never a property of the params object (BP-65).
+    // DT-11 (2026-08-27): `paid_out_of_band: false` is REJECTED by Stripe
+    // ("invalid_paid_out_of_band_parameter ... must be 'true'"), so the retry could never
+    // actually charge — omit the param entirely (its default IS the real-charge attempt).
+    const retriedInvoice = await stripe.invoices.pay(
+      invoice.id,
+      // Attempt real charge (paid_out_of_band omitted — Stripe rejects an explicit `false`).
+      // Expand payment_intent so we can read the charge ID for the billing ledger.
+      { expand: ['payment_intent'] },
+      { idempotencyKey: `invoice_pay_${invoice.id}` },
+    );
 
     if (retriedInvoice.status === 'paid') {
-      // ── Success: Reset retry count and failure timestamp ────────────────────
+      // ── Success: finalize state (status → active; RPC records last_payment_date) ──
       const { error: updateError } = await supabaseClient
         .from('subscriptions')
         .update({
@@ -190,11 +223,50 @@ serve(async (req: Request): Promise<Response> => {
         // Payment succeeded but DB update failed — log for manual intervention
       }
 
-      // ── Call record_payment_attempt RPC to reset state cleanly ──────────────
-      await supabaseClient.rpc('record_payment_attempt', {
+      // ── Charge + amount from the retried invoice (ledger + last_payment) ────
+      // Match the webhook's charge_id resolution so retry and invoice.payment_succeeded
+      // write the SAME billing_history row (upsert dedupes on charge_id).
+      const pi = retriedInvoice.payment_intent;
+      const retriedChargeId =
+        (typeof retriedInvoice.charge === 'string' && retriedInvoice.charge) ||
+        (typeof pi === 'object' && pi !== null && typeof pi.latest_charge === 'string' && pi.latest_charge) ||
+        (typeof pi === 'string' && pi) ||
+        retriedInvoice.id;
+      const retriedAmount = retriedInvoice.amount_paid || retriedInvoice.amount_due || 0;
+
+      // ── Call record_payment_attempt RPC to reset state cleanly AND record the
+      //    last payment (SUB-002 RPC sets subscriptions.last_payment_amount when
+      //    p_amount is passed — fixes last_payment_amount staying NULL on retry). ──
+      const { error: attemptError } = await supabaseClient.rpc('record_payment_attempt', {
         p_user_id: user_id,
         p_success: true,
+        p_amount: retriedAmount,
+        p_charge_id: retriedChargeId,
       });
+      if (attemptError) {
+        console.error('[retry-failed-payment] record_payment_attempt failed after successful payment:', attemptError.message);
+      }
+
+      // ── Billing ledger (idempotent on charge_id) — Item 3 (2026-08-27) ───────
+      const { error: billingError } = await supabaseClient.from('billing_history').upsert(
+        {
+          user_id,
+          subscription_id: sub.id,
+          charge_id: retriedChargeId,
+          stripe_invoice_id: retriedInvoice.id,
+          amount: retriedAmount,
+          currency: retriedInvoice.currency || 'usd',
+          status: 'succeeded',
+          charged_at: retriedInvoice.status_transitions?.paid_at
+            ? new Date(retriedInvoice.status_transitions.paid_at * 1000).toISOString()
+            : new Date().toISOString(),
+          description: 'Kids Club+ subscription - retried payment',
+        },
+        { onConflict: 'charge_id', ignoreDuplicates: true },
+      );
+      if (billingError) {
+        console.error('[retry-failed-payment] billing_history upsert failed:', billingError.message);
+      }
 
       console.log(`[retry-failed-payment] ✅ Payment retry succeeded for user=${user_id}`);
 

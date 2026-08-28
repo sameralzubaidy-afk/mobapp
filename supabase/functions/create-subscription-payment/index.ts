@@ -382,7 +382,13 @@ serve(async (req) => {
     }
 
     console.log('[create-subscription-payment] Subscription params:', JSON.stringify(subscriptionParams));
-    const stripeSubscription = await stripe.subscriptions.create(subscriptionParams);
+    // DEV-TASK-6 (2026-08-27): per-activation idempotency key (subscription ROW id)
+    // so a double-tap/timeout-retry of the same activation can never create a second
+    // recurring subscription. Key is the options arg (BP-65). NOT sub_<user_id> alone —
+    // that would wrongly dedupe a later legitimate re-subscribe.
+    const stripeSubscription = await stripe.subscriptions.create(subscriptionParams, {
+      idempotencyKey: `sub_${subscription.id}`,
+    });
 
     console.log(`[create-subscription-payment] Stripe subscription created: ${stripeSubscription.id}`);
 

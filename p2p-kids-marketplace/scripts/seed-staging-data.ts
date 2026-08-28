@@ -989,7 +989,9 @@ async function seedListings(
     const existing = existingRes.data;
 
     if (existing) {
-      // Reset status to available if it was previously sold/pending
+      // Reset status to available if it was previously sold/pending/unavailable
+      // OR paused (a paused listing was not being reset — QA fixtures like the
+      // Accept-SP A02 item could stay stuck non-available across re-seeds).
       // Also (re)stamp approval metadata so the every-available-item-is-approved
       // invariant holds (approved_at must be set on any 'available' row).
       const { error: resetError } = await adminSupabase
@@ -1000,7 +1002,7 @@ async function seedListings(
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
-        .in('status', ['sold', 'pending', 'unavailable']);
+        .in('status', ['sold', 'pending', 'unavailable', 'paused']);
       if (resetError) {
         console.log(`   ⚠️ Could not reset status for: ${listing.title} (${resetError.message})`);
       }

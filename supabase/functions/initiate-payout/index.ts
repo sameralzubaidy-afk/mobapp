@@ -258,14 +258,26 @@ serve(async (req) => {
     );
   }
 
-  // Load seller's Stripe Connect account
-  const { data: sellerProfile } = await svcClient
-    .from('profiles')
-    .select('stripe_connect_account_id')
+  // Load seller's Stripe Connect account.
+  // Canonical source: seller_payout_methods.stripe_account_id (BP-73).
+  // NOTE: profiles.stripe_connect_account_id DOES NOT EXIST (42703 on staging) —
+  // this previously fell through to the requires_action path and the transfer
+  // could never dispatch, so the Connect payout chain was unreachable.
+  const { data: sellerPayoutMethod, error: pmError } = await svcClient
+    .from('seller_payout_methods')
+    .select('id, user_id, stripe_account_id')
     .eq('user_id', trade.seller_id)
-    .single();
+    .eq('method_type', 'stripe_connect')
+    .eq('is_primary', true)
+    .maybeSingle();
 
-  if (!sellerProfile?.stripe_connect_account_id) {
+  const connectAccountId = sellerPayoutMethod?.stripe_account_id ?? null;
+
+  if (pmError) {
+    console.error(`[initiate-payout] Seller payout method query failed:`, pmError);
+  }
+
+  if (!connectAccountId) {
     console.error(`[initiate-payout] Seller ${trade.seller_id} has no Stripe Connect account`);
     // Set requires_action so seller sees "Action Required" in payout UI (§6.3.3)
     // Also attempt to create the seller_payouts record if it doesn't exist yet.
@@ -357,13 +369,13 @@ serve(async (req) => {
   const ownership = await verifyStripeAccountOwnership(
     svcClient,
     trade.seller_id,
-    sellerProfile.stripe_connect_account_id,
+    connectAccountId,
   );
   if (!ownership.owned) {
     console.error('[initiate-payout] Stripe ownership verification failed', {
       trade_id,
       seller_id: trade.seller_id,
-      stripe_account_id: sellerProfile.stripe_connect_account_id,
+      stripe_account_id: connectAccountId,
       reason: ownership.error,
     });
     await svcClient
@@ -477,7 +489,7 @@ serve(async (req) => {
     const transfer = await stripe.transfers.create({
       amount:      payoutAmountCents,
       currency:    'usd',
-      destination: sellerProfile.stripe_connect_account_id,
+      destination: connectAccountId,
       metadata:    {
         trade_id,
         seller_id: trade.seller_id,

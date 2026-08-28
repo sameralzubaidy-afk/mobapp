@@ -54,7 +54,8 @@ appId: com.sameralzubaidi.p2pmarketplace
       - waitForAnimationToEnd
       # Class 1: scrollUntilVisible to ensure button is on screen
       - scrollUntilVisible:
-          id: "login-submit-button"
+          element:
+            id: "login-submit-button"
           direction: DOWN
           timeout: 5000
       - tapOn:
@@ -72,7 +73,8 @@ appId: com.sameralzubaidi.p2pmarketplace
       - hideKeyboard
       - waitForAnimationToEnd
       - scrollUntilVisible:
-          id: "login-submit-button"
+          element:
+            id: "login-submit-button"
           direction: DOWN
           timeout: 5000
       - tapOn:
@@ -90,9 +92,16 @@ appId: com.sameralzubaidi.p2pmarketplace
           text: "Not Now"
       - waitForAnimationToEnd
 
-# Class 3: Assert login result — confirm authenticated stack loaded
-- assertVisible:
-    id: "tab-discover"
-    timeout: 15000
+# Class 3: Accept/dismiss the Terms of Service / Privacy Policy soft-gate (J05)
+# if it appears after login for a returning user who hasn't accepted the current
+# published policy version. Conditional + safe: no-op when the gate isn't shown.
+# NOTE: runFlow paths resolve relative to THIS file (inside .maestro/helpers/),
+# so the sibling helper is referenced by bare filename (no helpers/ prefix).
+- runFlow: tfv2-accept-policy-gate.yaml
+
+# Class 4: Assert login result — confirm authenticated stack loaded
+- extendedWaitUntil:
+    visible:
+      id: "tab-discover"
+    timeout: 20000
 - takeScreenshot: "CHECKPOINT-seller-logged-in"
-  enabled: ${SCREENSHOTS_ENABLED}

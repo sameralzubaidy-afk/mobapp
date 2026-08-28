@@ -71,22 +71,21 @@ appId: com.sameralzubaidi.p2pmarketplace
 # If this fails, stop here — do not switch users, do not proceed.
 - waitForAnimationToEnd
 - waitForAnimationToEnd                           # Double wait for data fetch
-- scroll:
+- swipe:
     direction: DOWN
     duration: 800
 - waitForAnimationToEnd
-- scroll:
+- swipe:
     direction: UP
     duration: 400
 # Diagnostic screenshot capturing what the Discover screen shows right before the assert
 # If the assert times out, this screenshot explains WHY (empty state, error banner, etc.)
 - takeScreenshot: "DIAG-seed-gate-before-assert"
-  enabled: ${SCREENSHOTS_ENABLED}
-- assertVisible:
-    id: "search-result-"                          # Hard assert — seed must be visible
+- extendedWaitUntil:
+    visible:
+      id: "search-result-"                          # Hard assert — seed must be visible
     timeout: 15000
 - takeScreenshot: "CHECKPOINT-seed-verified"
-  enabled: ${SCREENSHOTS_ENABLED}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PHASE 2 — Switch to Buyer (clean session)
@@ -135,7 +134,8 @@ appId: com.sameralzubaidi.p2pmarketplace
 
       # Class 1: scrollUntilVisible to ensure button is on screen
       - scrollUntilVisible:
-          id: "login-submit-button"
+          element:
+            id: "login-submit-button"
           direction: DOWN
           timeout: 5000
 
@@ -154,7 +154,6 @@ appId: com.sameralzubaidi.p2pmarketplace
 - assertVisible:
     id: "tab-discover"
 - takeScreenshot: "01-after-login"
-  enabled: ${SCREENSHOTS_ENABLED}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PHASE 3 — Navigate to Discover + Wait for Results
@@ -167,21 +166,21 @@ appId: com.sameralzubaidi.p2pmarketplace
 # Class 2: Double-wait + scroll-and-retry pattern for data-dependent screens
 # (Failure 2 fix — replaces single extendedWaitUntil that silently timed out)
 - waitForAnimationToEnd
-- scroll:
+- swipe:
     direction: DOWN
     duration: 800
 - waitForAnimationToEnd
-- scroll:
+- swipe:
     direction: UP
     duration: 400
 - waitForAnimationToEnd
 
 # [DiscoverScreen] Hard assert — not optional
-- assertVisible:
-    id: "search-result-"
+- extendedWaitUntil:
+    visible:
+      id: "search-result-"
     timeout: 15000
 - takeScreenshot: "02-discover-with-results"
-  enabled: ${SCREENSHOTS_ENABLED}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PHASE 4 — Tap Listing → Item Detail → Request to Buy
@@ -201,12 +200,12 @@ appId: com.sameralzubaidi.p2pmarketplace
     id: "request-to-buy-button"
 - waitForAnimationToEnd
 - takeScreenshot: "03-item-detail"
-  enabled: ${SCREENSHOTS_ENABLED}
 
 # [ItemDetailScreen] Tap Request to Buy
 # Class 1: Ensure button is visible and not blocked
 - scrollUntilVisible:
-    id: "request-to-buy-button"
+    element:
+      id: "request-to-buy-button"
     direction: DOWN
     timeout: 5000
 - tapOn:
@@ -223,14 +222,14 @@ appId: com.sameralzubaidi.p2pmarketplace
 - assertVisible:
     id: "send-offer-button"                       # Hard assert — no optional
 - takeScreenshot: "04-trade-offer"
-  enabled: ${SCREENSHOTS_ENABLED}
 
 # ── Submit the offer (Fix for "Offer never submitted") ──────────────────
 # Class 1: hide keyboard, ensure send-offer-button is visible, then tap
 - hideKeyboard
 - waitForAnimationToEnd
 - scrollUntilVisible:
-    id: "send-offer-button"
+    element:
+      id: "send-offer-button"
     direction: DOWN
     timeout: 5000
 - tapOn:
@@ -241,8 +240,9 @@ appId: com.sameralzubaidi.p2pmarketplace
 # Wait for it to load, check the checkbox, then accept.
 # [DisclaimerModal] Wait for modal to appear
 - waitForAnimationToEnd
-- assertVisible:
-    id: "disclaimer-modal"
+- extendedWaitUntil:
+    visible:
+      id: "disclaimer-modal"
     timeout: 10000
 
 # Self-heal: if disclaimer fetch failed (network error), tap Retry and wait for load
@@ -256,13 +256,15 @@ appId: com.sameralzubaidi.p2pmarketplace
       - waitForAnimationToEnd
       - waitForAnimationToEnd
       # Re-assert the modal loaded successfully after retry
-      - assertVisible:
-          id: "disclaimer-modal-checkbox"
+      - extendedWaitUntil:
+          visible:
+            id: "disclaimer-modal-checkbox"
           timeout: 10000
 
 # Check the "I understand" checkbox (required to enable accept button)
 - scrollUntilVisible:
-    id: "disclaimer-modal-checkbox"
+    element:
+      id: "disclaimer-modal-checkbox"
     direction: DOWN
     timeout: 5000
 - tapOn:
@@ -276,11 +278,11 @@ appId: com.sameralzubaidi.p2pmarketplace
 - waitForAnimationToEnd                          # Wait for Stripe pre-auth + navigation
 
 # [TradeSuccessScreen] Assert post-submission state
-- assertVisible:
-    id: "success-icon"
+- extendedWaitUntil:
+    visible:
+      id: "success-icon"
     timeout: 15000
 - takeScreenshot: "CHECKPOINT-offer-submitted"
-  enabled: ${SCREENSHOTS_ENABLED}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PHASE 6 — Navigate to Trade List via Profile
@@ -297,7 +299,8 @@ appId: com.sameralzubaidi.p2pmarketplace
 
 # Tap profile trades stat to open TradeListScreen
 - scrollUntilVisible:
-    id: "profile-trades-stat"
+    element:
+      id: "profile-trades-stat"
     direction: DOWN
     timeout: 5000
 - tapOn:
@@ -315,8 +318,9 @@ appId: com.sameralzubaidi.p2pmarketplace
 - waitForAnimationToEnd
 
 # [TradeListScreen] Tap first trade row to open detail
-- assertVisible:
-    id: "trade-row-"
+- extendedWaitUntil:
+    visible:
+      id: "trade-row-"
     timeout: 10000
 - tapOn:
     id: "trade-row-"
@@ -327,7 +331,6 @@ appId: com.sameralzubaidi.p2pmarketplace
 - assertVisible:
     id: "trade-status-badge"
 - takeScreenshot: "05-trade-detail"
-  enabled: ${SCREENSHOTS_ENABLED}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PHASE 7 — Clean Up

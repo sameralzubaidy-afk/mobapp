@@ -430,17 +430,19 @@ export default function TradeTimelineScreen() {
       const result = await completeTradeV2(tradeId);
 
       if (result.success) {
-        // Refresh wallet + trade data after completion
-        try {
-          if (refreshSession) await refreshSession();
-        } catch (e) {
-          console.warn('[TradeTimeline] refreshSession after complete failed', e);
-        }
-        try {
-          await fetchTrade();
-        } catch (e) {
-          console.warn('[TradeTimeline] fetchTrade after complete failed', e);
-        }
+        // Refresh wallet + trade data after completion. Run both in parallel and
+        // do NOT block the success-screen navigation on them — the buyer is
+        // replaced to TradeSuccess immediately so completion feels instant
+        // (previously these ran sequentially before navigating, adding seconds
+        // of latency after the Edge Function finished).
+        const refreshP = (refreshSession
+          ? refreshSession().catch((e) =>
+              console.warn('[TradeTimeline] refreshSession after complete failed', e)
+            )
+          : Promise.resolve()) as Promise<unknown>;
+        const tradeP = fetchTrade().catch((e) =>
+          console.warn('[TradeTimeline] fetchTrade after complete failed', e)
+        );
 
         // TC-H02: Navigate buyer to TradeSuccessScreen with SP/role params
         const isBuyer = user?.id === trade?.buyer_id;
@@ -458,7 +460,13 @@ export default function TradeTimelineScreen() {
             counterpartyId: trade?.seller_id ?? '',
             counterpartyName: counterpartyProfile?.name || 'the Seller',
           });
+          // TradeSuccess reads session.available_points reactively, so the
+          // background refresh will re-render it with fresh data when done.
+          void Promise.allSettled([refreshP, tradeP]);
         } else {
+          // Seller path: wait for the refreshes so the success notification
+          // reflects fresh data before dismissing the modal.
+          await Promise.allSettled([refreshP, tradeP]);
           showNotif('Success', result.message || 'Trade marked as completed!', 'accept', () => {
             setNotifModal(null);
             fetchTrade();

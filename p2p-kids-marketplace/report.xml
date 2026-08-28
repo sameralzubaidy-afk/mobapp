@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <testsuites>
-  <testsuite name="Test Suite" device="iPhone 16 Pro E2E - iOS 26.5 - 74209153-AB20-4414-A8A3-A5BF71FE7716" tests="1" failures="1" time="463.0">
-    <testcase id="tax-checkout" name="tax-checkout" classname="tax-checkout" file=".maestro/tax-checkout.yaml" time="463.0" status="ERROR">
+  <testsuite name="Test Suite" device="iPhone 17 Pro Max - iOS 26.1 - 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E" tests="1" failures="1" time="16.0">
+    <testcase id="module-15.1-flow-22-payouts" name="module-15.1-flow-22-payouts" classname="module-15.1-flow-22-payouts" file=".maestro/module-15.1-flow-22-payouts.yaml" time="16.0" status="ERROR">
       <failure>Unknown error</failure>
     </testcase>
   </testsuite>

@@ -442,7 +442,16 @@ serve(async (req) => {
       };
 
       // Create new subscription (immediate charge, no trial)
-      stripeSubscription = await stripe.subscriptions.create(createParams);
+      // DEV-TASK-6 (2026-08-27) + DT-11 (2026-08-27): per-activation idempotency key.
+      // Key includes the row's current (old) stripe_subscription_id so each distinct
+      // renewal gets a unique key — a later renewal must NOT be deduped against a prior
+      // activation (the constant `sub_<row_id>` key broke renewals: every activation mints
+      // a fresh price, so Stripe rejects a re-used key whose params differ). The status
+      // guard (grace_period/expired only) already blocks a post-success retry of the same
+      // renewal. Key is the options arg (BP-65).
+      stripeSubscription = await stripe.subscriptions.create(createParams, {
+        idempotencyKey: `sub_${sub.id}_${sub.stripe_subscription_id || 'initial'}`,
+      });
 
       console.log('[renew-subscription] Created new subscription:', stripeSubscription.id);
     }
@@ -527,23 +536,52 @@ serve(async (req) => {
       console.error('[renew-subscription] Error unfreezing SP wallet:', err);
     }
 
-    // 10. Create billing history record
+    // 10. Create billing history record. The invoice from a fresh renewal is paid
+    //     via a PaymentIntent that is NOT always attached to the invoice (observed
+    //     2026-08-27: latest_invoice.payment_intent === null and invoice.charge ===
+    //     null while a detached charge exists), so resolve charge_id/amount with
+    //     invoice-level fallbacks — never skip the write on a successful renewal.
+    //     NOTE: the invoice.payment_succeeded webhook is NOT subscribed on this
+    //     account, so this EF write is the only billing_history writer for renewals.
+    //     Upsert stays idempotent on charge_id regardless.
     try {
       const charge = paymentIntent?.charges?.data?.[0];
-      if (charge) {
-        await supabaseClient.from('billing_history').insert({
-          user_id,
-          subscription_id: sub.id,
-          charge_id: charge.id,
-          stripe_invoice_id: latestInvoice?.id,
-          amount: charge.amount,
-          currency: charge.currency,
-          status: charge.status === 'succeeded' ? 'succeeded' : 'pending',
-          charged_at: new Date(charge.created * 1000).toISOString(),
-          description: `Kids Club+ subscription renewal`,
-        });
+      const chargeId =
+        charge?.id ||
+        (typeof latestInvoice?.charge === 'string' ? latestInvoice.charge : null) ||
+        (typeof latestInvoice?.payment_intent === 'string' ? latestInvoice.payment_intent : null) ||
+        latestInvoice?.id;
+      const paidAtUnix = charge?.created || latestInvoice?.status_transitions?.paid_at;
+      if (chargeId) {
+        // This write MUST run as the service role. The main `supabaseClient`
+        // above carries the user JWT in global.headers.Authorization (needed for
+        // auth.getUser()), so PostgREST treats its writes as the authenticated
+        // user — and billing_history has NO insert policy for `authenticated`
+        // (RLS denies the insert silently). Use a dedicated service-role client,
+        // matching retry-failed-payment / create-subscription-from-payment-method.
+        const billingServiceClient = createClient(supabaseUrl, supabaseServiceKey);
+        const { error: billingError } = await billingServiceClient
+          .from('billing_history')
+          .upsert(
+            {
+              user_id,
+              subscription_id: sub.id,
+              charge_id: chargeId,
+              stripe_invoice_id: latestInvoice?.id,
+              amount: charge?.amount || latestInvoice?.amount_paid || latestInvoice?.amount_due || 0,
+              currency: charge?.currency || latestInvoice?.currency || 'usd',
+              status: charge?.status === 'succeeded' || latestInvoice?.status === 'paid' ? 'succeeded' : 'pending',
+              charged_at: paidAtUnix ? new Date(paidAtUnix * 1000).toISOString() : new Date().toISOString(),
+              description: `Kids Club+ subscription renewal`,
+            },
+            { onConflict: 'charge_id', ignoreDuplicates: true },
+          );
 
-        console.log('[renew-subscription] Created billing history record');
+        if (billingError) {
+          console.error('[renew-subscription] billing_history upsert failed:', billingError.message);
+        } else {
+          console.log('[renew-subscription] Created billing history record');
+        }
       }
     } catch (err) {
       console.error('[renew-subscription] Failed to create billing history:', err);

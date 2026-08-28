@@ -112,7 +112,7 @@ appId: com.p2pkidsmarketplace.app
 
 ---
 # STATE 5: Pull-to-refresh
-- scroll:
+- swipe:
     direction: UP
     # Scroll to top first
 

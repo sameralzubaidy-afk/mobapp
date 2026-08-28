@@ -182,7 +182,7 @@ appId: com.p2pkids.marketplace  # Replace with actual app ID
     id: "helpful-no-button"
 
 # Scroll to bottom to see Contact Support button
-- scroll:
+- swipe:
     id: "content-scroll"
     direction: DOWN
 
@@ -196,7 +196,7 @@ appId: com.p2pkids.marketplace  # Replace with actual app ID
 # STATE 6: FAQ Helpful - Yes (Navigate Back)
 # ========================================
 # Scroll back to top
-- scroll:
+- swipe:
     id: "content-scroll"
     direction: UP
 
@@ -390,7 +390,7 @@ appId: com.p2pkids.marketplace  # Replace with actual app ID
     id: "faq-detail-screen"
 
 # Indicate not helpful and navigate to Contact Support
-- scroll:
+- swipe:
     id: "content-scroll"
     direction: UP
 - tapOn:

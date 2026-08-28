@@ -111,7 +111,7 @@ Principle: Never write to a file you haven't read in the current session. Editin
 Before editing ANY file, read the CURRENT content of that file using filesystem MCP. Do not rely on what you wrote in a previous turn.
 If a file is longer than what can be displayed, read the specific section you are editing plus the lines immediately before and after.
 After writing, re-read the affected lines to confirm the edit landed correctly and no surrounding code was accidentally modified.
-Multi-replacement edits (e.g., `multi_replace_string_in_file`) can apply SOME replacements and silently skip others while still reporting overall success — a failure isn't always clearly flagged. After any multi-replacement edit, re-read EACH targeted region (not just one) and confirm every edit actually landed; fix any that didn't before continuing.
+Parallel-edit safety (MANDATORY) — multiple edits to the SAME file must be applied as sequential single replacements. A single multi-replace (e.g., `multi_replace_string_in_file`) is acceptable ONLY when the old strings are non-overlapping and don't shift position relative to each other — i.e., applying the replacements in any order yields the same file (no two replacements touch adjacent or overlapping regions). After ANY batch edit to the same file (a multi-replace, or several quick edits in one turn), READ BACK THE WHOLE FILE before considering the edit done — multi-replace can apply SOME replacements and silently skip others while still reporting overall success, a failure isn't always clearly flagged, and a partially-applied batch leaves the file inconsistent. Verify each edit actually landed; fix any that didn't before continuing.
 If two files need to be changed for the same fix, read both BEFORE writing either.
 Verify file state before applying a listed edit (enumerated to-do/reference lists go stale). When a task provides a list of files to edit (e.g., from a prior session's reference-surface search, or a checklist carried over from an earlier report), don't assume each listed change is still needed as described — time may have passed, and another commit may have already made the same change. Before editing, check the file's current state against what the task describes (e.g., `git show HEAD:<path>` or simply reading the current content) to confirm the edit is still required. If it's already correct, note this explicitly as a no-op rather than silently re-applying (or worse, mis-applying) a stale instruction.
 USER-FACING COPY STANDARDS (MANDATORY)
@@ -234,7 +234,7 @@ Required in every SQL deliverable:
 
 Full Postgres RPC / SQL naming convention and required verification queries moved to .github/instructions/supabase-sql.instructions.md (auto-attaches when editing supabase/migrations/**/*.sql).
 
-See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-49) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
+See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-72) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
 UI Performance Defaults (MANDATORY)
 Debounce defaults:
 
@@ -781,6 +781,39 @@ Issue: "Edge Function deploy fails with 'Module not found'"
 Issue: "An Edge Function and a DB trigger/RPC disagree on the same business rule"
 
 ✅ Check: Split-brain enforcement — search migrations for a trigger/RPC/constraint duplicating the Edge Function's check (BP-27)
+Issue: "Edge Function log shows an 'UncaughtException' / 'event loop error' with an empty message"
+
+✅ Check: The message is read from the TOP-LEVEL `event_message` column of `function_logs`, not `log_attributes['event_message']` (always empty) (BP-68)
+✅ Check: An `event_message` of `Deno.core.runMicrotasks() is not supported` is a runtime teardown artifact — the response may already have been correct (BP-68)
+See also: BP-68 (function log message location — `event_message` is a top-level column)
+
+Issue: "Tier-1 live verification can't create a Stripe test PaymentMethod"
+
+✅ Check: The PM is created from a magic test Token — `card: { token: 'tok_visa' }` — not raw card data or `pm_card_visa` (BP-69)
+See also: BP-69 (Stripe test-mode PM fixtures via `tok_visa`)
+
+Issue: "Leftover disposable test users/profiles after live verification"
+
+✅ Check: `profiles` rows were deleted by `user_id` (not `id` — `profiles.id ≠ user_id` here), then `admin.deleteUser` (BP-70)
+See also: BP-70 (disposable-user cleanup must target `profiles.user_id`)
+
+Issue: "Tier-1 verification passed, but the real charge/pay path is broken in production"
+
+✅ Check: The verification drove the ACTUAL charge/pay path on a fresh isolated throwaway user — a guard-path-only probe (`INVALID_STATUS` / `NO_FAILED_PAYMENT` / `NO_OPEN_INVOICE`) does NOT prove the money path works (BP-71)
+✅ Check: The retry/double-tap path was exercised and no second Stripe object/charge was created (BP-71)
+See also: BP-71 (Stripe money-function verification must exercise the real charge/pay path, not just the guard/smoke path)
+
+Issue: "QA case only asserted on the UI response / guard-path — did the backend/DB/Stripe side effect actually happen?"
+
+✅ Check: The case read the relevant DB row(s) and/or actual Stripe/PayPal object state directly — never only the UI response or a guard-path smoke (BP-72)
+✅ Check: For money/financial-state functions, the ACTUAL charge/pay/create path was exercised on a fresh throwaway user, not just a guard-path error (BP-72)
+✅ Check: Read-only DB/Stripe state confirmation was treated as pre-approved (no per-instance owner sign-off); mutating test actions still used the safe-fixture/disposable-user discipline (BP-72)
+See also: BP-72 (QA side-effect verification — read-only backend/DB/Stripe checks are pre-approved)
+
+Issue: "SQL/PostgREST query fails with 42703 'column does not exist' (e.g. `trades.item_id`, `profiles.stripe_connect_account_id`)?"
+✅ Check: The `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect/payout-method state lives in `seller_payout_methods` (never `profiles`) (BP-73)
+See also: BP-73 (schema facts — trades FK is `listing_id`; payout-method state in `seller_payout_methods`)
+
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
 Test in Supabase Studio: Run raw SQL queries to verify data/RLS
@@ -851,6 +884,13 @@ GitHub MCP (`github-pull-request_*`, `github_repo`, `github_text_search`) — is
 Figma MCP (`mcp_figma_mcp_ser_*`) — ONLY if the user has provided a Figma file/link and a token is configured. Read design specs, screen inventory, component/text extraction, mapping screens to routes.
 Context7 MCP (`mcp_context7_*`) — up-to-date third-party library docs (Expo/Supabase/Stripe/etc.). Use only when the task explicitly needs current API usage, not for every task.
 Supabase MCP (`mcp_supabase_*`) — CONFIRMED (2026-07-29): both read (`list_tables`, `get_advisors`, `get_logs`, `list_migrations`, `execute_sql` SELECTs) and write (`apply_migration`, `execute_sql` mutations) calls are allowed. MANDATORY: before executing ANY Supabase MCP call — read or write — state exactly what you are about to run (the query/migration and its effect) and get Samer's explicit approval for that specific call before invoking it. Approval does not carry over to subsequent calls — ask again each time. The service role key must NEVER be requested or stored, regardless of approval. Result-granularity: `execute_sql`/`apply_migration` return only the LAST statement's result set — for multi-statement verification queries, run one statement per call so you never mis-read a partial result.
+
+**Supabase MCP is the ONLY path for SQL and Edge deploys (MANDATORY, owner rule 2026-08-28):**
+- **Applying/executing SQL or DDL** (migrations, `execute_sql` mutations, RLS, verification queries) MUST go through the Supabase MCP tools ONLY: `mcp_supabase_execute_sql` (raw SQL) or `mcp_supabase_apply_migration` (DDL). These live behind the `activate_database_migration_tools` category — call that activation tool FIRST, then use them. NEVER waste time hunting for alternatives (supabase CLI keychain tokens, Management API, `db push` passwords, psql, etc.) — the MCP tools are the only sanctioned path.
+- **Deploying/updating Edge Functions** MUST go through the Supabase MCP tool `mcp_supabase_deploy_edge_function` (behind `activate_edge_function_management_tools`). Do NOT switch to the `supabase functions deploy` CLI or other deploy mechanisms. Post-deploy validation (deployed version / `verify_jwt` / real invocation) still applies per BP-41/BP-66.
+- **If an MCP tool appears "disabled", call the matching `activate_<category>_tools` first** — Supabase tools are gated behind category activation (e.g. `activate_database_migration_tools`, `activate_edge_function_management_tools`), NOT genuinely off. Do not treat a "disabled" message as a blocker or go looking for another tool.
+- The per-call approval rule above still applies: state exactly what you'll run and get Samer's approval before each Supabase MCP call.
+
 Mobile runtime tooling (`mcp_metro-mcp_*`, `mcp_xcodebuildmcp_*`, `mcp_mobile-mcp_*`) — see "Mobile Runtime & Simulator Tooling" below.
 There is no separate "git MCP" tool in this workspace — use the terminal (`git status`, `git diff`, `git log`) for all git inspection, diff summaries, and duplicate-edit avoidance.
 Any other MCP server: STOP and ask before using it. Do NOT install or suggest “random” servers.
@@ -1221,7 +1261,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-61)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-72)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1267,7 +1307,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-38 Fee config — absolute percentage per tier, never base+discount; confirm the calculation base with the user.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — every relative import must be in the `files` array, including transitive ones.
+- BP-41 Edge Function deploys — REQUIRED path is the official CLI (`supabase functions deploy <name> --project-ref <ref>`), which resolves `../_shared/*` from the local filesystem (manual `files`-array enumeration — the MCP-bundler approach — is retired for new work). ALWAYS pass `--use-api` (a plain deploy with Docker not running can print "Deployed" while silently doing nothing — BP-66) and follow EVERY deploy with a MANDATORY post-deploy behavior check (real invocation returning the function's own response, not just a clean exit code). Reconcile `verify_jwt` against `config.toml` and re-verify it IMMEDIATELY BEFORE the deploy command (BP-41 rule 2) — full text: `.github/instructions/edge-functions.instructions.md`.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
 - BP-43 Navigation & params — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
 - BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
@@ -1284,6 +1324,18 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: typecheck + grep for bare prop-lines followed by a JSX child + Prettier (a formatter rewriting the region signals structural problems).
 - BP-60 Test isolation — a `renderScreen()`-style helper that accepts or defaults to a shared/mutable route/params object leaks state between tests (e.g. an earlier test's `draftId` silently carries into a later test and disables draft-auto-save); always pass explicit, freshly-constructed params per test, and check for this pattern before blaming a flaky-looking failure on the feature code.
 - BP-61 Accessibility-prop text as literal `<Text>` children — accessibility props must be JSX attributes on the opening tag, never rendered children (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole` inside JSX children) whenever writing or reviewing `<Text>` components.
+- BP-62 TABLE-returning RPCs — supabase-js returns `RETURNS TABLE(...)` results as an ARRAY even for a single row; always unwrap `data[0]` (the `verify_email_change_code` always-“Verification failed” bug, 2026-08-26) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-63 Cross-schema PostgREST uniqueness — `admin.schema('auth').from('users').maybeSingle()` returns HTTP 406 (read as “no row”); use a SECURITY DEFINER RPC (`check_account_exists_by_email`) and FAIL CLOSED on RPC error (account-email-takeover hazard, 2026-08-26) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-64 Never log OTP / verification codes in plaintext — not even on staging (logs are more broadly accessible than the DB); log only the destination (`send-phone-otp`, 2026-08-26) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-65 Stripe `idempotencyKey` placement — must be the OPTIONS (2nd) argument (`stripe.paymentIntents.create(params, { idempotencyKey })`), NEVER a property inside the params object (Stripe SDK v14 silently DROPS all params — broke `create-trade-offer`/`trade-extension`/`trade-payment`, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-66 Plain `supabase functions deploy` can silently no-op when Docker isn't running while printing “Deployed” — ALWAYS `--use-api` or verify the deployed body (version bump + real invocation / `functions download` diff into a TEMP dir, never into `supabase/functions/`); a “Deployed” console message is never sufficient evidence (2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-67 No bare `std/*` imports in Edge Functions — no import map exists in this repo, so `import { serve } from 'std/server'` fails the local `deno check --no-lock` Tier-0 gate; import `serve` from the full URL (`https://deno.land/std@<version>/http/server.ts`). Known pre-existing violation (out of scope to fix now, tracked): `sms-send` — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-68 Edge Function log messages — for `function_logs`, the human-readable message/stack is the TOP-LEVEL `event_message` column, never `log_attributes['event_message']` (always empty); `log_attributes` carries only execution/request metadata (DT-10, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-69 Stripe test-mode PaymentMethod fixtures — `paymentMethods.create({ type: 'card', card: { token: 'tok_visa' } })`; raw card numbers and `pm_card_visa` both fail in this account (DT-10, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-70 Disposable-user cleanup — `profiles.id ≠ user_id` in this app; delete `profiles` by `user_id` (never `id`) and `await` builders before `admin.deleteUser` (DT-10, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-71 Stripe money-function verification — Tier-1 live verification MUST drive the ACTUAL charge/pay path on a fresh, isolated throwaway user (real charge + retry-dedupe + DB/Stripe confirm); guard-path-only smokes hide broken pay paths (`renew-subscription` key blocker, `retry-failed-payment` `paid_out_of_band:false` — DT-11, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-72 QA side-effect verification — any QA case exercising a UI action with a backend/DB/third-party (Stripe/PayPal) side effect MUST verify the side effect directly (read the DB row(s) + actual Stripe/PayPal object state), not just the UI response or a guard-path smoke; real-activation verification is REQUIRED for money/financial-state functions; this class of READ-ONLY DB/Stripe verification is PRE-APPROVED (no per-instance owner sign-off) — mutating test actions still use the safe-fixture/disposable-user discipline (DT-12, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-73 Trades FK + payout-method schema — the `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect / payout-method state lives in `seller_payout_methods`, not `profiles` (TRD part-2, 2026-08-27) — full text: `.github/instructions/supabase-sql.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

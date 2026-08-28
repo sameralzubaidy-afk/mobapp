@@ -60,6 +60,22 @@ appId: com.sameralzubaidi.p2pmarketplace
           text: "Allow Paste"
       - waitForAnimationToEnd
 
+# ── Expo dev-client launcher (fresh launch / clearState) ─────────────
+# After clearState the dev build shows the "Development servers" launcher
+# (Pass It Up! / DEVELOPMENT SERVERS / http://localhost:8081) instead of
+# auto-connecting to Metro. Tap the server entry to load the JS bundle so
+# the Welcome/Landing/Login screens can appear. Conditional + safe: no-op
+# when the launcher isn't shown.
+- runFlow:
+    when:
+      visible:
+        text: "http://localhost:8081"
+    commands:
+      - tapOn:
+          text: "http://localhost:8081"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
 # ── App-level Welcome screen ─────────────────────────────────────────
 - runFlow:
     when:

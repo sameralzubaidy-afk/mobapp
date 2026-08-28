@@ -111,11 +111,14 @@ appId: com.sameralzubaidi.p2pmarketplace
           text: "Not Now"
       - waitForAnimationToEnd
 
+# ── Accept/dismiss the TOS / Privacy Policy soft-gate (J05) if shown ────────
+- runFlow: helpers/tfv2-accept-policy-gate.yaml
+
 # ── Login result — authenticated stack loaded with the tab bar visible ───────
 - extendedWaitUntil:
     visible:
       id: "tab-discover"
-    timeout: 15000
+    timeout: 20000
 
 # ── AUTH-TC-P04 — floating pill layout: all five tabs present ────────────────
 - assertVisible:

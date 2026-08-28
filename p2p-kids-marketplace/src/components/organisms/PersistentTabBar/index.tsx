@@ -75,8 +75,15 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
           activeOpacity={0.7}
           testID="sell-option-list-one-item"
         >
-          <Text style={styles.sheetOptionTitle}>List One Item</Text>
-          <Text style={styles.sheetOptionSubtitle}>Snap a photo or choose from your library</Text>
+          <View style={styles.sheetOptionRow}>
+            <Tag size={20} color={colors.neutral[900]} weight="regular" />
+            <View style={styles.sheetOptionTextWrap}>
+              <Text style={styles.sheetOptionTitle}>List One Item</Text>
+              <Text style={styles.sheetOptionSubtitle}>
+                Snap a photo or choose from your library
+              </Text>
+            </View>
+          </View>
         </TouchableOpacity>
 
         {/* Bulk Upload */}
@@ -87,7 +94,7 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
           testID="sell-option-bulk-upload"
         >
           <View style={styles.sheetOptionRow}>
-            <Package size={20} color="#1A1A1A" weight="regular" />
+            <Package size={20} color={colors.neutral[900]} weight="regular" />
             <View style={styles.sheetOptionTextWrap}>
               <Text style={styles.sheetOptionTitle}>Bulk Upload</Text>
               <Text style={styles.sheetOptionSubtitle}>
@@ -415,20 +422,22 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: colors.neutral[200],
     marginBottom: 16,
   },
+  // Design-system palette (docx/design-system-passitup.md): border #E0E0E0,
+  // background-light #F0F0F0, primary text #1A1A1A, secondary #6B6B6B.
   sheetTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontSize: 20,
+    fontWeight: '600', // Heading 3 per design system
+    color: colors.neutral[900],
     marginBottom: 16,
   },
   sheetOption: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.neutral.white,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.neutral[200],
     padding: 16,
     marginBottom: 10,
   },
@@ -443,16 +452,16 @@ const styles = StyleSheet.create({
   sheetOptionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: colors.neutral[900],
     marginBottom: 4,
   },
   sheetOptionSubtitle: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#6B6B6B',
+    color: colors.neutral[700],
   },
   sheetCancel: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.neutral[100],
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -461,6 +470,6 @@ const styles = StyleSheet.create({
   sheetCancelText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B6B6B',
+    color: colors.neutral[700],
   },
 });

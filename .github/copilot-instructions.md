@@ -130,6 +130,12 @@ IOS_SIMULATOR_UDID=<from xcrun simctl list devices booted>
 ANDROID_EMULATOR_SERIAL=<from adb devices>
 ```
 
+> **Simulator-target override — do not chase a wrong-device preflight failure:** the suite's `.env` **unconditionally** sets `TFV2_IOS_DEVICE_NAME="iPhone 16 Pro E2E"` (line 28), and `run-suite.sh` sources it with `set -o allexport`, so a shell prefix like `TFV2_IOS_DEVICE_NAME=...` is silently clobbered and will NOT choose the simulator. The working override is a shell-provided `IOS_SIMULATOR_UDID=<udid>` — it is commented out in `.env` (so sourcing does not clobber a value you export), and preflight targets the UDID instead of the device name. Combine it with `--no-preflight` when the target simulator and app build are already ready:
+> ```
+> IOS_SIMULATOR_UDID=<udid> bash test-automation/trade-flow-v2/scripts/run-suite.sh --no-preflight --group A,B,C ...
+> ```
+> If you see a preflight failure about the wrong device/name, check the `IOS_SIMULATOR_UDID` override (and the booted-simulator list) instead of assuming the simulator itself is broken.
+
 ### Admin portal login (browser-based manual verification)
 
 When you need to log into the **admin portal** (`p2p-kids-admin`, runs on `http://localhost:3001`)

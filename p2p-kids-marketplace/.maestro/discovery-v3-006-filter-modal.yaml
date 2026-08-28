@@ -255,7 +255,7 @@ appId: com.p2pkidsmarketplace.app
 # TEST 12: Clear All Filters
 # ============================================
 
-- scroll:
+- swipe:
     direction: UP
 
 - tapOn:

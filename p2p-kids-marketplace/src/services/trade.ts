@@ -828,24 +828,28 @@ export async function completeTradeV2(
     }
 
     // MODULE-15.3-PART3 TAX-013: apply sales tax to the now-completed trade.
-    // Idempotent; non-blocking — tax failures should not undo a successful trade.
-    try {
-      const { applyTaxToTrade } = await import('./tax');
-      const taxRes = await applyTaxToTrade(tradeId);
-      if (!taxRes.success) {
-        console.warn('[trade] tax application failed (non-blocking):', taxRes.error);
-      } else {
-        console.log(
-          '[trade] tax applied:',
-          taxRes.data.tax_amount_cents,
-          'cents (idempotent_hit=',
-          taxRes.data.idempotent_hit,
-          ')'
-        );
+    // Idempotent; truly non-blocking (fire-and-forget) so the completion screen
+    // is not delayed by an extra RPC round-trip. Tax failures never undo a
+    // successful trade — it is reconciled asynchronously.
+    void (async () => {
+      try {
+        const { applyTaxToTrade } = await import('./tax');
+        const taxRes = await applyTaxToTrade(tradeId);
+        if (!taxRes.success) {
+          console.warn('[trade] tax application failed (non-blocking):', taxRes.error);
+        } else {
+          console.log(
+            '[trade] tax applied:',
+            taxRes.data.tax_amount_cents,
+            'cents (idempotent_hit=',
+            taxRes.data.idempotent_hit,
+            ')'
+          );
+        }
+      } catch (taxErr) {
+        console.warn('[trade] tax application threw (non-blocking):', taxErr);
       }
-    } catch (taxErr) {
-      console.warn('[trade] tax application threw (non-blocking):', taxErr);
-    }
+    })();
 
     return {
       success: data.success,

@@ -5,7 +5,7 @@ applyTo: "supabase/migrations/**/*.sql"
 
 # Supabase SQL / Migration Hardening Protocol
 
-Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 48 rules.
+Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48, BP-73. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -37,6 +37,7 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never direct `admin_config` table writes (records the editor + lands in the shared audit trail).
+- BP-73 Trades FK + payout-method schema — the `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect / payout-method state lives in `seller_payout_methods` (never `profiles`).
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -392,3 +393,13 @@ Rules:
 - When adding a NEW admin settings page, it must reuse these shared RPCs + audit helpers rather than writing `admin_config` directly, so it automatically inherits the single-source + editor + audit contract.
 
 Detection checklist: grep for direct `admin_config` INSERT/UPDATE outside `upsert_admin_config_setting`/`secure_upsert_admin_config`; confirm each settings page passes `p_admin_id`/`user_id`; confirm every settings-edit surface writes `admin_audit_log`; confirm audit target tables exist. Cross-ref BP-11 (read both `admin_config` and `sp_config`; don't trust `is_active` alone) and HP-5 (atomic multi-table mutations via a single RPC).
+
+## BP-73: Trades→Items FK Is `listing_id`; Payout-Method/Stripe-Connect State Lives in `seller_payout_methods` (Never `profiles`)
+Problem: Read-back/verification queries (and RPCs joining trades to their listing) that assume the FK is `trades.item_id` fail with `42703: column t.item_id does not exist`; likewise, queries that look for a seller's Stripe Connect / payout-method state in `profiles` (columns like `stripe_connect_account_id`, `payout_method_status`) fail with 42703 because that state lives in a separate table. Both were hit live in the 2026-08-27 TRD part-2 verification (the `trades` FK, and locating the seller-payout-method table).
+
+Rules:
+- The `trades` table's FK to its listing/item is **`listing_id`** — NEVER `item_id`. Join `items i ON i.id = t.listing_id` (e.g. `SELECT t.id, i.title FROM trades t LEFT JOIN items i ON i.id = t.listing_id`).
+- A seller's Stripe Connect / payout-method state is NOT on `profiles` — query **`seller_payout_methods`** (per-user payout method / Connect state) and **`seller_payouts`** (per-trade payout records); `admin_payouts_view` is the admin aggregate. Example: `SELECT * FROM seller_payout_methods WHERE user_id = '<seller>';` — an empty result means the seller has no payout method (a valid `payout_status='requires_action'` state, not a bug).
+- Before writing a query against an unfamiliar table this session, introspect its columns (`information_schema.columns` WHERE table_name = ...) rather than assuming the schema (mirrors the QA pre-read-DB-schema discipline).
+
+Detection checklist: if a query fails `42703 ... does not exist`, introspect the table's actual columns before assuming a name; when the `trades` table is involved, the item FK is `listing_id`.

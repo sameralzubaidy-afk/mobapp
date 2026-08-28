@@ -94,7 +94,7 @@ appId: host.exp.exponent
 ---
 # Test Case: FLOW-14-009 - Verify Message Appears After Send
 # Scroll to bottom to see latest message
-- scroll:
+- swipe:
     direction: "DOWN"
 - waitForAnimationToEnd
 

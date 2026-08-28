@@ -21,6 +21,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
 import { logFinancialAudit } from '../_shared/audit.ts';
+import { hashContent } from '../_shared/idempotency.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -201,19 +202,26 @@ serve(async (req) => {
         console.log(`[trade-refund] PI ${piId} cancelled (uncaptured) for trade ${trade_id}`);
       } else if (pi.status === 'succeeded') {
         // Captured payment — issue a PARTIAL refund for the selected amount.
-        const refund = await stripe.refunds.create({
-          payment_intent: piId,
-          amount: totalRefundCents,
-          reason: 'requested_by_customer',
-          metadata: {
-            supabase_trade_id: trade_id,
-            admin_action: 'partial_refund',
-            admin_user_id: effectiveAdminId ?? '',
-            refund_price_cents: String(rp),
-            refund_fee_cents: String(rf),
-            refund_tax_cents: String(rt),
+        // DEV-TASK-6 (2026-08-27): content-derived idempotency key so a timeout-retry
+        // of the SAME partial refund (same price/fee/tax amounts) is deduped by Stripe,
+        // while a distinct partial refund (different amounts) gets a different key.
+        // STRIPE-IDEMPOTENCY-FIX: key must be the OPTIONS arg, never inside params (BP-65).
+        const refund = await stripe.refunds.create(
+          {
+            payment_intent: piId,
+            amount: totalRefundCents,
+            reason: 'requested_by_customer',
+            metadata: {
+              supabase_trade_id: trade_id,
+              admin_action: 'partial_refund',
+              admin_user_id: effectiveAdminId ?? '',
+              refund_price_cents: String(rp),
+              refund_fee_cents: String(rf),
+              refund_tax_cents: String(rt),
+            },
           },
-        });
+          { idempotencyKey: `refund_${trade_id}_${hashContent(rp, rf, rt)}` },
+        );
         stripeRefundId = refund.id;
         stripeRefundStatus = refund.status;
         stripeAction = 'refunded';

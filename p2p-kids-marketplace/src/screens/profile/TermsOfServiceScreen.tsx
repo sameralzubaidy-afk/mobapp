@@ -263,7 +263,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 0,
+    // BP-58: clear the floating pill nav (PersistentTabBar pill top sits ~110pt
+    // from the bottom), so the I Accept / Decline buttons are not occluded.
+    bottom: 120,
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
@@ -271,7 +273,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#F0F0F0',
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   acceptButton: {
     backgroundColor: '#5DBB8E',
