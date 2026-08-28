@@ -273,12 +273,12 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-A04 | Donate listing: [Claim] button, no charge | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B01 | Seller declines offer | 1 | PASS | 2026-08-28 | `qa-trd-b01-b02-reverify-2026-08-28` | ✅ PASS |
 | TRD-TC-B02 | Offer expires (seller never responds) + seller ignore prompt | 1 | PASS | 2026-08-28 | `qa-trd-b01-b02-reverify-2026-08-28` | ✅ PASS (prompt fires at counter 2; guide vs impl semantics finding — see report) |
-| TRD-TC-B03 | Multiple competing offers — sort order + auto-decline | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-B03 | Multiple competing offers — sort order + auto-decline | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
 | TRD-TC-B04 | Buyer cancels pending trade — no consequence level | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05 | Per-seller cap: max 3 pending offers per seller (2026-07-18) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05a | Per-seller cap: Buyer at 3 with Seller A can still submit to Seller B | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05b | Per-seller cap: Blocked at 4th offer to same seller | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-B05c | Per-seller cap: Bundle offer counts as 1 slot, not N | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-B05c | Per-seller cap: Bundle offer counts as 1 slot, not N | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
 | TRD-TC-B05d | Per-seller cap: Expired offer frees slot immediately | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05e | Regression: No leftover global cap blocks buyer over old global limit | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05f | Admin config: Change offer cap from 3 to 5 on Trade Timing page | 1 | — | — | `—` | NEVER RUN |
@@ -294,30 +294,30 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-B11 | Subscribe-upsell → JoinKidsClub | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B12 | SP info tooltip (not wired — flag) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B13 | Duplicate-offer modal navigation (dead code — flag) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C01 | SP reserved on offer submission | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C02 | SP restored to buyer on seller decline | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C03 | SP restored to buyer on offer expiry | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C04 | SP stays reserved when seller accepts | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C05 | SP released to seller at trade completion | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C06 | SP restored to buyer on seller cancel (in_progress) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C07 | Free user sees locked Use SP button + upgrade modal | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-C08 | SP slider capped at 50% of item price | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-D01 | Auto-complete when buyer never taps I Got It | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-D02 | Auto-complete skipped when dispute is open | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-D03 | Offer countdown pill color states | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-D04 | Auto-complete banner visible to buyer only | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-C01 | SP reserved on offer submission | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
+| TRD-TC-C02 | SP restored to buyer on seller decline | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
+| TRD-TC-C03 | SP restored to buyer on offer expiry | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
+| TRD-TC-C04 | SP stays reserved when seller accepts | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
+| TRD-TC-C05 | SP released to seller at trade completion | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (2 findings) |
+| TRD-TC-C06 | SP restored to buyer on seller cancel (in_progress) | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
+| TRD-TC-C07 | Free user sees locked Use SP button + upgrade modal | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (upgrade is full-screen, not modal) |
+| TRD-TC-C08 | SP slider capped at 50% of item price | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (category-driven % cap, not flat 50%) |
+| TRD-TC-D01 | Auto-complete when buyer never taps I Got It | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (auto-complete payout gap — P1/P2) |
+| TRD-TC-D02 | Auto-complete skipped when dispute is open | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
+| TRD-TC-D03 | Offer countdown pill color states | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (Review-header pill; list rows plain text; blue/amber/red/gray) |
+| TRD-TC-D04 | Auto-complete banner visible to buyer only | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (seller copy differs from guide) |
 | TRD-TC-D05 | Post-meetup nudge after auto-complete | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-D06 | Pickup window drives the auto-complete deadline (R2 — configurable) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E01 | Buyer opens Report a Problem modal | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E02 | Disputed trade does not auto-complete | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E03 | Buyer UI during active dispute | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E04 | Seller UI during active dispute | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-E01 | Buyer opens Report a Problem modal | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (Report Problem occluded by tab pill — P2) |
+| TRD-TC-E02 | Disputed trade does not auto-complete | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
+| TRD-TC-E03 | Buyer UI during active dispute | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (red banner not amber; I Got It disabled not hidden) |
+| TRD-TC-E04 | Seller UI during active dispute | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (same banner-color deviation) |
 | TRD-TC-E05 | Admin resolves dispute → Complete | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-E06 | Admin resolves dispute → Refund | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E07 | Trade Dispute — no reason (disabled submit) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E08 | Trade Dispute — reason selected (non-Other) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E09 | Trade Dispute — "Other" + min-20 description | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E10 | Trade Dispute — submitting + confirm + success/error | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-E07 | Trade Dispute — no reason (disabled submit) | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
+| TRD-TC-E08 | Trade Dispute — reason selected (non-Other) | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
+| TRD-TC-E09 | Trade Dispute — "Other" + min-20 description | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
+| TRD-TC-E10 | Trade Dispute — submitting + confirm + success/error | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
 | TRD-TC-F01 | Payout shown on completion (no dispute) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-F02 | Payout held when dispute is open | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-F03 | Payout needs action when seller has no payout method | 1 | — | — | `—` | NEVER RUN |
