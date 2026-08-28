@@ -31,7 +31,7 @@ The `fn_release_sp_on_cancel` trigger was releasing SP back to the buyer's walle
 ### 1. Database Migration (`20260608000001_fix_offer_expiry_complete.sql`)
 - **Fixed `rpc_process_expired_offers`**: Now looks for `status = 'pending'` instead of `'in_progress'`
 - **Added reminder notifications**: New function `rpc_send_offer_reminders` sends notifications at 6h and 1h before expiry
-- **Added seller ignore prompt**: After 2 consecutive unanswered offers, seller receives a prompt to pause the listing
+- **Added seller ignore prompt**: After 2 consecutive offers **expire unanswered** (consecutive-expiry streak, DEV-TASK-34 — resets on seller accept/decline, declines never count), seller receives a prompt to pause the listing
 - **Added tracking columns**: `reminder_6h_sent_at`, `reminder_1h_sent_at` on `trades`, and `last_prompt_sent_at` on `listing_offer_stats`
 - **Updated indexes**: Optimized for pending offer queries
 
@@ -39,7 +39,7 @@ The `fn_release_sp_on_cancel` trigger was releasing SP back to the buyer's walle
 - Added 3 new event types:
   - `offer_reminder_6h`: "You have an offer on [listing] expiring in 6 hours."
   - `offer_reminder_1h`: "You have an offer on [listing] expiring in 1 hour."
-  - `seller_ignore_prompt`: "You're receiving offers but not responding on [listing]. Want to pause this listing?"
+  - `seller_ignore_prompt`: "A few offers on [listing] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now." (DEV-TASK-34 copy)
 
 ### 3. Mobile UI (`TradeListScreen.tsx`)
 - **Expired offers now show**: "Expired — Item still available" (or "Item no longer available")
@@ -160,8 +160,9 @@ SELECT public.rpc_send_offer_reminders(100);
 **Expected**: Seller receives push notification "You have an offer on [listing] expiring in 6 hours."
 
 ### Step 6: Test Seller Ignore Prompt
+> **DEV-TASK-34 (2026-08-29):** the counter is a **consecutive-expiry streak** — prefer driving 2 sequential expiries (fast-clock offer 1 → `rpc_process_expired_offers` → repeat) so the streak reaches 2 naturally. The manual-set shortcut below is only for the UI-display leg.
 ```sql
--- Simulate 2 expired offers on the same listing
+-- Shortcut: set streak to threshold (real path = 2 sequential expiries)
 UPDATE listing_offer_stats
 SET unanswered_offer_count = 2
 WHERE listing_id = '<listing-id>';
@@ -170,7 +171,7 @@ WHERE listing_id = '<listing-id>';
 SELECT public.rpc_process_expired_offers(100);
 ```
 
-**Expected**: Seller receives notification "You're receiving offers but not responding on [listing]. Want to pause this listing?"
+**Expected**: Seller receives notification "A few offers on [listing] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now." (no nudge from a decline chain — declines reset the streak to 0).
 
 ---
 

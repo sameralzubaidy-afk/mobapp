@@ -7,7 +7,7 @@ All 4 features from TC-B02 have been implemented:
 1. ✅ **Auto-cancel at expiry** — Trade status changes to 'cancelled', buyer's SP restored
 2. ✅ **Expired offer UI** — The cancelled (expired) trade appears in the buyer's **History** tab with a **View Item** button when the item is still available (owner decision 2026-08-28 — expired/declined offers no longer appear under Active → Your Offers)
 3. ✅ **Reminder notifications** — Seller receives push at 6h and 1h before expiry
-4. ✅ **Seller ignore prompt** — After 2 consecutive unanswered offers, seller gets modal with [Pause Listing] / [Dismiss]
+4. ✅ **Seller ignore prompt** — After 2 consecutive offers **expire unanswered** (consecutive-expiry streak, DEV-TASK-34), seller gets modal with [Pause Listing] / [Dismiss]
 
 ---
 
@@ -186,20 +186,22 @@ npx expo start --clear
 
 ## 🧪 Test Scenario 4: Seller Ignore Prompt
 
-**Objective**: Verify seller receives modal prompt after ignoring 2 consecutive offers
+**Objective**: Verify seller receives modal prompt after **2 consecutive offers that expire unanswered** (consecutive-expiry streak in `listing_offer_stats.unanswered_offer_count`)
+
+> **DEV-TASK-34 (2026-08-29):** the counter is now a **consecutive-expiry streak** — +1 per offer that *expires unanswered* (`rpc_process_expired_offers`), reset to 0 on seller **accept/decline**, declines never count. Offer submission does NOT increment it. The nudge copy is: *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."*
 
 ### Steps:
 
 1. **Create 2 consecutive offers** on the same listing (both from test-buyer):
    - Submit Offer 1, let it expire (use fast-forward method)
-   - Submit Offer 2, let it expire
+   - Submit Offer 2 (only AFTER Offer 1 has fully expired — sequential, no overlap), let it expire
 
-2. **Run expiry processor for both**:
+2. **Run expiry processor for both** (after each expiry):
    ```sql
    SELECT public.rpc_process_expired_offers(100);
    ```
 
-3. **Check if prompt was triggered**:
+3. **Check the streak was built**:
    ```sql
    SELECT 
      i.id,
@@ -211,10 +213,12 @@ npx expo start --clear
    WHERE i.seller_id = '<test-seller-id>'
      AND los.unanswered_offer_count >= 2;
    ```
+   - 1st expiry → count = 1 (no nudge)
+   - 2nd sequential expiry → count = 2 → nudge fires
 
 4. **Verify seller received push notification**:
    - Title: **"Listing Feedback"**
-   - Body: **"You're receiving offers but not responding on "[Item]". Want to pause this listing?"**
+   - Body: **"A few offers on "[Item]" have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."**
 
 5. **Test the modal UI** (manual simulation):
    - Log in as test-seller in the app
@@ -227,7 +231,7 @@ npx expo start --clear
    
 6. **Verify modal content**:
    - Title: **"Listing Feedback"**
-   - Body: Shows the listing title
+   - Body: Shows the listing title with the new copy
    - Button 1: **[Pause Listing]** (green button)
    - Button 2: **[Dismiss]** (gray text link)
 
@@ -242,13 +246,15 @@ npx expo start --clear
 8. **Test [Dismiss]**:
    - Modal should close without changing listing status
 
-9. **Verify cooldown** (7-day):
+9. **Decline leg — streak never fires for declines (DEV-TASK-34)**: submit an offer, **decline** it (`status='cancelled', cancellation_reason='seller_declined'`), repeat once more → `unanswered_offer_count` stays **0** and `last_prompt_sent_at` stays NULL (declines reset the streak, never count).
+
+10. **Verify cooldown** (7-day):
    ```sql
    -- Check last_prompt_sent_at was updated
    SELECT last_prompt_sent_at FROM listing_offer_stats WHERE listing_id = '<listing-id>';
    -- EXPECTED: Recent timestamp
    
-   -- Simulate another 2 unanswered offers (should NOT trigger prompt again within 7 days)
+   -- Simulate another 2 unanswered expiries (should NOT trigger prompt again within 7 days)
    UPDATE listing_offer_stats 
    SET unanswered_offer_count = 4,
        last_prompt_sent_at = NOW() - INTERVAL '6 days'
@@ -330,8 +336,8 @@ LIMIT 10;
 - [x] [View Item] button navigates to the listing detail (ListingDetail)
 - [x] Seller receives reminder push at ~6 hours before expiry
 - [x] Seller receives reminder push at ~1 hour before expiry
-- [x] After 2nd consecutive unanswered offer, seller receives prompt
-- [x] Modal shows: "You're receiving offers but not responding on [Item]. Want to pause this listing?"
+- [x] After 2nd consecutive offer that **expires unanswered**, seller receives prompt (streak reaches 2; declines reset the streak and never count — DEV-TASK-34)
+- [x] Modal shows: "A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."
 - [x] [Pause Listing] button changes listing status to 'paused'
 - [x] [Dismiss] button closes modal without changes
 - [x] 7-day cooldown prevents spam prompts

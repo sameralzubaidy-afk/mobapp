@@ -168,7 +168,9 @@ const MAX_PENDING_OFFERS = 3; // TODO(ADMIN-CONFIG): Make this cap configurable
 
 ## Seller ignore prompt not firing
 
-**Issue:** When a seller receives 2+ consecutive unanswered offers on the same listing, they should receive a push notification: *"You're receiving offers but not responding on [Item]. Want to pause this listing?"* with [Pause Listing] and [Dismiss] actions. This notification is not arriving.
+> **RESOLVED (2026-08-29, DEV-TASK-34):** the counter is now a true consecutive-expiry streak (`listing_offer_stats.unanswered_offer_count`: +1 per unanswered expiry, reset on seller accept/decline, declines never count) and the nudge copy is *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."* with [Pause Listing] / [Dismiss]. Live-verified on staging. See `supabase/migrations/20260829000001_dev_task_34_seller_ignore_streak.sql` and `docs/flow-registry.md` DEV-TASK-34.
+
+**Issue (historical):** When a seller receives 2+ consecutive unanswered offers on the same listing, they should receive a push notification: *"You're receiving offers but not responding on [Item]. Want to pause this listing?"* with [Pause Listing] and [Dismiss] actions. This notification is not arriving.
 
 **Action Required:**
 - [ ] Investigate the `send-offer-reminders` or `send-trade-notifications` EF for the ignore prompt logic

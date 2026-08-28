@@ -113,7 +113,7 @@ These principles anchor every module in this document. They must be the first fi
 | D-10 | SP soft-reserve at offer submission — deduct from available, restore if declined/expired | Prevents double-allocation across concurrent offers | Product |
 | D-11 | SP total shown to seller without source breakdown | Better UX; show "[X] SP releasing in [N] days" — no immediate vs pending split | Product |
 | D-12 | Subscription CTA at completion screen, targeted by user type | Highest-intent moment for upgrade, tied to real transaction value | Product |
-| D-13 | Seller ignoring 2+ consecutive offers → prompt to pause listing | Reduces buyer frustration, improves marketplace health | Product |
+| D-13 | Seller ignoring offers (2 consecutive unanswered expiries) → prompt to pause listing | Reduces buyer frustration, improves marketplace health | Product |
 | D-14 | All timing configs in hours unit, no guard rails in UI, defaults enforced at DB level | Admin flexibility, server-side minimum of 1h to prevent zero/negative values | Product + Eng |
 | D-15 | Admin sets push notification times independently (not proportional auto-scaling) | More control for marketing team | Product |
 | D-16 | Timing configs are global (all listings, all categories) | Simplicity for V1; per-category timing deferred to V2 | Product |
@@ -493,8 +493,8 @@ Every payout **must** use `payout_idempotency_key = 'payout_' || trade_id` as th
 | 7 | ⚙️ T–0 | — | — | — | — | Auto-decline. SP unreserved (if any). Item stays listed. | `cancelled` |
 | 8 | 🛒 | History Tab | Row: "Cancelled" (expired offer); item still available → [View Item] | — | [View Item] | — | `cancelled` |
 | 9 | 🏷️ | History Tab | Row stays as "Cancelled" (no 24h hide in History); [View Item] hidden once the item is no longer available | — | — | — | — |
-| 10 | ⚙️ | — | Check: was this seller's 2nd consecutive unanswered offer on this listing? | — | — | If yes: push prompt to seller | — |
-| 11 | 🏷️ | Push / In-App | *"You're receiving offers but not responding on [Item]. Want to pause this listing?"* | — | [Pause Listing] [Dismiss] | — | — |
+| 10 | ⚙️ | — | Check: has this listing reached **2 consecutive offers that expired unanswered**? (streak in `listing_offer_stats.unanswered_offer_count`, incremented per unanswered expiry, reset on seller accept/decline) | — | — | If yes: push prompt to seller | — |
+| 11 | 🏷️ | Push / In-App | *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."* | — | [Pause Listing] [Dismiss] | — | — |
 
 ---
 
@@ -751,7 +751,7 @@ V2 introduces multiple notification types across a single trade. These rules pre
 | Dispute filed | 1 | `TradeTimelineScreen` | Seller |
 | Dispute resolved | 1 | `TradeTimelineScreen` | Both parties |
 | Payout requires action | 1 per 48h until resolved (max 3 total) | Payout setup screen | Seller |
-| Seller ignored offers prompt | 1 per listing (after 2nd consecutive unanswered offer) | Offers tab | Seller |
+| Seller ignored offers prompt | 1 per listing (after 2nd consecutive unanswered expiry) | Offers tab | Seller |
 
 **Global rule**: No more than **3 push notifications per user per trade total** across all non-payout-related stages. Any notification beyond 3 for the same trade is dropped silently (logged for analytics, not sent).
 
@@ -994,17 +994,21 @@ Post-acceptance cancellations (where `trade.status` transitions from `in_progres
 
 ### 11.8 Seller Ignoring Offers — Prompt Logic
 
-Track: `consecutive_unanswered_offers_count` per `(seller_id, listing_id)`.
+Tracks a **consecutive-unanswered-expiry streak** in `listing_offer_stats.unanswered_offer_count`, scoped per listing (the `consecutive_unanswered_offers_count` name was superseded by the 2026-06 schema-drift fix; `unanswered_offer_count` is the real column).
 
-Increment when: an offer on this listing expires without seller responding (`status = cancelled` AND `cancellation_reason = 'offer_expired'` AND `seller_id` matches).
+**Increment (+1)** when: an offer on this listing **expires unanswered** — the seller took no action before the offer's expiry deadline, so `rpc_process_expired_offers` cancels it with `cancellation_reason = 'Offer expired'`. Each such expiry adds 1 to the streak.
 
-Reset to 0 when: seller accepts or explicitly declines an offer.
+**Reset to 0 when**: the seller takes real action on an offer — **accept** (trade transitions to `in_progress` with `auto_complete_at` set) or **decline** (`cancellation_reason = 'seller_declined'`). Declines count as engagement and therefore **reset** the streak but never contribute to it.
 
-**Trigger**: When count reaches 2, send in-app push notification and show a modal next time seller opens the listing or Offers tab:
+**Neither counts nor resets**: offer submission never touches the counter; buyer-initiated cancellations, payment/auth failures, disputes, and `offer_expired_competing` auto-declines are not seller responses and leave the streak unchanged.
 
-> *"You're receiving offers but not responding on [Item Title]. Unanswered offers frustrate buyers and reduce your chances of selling. Want to pause this listing until you're ready?"*
+**Trigger**: When the streak reaches **2** consecutive unanswered expiries, send the seller-ignore nudge (in-app push + modal the next time the seller opens the Offers tab), throttled by a 7-day cooldown on `listing_offer_stats.last_prompt_sent_at`:
+
+> *"A few offers on [Item Title] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."*
 > 
-> [Pause Listing] [I'll Respond] [Dismiss]
+> [Pause Listing] [Dismiss]
+
+> **DEV-TASK-34 (2026-08-29):** this counter was previously the *simultaneous-pending-offer count* (incremented on every offer submission, decremented on expiry/cancel). It is now a true consecutive-expiry streak — the nudge is a **non-response signal**, not a "too many pending offers" signal. A chain of declines never triggers it, because every decline resets the streak to 0.
 
 ---
 
@@ -1128,7 +1132,7 @@ Suggested implementation order and dependencies:
 | **Module 12** | Item Detail — "Pay Cash" / "Use SP" Buttons + Free User Lock | None | Update button labels and logic |
 | **Module 13** | Unified Offer Flow — Remove "Buy Now" Stripe Pre-charge | Module 12 | Deprecate `TradeInitiationScreen` inline Stripe path; all paths go through offer → seller approval → payment |
 | **Module 14** | Completion Screen — Targeted CTAs by User Type | Module 6 | Update `TradeSuccessScreen` and post-completion navigation |
-| **Module 15** | Seller Ignoring Offers Prompt | Module 4 | Track `consecutive_unanswered_offers_count`, push notification logic |
+| **Module 15** | Seller Ignoring Offers Prompt | Module 4 | Track consecutive-expiry streak in `listing_offer_stats.unanswered_offer_count`, push notification logic |
 | **Module 16** | Push Notification Schedule | Module 1 (config), 4, 5 | Integrate admin-configured notification times into notification cron jobs; enforce throttling rules (Section 9.5) |
 | **Module 17** | Dispute State Machine + Admin Dashboard | Modules 5, 6 | DB migration (dispute columns on `trades`); buyer [Report a Problem] modal on `TradeTimelineScreen`; admin queue UI with [Mark Under Review] / [Resolve → Complete] / [Resolve → Refund]; cron guards added to `process_auto_complete` and `release_pending_sp` |
 | **Module 18** | Seller Payout Integration | Module 17 | Payout trigger on `completeTradeV2()`; payout columns (`payout_status`, `payout_idempotency_key`); `requires_action` flow + repeat notification; idempotency via Stripe idempotency key `payout_[trade_id]` |

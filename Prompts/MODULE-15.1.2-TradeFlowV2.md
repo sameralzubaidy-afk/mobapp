@@ -3181,13 +3181,15 @@ function buildCompletionCTA(
 
 ### Description
 
-When a seller has 2+ consecutive unanswered offers (`consecutive_unanswered_offers_count >= 2`) on a listing, trigger the prompt per Section 11.8:
+> **DEV-TASK-34 (2026-08-29):** the seller-ignore counter is now a **consecutive-expiry streak** on `listing_offer_stats.unanswered_offer_count` — +1 per offer that **expires unanswered** (`rpc_process_expired_offers`), reset to 0 on seller **accept** or **decline**, and declines never count toward it. Offer submission no longer increments the counter.
 
-> *"You're receiving offers but not responding on [Item Title]. Unanswered offers frustrate buyers and reduce your chances of selling. Want to pause this listing until you're ready?"*
+When a listing's consecutive-expiry streak reaches **2** (`unanswered_offer_count >= 2`), trigger the prompt per Section 11.8:
+
+> *"A few offers on [Item Title] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."*
 >
-> [Pause Listing] [I'll Respond] [Dismiss]
+> [Pause Listing] [Dismiss]
 
-The counter is reset to 0 when the seller explicitly accepts or declines an offer. The prompt is sent once per threshold crossing (tracked by `prompt_sent_at` in `listing_offer_stats`).
+The streak is reset to 0 when the seller explicitly accepts or declines an offer (a decline chain is engagement and never triggers the nudge). The prompt is sent once per threshold crossing, throttled by `last_prompt_sent_at` (7-day cooldown) in `listing_offer_stats`.
 
 ### AI Prompt for Cursor
 

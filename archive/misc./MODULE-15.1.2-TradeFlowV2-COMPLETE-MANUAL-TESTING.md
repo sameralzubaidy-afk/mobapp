@@ -620,23 +620,22 @@ FROM profiles LIMIT 5;
 
 ---
 
-### TC-TFV2-015-A: Seller ignoring offers prompt (>= threshold consecutive)
+### TC-TFV2-015-A: Seller ignoring offers prompt (consecutive-expiry streak >= threshold)
 
-**Task:** TFV2-015  
-**Preconditions:** `listing_offer_stats.unanswered_offer_count >= 3` on the listing being tested  
+**Task:** TFV2-015
+> **DEV-TASK-34 (2026-08-29):** `listing_offer_stats.unanswered_offer_count` is now a **consecutive-expiry streak** — it increments by 1 per offer that **expires unanswered** (via `rpc_process_expired_offers`), resets to 0 on seller **accept/decline**, and declines never count toward it. The nudge fires at the threshold (**2**). Offer submission no longer increments the counter.
+
+**Preferred preconditions (streak semantics):** drive **2 sequential expiries** on the listing (fast-clock an offer to `NOW()+5s`, run `rpc_process_expired_offers`, repeat with a second offer) → `unanswered_offer_count = 2`.
+**Alternative shortcut (manual set):** `UPDATE listing_offer_stats SET unanswered_offer_count = 2 WHERE listing_id = '<listing_id>';`
 **Steps:**  
-1. In Supabase Studio, manually set:
-   ```sql
-   UPDATE listing_offer_stats
-   SET unanswered_offer_count = 3
-   WHERE listing_id = '<listing_id>';
-   ```
+1. Set the streak to the threshold (preferred method above, or manual `UPDATE ... = 2`).
 2. Log in as seller  
 3. Navigate to "Offers" tab  
 **Expected:**  
-- A prompt or banner nudging seller to respond to offers  
-- Prompt is dismissible  
-- NOT shown when count < threshold  
+- A prompt or banner nudging seller to respond: *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."* with [Pause Listing] / [Dismiss]
+- Prompt is dismissible
+- NOT shown when count < threshold
+- NOT shown after a seller **declines** offers (declines reset the streak to 0 and never count)
 
 ---
 

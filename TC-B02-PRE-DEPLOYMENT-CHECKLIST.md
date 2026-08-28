@@ -197,7 +197,8 @@ SELECT public.rpc_process_expired_offers(100);
 
 ### Verify Listing Stats Updated
 ```sql
--- Verify unanswered_offer_count was decremented
+-- DEV-TASK-34: unanswered_offer_count is a consecutive-expiry streak — INCREMENTED per
+-- unanswered expiry, reset to 0 on seller accept/decline (declines never count).
 SELECT listing_id, unanswered_offer_count, total_offer_count
 FROM listing_offer_stats
 WHERE listing_id = '<LISTING_ID>';
@@ -227,7 +228,7 @@ Before marking TC-B02 as PASS, verify:
 - [ ] Expired offers appear correctly in History tab
 - [ ] No new errors in logs or console
 - [ ] Trade status shows "Cancelled" with reason "Offer expired"
-- [ ] Listing stats updated correctly (unanswered_offer_count decremented)
+- [ ] Listing stats updated correctly (unanswered_offer_count incremented per unanswered expiry; reset on seller accept/decline — DEV-TASK-34 streak model)
 
 ## 📚 Related Documentation
 

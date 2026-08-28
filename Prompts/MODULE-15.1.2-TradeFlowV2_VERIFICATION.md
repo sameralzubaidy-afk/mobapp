@@ -585,18 +585,21 @@ SELECT name, setting FROM pg_settings WHERE name LIKE 'custom.%';
 
 ### TFV2-015: Seller Ignoring Offers Prompt
 
-**Files:** `TradeListScreen.tsx`, `MyListingsScreen.tsx`, migration `20260528000006_reset_unanswered_counter.sql`
+**Files:** `TradeListScreen.tsx`, `supabase/functions/send-trade-notifications/index.ts`, migration `20260829000001_dev_task_34_seller_ignore_streak.sql`
 
-- [ ] `consecutive_unanswered_offers_count` increments via TFV2-004 `rpc_process_expired_offers`
-- [ ] `fn_reset_unanswered_counter` trigger resets count on seller accept or explicit decline
-- [ ] Counter does NOT reset on `cancellation_reason IN ('offer_expired', 'offer_expired_competing')`
-- [ ] Modal triggered when `count >= 2` AND `prompt_sent_at IS NULL`
-- [ ] `prompt_sent_at` set immediately to prevent re-showing same modal
-- [ ] Modal copy matches spec: item title, 3 options
+> **DEV-TASK-34 (2026-08-29):** the counter is a **consecutive-expiry streak** — `unanswered_offer_count` increments by 1 per offer that **expires unanswered** (via `rpc_process_expired_offers`), resets to 0 on seller **accept** or **decline**, declines never count.
+
+- [ ] `unanswered_offer_count` increments by 1 per unanswered expiry via `rpc_process_expired_offers` (offer submission does NOT increment it)
+- [ ] `fn_reset_unanswered_counter` resets the streak on a real seller DECLINE (`cancellation_reason = 'seller_declined'`) only — other cancel reasons (buyer_cancelled, payment/auth failures, disputes, `offer_expired_competing`) do NOT reset it
+- [ ] `fn_reset_unanswered_counter_on_offer_accepted` resets the streak on seller ACCEPT (trigger attached on `status, auto_complete_at`)
+- [ ] A chain of declines keeps the streak at 0 and never triggers the nudge
+- [ ] Modal triggered when the streak `count >= 2` AND within the 7-day `last_prompt_sent_at` cooldown
+- [ ] `last_prompt_sent_at` set immediately to prevent re-showing same modal
+- [ ] Modal copy matches spec: item title + "Respond to your pending offers — or pause the listing if you're not able to sell right now." with [Pause Listing] and [Dismiss]
+- [ ] Push copy matches spec (same wording, in `send-trade-notifications` EF `seller_ignore_prompt`)
 - [ ] [Pause Listing] sets `listings.status = 'paused'`
-- [ ] [I'll Respond] and [Dismiss] close modal without action
+- [ ] [Dismiss] closes modal without action
 - [ ] Bottom sheet style: 20px top radius, handle pill
-- [ ] Same check runs on `MyListingsScreen` when seller opens their listings
 
 ---
 

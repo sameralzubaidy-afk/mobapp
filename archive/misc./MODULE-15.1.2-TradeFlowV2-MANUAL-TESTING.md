@@ -475,20 +475,23 @@ TC-B02-TESTING-GUIDE.md
 **Actors:** test-buyer + test-seller
 **Precondition:** QA fast-forwards the 24h offer clock past expiry for this trade.
 
-**Objective:** Verify an unanswered offer auto-cancels at expiry, restores buyer SP, and prompts a repeatedly-ignoring seller to pause the listing.
+**Objective:** Verify an unanswered offer auto-cancels at expiry, restores buyer SP, and prompts a seller who lets **two consecutive offers expire unanswered** (a true consecutive-expiry streak, not a simultaneous-pending count) to pause the listing.
+
+> **DEV-TASK-34 (2026-08-29):** the seller-ignore counter is now a **consecutive-expiry streak** (`listing_offer_stats.unanswered_offer_count`): +1 per unanswered expiry, reset to 0 on seller accept/decline, declines never count. Nudge copy: *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."*
 
 **Steps:**
 1. Log in as **Buyer** and submit an offer; note the 24h countdown starts.
 2. Allow the offer to reach its expiry without the seller responding.
 3. Log in as **Buyer** and open the **Offers** tab.
-4. Repeat with a second consecutive unanswered offer on the same listing.
+4. Repeat with a **second consecutive** unanswered offer on the same listing (submitted only after offer #1 expired — sequential, no overlap).
 5. Log in as **Seller** and check push notifications.
 
 **Expected Result:**
 - At expiry the trade auto-cancels; the buyer's reserved SP (if any) is restored.
 - The buyer's Offers tab shows "Expired — [Item] still available" with a [View Item Again] button.
 - Before expiry, the seller receives reminder pushes at roughly 6 hours and 1 hour before the offer expires.
-- After a second consecutive unanswered offer, the seller receives: "You're receiving offers but not responding on [Item]. Want to pause this listing?" with [Pause Listing] and [Dismiss].
+- The streak increments by 1 per unanswered expiry (offer submission does NOT touch it): 1st expiry → `unanswered_offer_count = 1` (no nudge); 2nd sequential expiry → `unanswered_offer_count = 2` → seller receives: *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."* with [Pause Listing] and [Dismiss]; `last_prompt_sent_at` set.
+- **Decline leg (DEV-TASK-34):** if the seller instead **declines** two offers in a row, `unanswered_offer_count` stays **0** and the nudge never fires (declines reset, never count).
 
 #### methods to fast-clock 
 

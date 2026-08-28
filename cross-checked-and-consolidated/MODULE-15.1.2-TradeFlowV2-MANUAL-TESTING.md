@@ -492,20 +492,24 @@ TC-B02-TESTING-GUIDE.md
 **Actors:** test-buyer + test-seller
 **Precondition:** QA fast-forwards the offer clock (default 48h — `offer_timeout_hours`) past expiry for this trade.
 
-**Objective:** Verify an unanswered offer auto-cancels at expiry, restores buyer SP, and prompts a repeatedly-ignoring seller to pause the listing.
+**Objective:** Verify an unanswered offer auto-cancels at expiry, restores buyer SP, and prompts a seller who lets **two consecutive offers expire unanswered** (a true consecutive-expiry streak, not a simultaneous-pending count) to pause the listing.
+
+> **DEV-TASK-34 (2026-08-29):** the seller-ignore counter is now a **consecutive-expiry streak** (`listing_offer_stats.unanswered_offer_count`). It increments only on unanswered expiry, resets to 0 on seller accept/decline, and never counts declines. The nudge copy is: *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."*
 
 **Steps:**
 1. Log in as **Buyer** and submit an offer; note the 48h countdown starts.
 2. Allow the offer to reach its expiry without the seller responding.
 3. Log in as **Buyer** and open the **History** tab.
-4. Repeat with a second consecutive unanswered offer on the same listing.
+4. Repeat with a **second consecutive** unanswered offer on the same listing (offer #2 submitted only after offer #1 has expired — sequential, no overlap).
 5. Log in as **Seller** and check push notifications.
 
 **Expected Result:**
 - At expiry the trade auto-cancels; the buyer's reserved SP (if any) is restored.
 - The buyer's **History** tab shows the cancelled (expired) trade with a **View Item** button when the item is still available. (Expired/declined offers no longer appear in the Active tab's "Your Offers" — owner decision 2026-08-28.)
 - Before expiry, the seller receives reminder pushes at roughly 6 hours and 1 hour before the offer expires.
-- After a second consecutive unanswered offer, the seller receives: "You're receiving offers but not responding on [Item]. Want to pause this listing?" with [Pause Listing] and [Dismiss].
+- The streak increments by 1 per unanswered expiry (offer submission does NOT touch it): 1st expiry → `unanswered_offer_count = 1` (no nudge), 2nd sequential expiry → `unanswered_offer_count = 2` → the seller receives the nudge: *"A few offers on [Item] have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now."* with [Pause Listing] and [Dismiss]. `listing_offer_stats.last_prompt_sent_at` is set (7-day cooldown).
+
+**Decline leg (streak resets, never counts):** if instead the seller **declines** two offers in a row (before expiry), `unanswered_offer_count` must stay **0** and the nudge must **never** fire — a decline chain is engagement, not ignoring. Verify: submit + decline offer A → count 0; submit + decline offer B → count 0; `last_prompt_sent_at` stays NULL.
 
 #### methods to fast-clock 
 
