@@ -355,6 +355,118 @@ describe('TradeListScreen', () => {
         expect(mockNavigation.navigate).toHaveBeenCalledWith('TradeDetail', { tradeId: 'trade-1' });
       });
     });
+
+    // DT-21 Item 3: declined/expired (status 'cancelled') offers whose listing is
+    // still available get a one-tap "View Item" affordance in the History tab.
+    it('shows View Item on declined/expired history rows whose listing is available', async () => {
+      mockFetchTrades([
+        {
+          id: 'trade-cancelled',
+          buyer_id: 'user-123',
+          seller_id: 'seller-1',
+          node_id: null,
+          status: 'cancelled',
+          sp_amount: 0,
+          cash_amount_cents: 2500,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-02T10:00:00.000Z',
+          updated_at: '2026-01-02T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: 'Offer expired',
+          buyer_subscription_status: 'active',
+          listing_id: 'listing-c',
+          listing: {
+            id: 'listing-c',
+            title: 'Scooter',
+            price: 25,
+            images: [
+              {
+                url: 'https://example.com/scooter.jpg',
+                thumbnail_url: null,
+                display_order: 0,
+              },
+            ],
+          },
+        },
+      ]);
+
+      const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
+
+      // Switch to the History tab to see compact rows.
+      await waitFor(() => {
+        expect(getByTestId('tab-history')).toBeTruthy();
+      });
+      fireEvent.press(getByTestId('tab-history'));
+
+      const viewItem = await waitFor(
+        () => {
+          const el = getByTestId('trade-history-row-trade-cancelled-view-item');
+          expect(el).toBeTruthy();
+          return el;
+        },
+        { timeout: 5000 }
+      );
+
+      fireEvent.press(viewItem);
+
+      await waitFor(() => {
+        expect(mockNavigation.navigate).toHaveBeenCalledWith('ListingDetail', {
+          listing_id: 'listing-c',
+        });
+      });
+    });
+
+    // DT-21 Item 3: completed history rows must NOT show the View Item affordance.
+    it('does not show View Item on completed history rows', async () => {
+      mockFetchTrades([
+        {
+          id: 'trade-completed',
+          buyer_id: 'user-123',
+          seller_id: 'seller-1',
+          node_id: null,
+          status: 'completed',
+          sp_amount: 0,
+          cash_amount_cents: 3000,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-02T10:00:00.000Z',
+          updated_at: '2026-01-03T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing_id: 'listing-d',
+          listing: {
+            id: 'listing-d',
+            title: 'Puzzle',
+            price: 30,
+            images: [],
+          },
+        },
+      ]);
+
+      const { getByTestId, queryByTestId } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('tab-history')).toBeTruthy();
+      });
+      fireEvent.press(getByTestId('tab-history'));
+
+      await waitFor(
+        () => {
+          expect(getByTestId('trade-history-row-trade-completed')).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
+
+      expect(queryByTestId('trade-history-row-trade-completed-view-item')).toBeNull();
+    });
   });
 
   // D-09: Trades sorted by total_value (cash_amount_cents/100 + sp_amount) DESC

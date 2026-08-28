@@ -15,7 +15,7 @@
 | Group | TC# | Description |
 |---|---|---|
 | **A — Core Happy Paths** | TRD-TC-A01 | Cash Only: full happy path (buyer confirms) |
-| | TRD-TC-A02 | Accept SP: Use SP slider → seller accepts → buyer confirms |
+| | TRD-TC-A02 | Accept SP: SP entry at offer → seller accepts → buyer confirms |
 | | TRD-TC-A03 | Accept SP: Pay Cash (0 SP) — subscriber seller still earns SP |
 | | TRD-TC-A04 | Donate listing: [Claim] button, no charge |
 | **B — Offer Lifecycle** | TRD-TC-B01 | Seller declines offer |
@@ -48,7 +48,7 @@
 | | TRD-TC-C05 | SP released to seller at trade completion |
 | | TRD-TC-C06 | SP restored to buyer on seller cancel (in_progress) |
 | | TRD-TC-C07 | Free user sees locked Use SP button + upgrade modal |
-| | TRD-TC-C08 | SP slider capped at 50% of item price |
+| | TRD-TC-C08 | SP entry capped at 50% of item price |
 | **D — Auto-Complete & Timers** | TRD-TC-D01 | Auto-complete when buyer never taps I Got It |
 | | TRD-TC-D02 | Auto-complete skipped when dispute is open |
 | | TRD-TC-D03 | Offer countdown pill color states |
@@ -92,8 +92,8 @@
 | | TRD-TC-J03 | 3rd post-acceptance cancel → Level 3 |
 | | TRD-TC-J04 | Seller cancel button only on in_progress |
 | | TRD-TC-J05 | Seller cancel modal shows seller reasons only |
-| **K — Value Stack & Fees** | TRD-TC-K01 | Subscriber sees $0.99 fee + Sales Tax line in value stack |
-| | TRD-TC-K02 | Non-subscriber sees $2.99 fee + Sales Tax line in value stack |
+| **K — Value Stack & Fees** | TRD-TC-K01 | Subscriber sees $1.49 fee + Sales Tax line in value stack |
+| | TRD-TC-K02 | Non-subscriber sees tiered fee (first-trade $1.49) + Sales Tax line in value stack |
 | | TRD-TC-K03 | SP discount row conditional on SP used |
 | | TRD-TC-K04 | Bundle checkout — fee charged per item (admin toggle OFF) |
 | | TRD-TC-K05 | Bundle checkout — one fee per bundle (admin toggle ON) |
@@ -149,7 +149,7 @@
 | | TRD-TC-N13 | Bulk listing: publish failure shows clear error message for below-threshold items |
 | | TRD-TC-N14 | Regression: minimum-price validation still blocks publish in single-item and bulk flows |
 | **O — Tax (End User)** | TRD-TC-O01 | Sales tax shown in checkout/cart breakdown (0 SP) |
-| | TRD-TC-O02 | Tax base stays on full item price as SP slider moves (offer + checkout) |
+| | TRD-TC-O02 | Tax base stays on full item price as SP entry changes (offer + checkout) |
 | | TRD-TC-O03 | Tax $0 when globally disabled |
 | | TRD-TC-O04 | Tax $0 when node tax disabled |
 | | TRD-TC-O05 | Tax-exempt user sees Tax Free badge |
@@ -181,7 +181,7 @@
 | | TRD-TC-O2-C06 | Buyer cancels while Awaiting Seller — PI canceled, tax voided, SP released once |
 | | TRD-TC-O2-C07 | Seller declines and offer expiry — PI canceled, tax voided |
 | | TRD-TC-O2-C08 | Buyer completes successfully — capture succeeds, tax collected |
-| | TRD-TC-O2-C09 | Auto-complete after 48 hours — capture succeeds, tax collected |
+| | TRD-TC-O2-C09 | Auto-complete after 72 hours — capture succeeds, tax collected |
 | | TRD-TC-O2-C10 | Capture failure — no payout, no collected tax, recovery state visible |
 | | TRD-TC-O2-C11 | Duplicate webhook/retry — no duplicate tax collection, payout, or SP event |
 | | TRD-TC-O2-C12 | Historical/backfill records — clearly classified, never falsely marked as collected |
@@ -387,15 +387,15 @@
 6. Tap **[I Got It]**, then tap **[Confirm]** on the confirmation prompt.
 
 **Expected Result:**
-- On the item: a "Cash Only" badge and a single **[Request to Buy]** button (no "Use SP" button).
+- On the item: a single **[Request to Buy]** button plus a secondary **Add**/"View Trade Basket" cart button. Cash-only listings show **no** payment-mode badge (only Accept-SP listings show an "SP Accepted"/"Use SP" affordance), so there is no "Cash Only" badge to expect.
 - After submitting: a confirmation toast and the trade appears as **Pending**; the seller receives a push notification.
 - The seller's offer row shows the item, cash amount, and a green countdown pill.
-- After the seller accepts: both parties see the trade move to **In Progress**; buyer sees "Payment confirmed. Coordinate pickup." with an auto-complete banner ("Auto-completing in ~47h"); the seller does **not** see an [I Got It] button or the auto-complete banner.
+- After the seller accepts: both parties see the trade move to **In Progress**; buyer sees "Payment confirmed. Coordinate pickup." with an auto-complete banner ("Auto-completing in ~72h" — the default `pickup_window_hours`); the seller does **not** see an [I Got It] button or the auto-complete banner.
 - After the buyer confirms: the trade shows as **Completed**, a "Trade Complete!" screen appears with a [Rate Seller] button; the seller sees a "Sold!" completion screen with [Rate Buyer].
 
 ---
 
-### Passed TRD-TC-A02 · Accept SP: Use SP slider → seller accepts → buyer confirms
+### Passed TRD-TC-A02 · Accept SP: SP entry at offer → seller accepts → buyer confirms
 
 **Ref:** TRADING-FLOW-V2 §7 Scenario S5, §4.4, §10
 **Actors:** test-buyer (subscriber, SP ≥ 15) + test-seller (subscriber)
@@ -404,17 +404,17 @@
 
 **Steps:**
 1. Log in as **Buyer** and open an **Accept SP** item priced at $30.
-2. Tap **[Use SP]** to open the offer screen with the SP slider.
-3. Move the slider to **$8 SP** and review the breakdown.
-4. Try to push the slider beyond 50% of the price ($15).
+2. Tap **[Request to Buy]** to open the offer screen; subscribers see the SP entry field there.
+3. Enter **$8 SP** in the SP field and review the breakdown.
+4. Try to enter more than 50% of the price ($15) — the field clamps to the max.
 5. Tap **[Submit Offer]**.
 6. Log in as **Seller**, open the **Offers** tab, tap the offer, and tap **[Accept]**.
 7. Log in as **Buyer**, open the trade, tap **[I Got It]**, then **[Confirm]**.
 
 **Expected Result:**
-- The item shows an "Accept SP" badge with two buttons: **[Send offer]** and **[Use SP]**.
-- The slider ranges from 0 to $15 (50% of $30); at $8 it shows "$22 cash + 8 SP = $30 total", platform fee $0.99 (subscriber), and total cash $22.99.
-- The slider clamps at $15 and refuses any higher value.
+- The item shows the standard **[Add to Cart]** + **[Request to Buy]** actions (a subscriber sees no payment-mode badge; a non-subscriber sees an "SP Accepted (Kids Club+ only)" badge / "Use SP 🔒" chip). There is **no** [Send offer]/[Use SP] two-button layout — SP is applied on the offer screen's SP field.
+- The SP field accepts 0 to $15 (50% of $30); at $8 it shows "$22 cash + 8 SP = $30 total", platform fee $1.49 (subscriber, tiered buyer-fee engine), and total cash $23.49.
+- The field clamps at $15 and refuses any higher value.
 - After submitting: the buyer's wallet shows 8 SP moved from available to reserved.
 - The seller's offer row shows "$22 cash + 8 SP — Total: $30"; the Review screen shows the combined SP releasing at completion.
 - While In Progress, the buyer's SP stays reserved (not yet transferred to the seller).
@@ -432,7 +432,7 @@
 
 **Steps:**
 1. Log in as **Buyer** and open an **Accept SP** listing.
-2. Tap **[Request to Buy]** (do not use the SP slider) and submit the offer.
+2. Tap **[Request to Buy]** (leave SP at 0) and submit the offer.
 3. Log in as **Seller** and accept the offer.
 4. Log in as **Buyer**, open the trade, and tap **[I Got It]** → **[Confirm]**.
 
@@ -474,11 +474,11 @@
 **Steps:**
 1. Log in as **Buyer** and submit an offer (any type) on a listing.
 2. Log in as **Seller**, open the offer in the Review screen, and tap **[Decline]**.
-3. Log in as **Buyer** and open the **Offers** tab.
+3. Log in as **Buyer** and open the **History** tab.
 
 **Expected Result:**
 - The seller sees a confirmation "Offer declined. Item stays listed." and the offer row is removed/marked declined; the listing stays available.
-- The buyer's Offers tab shows "Declined — [Item] still available" with a [View Item Again] button.
+- The buyer's **History** tab shows the cancelled (declined) trade with a **View Item** button when the item is still available. (Expired/declined offers no longer appear in the Active tab's "Your Offers" — owner decision 2026-08-28.)
 - If the buyer used SP, that SP is restored from reserved back to available.
 
 ---
@@ -490,20 +490,20 @@ TC-B02-TESTING-GUIDE.md
 
 **Ref:** TRADING-FLOW-V2 §7 Scenario S3, §9.2, §11.8
 **Actors:** test-buyer + test-seller
-**Precondition:** QA fast-forwards the 24h offer clock past expiry for this trade.
+**Precondition:** QA fast-forwards the offer clock (default 48h — `offer_timeout_hours`) past expiry for this trade.
 
 **Objective:** Verify an unanswered offer auto-cancels at expiry, restores buyer SP, and prompts a repeatedly-ignoring seller to pause the listing.
 
 **Steps:**
-1. Log in as **Buyer** and submit an offer; note the 24h countdown starts.
+1. Log in as **Buyer** and submit an offer; note the 48h countdown starts.
 2. Allow the offer to reach its expiry without the seller responding.
-3. Log in as **Buyer** and open the **Offers** tab.
+3. Log in as **Buyer** and open the **History** tab.
 4. Repeat with a second consecutive unanswered offer on the same listing.
 5. Log in as **Seller** and check push notifications.
 
 **Expected Result:**
 - At expiry the trade auto-cancels; the buyer's reserved SP (if any) is restored.
-- The buyer's Offers tab shows "Expired — [Item] still available" with a [View Item Again] button.
+- The buyer's **History** tab shows the cancelled (expired) trade with a **View Item** button when the item is still available. (Expired/declined offers no longer appear in the Active tab's "Your Offers" — owner decision 2026-08-28.)
 - Before expiry, the seller receives reminder pushes at roughly 6 hours and 1 hour before the offer expires.
 - After a second consecutive unanswered offer, the seller receives: "You're receiving offers but not responding on [Item]. Want to pause this listing?" with [Pause Listing] and [Dismiss].
 
@@ -1094,7 +1094,7 @@ SELECT public.rpc_release_pending_sp(200);
 
 ---
 
-### passed TRD-TC-C07  · Free user sees locked Use SP button + upgrade modal
+### passed TRD-TC-C07  · Free user sees locked Use SP chip + upgrade modal
 
 **Ref:** TRADING-FLOW-V2 §7 Scenario S9, §4.1
 **Actors:** test-free
@@ -1103,32 +1103,32 @@ SELECT public.rpc_release_pending_sp(200);
 
 **Steps:**
 1. Log in as **test-free** and open an **Accept SP** listing.
-2. Tap the locked **[Use SP]** button.
+2. Tap the locked **[Use SP 🔒]** chip on the item.
 3. Tap **[Try Kids Club+ Free]** in the modal, then go back and tap **[Not Now]**.
 
 **Expected Result:**
-- The [Use SP] button shows a lock icon; [Request to Buy] is available without a lock.
-- Tapping [Use SP] opens an upgrade modal: "Unlock SP discounts with Kids Club+. Save up to 50% on items. 30 days free."
+- The [Use SP 🔒] chip shows a lock icon; [Request to Buy] is available without a lock.
+- Tapping [Use SP 🔒] opens an upgrade modal: "Unlock SP discounts with Kids Club+. Save up to 50% on items. 30 days free."
 - [Try Kids Club+ Free] navigates to the subscription signup screen; [Not Now] closes the modal and returns to the item with [Request to Buy] still available.
 
 ---
 
-### passed TRD-TC-C08 · SP slider capped at 50% of item price
+### passed TRD-TC-C08 · SP entry capped at 50% of item price
 
 **Ref:** TRADING-FLOW-V2 §4.4 FR-SP-003
 **Actors:** test-buyer (subscriber)
 
-**Objective:** Verify the SP slider cannot exceed 50% of the item price.
+**Objective:** Verify the SP entry field cannot exceed 50% of the item price.
 
 **Steps:**
-1. Log in as **Buyer** and open the SP slider on a $30 item.
-2. Drag the slider all the way to the right.
-3. Try to type "16" into the SP field.
+1. Log in as **Buyer** and open the SP entry field on the $30 offer screen.
+2. Type a value above 50% (e.g., "16").
+3. Confirm the field clamps to $15 and shows the max hint.
 4. Set SP to exactly $15.
 
 **Expected Result:**
-- The slider range is 0 to $15 and stops at $15.
-- The field rejects or clamps "16" to 15, showing "Maximum SP is 50% of item price."
+- The field range is 0 to $15 and clamps at $15 (50% of price) — it never accepts a higher value.
+- The field rejects or clamps "16" to 15, and shows a max hint ("Max: 15 SP (50% of price)").
 - At $15 the breakdown reads "$15 cash + 15 SP = $30 total" with the platform fee still charged in cash.
 
 ---
@@ -1589,7 +1589,7 @@ SELECT public.rpc_process_expired_offers(100);
 1. Log in as **test-buyer** and complete a trade that used 8 SP.
 
 **Expected Result:**
-- The completion screen reads: "Got it! You saved $8 using SP!" and shows the remaining SP balance ("You have [remaining_sp] SP left.").
+- The completion screen reads: "Got it! You saved $8 using SP!" and shows the remaining SP balance ("You have [remaining_sp] SP available.").
 
 ---
 
@@ -1639,8 +1639,8 @@ SELECT public.rpc_process_expired_offers(100);
 **Expected Result:**
 | Scenario | Expected Outcome |
 |---|---|
-| Trial start | `subscriptions.status` = `trial`; `getSubscriptionSummary` returns `can_earn_sp=true`, `can_spend_sp=true`, `transaction_fee_cents=99`; buyer fee charged at $0.99 |
-| Paid conversion | Status transitions `trial` → `active`; `stripe_subscription_id` populated; `auto_renew_enabled=true`; $0.99 fee retained |
+| Trial start | `subscriptions.status` = `trial`; `getSubscriptionSummary` returns `can_earn_sp=true`, `can_spend_sp=true`; buyer charged the active-member platform fee ($1.49, tiered engine `buyer_fee_active_member_cents`) |
+| Paid conversion | Status transitions `trial` → `active`; `stripe_subscription_id` populated; `auto_renew_enabled=true`; $1.49 active-member fee retained |
 | Cancel (active) | Status = `cancelled`; `cancelled_at` recorded; benefits (incl. SP spend) remain until period end; auto-renew off |
 | Cancel (trial, no SP) | Status = `free` — no grace period |
 | Cancel (trial, SP activity) | Status = `grace_period`; `grace_ends_at` = now + `admin_config.grace_period_days` (default 90); SP wallet frozen (`can_spend_sp=false`) |
@@ -1935,40 +1935,40 @@ SELECT public.rpc_process_expired_offers(100);
 
 **Ref:** TRADING-FLOW-V2 §11.3
 
-### passed TRD-TC-K01 · Subscriber sees $0.99 fee + Sales Tax line in value stack
+### passed TRD-TC-K01 · Subscriber sees $1.49 fee + Sales Tax line in value stack
 
 **Actors:** test-buyer (subscriber)
 
-**Objective:** Verify the subscriber value stack shows the $0.99 platform fee, a Sales Tax line, and an SP discount row when SP is used. Also verifies the Item Detail screen Price Breakdown includes Sales Tax.
+**Objective:** Verify the subscriber value stack shows the $1.49 active-member platform fee (tiered buyer-fee engine R1 — `buyer_fee_active_member_cents`), a Sales Tax line, and an SP discount row when SP is used. Also verifies the Item Detail screen Price Breakdown includes Sales Tax.
 
 **Steps:**
 1. Log in as **test-buyer** and open a listing → review the **Price Breakdown** card.
-2. Tap **Make Offer**.
+2. Tap **[Request to Buy]** to open the Make Offer screen.
 3. Scroll to the value stack.
 4. Enter 5 SP.
 
 **Expected Result:**
 - **Item Detail screen:** Price Breakdown shows Item Price, Transaction Fee, **Sales Tax** (with rate), then Total.
-- **Make Offer screen:** Value stack shows Offer amount, "Platform fee" $0.99, **"Sales Tax"** (based on node rate), and "Total cash" = offer amount + sales tax + $0.99.
+- **Make Offer screen:** Value stack shows Offer amount, "Platform fee" $1.49, **"Sales Tax"** (based on node rate), and "Total cash" = offer amount + sales tax + $1.49.
 - After entering 5 SP, an "SP discount" row appears showing `-5 SP` — it reduces the cash portion only; the Sales Tax stays calculated on the full item price (BP-37) and does not change.
 - The Stripe PaymentIntent created at offer submission includes the tax amount (Option B — tax is charged at offer time, not deferred to completion).
 
 ---
 
-### passed TRD-TC-K02 · Non-subscriber sees $2.99 fee + Sales Tax line in value stack
+### passed TRD-TC-K02 · Non-subscriber sees tiered fee + Sales Tax line in value stack
 
 **Actors:** test-free
 
-**Objective:** Verify the non-subscriber value stack shows the $2.99 platform fee, a Sales Tax line, and no SP input. Also verifies the Item Detail screen Price Breakdown includes Sales Tax.
+**Objective:** Verify the non-subscriber value stack shows the tiered platform fee, a Sales Tax line, and no SP input. Also verifies the Item Detail screen Price Breakdown includes Sales Tax.
 
 **Steps:**
 1. Log in as **test-free** and open a listing → review the **Price Breakdown** card.
-2. Tap **Make Offer**.
+2. Tap **[Request to Buy]** to open the Make Offer screen.
 3. Review the value stack.
 
 **Expected Result:**
-- **Item Detail screen:** Price Breakdown shows Item Price, Transaction Fee ($2.99), **Sales Tax**, then Total.
-- **Make Offer screen:** "Platform fee" $2.99, **"Sales Tax"** row (based on node rate), "Total cash" = offer amount + sales tax + $2.99.
+- **Item Detail screen:** Price Breakdown shows Item Price, Transaction Fee, **Sales Tax**, then Total.
+- **Make Offer screen:** "Platform fee" is tiered — **flat $1.49 on the first trade** (`buyer_fee_first_trade_cents`); after 1+ completed trades it is **5% of the cash portion + $1.99, capped at $4.99** (`buyer_fee_subsequent_*`). **"Sales Tax"** row (based on node rate); "Total cash" = offer amount + sales tax + the applicable tiered fee.
 - No SP input section is visible.
 
 ---
@@ -2005,7 +2005,7 @@ SELECT public.rpc_process_expired_offers(100);
 2. Add 3 items from the same seller to cart.
 3. Navigate to **CartCheckout** screen.
 4. Review the **Order Summary** section.
-5. Verify the **Platform Fee** row shows: `Platform Fee (×3 items): $2.97` (3 × $0.99).
+5. Verify the **Platform Fee** row shows: `Platform Fee (×3 items): $4.47` (3 × $1.49 subscriber fee).
 6. Verify the **Cash Total** includes 3× the platform fee.
 7. Tap **Send Offer** and complete checkout.
 8. Navigate to the bundle trade's **Timeline** screen.
@@ -2018,7 +2018,7 @@ SELECT public.rpc_process_expired_offers(100);
 | CartCheckout: Platform Fee label | Shows "Platform Fee (×3 items)" with dollar amount = 3 × subscriber fee |
 | CartCheckout: Cash Total | Includes 3× platform fee + subtotal - SP + tax |
 | Trade Timeline: Bundle totals | "Platform Fee" row sums all `buyer_transaction_fee_cents` = 3 × fee |
-| Toggle OFF + free user | Same behavior with non-subscriber fee ($2.99 per item) |
+| Toggle OFF + free user | Same behavior with the applicable tiered fee (first-trade $1.49; subsequent 5% + $1.99 capped $4.99) per item |
 | Single-item trade (non-bundle) | Fee charged once, no "(×1 items)" suffix |
 
 ---
@@ -2035,7 +2035,7 @@ SELECT public.rpc_process_expired_offers(100);
 2. Add 3 items from the same seller to cart.
 3. Navigate to **CartCheckout** screen.
 4. Review the **Order Summary** section.
-5. Verify the **Platform Fee** row shows: `Platform Fee: $0.99` (single fee, no ×N suffix).
+5. Verify the **Platform Fee** row shows: `Platform Fee: $1.49` (single fee, no ×N suffix) for a subscriber.
 6. Verify the **Cash Total** includes exactly 1× the platform fee.
 7. Tap **Send Offer** and complete checkout.
 8. Navigate to the bundle trade's **Timeline** screen.
@@ -2046,10 +2046,10 @@ SELECT public.rpc_process_expired_offers(100);
 | Scenario | Expected Outcome |
 |---|---|
 | Admin toggle ON | Config page at `localhost:3001/config` → Fees tab shows `Charge One Fee Per Bundle: Enabled` |
-| CartCheckout: Platform Fee label | Shows "Platform Fee: $0.99" — no "(×N items)" suffix |
+| CartCheckout: Platform Fee label | Shows "Platform Fee: $1.49" (subscriber) — no "(×N items)" suffix |
 | CartCheckout: Cash Total | Includes exactly 1× platform fee + subtotal - SP + tax |
 | Trade Timeline: Bundle totals | "Platform Fee" row shows exactly 1× fee (single `buyer_transaction_fee_cents` across all bundle trades) |
-| Toggle ON + free user | One fee of $2.99 for the entire bundle |
+| Toggle ON + free user | One fee for the entire bundle (first-trade $1.49; subsequent tiered) |
 | Single-item trade (non-bundle) | Fee charged once — unaffected by toggle |
 
 ---
@@ -2071,8 +2071,8 @@ SELECT public.rpc_process_expired_offers(100);
 **Expected Result:**
 | Scenario | Expected Outcome |
 |---|---|
-| Toggle OFF bundle | "Platform Fee" = sum of all individual fees (e.g., $2.97 for 3 items at $0.99) |
-| Toggle ON bundle | "Platform Fee" = single fee (e.g., $0.99) |
+| Toggle OFF bundle | "Platform Fee" = sum of all individual fees (e.g., $4.47 for 3 subscriber items at $1.49) |
+| Toggle ON bundle | "Platform Fee" = single fee (e.g., $1.49) |
 | Both bundles | "Items Total" and "Sales Tax" display correctly regardless of fee mode |
 
 ---
@@ -2080,7 +2080,7 @@ SELECT public.rpc_process_expired_offers(100);
 ### passed TRD-TC-K07 · Admin partial refund — refund price only, keep fee
 
 **Actors:** admin (admin portal)
-**Precondition:** A `completed` trade exists with captured payment: price $100, fee $0.99, tax $7.00 (total charged $107.99).
+**Precondition:** A `completed` trade exists with captured payment: price $100, fee $1.49, tax $7.00 (total charged $108.49).
 
 **Objective:** Verify the admin can issue a partial refund that returns the item price but KEEPS the platform fee, and the trade is NOT cancelled.
 
@@ -2181,7 +2181,7 @@ SELECT public.rpc_process_expired_offers(100);
 
 **Steps:**
 1. test-seller (free) lists a $25 item with **Accept SP** enabled.
-2. test-buyer (subscriber) submits an offer using **12 SP** on the $25 item → cash portion = $13.00, buyer fee = $0.99.
+2. test-buyer (subscriber) submits an offer using **12 SP** on the $25 item → cash portion = $13.00, buyer fee = $1.49.
 3. Verify `trades.seller_transaction_fee_cents` on the created offer.
 4. test-seller accepts; test-buyer confirms completion.
 5. Verify `trades.payout_amount_cents` on the completed trade and the seller payout record.
@@ -3185,20 +3185,20 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### passed TRD-TC-O02 · Tax base unchanged (full item price) as SP slider moves (offer + checkout)
+### passed TRD-TC-O02 · Tax base unchanged (full item price) as SP entry changes (offer + checkout)
 
 **Precondition:** test-buyer (subscriber) with ≥ 15 SP, item is $30 Accept SP, `include_fee_in_tax_base = false`.
 
 **Steps:**
-1. Open the $30 item → tap **Use SP** → move slider to apply 15 SP (max 50%).
+1. Open the $30 item → tap **[Request to Buy]** → enter **15 SP** in the offer screen's SP field (max 50%).
 2. Watch the breakdown update in real time.
 3. Repeat on TradeOfferScreen.
 
 **Expected:**
-- Tax recalculates within ~300ms as the slider moves.
+- Tax recalculates within ~300ms as the SP entry changes.
 - **Tax base = full $30 item price** (NOT reduced by SP — BP-37).
 - Tax amount stays at $1.91 (calculated on $30, not on $15 cash).
-- Platform fee ($0.99) is still charged in cash.
+- Platform fee ($1.49) is still charged in cash.
 - Recalculation applies on both TradeInitiationScreen and TradeOfferScreen.
 
 **⚠️ Known Issue:** Tax should NOT recalculate when SP changes (BP-37). If test shows tax recalculating, this is a bug.
@@ -3256,7 +3256,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 2. As **test-buyer**, open the item's **Item Detail** screen and scroll to the **💰 Price Breakdown** card.
 3. Observe the Sales Tax area (between Transaction Fee and Total).
 4. Tap **Request to Buy** → on the offer initiation screen, observe the tax area.
-5. If the item accepts SP and the buyer is a subscriber, advance to the offer screen (SP slider) and observe the value stack's tax row.
+5. If the item accepts SP and the buyer is a subscriber, advance to the offer screen (SP entry field) and observe the value stack's tax row.
 6. Add a **second, non-exempt** listing (e.g., a Toys or Electronics item → General Tangible Goods) at a similar price and repeat steps 2–5.
 7. (Negative check) Have **test-admin** disable global tax (per TRD-TC-O03) or zero the buyer's node rate (per TRD-TC-O04), then open checkout on a taxable item.
 
@@ -3756,8 +3756,8 @@ LIMIT 10;
 
 **Expected:**
 - First offer (fee NOT in base): `taxable_amount_cents = 3000`, `tax_amount_cents = 191`.
-- Second offer (fee IN base): `taxable_amount_cents = 3099`, `tax_amount_cents = 197`.
-- Difference = 6 cents (attributable to $0.99 fee).
+- Second offer (fee IN base): `taxable_amount_cents = 3149`, `tax_amount_cents = 200`.
+- Difference = 9 cents (attributable to $1.49 fee).
 - First offer's snapshot unchanged (not retroactive).
 
 ---
@@ -3889,7 +3889,7 @@ LIMIT 10;
 
 ---
 
-### ✅ TRD-TC-O2-C09 · Auto-complete after 48 hours — capture succeeds, tax collected
+### ✅ TRD-TC-O2-C09 · Auto-complete after 72 hours — capture succeeds, tax collected
 
 **Precondition:** In Progress trade with `auto_complete_at` set.
 
@@ -5543,8 +5543,8 @@ FROM items;
 **Expected Result:**
 - Subtotal: $70.00
 - Points Applied: -$35.00
-- Platform Fee: $0.99 (subscriber)
-- Cash Total: $35.00 + $0.99 + tax = correct value
+- Platform Fee: $1.49 (subscriber)
+- Cash Total: $35.00 + $1.49 + tax = correct value
 - "Send Offer" button shows correct cash total.
 
 ### TRD-TC-T08 · Seller Review Offer shows per-item points breakdown
@@ -6646,7 +6646,7 @@ FROM items;
 **Steps:**
 1. Open an Accept SP item as a free buyer.
 **Expected Result:**
-- [Use SP] shows a lock icon; [Request to Buy] has no lock.
+- [Use SP 🔒] chip shows a lock icon; [Request to Buy] has no lock.
 
 ---
 
@@ -6679,7 +6679,7 @@ FROM items;
 | SP released to seller at completion | TRD-TC-C05 |
 | SP restored on seller cancel in_progress | TRD-TC-C06 |
 | Free user — locked Use SP + upgrade modal (S9) | TRD-TC-C07 |
-| SP slider 50% cap (FR-SP-003) | TRD-TC-C08 |
+| SP entry 50% cap (FR-SP-003) | TRD-TC-C08 |
 | Auto-complete fires when buyer inactive (S7) | TRD-TC-D01 |
 | Auto-complete skipped when dispute open (§6.2.4) | TRD-TC-D02 |
 | Offer countdown pill color states (§8.1) | TRD-TC-D03 |
@@ -6713,8 +6713,8 @@ FROM items;
 | Seller cancel Level 3 + admin flag (§11.7) | TRD-TC-J03 |
 | Seller cancel button visibility | TRD-TC-J04 |
 | Seller cancel modal seller-specific reasons | TRD-TC-J05 |
-| Value stack $0.99 subscriber fee | TRD-TC-K01 |
-| Value stack $2.99 non-subscriber fee | TRD-TC-K02 |
+| Value stack $1.49 subscriber fee | TRD-TC-K01 |
+| Value stack tiered non-subscriber fee | TRD-TC-K02 |
 | SP discount row conditional | TRD-TC-K03 |
 | Seller fee 5% × cash portion (SP trade) | TRD-TC-K11 |
 | Bundle banner on trade detail | TRD-TC-L01 |
@@ -6848,7 +6848,7 @@ FROM items;
 **Steps:**
 1. In the admin portal open **/settings/trade-timing**; set **Pickup Window = 48** (offer timeout stays 48 → combined 96h ≤ 167h) and Save.
 2. As buyer, submit an offer; as seller, accept it.
-3. Read the trade row and confirm `auto_complete_at` ≈ accept time + 48h (not 72h).
+3. Read the trade row and confirm `auto_complete_at` ≈ accept time + 48h — i.e., it tracks the configured pickup window, not the 72h default.
 4. In admin, set **Pickup Window = 72**; submit + accept a new offer; confirm `auto_complete_at` ≈ accept time + 72h.
 5. (Optional) Confirm the buyer sees the pickup countdown banner and pickup reminders use the configured thresholds.
 

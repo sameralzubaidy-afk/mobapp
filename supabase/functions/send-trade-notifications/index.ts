@@ -25,7 +25,12 @@ const EVENT_COPY: Record<string, { title: string; body: (data?: Record<string, u
   offer_expired_seller: { title: 'Offer Expired',    body: (data) => `An unanswered offer on "${data?.listing_title || 'your listing'}" has expired.` },
   offer_reminder_6h:  { title: 'Offer Expiring Soon', body: (data) => `You have an offer on "${data?.listing_title || 'your listing'}" expiring in ${data?.hours_remaining || 6} hours.` },
   offer_reminder_1h:  { title: 'Offer Expiring Soon', body: (data) => `You have an offer on "${data?.listing_title || 'your listing'}" expiring in ${data?.hours_remaining || 1} hour.` },
-  seller_ignore_prompt: { title: 'Listing Feedback', body: (data) => `You're receiving offers but not responding on "${data?.listing_title || 'your listing'}". Want to pause this listing?` },
+  // DEV-TASK-34 (2026-08-29): seller_ignore_prompt copy rewritten to match the
+  // new consecutive-expiry-streak semantics — it fires only after offers EXPIRE
+  // unanswered (never for a decline chain), so the copy acknowledges unanswered
+  // offers and gives a clear choice (respond, or pause the listing). Encouraging,
+  // not accusatory.
+  seller_ignore_prompt: { title: 'Listing Feedback', body: (data) => `A few offers on "${data?.listing_title || 'your listing'}" have gone unanswered. Respond to your pending offers — or pause the listing if you're not able to sell right now.` },
   seller_cancelled:   { title: 'Trade Cancelled',    body: () => 'The seller cancelled this trade.' },
   trade_completed:    { title: 'Trade Complete!',    body: () => 'Your trade has been marked as complete.' },
   trade_disputed:     { title: 'Dispute Opened',     body: () => 'A dispute has been opened on this trade.' },

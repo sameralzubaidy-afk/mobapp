@@ -315,7 +315,7 @@ describe('TFV2-012A — createTradeOfferWithHold', () => {
     mockInvoke.mockResolvedValueOnce({
       data: {
         success: false,
-        error: { code: 'MAX_PENDING_OFFERS', message: 'You have many pending offers with this seller. Cancel one to make a new offer.' },
+        error: { code: 'MAX_PENDING_OFFERS', message: 'You have 3 pending offers with this seller. Cancel one to make a new offer.' },
       },
       error: null,
     });
@@ -349,6 +349,31 @@ describe('TFV2-012A — createTradeOfferWithHold', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeTruthy();
+  });
+
+  it('sends a per-submission nonce to create-trade-offer (DT-18 re-offer idempotency fix)', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: {
+        success: true,
+        trade_id: 'trade-001',
+        authorization_id: 'pi_test_auth',
+      },
+      error: null,
+    });
+
+    await createTradeOfferWithHold(validInput);
+
+    // DT-18 (2026-08-28): the client must send a nonce so each NEW offer submission gets
+    // a unique Stripe idempotency key (a re-offer after a cancelled trade no longer 409s),
+    // while retries of the SAME submission reuse it (double-tap still dedupes to one hold).
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'create-trade-offer',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          submission_nonce: expect.any(String),
+        }),
+      })
+    );
   });
 });
 

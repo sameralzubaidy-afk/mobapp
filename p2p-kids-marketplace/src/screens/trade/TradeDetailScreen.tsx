@@ -572,6 +572,8 @@ export default function TradeDetailScreen() {
         onConfirm={confirmCompleteTrade}
         onCancel={() => setShowCompleteConfirm(false)}
         loading={submitting}
+        confirmTestID="complete-trade-confirm-button"
+        cancelTestID="complete-trade-cancel-button"
       />
 
       {notifModal && (
@@ -584,6 +586,7 @@ export default function TradeDetailScreen() {
           onConfirm={() => (notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null))}
           onCancel={() => setNotifModal(null)}
           hideCancel
+          confirmTestID="notif-ok-button"
         />
       )}
 

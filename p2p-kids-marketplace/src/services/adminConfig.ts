@@ -2,6 +2,7 @@
 // Dynamic config service - fetches all admin_config values from Supabase
 
 import { supabase } from '../config/supabase';
+import { getSimulatedConfigFetchFailure } from './devTestingService';
 
 export interface AdminConfig {
   // Subscription
@@ -108,6 +109,17 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
   // Return cached config if available and not expired
   if (!forceRefresh && configCache && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
     return configCache;
+  }
+
+  // QA TRD-TC-B05i (dev-only, session-local): simulate the admin_config fetch
+  // failing — exercises the fail-soft path (getDefaultConfig) on demand WITHOUT
+  // touching shared-staging admin_config. Fail-closed outside dev/test.
+  if ((await getSimulatedConfigFetchFailure()) === 'fetch_failure') {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '⚠️ [QA] Simulated admin config fetch failure (qa_local_config_fetch_failure) — returning defaults'
+    );
+    return getDefaultConfig();
   }
 
   try {
@@ -547,7 +559,7 @@ export async function getGracePeriodDays(forceRefresh = false): Promise<number> 
  * before being released to the seller's available balance.
  * Default: 3 days.
  */
-export async function getSPReleaseDays(forceRefresh = false): Promise<number> {
+export async function getSPReleaseDays(_forceRefresh = false): Promise<number> {
   try {
     const { data, error } = await supabase.rpc('get_config_value', {
       p_key: 'sp_pending_days',

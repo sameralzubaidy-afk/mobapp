@@ -43,6 +43,10 @@ import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import ScreenLayout from '@/components/ScreenLayout';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_DONE_ACCESSORY_ID,
+} from '@/components/shared/KeyboardDoneAccessory';
 // MODULE-15.3-PART3 TAX-011: tax preview row
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
@@ -602,6 +606,7 @@ export default function TradeInitiationScreen() {
                       maxLength={8}
                       selectTextOnFocus
                       placeholder="0.00"
+                      inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                     />
                     <Text style={styles.spLabel}>SP</Text>
                   </View>
@@ -822,6 +827,8 @@ export default function TradeInitiationScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      <KeyboardDoneAccessory />
+
       {/* Disclaimer Modal - Conditional render to prevent aggressive native view parsing */}
       {showDisclaimer && (
         <DisclaimerModal
@@ -850,6 +857,8 @@ export default function TradeInitiationScreen() {
           navigation.navigate('TradeList');
         }}
         onCancel={() => setShowOfferLimitModal(false)}
+        confirmTestID="offer-limit-view-offers-button"
+        cancelTestID="offer-limit-ok-button"
       />
     </ScreenLayout>
   );

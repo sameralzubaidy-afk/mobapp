@@ -279,7 +279,7 @@ export default function ReviewOfferScreen() {
       setSubmitting(true);
       setShowDeclineModal(false);
       await respondToOffer(offer.id, 'decline');
-      Alert.alert('Offer Declined', 'The buyer has been notified.', [
+      Alert.alert('Offer Declined', 'The buyer has been notified. The item stays listed.', [
         {
           text: 'OK',
           onPress: () => navigation.navigate('MyListings'),
@@ -606,17 +606,21 @@ export default function ReviewOfferScreen() {
         onConfirm={executeAccept}
         onCancel={() => setShowAcceptModal(false)}
         loading={submitting}
+        confirmTestID="accept-trade-confirm-button"
+        cancelTestID="accept-trade-cancel-button"
       />
 
       <TradeConfirmationModal
         visible={showDeclineModal}
         title="Decline Trade"
-        message="Are you sure you want to decline this offer? This action cannot be undone."
+        message="Are you sure you want to decline this offer? Your item stays listed and can receive new offers. This action cannot be undone."
         confirmLabel="Decline"
         variant="decline"
         onConfirm={executeDecline}
         onCancel={() => setShowDeclineModal(false)}
         loading={submitting}
+        confirmTestID="decline-trade-confirm-button"
+        cancelTestID="decline-trade-cancel-button"
       />
 
       <TradeConfirmationModal
@@ -633,6 +637,8 @@ export default function ReviewOfferScreen() {
         onConfirm={executeAcceptBundle}
         onCancel={() => setShowAcceptBundleModal(false)}
         loading={acceptingBundle}
+        confirmTestID="accept-bundle-confirm-button"
+        cancelTestID="accept-bundle-cancel-button"
       />
     </ScreenLayout>
   );

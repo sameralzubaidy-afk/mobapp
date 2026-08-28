@@ -567,7 +567,7 @@ SELECT name, setting FROM pg_settings WHERE name LIKE 'custom.%';
 - [ ] Large green `CheckCircle` (80px, `#5DBB8E`) celebration icon retained
 - [ ] All **7 CTA permutations** implemented:
   - [ ] Free buyer → "Kids Club+ would've saved you $2 on this trade" + [Try Kids Club+ Free — 30 Days]
-  - [ ] Subscriber buyer (used SP) → "You saved $X using SP! You have Y SP left." + [Keep Shopping]
+  - [ ] Subscriber buyer (used SP) → "You saved $X using SP! You have Y SP available." + [Keep Shopping]
   - [ ] Subscriber buyer (no SP) → "Consider using SP on your next purchase" + [Browse Items]
   - [ ] Free seller → "Subscribe to earn Swap Points on your next sale" + [Try Kids Club+ Free — 30 Days]
   - [ ] Subscriber seller (cash_only listing) → "Try 'Accept SP' on your next listing" + [Create New Listing]

@@ -1574,6 +1574,8 @@ export default function TradeTimelineScreen() {
         onConfirm={confirmCompleteTrade}
         onCancel={() => setShowCompleteConfirm(false)}
         loading={submitting}
+        confirmTestID="complete-trade-confirm-button"
+        cancelTestID="complete-trade-cancel-button"
       />
 
       {/* Addendum C: Bundle confirm all modal with app green color */}
@@ -1613,6 +1615,8 @@ export default function TradeTimelineScreen() {
           setShowCompleteConfirm(true);
         }}
         loading={submitting}
+        confirmTestID="confirm-all-trades-button"
+        cancelTestID="confirm-all-cancel-button"
       />
 
       {/* BUNDLE-CANCEL (2026-08-01): Cancel-all modal for bundle members (mirrors Addendum C confirm-all). */}
@@ -1654,6 +1658,8 @@ export default function TradeTimelineScreen() {
           if (reason) performSingleCancel(reason);
         }}
         loading={submitting}
+        confirmTestID="cancel-all-trades-button"
+        cancelTestID="cancel-all-cancel-button"
       />
 
       {notifModal && (
@@ -1666,6 +1672,7 @@ export default function TradeTimelineScreen() {
           onConfirm={() => (notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null))}
           onCancel={() => setNotifModal(null)}
           hideCancel
+          confirmTestID="notif-ok-button"
         />
       )}
 
@@ -1687,6 +1694,8 @@ export default function TradeTimelineScreen() {
           onConfirm={() => handleRespondExtension(extensionConfirm.action)}
           onCancel={() => setExtensionConfirm(null)}
           loading={extensionConfirm.processing}
+          confirmTestID={extensionConfirm.action === 'accept' ? 'extension-accept-button' : 'extension-decline-button'}
+          cancelTestID="extension-cancel-button"
         />
       )}
 

@@ -90,9 +90,9 @@ describe('TC-49: Completion CTAs', () => {
         } catch {}
       }
 
-      // TC-H02: Remaining SP balance "You have [remaining_sp] SP left."
+      // TC-H02: Remaining SP balance "You have [remaining_sp] SP available." (DEV-TASK-31 UX)
       try {
-        await expect(element(by.text(/SP left/))).toBeVisible();
+        await expect(element(by.text(/SP available/))).toBeVisible();
       } catch {
         try {
           await expect(element(by.text(/remaining/))).toBeVisible();

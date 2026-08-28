@@ -5,7 +5,7 @@ applyTo: "supabase/migrations/**/*.sql"
 
 # Supabase SQL / Migration Hardening Protocol
 
-Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48, BP-73. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48, BP-73, BP-74, BP-75, BP-76. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -38,6 +38,9 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never direct `admin_config` table writes (records the editor + lands in the shared audit trail).
 - BP-73 Trades FK + payout-method schema — the `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect / payout-method state lives in `seller_payout_methods` (never `profiles`).
+- BP-75 RLS-disabled audit — the authoritative source for "which tables have RLS off" is the LIVE `pg_class.relrowsecurity` query, not migration greps (greps miss DO-block/seed enablement, commented-out `ENABLE RLS` lines, and orphaned DB-only tables); trace every table's readers/writers (client vs service-role vs SECURITY DEFINER) before enabling RLS.
+- BP-74 Tier-1 notification assertion — anchor on the linkage key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`); never a shared/fuzzy filter helper that can silently drop the row (DT-19, 2026-08-28).
+- BP-76 Enum-like status/reason literals — DB writers must emit the canonical snake value (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column (silently breaks surfacing/counters, TRD re-verify 2026-08-28).
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -403,3 +406,42 @@ Rules:
 - Before writing a query against an unfamiliar table this session, introspect its columns (`information_schema.columns` WHERE table_name = ...) rather than assuming the schema (mirrors the QA pre-read-DB-schema discipline).
 
 Detection checklist: if a query fails `42703 ... does not exist`, introspect the table's actual columns before assuming a name; when the `trades` table is involved, the item FK is `listing_id`.
+
+## BP-75: RLS-Disabled Audits Must Use the Live `pg_class.relrowsecurity` Query, Not Migration Greps
+Problem: A security-advisory/audit that asks "which public tables have RLS disabled" — or a decision about whether a table is actually locked down — cannot be answered from the migration files alone. Migration greps are incomplete and misleading in both directions: a table can be RLS-enabled in a `DO` block or seed file (so it is absent from a naive `ENABLE ROW LEVEL SECURITY` grep — e.g. `nodes` appears disabled in the repo but is actually enabled), a migration can have the enable line commented out (e.g. `role_based_access_control` in `20251216_create_geographic_nodes_table.sql`), and a table can exist in the live DB with no migration creating it at all (legacy/orphaned tables like `swap_points_ledger`, `v_config_value`, `v_referrer_sp`, `auto_complete_results`). Designing RLS policies (or concluding "nothing is exposed") from a grep-based inventory is how RLS gaps survive to launch.
+
+Rules:
+- The authoritative source for "which tables have RLS disabled" is the LIVE database, not the migrations:
+  ```sql
+  SELECT c.relname, c.relrowsecurity
+  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind IN ('r','p') AND NOT c.relrowsecurity
+  ORDER BY 1;
+  ```
+  Use this query (via the Supabase MCP per the MCP Usage Protocol) to enumerate the RLS-disabled set before designing any policy, and re-run it after enabling RLS to confirm 0 rows remain.
+- Before enabling RLS on any table, trace EVERY reader/writer first: the mobile app (`supabase.from(...)` with a user JWT), Edge Functions (service-role or user-JWT), admin-portal client pages (user JWT) vs API routes (service role), and SECURITY DEFINER functions/triggers/cron (owner context — bypass RLS). A user-JWT client read/write is the one that breaks when RLS is enabled without a matching policy.
+- Recursion-safe admin policies: when a policy on a table needs to check a role stored in that same table (e.g. `role_based_access_control`), call a SECURITY DEFINER helper (owner context bypasses RLS) — never inline a self-referencing subquery, which recurses infinitely.
+- After enabling RLS, verify per-table policy counts (`pg_policies`) and functionally exercise every user-JWT path that touches the table (e.g. the admin-portal login reads its own `role_based_access_control` row).
+
+Detection checklist: whenever an audit/security-advisory enumerates RLS-disabled tables, or a "locked down" table is reachable from a client, confirm against the live `pg_class.relrowsecurity` snapshot and the table's actual reader/writer inventory before changing anything.
+
+## BP-74: Tier-1 Harness Verification of a DB-Triggered Notification Must Assert on the Linkage Key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`), Never a Fuzzy/Shared Filter Helper
+Problem: A Tier-1 live-verification harness verified the `spend_purchase` reserve row on `sp_ledger` (the DT-19 ledger fix), but its notification check FALSE-FAILed: it filtered `user_notifications` through a shared "recent notifications" helper that kept only rows where `data.ledger_id` was NULL OR `data.trade_id` was present — silently dropping the `sp_spent`/`sp_refunded` rows, which DO carry a non-null `data.ledger_id` (DT-19, 2026-08-28). The notification actually existed and matched the ledger row; only the harness filter was wrong. Cost: an extra investigation round on a false negative.
+
+Rules:
+- When a Tier-1 harness verifies a notification created by the `sp_ledger` triggers (`send_sp_transaction_notification` → `create_sp_notification`), assert DIRECTLY on the linkage key: `SELECT * FROM user_notifications WHERE user_id = <buyer> AND data->>'ledger_id' = <sp_ledger_row_id>`. The notification row is joined to the ledger row by `data.ledger_id` — obtain that id from the `sp_ledger` row you already verified and anchor the assertion on it, not on fuzzy body/title text or a broad recency filter.
+- NEVER funnel a side-effect assertion through a shared "recent rows" helper that applies its own predicate (e.g. keeping only rows with `data.trade_id` or a NULL `data.ledger_id`) — such a helper can silently exclude the very row being asserted and turn a PASS into a false FAIL.
+- When a harness check false-fails, confirm the "absence" with a direct, unfiltered read keyed on the exact linkage id before treating it as a product bug (DT-19 S3 "refunded notification": present and correct — the harness filter was the only defect).
+
+Detection checklist: in any Tier-1 harness asserting a `user_notifications` side effect, grep the filter predicate — if it is not `data->>'ledger_id' = <id>` (or the equivalent direct-key equality), rewrite the assertion; verify the notification via a direct query keyed on `data.ledger_id`. Cross-ref BP-72 (read the DB row directly, not the UI response) and BP-31 (verify both trigger AND RPC layers).
+
+## BP-76: Enum-Like Status/Reason Values Must Use One Canonical Literal Across DB Writer, Triggers, and Client — Never a Display String in a Machine-Compared Column
+Problem: DB RPCs/triggers write enum-like values into machine-compared columns (`trades.cancellation_reason`, status, state) as human display strings — e.g. the expiry processor writes `'Offer expired'` (capital O + space) — while downstream consumers compare snake-case machine literals. The mobile client's fetch filter (`TradeListScreen.tsx` L358 `.in('cancellation_reason', ['seller_declined', 'offer_expired'])` and its memo filter `=== 'offer_expired'`) and even another DB trigger (`fn_reset_unanswered_counter`'s guard `IS DISTINCT FROM 'offer_expired'`) compare the snake form. The strings never match → features silently break with no error: expired offers never surface in the buyer's "Your Offers", and the seller-ignore streak resets to 0 on every expiry so the 2-consecutive-unanswered-offer prompt can never fire. Found live 2026-08-28 (TRD re-verify run: `rpc_process_expired_offers` writes `'Offer expired'`; the declined branch worked only because the decline EFs write `'seller_declined'` snake, which matches).
+
+Rules:
+- When a DB function/trigger writes an enum-like value (status, reason, event type, state), write the canonical **snake-case machine literal** (`'offer_expired'`, `'seller_declined'`, `'buyer_cancelled'`) so both DB triggers AND the mobile client can match it exactly. If a human-readable display string is genuinely needed for the UI, derive it in the client from the canonical value (or keep a separate display column) — never store the display string in the machine-compared column.
+- Before authoring/applying any function that sets or compares one of these literals, grep BOTH forms repo-wide (migrations + Edge Functions + mobile client) — e.g. `rg -n "offer_expired" supabase p2p-kids-marketplace/src` AND `rg -n "'Offer expired'" supabase p2p-kids-marketplace/src`. One canonical value per semantic; if both forms exist, reconcile to one before shipping (prefer fixing the WRITER side — fewest call sites).
+- Trigger guards that must NOT act on a specific reason (e.g. don't reset the seller-ignore streak on expiry) must compare the exact literal the writer emits — a snake/spaced mismatch flips a "keep" into a "reset" (the live `fn_reset_unanswered_counter` case).
+- Cross-layer check when judging a surfaced/expired UI case: compare the client's literal against the LIVE DB value (`SELECT DISTINCT cancellation_reason FROM trades`) — a silent no-error mismatch means the literals differ, not that the feature "just doesn't render".
+
+Detection checklist: an expired/declined offer missing from the app's "Your Offers", or a counter resetting unexpectedly on expiry, with no error → compare the client/trigger literal against the live DB value in `trades.cancellation_reason`; a `'offer_expired'` vs `'Offer expired'` difference is the bug. Cross-ref BP-3 (silent mis-filtering), BP-16 (stale trigger comments), BP-31 (verify both trigger AND RPC layers).

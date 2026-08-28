@@ -5,7 +5,7 @@
 All 4 features from TC-B02 have been implemented:
 
 1. ✅ **Auto-cancel at expiry** — Trade status changes to 'cancelled', buyer's SP restored
-2. ✅ **Expired offer UI** — Shows "Expired — [Item] still available" with [View Item Again] button
+2. ✅ **Expired offer UI** — The cancelled (expired) trade appears in the buyer's **History** tab with a **View Item** button when the item is still available (owner decision 2026-08-28 — expired/declined offers no longer appear under Active → Your Offers)
 3. ✅ **Reminder notifications** — Seller receives push at 6h and 1h before expiry
 4. ✅ **Seller ignore prompt** — After 2 consecutive unanswered offers, seller gets modal with [Pause Listing] / [Dismiss]
 
@@ -111,24 +111,22 @@ npx expo start --clear
 
 ## 🧪 Test Scenario 2: Expired Offer UI
 
-**Objective**: Verify buyer sees "Expired" badge and [View Item Again] button
+**Objective**: Verify the cancelled (expired) offer appears in the buyer's History tab with a "View Item" affordance when the item is still available
 
 ### Steps:
 
-1. **Log in as test-buyer** and navigate to **Trades → Buying → Your Offers**
+1. **Log in as test-buyer** and navigate to **Trades → History** (expired/declined offers no longer appear under Active → Your Offers — owner decision 2026-08-28)
 
 2. **Verify the expired offer shows**:
-   - Badge: **"EXPIRED"** (red text on pink background)
-   - Message: **"Expired — Item still available"** (if listing is still available)
-   - Button: **[View Item Again]** (green button, not the usual gray "View Details")
+   - Badge: **"Cancelled"**
+   - Row links to the trade details; if the listing is still available, a **[View Item]** button appears
 
-3. **Tap [View Item Again]**:
-   - Should navigate to the ItemDetail screen for that listing
+3. **Tap [View Item]** (or tap the row → trade details):
+   - [View Item] should navigate to the listing detail (ListingDetail) for that listing
    - You should be able to submit a new offer
 
 4. **If the listing was deleted/sold**:
-   - Message should say: **"Expired — Item no longer available"**
-   - No [View Item Again] button (just [View Details])
+   - No [View Item] button (just the row → trade details)
 
 ---
 
@@ -328,8 +326,8 @@ LIMIT 10;
 - [x] At expiry the trade auto-cancels
 - [x] Buyer's reserved SP is restored to available balance
 - [x] SP ledger shows 'earn_refund' entry
-- [x] Buyer's Offers tab shows "Expired — [Item] still available"
-- [x] [View Item Again] button navigates to ItemDetail
+- [x] Buyer's History tab shows the cancelled (expired) trade with a [View Item] button when the item is still available (owner decision 2026-08-28 — moved out of Active "Your Offers")
+- [x] [View Item] button navigates to the listing detail (ListingDetail)
 - [x] Seller receives reminder push at ~6 hours before expiry
 - [x] Seller receives reminder push at ~1 hour before expiry
 - [x] After 2nd consecutive unanswered offer, seller receives prompt

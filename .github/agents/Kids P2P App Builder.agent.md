@@ -234,7 +234,7 @@ Required in every SQL deliverable:
 
 Full Postgres RPC / SQL naming convention and required verification queries moved to .github/instructions/supabase-sql.instructions.md (auto-attaches when editing supabase/migrations/**/*.sql).
 
-See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-72) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
+See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-75) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
 UI Performance Defaults (MANDATORY)
 Debounce defaults:
 
@@ -690,7 +690,7 @@ Issue: "Push/in-app notification never arrives for a state change"
 ✅ Check: `send-trade-notifications` response body — `resp.ok` can be true with `sent === 0` (BP-17)
 ✅ Check: Reminder-type EFs must explicitly insert `user_notifications`, not rely on triggers (BP-18)
 ✅ Check: Cron-invoked EF has `verify_jwt = false` (BP-19)
-See also: BP-32 (notification verification gate for any new state change)
+See also: BP-32 (notification verification gate for any new state change), BP-74 (verify a created notification by its `data.ledger_id` linkage key — never a fuzzy/shared filter helper)
 Issue: "Realtime update doesn't reach the screen / stale UI until manual refresh"
 
 ✅ Check: Target table is in the `supabase_realtime` publication (BP-36)
@@ -813,6 +813,17 @@ See also: BP-72 (QA side-effect verification — read-only backend/DB/Stripe che
 Issue: "SQL/PostgREST query fails with 42703 'column does not exist' (e.g. `trades.item_id`, `profiles.stripe_connect_account_id`)?"
 ✅ Check: The `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect/payout-method state lives in `seller_payout_methods` (never `profiles`) (BP-73)
 See also: BP-73 (schema facts — trades FK is `listing_id`; payout-method state in `seller_payout_methods`)
+
+Issue: "Security advisory / audit reports tables with RLS disabled (or a table that should be locked down is reachable from a client)"
+
+✅ Check: The authoritative list came from the LIVE `pg_class.relrowsecurity` query, not a migration grep — greps are incomplete (RLS enabled in DO blocks/seed, or the `ENABLE RLS` line commented out) and miss orphaned tables that exist only in the DB (BP-75)
+✅ Check: Every reader/writer of each table was traced (mobile user-JWT, Edge Function, admin-portal client vs API-route service role, SECURITY DEFINER/cron) before enabling RLS, so no user-JWT path silently breaks (BP-75)
+See also: BP-75 (RLS-disabled audits must use the live `pg_class.relrowsecurity` query, not migration greps)
+
+Issue: "Expired/declined offer not surfacing in the app's 'Your Offers', or the seller-ignore counter resets to 0 on expiry — with no error?"
+✅ Check: The client's fetch/filter literal matches the LIVE DB value — e.g. `TradeListScreen` compares `.in('cancellation_reason', ['seller_declined','offer_expired'])` but the expiry RPC writes `'Offer expired'` (spaced) → silent mismatch, expired offers never surface (BP-76)
+✅ Check: DB triggers comparing the same reason use the identical literal — `fn_reset_unanswered_counter`'s `IS DISTINCT FROM 'offer_expired'` never matches the stored `'Offer expired'`, so it resets the streak to 0 on expiry (BP-76)
+See also: BP-76 (enum-like status/reason values — one canonical literal across DB writer, triggers, and client; never a display string in a machine-compared column)
 
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
@@ -1336,6 +1347,9 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-71 Stripe money-function verification — Tier-1 live verification MUST drive the ACTUAL charge/pay path on a fresh, isolated throwaway user (real charge + retry-dedupe + DB/Stripe confirm); guard-path-only smokes hide broken pay paths (`renew-subscription` key blocker, `retry-failed-payment` `paid_out_of_band:false` — DT-11, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
 - BP-72 QA side-effect verification — any QA case exercising a UI action with a backend/DB/third-party (Stripe/PayPal) side effect MUST verify the side effect directly (read the DB row(s) + actual Stripe/PayPal object state), not just the UI response or a guard-path smoke; real-activation verification is REQUIRED for money/financial-state functions; this class of READ-ONLY DB/Stripe verification is PRE-APPROVED (no per-instance owner sign-off) — mutating test actions still use the safe-fixture/disposable-user discipline (DT-12, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
 - BP-73 Trades FK + payout-method schema — the `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect / payout-method state lives in `seller_payout_methods`, not `profiles` (TRD part-2, 2026-08-27) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-75 RLS-disabled audit — the authoritative list of tables with RLS off comes from the LIVE `pg_class.relrowsecurity` query, never migration greps (migrations are incomplete/misleading — `nodes` looks off in the repo but is on, and legacy tables exist only in the DB); trace every table's readers/writers (client vs service-role vs SECURITY DEFINER) before enabling RLS (DEV-TASK-26, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-74 Tier-1 harness notification assertion — assert on the linkage key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`) when verifying a DB-triggered notification; a shared/fuzzy filter helper can silently drop the row and cause a false fail (DT-19, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-76 Enum-like status/reason values — DB writers must emit the canonical snake literal (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column, or expired-offer surfacing / the seller-ignore streak silently break (TRD re-verify, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

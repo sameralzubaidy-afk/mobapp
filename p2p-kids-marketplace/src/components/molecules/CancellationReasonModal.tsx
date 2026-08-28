@@ -157,6 +157,11 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
                     }
                   }}
                   disabled={isLoading}
+                  testID={`cancellation-reason-${reason.id}`}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={reason.label}
+                  accessibilityState={{ selected: selectedReason === reason.id }}
                 >
                   <View style={styles.radioButton}>
                     {selectedReason === reason.id && <View style={styles.radioButtonInner} />}
@@ -200,6 +205,10 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
               style={[styles.button, styles.cancelButton]}
               onPress={handleClose}
               disabled={isLoading}
+              testID="cancel-trade-keep-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Keep Trade"
             >
               <Text style={styles.cancelButtonText}>Keep Trade</Text>
             </Pressable>
@@ -211,6 +220,10 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
               ]}
               onPress={handleConfirm}
               disabled={isConfirmDisabled || isLoading}
+              testID="cancel-trade-confirm-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={isLoading ? 'Cancelling' : 'Cancel Trade'}
             >
               <Text style={styles.confirmButtonText}>
                 {isLoading ? 'Cancelling...' : 'Cancel Trade'}

@@ -790,6 +790,8 @@ export async function clearQaLocalValues(): Promise<void> {
       QA_LINK_EMAIL_MISMATCH_KEY,
       QA_CRASH_TRIGGER_KEY,
       QA_POLICY_LOAD_FAILURE_KEY,
+      QA_FORCE_CARD_DECLINE_KEY,
+      QA_CONFIG_FETCH_FAILURE_KEY,
     ]);
   } catch (err) {
     console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
@@ -1052,6 +1054,82 @@ export async function getQaPolicyLoadFailureMode(): Promise<QaPolicyLoadFailureM
 }
 
 // ========================================
+// QA CARD-DECLINE SIMULATION (TRD-TC-B06 staging toggle — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that arms the TRD-TC-B06 card-decline
+ * simulation. Absence, 'none', or any unknown value = no simulation
+ * (fail-closed). Values: 'hold_decline' | 'none'
+ *   - 'hold_decline' → `createTradeOfferWithHold` returns a STRIPE_HOLD_FAILED
+ *     result WITHOUT invoking the Edge Function (no offer created, no SP
+ *     reserved), so the UI's "Payment Hold Failed" decline path renders.
+ *
+ * Why this exists: TRD-TC-B06 is permanently BLOCKED on staging because Stripe's
+ * test-mode PaymentSheet validates cards at entry — a declining card is rejected
+ * before a payment hold can ever be attempted. Arming this toggle lets QA drive
+ * the decline at the HOLD-CREATION step with a normal, valid saved card instead.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real hold always runs. The
+ * simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=card_decline&value=hold_decline"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=card_decline&value=none"
+ */
+export const QA_FORCE_CARD_DECLINE_KEY = 'qa_local_card_decline';
+
+export type QaCardDeclineMode = 'hold_decline' | 'none';
+
+export async function getSimulatedCardDeclineMode(): Promise<QaCardDeclineMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_FORCE_CARD_DECLINE_KEY);
+  return value === 'hold_decline' ? 'hold_decline' : 'none';
+}
+
+// ========================================
+// QA CONFIG-FETCH-FAILURE SIMULATION (TRD-TC-B05i staging toggle — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that arms the TRD-TC-B05i admin_config
+ * fetch-failure simulation. Absence, 'none', or any unknown value = no
+ * simulation (fail-closed). Values: 'fetch_failure' | 'none'
+ *   - 'fetch_failure' → the client `getAdminConfig` read fails (fail-soft to
+ *     defaults, as if the admin_config query errored) AND
+ *     `createTradeOfferWithHold` returns the server's CONFIG_UNAVAILABLE
+ *     rejection, so B05i's graceful-degradation flow is testable on demand.
+ *
+ * Why this exists: B05i requires the Edge Function's admin_config read to fail
+ * (e.g. `max_pending_offers_per_seller` missing/inactive) — inducing that on
+ * shared staging is a risky shared-config mutation. Arming this session-local
+ * toggle reproduces the exact user-visible behavior client-side with zero
+ * shared-staging blast radius.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real config fetch / offer
+ * submission always runs. The simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=config_fetch_failure&value=fetch_failure"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=config_fetch_failure&value=none"
+ */
+export const QA_CONFIG_FETCH_FAILURE_KEY = 'qa_local_config_fetch_failure';
+
+export type QaConfigFetchFailureMode = 'fetch_failure' | 'none';
+
+export async function getSimulatedConfigFetchFailure(): Promise<QaConfigFetchFailureMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_CONFIG_FETCH_FAILURE_KEY);
+  return value === 'fetch_failure' ? 'fetch_failure' : 'none';
+}
+
+// ========================================
 // QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04/J07-J12)
 // ========================================
 
@@ -1066,6 +1144,8 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
   crash_trigger: QA_CRASH_TRIGGER_KEY,
   policy_failure: QA_POLICY_LOAD_FAILURE_KEY,
+  card_decline: QA_FORCE_CARD_DECLINE_KEY,
+  config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1075,6 +1155,8 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_LINK_EMAIL_MISMATCH_KEY]: ['google', 'facebook', 'apple', 'all', 'none'],
   [QA_CRASH_TRIGGER_KEY]: ['once', 'persist', 'none'],
   [QA_POLICY_LOAD_FAILURE_KEY]: ['no_policy', 'fetch_failure', 'none'],
+  [QA_FORCE_CARD_DECLINE_KEY]: ['hold_decline', 'none'],
+  [QA_CONFIG_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
 };
 
 /**
@@ -1141,6 +1223,12 @@ export default {
 
   // QA Link Email-Mismatch Simulation (C04)
   getSimulatedLinkEmailMismatch,
+
+  // QA Card-Decline Simulation (TRD-TC-B06)
+  getSimulatedCardDeclineMode,
+
+  // QA Config-Fetch-Failure Simulation (TRD-TC-B05i)
+  getSimulatedConfigFetchFailure,
 
   // Session-local QA toggle storage (A03/D02/C04)
   setQaLocalValue,

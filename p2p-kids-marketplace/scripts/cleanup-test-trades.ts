@@ -36,18 +36,24 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
 
 // ─── Test accounts (match seed-staging-data.ts) ──────────────────────────
-const BUYER_ID = '49243010-f458-4744-add1-a6c84ab95f1f';
+const BUYER_ID = '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
+const SELLER_ID = '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller
 
 async function main() {
   console.log('🧹 CLEANUP TEST TRADES');
   console.log(`   Target: ${SUPABASE_URL}`);
   console.log('');
 
-  // 1. Find all active trades from test buyer
+  // Dev Task 25 (item 7): clear ALL pending offers for the standard fixture
+  // pair. Per-seller cap tests (TRD-TC-B05 series) count every pending offer
+  // against test-seller regardless of which buyer submitted it (test-buyer,
+  // test-buyer-2, test-buyer-3), so this must clear pending trades where the
+  // BUYER is test-buyer OR the SELLER is test-seller — otherwise cap slots stay
+  // occupied across runs and block the next cap-related batch.
   const { data: trades, error: fetchError } = await admin
     .from('trades')
-    .select('id, listing_id, status')
-    .eq('buyer_id', BUYER_ID)
+    .select('id, listing_id, status, buyer_id')
+    .or(`buyer_id.eq.${BUYER_ID},seller_id.eq.${SELLER_ID}`)
     .in('status', ['pending', 'payment_failed']);
 
   if (fetchError) {
@@ -65,7 +71,9 @@ async function main() {
   const tradeIds: string[] = [];
 
   for (const t of trades) {
-    console.log(`      - ${t.id.slice(0, 8)}…  listing: ${t.listing_id.slice(0, 8)}…  status: ${t.status}`);
+    console.log(
+      `      - ${t.id.slice(0, 8)}…  listing: ${t.listing_id.slice(0, 8)}…  buyer: ${t.buyer_id.slice(0, 8)}…  status: ${t.status}`
+    );
     tradeIds.push(t.id);
     listingIds.push(t.listing_id);
   }

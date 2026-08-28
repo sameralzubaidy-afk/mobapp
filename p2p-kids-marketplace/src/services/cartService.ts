@@ -19,6 +19,7 @@
 
 import { supabase } from '@/config/supabase';
 import { getBuyerFeeForCheckout, getChargeOneFeePerBundle } from '@/services/adminConfig';
+import { generateSubmissionNonce } from '@/utils/submissionNonce';
 import { getPaymentMethod } from '@/services/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -498,6 +499,12 @@ export async function checkoutCart(params: {
   }
   const effectiveBundleId = cartBundleId ?? params.bundleId;
 
+  // DT-18 (2026-08-28): per-submission nonce for the Stripe PaymentIntent idempotency key.
+  // Generated ONCE per checkoutCart call (one submission attempt) and reused for any retry
+  // of that same call; a genuine re-checkout after a cancelled trade generates a fresh
+  // nonce → new key → no 409 collision with the prior attempt's PaymentIntent.
+  const submissionNonce = generateSubmissionNonce();
+
   // R1 — Tiered Buyer-Fee Engine: resolve the buyer fee server-authoritatively via
   // fn_get_buyer_fee_for_checkout — the SAME function the create-trade-offer Edge
   // Function calls, so the sent fee matches the charge. Per-bundle mode
@@ -576,6 +583,7 @@ export async function checkoutCart(params: {
           payment_method_id: savedPaymentMethodId,
           buyer_subscription_status: params.isSubscriber ? 'active' : 'free',
           bundle_id: effectiveBundleId,
+          submission_nonce: submissionNonce,
         },
       });
       if (resp.error || !resp.data?.success) {
@@ -630,6 +638,7 @@ export async function checkoutCart(params: {
             buyer_subscription_status: params.isSubscriber ? 'active' : 'free',
             bundle_id: effectiveBundleId,
             meetup_node_id: params.meetupNodeId,
+            submission_nonce: submissionNonce,
           },
         });
         if (resp.error || !resp.data?.success) {

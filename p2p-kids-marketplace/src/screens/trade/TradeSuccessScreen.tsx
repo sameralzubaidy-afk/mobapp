@@ -64,8 +64,10 @@ function buildCompletionCTA(
       };
     } else if (spUsedByBuyer > 0) {
       // Permutation 2: Subscriber buyer, used SP
+      // DEV-TASK-31 (UX): "available" (not "left") removes reserved-vs-available
+      // ambiguity for parents; owner-approved copy change.
       return {
-        message: `You saved $${spAmountDollars.toFixed(2)} using SP! You have ${remainingSP} SP left.`,
+        message: `You saved $${spAmountDollars.toFixed(2)} using SP! You have ${remainingSP} SP available.`,
         ctaLabel: 'Keep Shopping',
         onPress: () => navigation.navigate('Discover'),
       };
@@ -194,8 +196,19 @@ export default function TradeSuccessScreen() {
     }
   };
 
+  // Header title mirrors the body state so an initiated trade isn't labelled
+  // "Trade Complete" (QA Task 3 copy finding, 2026-08-28). Header titles follow
+  // the design-system convention (no exclamation mark).
+  const headerTitle = isSuccess
+    ? role === 'seller'
+      ? 'Sale Complete'
+      : tradeStatus === 'completed'
+        ? 'Trade Complete'
+        : 'Trade Initiated'
+    : 'Trade Failed';
+
   return (
-    <ScreenLayout variant="detail" title="Trade Complete">
+    <ScreenLayout variant="detail" title={headerTitle}>
       <View style={styles.content}>
         {/* Icon */}
         {isSuccess ? (

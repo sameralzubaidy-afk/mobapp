@@ -3047,7 +3047,7 @@ Update `TradeSuccessScreen` to show targeted CTAs based on user type and trade c
 | User | Condition | Primary Message | CTA |
 |---|---|---|---|
 | Free buyer | Any completed trade | "Kids Club+ would've saved you $2 on this trade — try it free for 30 days." | [Try Kids Club+ Free — 30 Days] |
-| Subscriber buyer | Used SP | "You saved $[sp_amount] using SP! You have [remaining_sp] SP left." | [Keep Shopping] |
+| Subscriber buyer | Used SP | "You saved $[sp_amount] using SP! You have [remaining_sp] SP available." | [Keep Shopping] |
 | Subscriber buyer | No SP used | "Trade complete! Consider using SP on your next purchase to save more." | [Browse Items] |
 | Free seller | Any completed trade | "Subscribe to earn Swap Points on your next sale." | [Try Kids Club+ Free — 30 Days] |
 | Subscriber seller | Cash Only listing | "Try 'Accept SP' on your next listing to also earn SP." | [Create New Listing] |
@@ -3093,7 +3093,7 @@ function buildCompletionCTA(
       };
     } else if (spUsedByBuyer > 0) {
       return {
-        message:  `You saved ${spAmountDollars} using SP! You have ${remainingSP} SP left.`,
+        message:  `You saved ${spAmountDollars} using SP! You have ${remainingSP} SP available.`,
         ctaLabel: 'Keep Shopping',
         onPress:  () => navigation.navigate('Discover'),
       };

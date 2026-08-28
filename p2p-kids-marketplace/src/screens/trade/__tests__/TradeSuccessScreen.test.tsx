@@ -49,7 +49,8 @@ describe('TradeSuccessScreen', () => {
       });
 
       const { getByText } = render(<TradeSuccessScreen />);
-      expect(getByText(/Trade Initiated/i)).toBeTruthy();
+      // Exact body title (with "!") — the dynamic header now also reads "Trade Initiated".
+      expect(getByText('Trade Initiated!')).toBeTruthy();
     });
 
     it('should render SP earned badge when SP > 0', () => {

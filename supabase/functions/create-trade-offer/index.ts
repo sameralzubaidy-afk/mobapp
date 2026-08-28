@@ -523,6 +523,12 @@ serve(async (req) => {
     }>;
     // Warmup flag — CartCheckoutScreen pings this on mount to avoid cold start
     __warmup?: boolean;
+    // DT-18 (2026-08-28): per-submission nonce generated ONCE by the client per
+    // submission attempt and reused for retries of that SAME attempt (double-tap).
+    // Incorporated into the Stripe PaymentIntent idempotency key so a genuine re-offer
+    // (e.g. after a cancelled trade) gets a fresh key instead of colliding with the
+    // prior attempt (Stripe 409 "same parameters"). See submissionNonce below.
+    submission_nonce?: string;
   };
 
   try {
@@ -546,7 +552,19 @@ serve(async (req) => {
     tax_amount_cents = 0,
     bundle_id,
     items,
+    submission_nonce,
   } = body;
+
+  // DT-18 (2026-08-28): effective per-submission nonce. The client sends one nonce per
+  // submission attempt; a retry/double-tap of that SAME attempt reuses it so Stripe still
+  // dedupes to a single PaymentIntent (original idempotency purpose preserved). A genuine
+  // re-offer (new attempt) sends a fresh nonce → new key → no 409 collision with a prior
+  // cancelled attempt on the same listing. Server-side random fallback covers legacy/direct
+  // callers that omit the field: it loses cross-request dedupe but never collides.
+  const submissionNonce =
+    typeof submission_nonce === 'string' && submission_nonce.trim()
+      ? submission_nonce.trim()
+      : crypto.randomUUID();
 
   // Determine mode: batch if items array is provided, single otherwise
   const isBatch = Array.isArray(items) && items.length > 0;
@@ -589,8 +607,49 @@ serve(async (req) => {
       .maybeSingle();
 
     stripeCustomerId = (subRow as { stripe_customer_id?: string } | null)?.stripe_customer_id ?? null;
+
+    // DEV-TASK-33 (2026-08-28): A buyer can reach offer submission with a valid
+    // saved PaymentMethod id but no Stripe customer yet — e.g. a free-tier buyer
+    // whose `subscriptions` row carries stripe_payment_method_id but a null
+    // stripe_customer_id (partial/legacy row or post-drift state). This used to
+    // hard-fail the FIRST cash offer with a raw NO_STRIPE_CUSTOMER error even
+    // though their card was usable. Instead, lazily create the Stripe customer
+    // now (mirrors the trade-payment pattern), persist it, and continue so the
+    // offer succeeds. Creating a customer is a no-charge, non-financial
+    // operation; the Stripe pre-auth hold is created afterwards as usual.
     if (!stripeCustomerId) {
-      return jsonError('No Stripe customer found. Please add a payment method first.', 'NO_STRIPE_CUSTOMER', 400);
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email ?? '',
+          metadata: { supabase_user_id: buyerId, user_id: buyerId },
+        });
+        stripeCustomerId = customer.id;
+        const { error: upsertError } = await supabase
+          .from('subscriptions')
+          .upsert(
+            {
+              user_id: buyerId,
+              stripe_customer_id: stripeCustomerId,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id' }
+          );
+        if (upsertError) {
+          // Customer exists in Stripe and the offer can still proceed; the next
+          // read picks it up. Log loudly for investigation (BP-4).
+          console.error(
+            `[create-trade-offer] req=${requestId} failed to persist new Stripe customer for ${buyerId}:`,
+            upsertError.message,
+          );
+        }
+      } catch (createErr: unknown) {
+        console.error(`[create-trade-offer] req=${requestId} Stripe customer creation failed:`, createErr);
+        return jsonError(
+          'No Stripe customer found. Please add a payment method first.',
+          'NO_STRIPE_CUSTOMER',
+          400
+        );
+      }
     }
 
     // Verify & attach payment method once (shared by all items in batch/single)
@@ -878,10 +937,14 @@ serve(async (req) => {
       const itemTitle = (item as { title?: string }).title ?? 'item';
       try {
         const tStripeStart = Date.now();
-        // N2 idempotency: deterministic key per (buyer, item, offer content). A
-        // double-tap/retry of the SAME offer dedupes to one PaymentIntent on
-        // Stripe's side — no orphaned duplicate auth holds.
-        const piKey = `pi_offer_${buyerId}_${itemId}_${hashContent(cashCents, spAmt, txFeeCents, finalTaxCents, payment_method_id ?? '')}`;
+        // N2 idempotency: key per (buyer, item, submission nonce, offer content). A
+        // double-tap/retry of the SAME submission (same nonce) dedupes to one PaymentIntent
+        // on Stripe's side — no orphaned duplicate auth holds.
+        // DT-18 (2026-08-28): submissionNonce breaks the re-offer collision — the old key
+        // was fully deterministic (buyer+item+amounts), so re-offering identical terms on
+        // the same listing after cancelling hit Stripe 409. Same-attempt retries keep the
+        // same nonce → same key → still one PaymentIntent (double-tap protection intact).
+        const piKey = `pi_offer_${buyerId}_${itemId}_${submissionNonce}_${hashContent(cashCents, spAmt, txFeeCents, finalTaxCents, payment_method_id ?? '')}`;
         // STRIPE-IDEMPOTENCY-FIX (2026-08-27): idempotencyKey MUST be the OPTIONS argument,
         // never inside the create params. Stripe SDK v14 (esm.sh denonext) detects
         // `idempotencyKey` inside params as an options-object signal and silently DROPS all
@@ -1488,7 +1551,10 @@ serve(async (req) => {
       const tStripeStart = Date.now();
       // N2 idempotency: deterministic key per (bundle, item, hold content) so a
       // re-run of this background job cannot create a second orphaned hold.
-      const piKey = `pi_bundle_${bundle_id ?? ''}_${itemId}_${hashContent(stripeAmount, platformFeeCents, taxCents, jobSpAmount)}`;
+      // DT-18 (2026-08-28): same re-offer-collision fix as the single-item path — the
+      // per-submission nonce keeps each new offer attempt's key unique even when the
+      // bundle/amounts match a prior cancelled attempt.
+      const piKey = `pi_bundle_${bundle_id ?? ''}_${itemId}_${submissionNonce}_${hashContent(stripeAmount, platformFeeCents, taxCents, jobSpAmount)}`;
       // STRIPE-IDEMPOTENCY-FIX (2026-08-27): idempotencyKey MUST be the OPTIONS argument,
       // never inside the create params (see note above — SDK v14 drops all params otherwise).
       const pi = await stripe.paymentIntents.create({
@@ -1585,7 +1651,7 @@ serve(async (req) => {
 
       if (pendingSlots >= maxOffers) {
         return jsonError(
-          'You have many pending offers with this seller. Cancel one to make a new offer.',
+          `You have ${pendingSlots} pending ${pendingSlots === 1 ? 'offer' : 'offers'} with this seller. Cancel one to make a new offer.`,
           'MAX_PENDING_OFFERS',
           409
         );
@@ -1728,7 +1794,7 @@ serve(async (req) => {
 
       if (pendingSlots >= maxOffers) {
         return jsonError(
-          'You have many pending offers with this seller. Cancel one to make a new offer.',
+          `You have ${pendingSlots} pending ${pendingSlots === 1 ? 'offer' : 'offers'} with this seller. Cancel one to make a new offer.`,
           'MAX_PENDING_OFFERS',
           409
         );

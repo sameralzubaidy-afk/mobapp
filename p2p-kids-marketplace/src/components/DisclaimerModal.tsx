@@ -109,6 +109,7 @@ export default function DisclaimerModal({
       transparent={false}
       onRequestClose={onCancel}
       testID={testID}
+      accessibilityViewIsModal
     >
       <SafeAreaView style={styles.container}>
         {/* Header */}
@@ -145,6 +146,9 @@ export default function DisclaimerModal({
               style={styles.retryButton}
               onPress={fetchDisclaimer}
               testID={`${testID}-retry-button`}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading disclaimer"
             >
               <Text style={styles.retryButtonText}>Retry</Text>
             </Pressable>

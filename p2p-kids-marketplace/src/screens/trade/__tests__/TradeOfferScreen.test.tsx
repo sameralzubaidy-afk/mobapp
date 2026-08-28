@@ -201,6 +201,13 @@ describe('TradeOfferScreen', () => {
       expect(getByText('$1.49')).toBeTruthy();
     });
 
+    // Deterministic submit: wait for the saved payment method to load so
+    // handleInitiateTrade doesn't early-return on a not-yet-loaded card (BP-60-style
+    // timing flake that only shows when the full file runs back-to-back).
+    await waitFor(() => {
+      expect(getByText('Use Saved Card')).toBeTruthy();
+    });
+
     fireEvent.press(getByTestId('send-offer-button'));
 
     await waitFor(() => {
@@ -227,6 +234,45 @@ describe('TradeOfferScreen', () => {
         spUsed: 0,
         spAmountDollars: 0,
         remainingSP: 500,
+        listingType: 'accept_sp',
+      });
+    });
+  });
+
+  // DT-21 Item 1: the success screen must show the projected post-reserve SP balance
+  // (available − this offer's SP), not the stale pre-reserve figure the session still
+  // holds before the wallet Realtime refresh lands.
+  it('passes the projected post-reserve SP balance to TradeSuccess', async () => {
+    const { getByTestId, getByText } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('sp-amount-input')).toBeTruthy();
+    });
+
+    // Buyer applies 8 SP of their 500 available.
+    fireEvent.changeText(getByTestId('sp-amount-input'), '8');
+
+    // Deterministic submit: wait for the saved payment method to load before
+    // pressing send (see the same note on the 'submits trade' test).
+    await waitFor(() => {
+      expect(getByText('Use Saved Card')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('send-offer-button'));
+
+    await waitFor(() => {
+      expect(getByTestId('mock-disclaimer-accept')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('mock-disclaimer-accept'));
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('TradeSuccess', {
+        tradeId: 'trade-123',
+        role: 'buyer',
+        spUsed: 8,
+        spAmountDollars: 8,
+        remainingSP: 492, // 500 available − 8 SP reserved by this offer
         listingType: 'accept_sp',
       });
     });

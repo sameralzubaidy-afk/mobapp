@@ -34,6 +34,14 @@ interface TradeConfirmationModalProps {
   onCancel: () => void;
   loading?: boolean;
   hideCancel?: boolean;
+  /**
+   * Stable QA locator for the confirm (primary) button. Pass a per-instance
+   * value (e.g. `accept-trade-confirm-button`) so QA can disambiguate which
+   * confirmation is showing; defaults to a stable generic id.
+   */
+  confirmTestID?: string;
+  /** Stable QA locator for the cancel (secondary) button. */
+  cancelTestID?: string;
 }
 
 export function TradeConfirmationModal({
@@ -47,6 +55,8 @@ export function TradeConfirmationModal({
   onCancel,
   loading = false,
   hideCancel = false,
+  confirmTestID = 'trade-confirm-button',
+  cancelTestID = 'trade-cancel-button',
 }: TradeConfirmationModalProps) {
   const confirmBgColor =
     variant === 'accept' ? '#5DBB8E' :
@@ -75,7 +85,10 @@ export function TradeConfirmationModal({
                 style={[styles.button, styles.cancelButton]}
                 onPress={onCancel}
                 disabled={loading}
+                testID={cancelTestID}
+                accessible
                 accessibilityRole="button"
+                accessibilityLabel={cancelLabel}
               >
                 <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
               </TouchableOpacity>
@@ -85,7 +98,10 @@ export function TradeConfirmationModal({
               style={[styles.button, { backgroundColor: confirmBgColor }]}
               onPress={onConfirm}
               disabled={loading}
+              testID={confirmTestID}
+              accessible
               accessibilityRole="button"
+              accessibilityLabel={loading ? 'Processing' : confirmLabel}
             >
               <Text style={styles.confirmButtonText}>
                 {loading ? 'Processing...' : confirmLabel}

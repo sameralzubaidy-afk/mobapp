@@ -62,6 +62,8 @@ interface PendingOffer {
   };
   offer_expires_at?: string | null;
   auto_complete_at?: string | null;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 export default function TradeListScreen({ navigation }: any) {
@@ -190,7 +192,9 @@ export default function TradeListScreen({ navigation }: any) {
       // Fetch items without join to avoid FK issues
       const { data: items } = await supabase
         .from('items')
-        .select('id, title, price')
+        // DT-21 Item 3: include `status` so History rows can tell whether a declined/
+        // expired offer's listing is still available before offering "View Item".
+        .select('id, title, price, status')
         .in('id', listingIds);
 
       if (items) {
@@ -308,6 +312,11 @@ export default function TradeListScreen({ navigation }: any) {
         (submittedData || []).map((offer: any) => ({ ...offer, type: 'submitted' as const }))
       );
 
+      // DEV-TASK-31 (UX): declined/expired offers are RESOLVED — they no longer
+      // surface in the Active tab's "Your Offers" (owner decision 2026-08-28).
+      // They live in History, which already renders a "View Item" affordance on
+      // cancelled rows whose listing is still available (DT-21 Item 3). Active
+      // "Your Offers" shows only pending/in-progress offers awaiting seller action.
       const combined = [...received, ...submitted].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
@@ -493,13 +502,16 @@ export default function TradeListScreen({ navigation }: any) {
     return <Text style={styles.historyEndText}>You're all caught up</Text>;
   };
 
-  // D-31: Buyer's submitted offers awaiting seller acceptance
-  // FIXED TC-B02: Exclude cancelled offers from "Your Offers" section
+  // D-31: Buyer's submitted offers awaiting seller acceptance.
+  // DEV-TASK-31 (UX): only ACTIVE offers (pending / in-progress) render here.
+  // Declined and expired offers are resolved and live in History (owner decision
+  // 2026-08-28) — the History tab already shows a "View Item" affordance on
+  // cancelled rows whose listing is still available.
   const submittedOffers = useMemo(() => {
     return allOffers.filter(
       (o) =>
         o.type === 'submitted' &&
-        o.status !== 'cancelled' && // Exclude cancelled/expired offers
+        o.status !== 'cancelled' && // Exclude cancelled/declined/expired offers
         (o.status === 'pending' || (o.status === 'in_progress' && !o.auto_complete_at))
     );
   }, [allOffers]);
@@ -820,43 +832,66 @@ export default function TradeListScreen({ navigation }: any) {
 
     const badge = getCompactBadge();
 
+    // DT-21 Item 3: declined/expired offers (status 'cancelled') whose listing is
+    // still available get a one-tap "View Item" affordance so the buyer can revisit
+    // the item without hunting through Discover.
+    const canViewItem =
+      item.status === 'cancelled' && !!item.listing?.id && item.listing?.status === 'available';
+
     return (
-      <TouchableOpacity
-        style={styles.compactRow}
-        onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}
-        testID={`trade-history-row-${item.id}`}
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel="View trade details"
-      >
-        <View style={styles.compactImageContainer}>
-          {firstImage ? (
-            <Image
-              source={{ uri: firstImage.thumbnail_url || firstImage.url }}
-              style={styles.compactImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.compactImagePlaceholder}>
-              <Text style={styles.compactImagePlaceholderText}>📦</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.compactContent}>
-          <View style={styles.compactMain}>
-            <Text style={styles.compactTitle} numberOfLines={1}>
-              {item.listing?.title || 'Untitled'}
-            </Text>
-            <Text style={styles.compactDate}>{formatDate(item.created_at)}</Text>
+      <View style={styles.compactRow}>
+        <TouchableOpacity
+          style={styles.compactRowMain}
+          onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}
+          testID={`trade-history-row-${item.id}`}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="View trade details"
+        >
+          <View style={styles.compactImageContainer}>
+            {firstImage ? (
+              <Image
+                source={{ uri: firstImage.thumbnail_url || firstImage.url }}
+                style={styles.compactImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.compactImagePlaceholder}>
+                <Text style={styles.compactImagePlaceholderText}>📦</Text>
+              </View>
+            )}
           </View>
-          <View style={styles.compactRight}>
-            <Text style={styles.compactPrice}>${(item.cash_amount_cents / 100).toFixed(2)}</Text>
-            <View style={[styles.compactTypeBadge, badge.badgeStyle]}>
-              <Text style={[styles.compactTypeBadgeText, badge.textStyle]}>{badge.label}</Text>
+          <View style={styles.compactContent}>
+            <View style={styles.compactMain}>
+              <Text style={styles.compactTitle} numberOfLines={1}>
+                {item.listing?.title || 'Untitled'}
+              </Text>
+              <Text style={styles.compactDate}>{formatDate(item.created_at)}</Text>
+            </View>
+            <View style={styles.compactRight}>
+              <Text style={styles.compactPrice}>
+                ${(item.cash_amount_cents / 100).toFixed(2)}
+              </Text>
+              <View style={[styles.compactTypeBadge, badge.badgeStyle]}>
+                <Text style={[styles.compactTypeBadgeText, badge.textStyle]}>{badge.label}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+
+        {canViewItem && (
+          <TouchableOpacity
+            style={styles.compactViewItem}
+            onPress={() => navigation.navigate('ListingDetail', { listing_id: item.listing.id })}
+            testID={`trade-history-row-${item.id}-view-item`}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="View item"
+          >
+            <Text style={styles.compactViewItemText}>View Item</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
   };
 
@@ -1165,23 +1200,9 @@ export default function TradeListScreen({ navigation }: any) {
                               <Text style={styles.tradeCardTitle} numberOfLines={1}>
                                 {offer.listing?.title || 'Untitled'}
                               </Text>
-                              <View
-                                style={[
-                                  styles.statusBadge,
-                                  offer.status === 'cancelled'
-                                    ? styles.statusBadgeCancelled
-                                    : styles.statusBadgePending,
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.statusBadgeText,
-                                    offer.status === 'cancelled'
-                                      ? styles.statusBadgeTextCancelled
-                                      : styles.statusBadgeTextPending,
-                                  ]}
-                                >
-                                  {offer.status === 'cancelled' ? 'EXPIRED' : 'PENDING'}
+                              <View style={[styles.statusBadge, styles.statusBadgePending]}>
+                                <Text style={[styles.statusBadgeText, styles.statusBadgeTextPending]}>
+                                  PENDING
                                 </Text>
                               </View>
                             </View>
@@ -1198,11 +1219,7 @@ export default function TradeListScreen({ navigation }: any) {
                               <View style={styles.expirationLine}>
                                 <View style={styles.expirationDot} />
                                 <Text style={styles.expirationText}>
-                                  {offer.status === 'cancelled'
-                                    ? offer.listing?.status === 'available'
-                                      ? 'Expired — Item still available'
-                                      : 'Expired — Item no longer available'
-                                    : `Offer expires in ${getTimeAgoBrief(offer.offer_expires_at)}`}
+                                  Offer expires in {getTimeAgoBrief(offer.offer_expires_at)}
                                 </Text>
                               </View>
                             )}
@@ -1217,33 +1234,17 @@ export default function TradeListScreen({ navigation }: any) {
                         </View>
                         <View style={styles.tradeCardDivider} />
                         <View style={styles.tradeCardActions}>
-                          {offer.status === 'cancelled' && offer.listing?.status === 'available' ? (
-                            <TouchableOpacity
-                              accessible
-                              accessibilityRole="button"
-                              style={styles.tradeCardBtnPrimary}
-                              onPress={() => {
-                                if (offer.listing?.id) {
-                                  navigation.navigate('ItemDetail', { itemId: offer.listing.id });
-                                }
-                              }}
-                              testID={`trade-offer-${offer.id}-view-item-again`}
-                            >
-                              <Text style={styles.tradeCardBtnPrimaryText}>View Item Again</Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <TouchableOpacity
-                              accessible
-                              accessibilityRole="button"
-                              style={styles.tradeCardBtnSecondary}
-                              onPress={() =>
-                                navigation.navigate('TradeDetail', { tradeId: offer.id })
-                              }
-                              testID={`trade-offer-${offer.id}-details`}
-                            >
-                              <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
-                            </TouchableOpacity>
-                          )}
+                          <TouchableOpacity
+                            accessible
+                            accessibilityRole="button"
+                            style={styles.tradeCardBtnSecondary}
+                            onPress={() =>
+                              navigation.navigate('TradeDetail', { tradeId: offer.id })
+                            }
+                            testID={`trade-offer-${offer.id}-details`}
+                          >
+                            <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
+                          </TouchableOpacity>
                         </View>
                       </TouchableOpacity>
                     );
@@ -1664,7 +1665,7 @@ export default function TradeListScreen({ navigation }: any) {
             <Text style={styles.ignModalBody}>
               {bundleConfirmModal.action === 'accept'
                 ? `This will accept all ${bundleConfirmModal.title} and charge the buyer's saved payment method.`
-                : `This will decline all ${bundleConfirmModal.title}. The buyer won't be charged.`}
+                : `This will decline all ${bundleConfirmModal.title}. Your items stay listed and can receive new offers. The buyer won't be charged.`}
             </Text>
             <TouchableOpacity
               accessible
@@ -1705,9 +1706,13 @@ export default function TradeListScreen({ navigation }: any) {
         <Pressable style={styles.ignModalOverlay} onPress={() => setShowIgnoringModal(false)}>
           <Pressable style={styles.ignModalSheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.ignModalTitle}>Listing Feedback</Text>
+            {/* DEV-TASK-34 (2026-08-29): modal copy aligned with the new
+                consecutive-expiry-streak semantics — fires only after offers
+                expire unanswered; encourages responding or pausing the listing. */}
             <Text style={styles.ignModalBody}>
-              You're receiving offers but not responding on "
-              {ignoringModalItem?.title || 'your listing'}". Want to pause this listing?
+              A few offers on "
+              {ignoringModalItem?.title || 'your listing'}" have gone unanswered. Respond to
+              your pending offers — or pause the listing if you're not able to sell right now.
             </Text>
             <TouchableOpacity
               style={styles.ignModalBtnPrimary}
@@ -1987,11 +1992,28 @@ const styles = StyleSheet.create({
   },
   // Compact Row (History)
   compactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+  },
+  compactRowMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  // DT-21 Item 3: one-tap "View Item" affordance on declined/expired history rows
+  // whose listing is still available (primary-100 tint + brand green text).
+  compactViewItem: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#E8F5F0',
+  },
+  compactViewItemText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5DBB8E',
   },
   compactImageContainer: {
     width: 48,

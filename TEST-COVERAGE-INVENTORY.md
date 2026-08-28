@@ -268,11 +268,11 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TC-ID | Description | Sub | Latest | Date | Source | Status |
 |---|---|---:|---|---|---|---|
 | TRD-TC-A01 | Cash Only: full happy path (buyer confirms) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-A02 | Accept SP: Use SP slider → seller accepts → buyer confirms | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-A02 | Accept SP: Use SP slider → seller accepts → buyer confirms | 1 | PASS | 2026-08-28 | `qa-trd-reverify-a02-b02-b06-2026-08-28` | ✅ PASS |
 | TRD-TC-A03 | Accept SP: Pay Cash (0 SP) — subscriber seller still earns SP | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-A04 | Donate listing: [Claim] button, no charge | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-B01 | Seller declines offer | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-B02 | Offer expires (seller never responds) + seller ignore prompt | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-B01 | Seller declines offer | 1 | PASS | 2026-08-28 | `qa-trd-b01-b02-reverify-2026-08-28` | ✅ PASS |
+| TRD-TC-B02 | Offer expires (seller never responds) + seller ignore prompt | 1 | PASS | 2026-08-28 | `qa-trd-b01-b02-reverify-2026-08-28` | ✅ PASS (prompt fires at counter 2; guide vs impl semantics finding — see report) |
 | TRD-TC-B03 | Multiple competing offers — sort order + auto-decline | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B04 | Buyer cancels pending trade — no consequence level | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05 | Per-seller cap: max 3 pending offers per seller (2026-07-18) | 1 | — | — | `—` | NEVER RUN |
@@ -286,7 +286,7 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-B05h | Admin config: Validation — reject invalid values (0, 11) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05i | Mobile client: Config fetch failure — graceful degradation | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B05j | Regression: Per-seller scope + bundle=1 still hold after config change | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-B06 | Card declined at offer submission | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-B06 | Card declined at offer submission | 1 | PASS | 2026-08-28 | `qa-trd-reverify-a02-b02-b06-2026-08-28` | ✅ PASS |
 | TRD-TC-B07 | Expired offer timeline — no message button | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B08 | Chat frozen after trade is cancelled or completed | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-B09 | Chat remains active for in_progress trades | 1 | — | — | `—` | NEVER RUN |

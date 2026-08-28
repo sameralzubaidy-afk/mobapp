@@ -11,6 +11,7 @@ import { Trade } from '../types/trade';
 import { getSubscriptionSummary } from './subscription';
 import { getAdminConfig } from './adminConfig';
 import { getUserReviews } from './review';
+import { getSimulatedCardDeclineMode, getSimulatedConfigFetchFailure } from './devTestingService';
 
 const ACTIVE_OFFER_STATUSES = ['pending', 'payment_failed', 'in_progress'];
 
@@ -163,7 +164,8 @@ export function mapStripeErrorToMessage(error?: string): string {
   const lowerError = error.toLowerCase();
 
   if (lowerError.includes('card_declined') || lowerError.includes('declined')) {
-    return 'Payment failed: the card was declined. Try a different card or payment method.';
+    // DEV-TASK-31 (F3): reconcile with the canonical TRD-TC-B06 copy.
+    return 'Payment method declined. Please update your card.';
   }
 
   if (lowerError.includes('expired_card')) {
@@ -649,6 +651,39 @@ export async function createTradeOfferWithHold(
   input: CreateTradeOfferInput
 ): Promise<CreateTradeOfferResult> {
   try {
+    // QA TRD-TC-B06 (dev-only, session-local): forced decline at the
+    // hold-creation step. Bypasses the real Edge Function so no offer is
+    // created and no SP is reserved — exercises the UI's "Payment Hold Failed"
+    // path with a normal valid saved card (fail-closed outside dev/test).
+    const cardDeclineMode = await getSimulatedCardDeclineMode();
+    if (cardDeclineMode === 'hold_decline') {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[trade] QA card-decline simulation armed — returning STRIPE_HOLD_FAILED without invoking create-trade-offer'
+      );
+      return {
+        success: false,
+        error: 'Your card was declined.',
+        error_code: 'STRIPE_HOLD_FAILED',
+      };
+    }
+
+    // QA TRD-TC-B05i (dev-only, session-local): simulate the Edge Function's
+    // admin_config fetch failing (server rejects with CONFIG_UNAVAILABLE)
+    // without touching shared-staging admin_config. Fail-closed outside dev/test.
+    const configFetchFailure = await getSimulatedConfigFetchFailure();
+    if (configFetchFailure === 'fetch_failure') {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[trade] QA config-fetch-failure simulation armed — returning CONFIG_UNAVAILABLE without invoking create-trade-offer'
+      );
+      return {
+        success: false,
+        error: 'Offer limit configuration is unavailable. Please try again.',
+        error_code: 'CONFIG_UNAVAILABLE',
+      };
+    }
+
     const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
     const accessToken = await getFreshAccessToken();
 

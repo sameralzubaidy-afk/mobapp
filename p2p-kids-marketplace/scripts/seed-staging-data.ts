@@ -253,6 +253,64 @@ const SELLER2_LISTINGS = [
   },
 ];
 
+// QA in-node item pool (Dev Task 25, item 3): a deliberately separate, larger
+// set of ALWAYS-AVAILABLE listings owned by test-seller. The 3 seeded pending
+// trades in seedTrade consume listingIds[0..2], which left only 2 available
+// test-seller items in the buyer's node (Harry Potter, Basketball) — forcing
+// deep-link navigation for most trade cases. This pool guarantees a healthy
+// on-node pool of available items for QA regardless of pending-trade state.
+// Items are idempotent by (seller, title) and reset to `available` on re-seed.
+const QA_POOL_LISTINGS = [
+  {
+    title: 'Remote Control Car',
+    description: 'Fast RC car with rechargeable battery and spare wheels.',
+    categoryName: 'Toys',
+    condition: 'good',
+    price: 25.0,
+    status: 'available',
+  },
+  {
+    title: 'Kids Kindle Tablet',
+    description: 'Kids edition tablet with protective case, screen protector included.',
+    categoryName: 'Electronics',
+    condition: 'like_new',
+    price: 40.0,
+    status: 'available',
+  },
+  {
+    title: 'Soccer Ball & Goal Set',
+    description: 'Size 4 ball plus pop-up goal for backyard play.',
+    categoryName: 'Sports',
+    condition: 'fair',
+    price: 12.0,
+    status: 'available',
+  },
+  {
+    title: 'Puzzle Set — 4 Pack',
+    description: 'Four 100-piece puzzles, all pieces included.',
+    categoryName: 'Toys',
+    condition: 'good',
+    price: 18.0,
+    status: 'available',
+  },
+  {
+    title: "Roald Dahl Collection",
+    description: 'Boxed set of 10 classic chapter books.',
+    categoryName: 'Books',
+    condition: 'good',
+    price: 32.0,
+    status: 'available',
+  },
+  {
+    title: 'Skateboard — Youth',
+    description: 'Youth skateboard with helmet, lightly used.',
+    categoryName: 'Sports',
+    condition: 'fair',
+    price: 22.0,
+    status: 'available',
+  },
+];
+
 // ============================================================================
 // SEED FUNCTIONS
 // ============================================================================
@@ -958,6 +1016,156 @@ async function seedUnreadMessageFixture(buyerId: string, sellerId: string): Prom
   }
 }
 
+/**
+ * Dev Task 25 (item 6) — canned cancelled-trade conversation fixture (TRD-TC-B08).
+ *
+ * B08 (chat frozen after a trade is cancelled/completed) was previously solved
+ * by reusing an ad-hoc existing conversation. This makes it a deliberate,
+ * first-class fixture: a DEDICATED listing + a cancelled trade between
+ * test-buyer & test-seller with two exchanged messages, so the frozen-chat case
+ * never depends on incidental leftover data. Idempotent by (buyer, listing);
+ * the dedicated listing is force-reset to `available` on re-seed so the fixture
+ * never locks a pool item for other cases.
+ */
+async function seedCancelledTradeConversationFixture(
+  buyerId: string,
+  sellerId: string,
+  categoryMap: { [key: string]: string }
+): Promise<void> {
+  console.log('\n❄️  Seeding TRD-TC-B08 canned cancelled-trade conversation...');
+  const title = 'QA Canned Cancelled-Trade Item';
+  const now = new Date().toISOString();
+
+  // 1. Dedicated listing (idempotent by seller+title).
+  let { data: listing, error: listingError } = await adminSupabase
+    .from('items')
+    .select('id, status')
+    .eq('seller_id', sellerId)
+    .eq('title', title)
+    .maybeSingle();
+
+  if (listingError) {
+    console.warn(`   ⚠️ B08 listing lookup failed: ${listingError.message}`);
+    return;
+  }
+
+  if (!listing) {
+    const insertRes = await adminSupabase
+      .from('items')
+      .insert({
+        seller_id: sellerId,
+        title,
+        description: 'Dedicated fixture item for the TRD-TC-B08 frozen-chat case.',
+        category_id: categoryMap['Toys'] || null,
+        condition: 'good',
+        price: 20.0,
+        status: 'available',
+        approved_at: now,
+        accepts_swap_points: true,
+        seller_subscription_status_at_creation: 'trial',
+        eligible_for_starter_pack: false,
+        created_at: now,
+        updated_at: now,
+      })
+      .select('id')
+      .single();
+    if (insertRes.error) {
+      console.warn(`   ⚠️ B08 listing create failed: ${insertRes.error.message}`);
+      return;
+    }
+    listing = insertRes.data as any;
+  }
+
+  // TS null-narrowing guard: `listing` is `T | null`; early-return if still null.
+  if (!listing) {
+    console.warn('   ⚠️ B08 listing unavailable after create — aborting fixture');
+    return;
+  }
+
+  // 2. Canned cancelled trade (idempotent by buyer+listing).
+  const { data: existingTrade } = await adminSupabase
+    .from('trades')
+    .select('id')
+    .eq('buyer_id', buyerId)
+    .eq('listing_id', listing.id)
+    .limit(1)
+    .maybeSingle();
+
+  let tradeId: string | null = existingTrade?.id ?? null;
+  if (!tradeId) {
+    const insertRes = await adminSupabase
+      .from('trades')
+      .insert({
+        buyer_id: buyerId,
+        seller_id: sellerId,
+        listing_id: listing.id,
+        status: 'cancelled',
+        cancelled_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7d ago
+        cancellation_reason: 'buyer_cancelled',
+        cash_amount_cents: 2000,
+        sp_amount: 0,
+        buyer_transaction_fee_cents: 99,
+        created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+        updated_at: now,
+      })
+      .select('id')
+      .single();
+    if (insertRes.error) {
+      console.warn(`   ⚠️ B08 cancelled trade create failed: ${insertRes.error.message}`);
+      return;
+    }
+    tradeId = (insertRes.data as any).id;
+    console.log(`   ✓ Created cancelled trade: ${tradeId}`);
+  }
+
+  // 3. Two exchanged messages (idempotent by trade_id + sender).
+  const { data: existingMsgs } = await adminSupabase
+    .from('messages')
+    .select('id')
+    .eq('trade_id', tradeId)
+    .limit(1);
+  if (existingMsgs && existingMsgs.length > 0) {
+    console.log(`   ✓ B08 conversation already has messages on trade ${tradeId}`);
+  } else {
+    const msgs = [
+      {
+        trade_id: tradeId,
+        sender_id: buyerId,
+        content: "Hi! I'm interested in this item. Is it still available?",
+        message_type: 'text',
+        delivery_status: 'sent',
+        read_at: now,
+        created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        trade_id: tradeId,
+        sender_id: sellerId,
+        content: 'Yes it is! I can meet this weekend if you like.',
+        message_type: 'text',
+        delivery_status: 'sent',
+        read_at: now,
+        created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    ];
+    const { error: insertError } = await adminSupabase.from('messages').insert(msgs);
+    if (insertError) {
+      console.warn(`   ⚠️ B08 messages insert failed: ${insertError.message}`);
+    } else {
+      console.log(`   ✓ B08 conversation seeded (2 messages) on trade ${tradeId}`);
+    }
+  }
+
+  // 4. Force the dedicated listing back to available (idempotent) so the
+  //    fixture never locks a pool item for other cases.
+  const { error: resetError } = await adminSupabase
+    .from('items')
+    .update({ status: 'available', approved_at: now, updated_at: now })
+    .eq('id', listing.id);
+  if (resetError) {
+    console.warn(`   ⚠️ B08 listing reset failed: ${resetError.message}`);
+  }
+}
+
 async function seedListings(
   sellerId: string,
   sellerSession: any,
@@ -1066,6 +1274,85 @@ async function seedListings(
   }
 
   return listingIds;
+}
+
+/**
+ * Dev Task 25 (item 3) — seed the QA in-node item pool owned by test-seller.
+ *
+ * Mirrors seedListings' insert/reset logic for QA_POOL_LISTINGS so there is a
+ * reliable pool of available on-node items for QA trade cases. Idempotent by
+ * (seller_id, title); existing pool items are reset to `available` on re-seed
+ * so a run that left a pool item sold/pending never starves the next run.
+ */
+async function seedQaPoolListings(
+  sellerId: string,
+  categoryMap: { [key: string]: string }
+): Promise<string[]> {
+  console.log('\n🎯 Seeding QA in-node item pool...');
+  const poolIds: string[] = [];
+
+  for (const listing of QA_POOL_LISTINGS) {
+    const { data: existing, error: existingError } = await adminSupabase
+      .from('items')
+      .select('id')
+      .eq('seller_id', sellerId)
+      .eq('title', listing.title)
+      .maybeSingle();
+
+    if (existingError) {
+      console.warn(`   ⚠️ QA pool lookup failed for "${listing.title}": ${existingError.message}`);
+      continue;
+    }
+
+    if (existing) {
+      // Always keep the QA pool available so it never blocks the next batch.
+      const { error: resetError } = await adminSupabase
+        .from('items')
+        .update({
+          status: 'available',
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+        .in('status', ['sold', 'pending', 'unavailable', 'paused']);
+      if (resetError) {
+        console.warn(`   ⚠️ Could not reset QA pool item: ${listing.title} (${resetError.message})`);
+      }
+      console.log(`   ✓ QA pool item exists (reset to available): ${listing.title}`);
+      poolIds.push(existing.id);
+      continue;
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await adminSupabase
+      .from('items')
+      .insert({
+        seller_id: sellerId,
+        title: listing.title,
+        description: listing.description,
+        category_id: categoryMap[listing.categoryName] || null,
+        condition: listing.condition,
+        price: listing.price,
+        status: listing.status,
+        approved_at: now,
+        accepts_swap_points: true,
+        seller_subscription_status_at_creation: 'trial',
+        eligible_for_starter_pack: false,
+        created_at: now,
+        updated_at: now,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error(`   ❌ Failed to create QA pool listing "${listing.title}": ${error.message}`);
+    } else {
+      console.log(`   ✓ Created QA pool listing: ${listing.title}`);
+      poolIds.push((data as any).id);
+    }
+  }
+
+  return poolIds;
 }
 
 async function seedTrade(buyerId: string, sellerId: string, listingId: string): Promise<void> {
@@ -1693,6 +1980,10 @@ async function main(): Promise<void> {
     // 3. Create listings for seller
     const listingIds = await seedListings(sellerId, sellerSession, categoryMap);
 
+    // 3b. QA in-node item pool (Dev Task 25 item 3) — always-available items so
+    //     trade cases don't need deep-link navigation after the 3 seeded trades.
+    await seedQaPoolListings(sellerId, categoryMap);
+
     // 4. Create trades between buyer and seller
     if (listingIds.length > 0) {
       await seedTrade(buyerId, sellerId, listingIds[0]);
@@ -1706,6 +1997,9 @@ async function main(): Promise<void> {
 
     // 4b. P03 unread-message fixture (AUTH-TC-P03 header chat unread badge)
     await seedUnreadMessageFixture(buyerId, sellerId);
+
+    // 4c. TRD-TC-B08 canned cancelled-trade conversation fixture (Dev Task 25 item 6)
+    await seedCancelledTradeConversationFixture(buyerId, sellerId, categoryMap);
 
     // 5. Create subscriptions
     await seedSubscriptions(buyerId, sellerId);

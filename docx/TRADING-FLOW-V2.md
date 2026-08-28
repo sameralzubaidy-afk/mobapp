@@ -479,7 +479,7 @@ Every payout **must** use `payout_idempotency_key = 'payout_' || trade_id` as th
 | 6 | 🏷️ | ReviewOfferScreen | Taps [Decline] | — | — | — | — |
 | 7 | 🏷️ | — | Confirmation toast: "Offer declined. Item stays listed." | — | — | Trade cancelled | `cancelled` |
 | 8 | ⚙️ | — | — | — | — | Push to buyer | `cancelled` |
-| 9 | 🛒 | Offers Tab | Row: "Declined — [Item] still available" | — | [View Item Again] | — | `cancelled` |
+| 9 | 🛒 | History Tab | Row: "Cancelled" (declined offer); item still available → [View Item] | — | [View Item] | — | `cancelled` |
 
 ---
 
@@ -491,8 +491,8 @@ Every payout **must** use `payout_idempotency_key = 'payout_' || trade_id` as th
 | 5 | ⚙️ T–6h | — | — | ⏱ | — | Push to seller: "⏱ Offer expiring in 6h on [Item]" | `pending` |
 | 6 | ⚙️ T–1h | — | — | ⏱ | — | Push to seller: "Last chance — offer on [Item] expires in 1h" | `pending` |
 | 7 | ⚙️ T–0 | — | — | — | — | Auto-decline. SP unreserved (if any). Item stays listed. | `cancelled` |
-| 8 | 🛒 | Offers Tab | "Expired — [Item] still available" | — | [View Item Again] | — | `cancelled` |
-| 9 | 🏷️ | Offers Tab | Row removed (expired offers hidden after 24h) | — | — | — | — |
+| 8 | 🛒 | History Tab | Row: "Cancelled" (expired offer); item still available → [View Item] | — | [View Item] | — | `cancelled` |
+| 9 | 🏷️ | History Tab | Row stays as "Cancelled" (no 24h hide in History); [View Item] hidden once the item is no longer available | — | — | — | — |
 | 10 | ⚙️ | — | Check: was this seller's 2nd consecutive unanswered offer on this listing? | — | — | If yes: push prompt to seller | — |
 | 11 | 🏷️ | Push / In-App | *"You're receiving offers but not responding on [Item]. Want to pause this listing?"* | — | [Pause Listing] [Dismiss] | — | — |
 
@@ -547,7 +547,7 @@ Every payout **must** use `payout_idempotency_key = 'payout_' || trade_id` as th
 | 5 | 🏷️ | ReviewOffer B | Seller reviews Buyer B's offer | ⏱ Active | [Accept B] [Decline] | — | — |
 | 6 | 🏷️ | — | Taps **Accept B** | — | — | Stripe charges Buyer B | B: `payment_processing` |
 | 7 | ⚙️ | — | — | — | — | Trades A and C auto-declined. A and C's SP unreserved. Notifications sent to Buyers A and C. | A, C: `cancelled` |
-| 8 | 🛒 A & C | Offers Tab | "Declined — item no longer available" | — | [Browse Similar] | — | — |
+| 8 | 🛒 A & C | History Tab | Row: "Cancelled" (auto-declined, competing offer); item no longer available → no [View Item] | — | [View Details] | — | `cancelled` |
 
 > **Tie-breaking rule for equal total value**: Sort by highest cash amount first (seller gets more liquid cash), then by earliest offer time.
 
@@ -1015,7 +1015,7 @@ Shown immediately after trade reaches `completed` state.
 | User | Condition | Primary Message | CTA |
 |---|---|---|---|
 | 🛒 Free buyer | Any completed trade | "Trade complete! Kids Club+ would've saved you $2 on this trade — try it free for 30 days." | [Try Kids Club+ Free — 30 Days] |
-| 🛒 Subscriber buyer | Used SP | "You saved $[sp_amount] using SP! You have [remaining_sp] SP left." | [Keep Shopping] |
+| 🛒 Subscriber buyer | Used SP | "You saved $[sp_amount] using SP! You have [remaining_sp] SP available." | [Keep Shopping] |
 | 🛒 Subscriber buyer | No SP used | "Trade complete! Consider using SP on your next purchase to save more." | [Browse Items] |
 | 🏷️ Free seller | Any completed trade | "Great sale! Subscribe to earn Swap Points on your next sale — set 'Accept SP' when listing." | [Try Kids Club+ Free — 30 Days] |
 | 🏷️ Subscriber seller | "Cash Only" listing | "Sold for cash! Try 'Accept SP' on your next listing to also earn SP." | [Create New Listing] |

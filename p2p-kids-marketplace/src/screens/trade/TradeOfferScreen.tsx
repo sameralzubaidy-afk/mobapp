@@ -26,7 +26,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  NativeModules,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
@@ -50,6 +49,10 @@ import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
+import {
+  KeyboardDoneAccessory,
+  KEYBOARD_DONE_ACCESSORY_ID,
+} from '@/components/shared/KeyboardDoneAccessory';
 
 type TradeOfferRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -64,8 +67,10 @@ export default function TradeOfferScreen() {
   const { itemId } = route.params;
 
   // ── Stripe hooks (unconditional, top-level) ─────────────────────────────
-  const stripe = useStripe();
-  const createPaymentMethod = stripe.createPaymentMethod;
+  // The Stripe module is intentionally unused on this screen (card entry flows
+  // through usePaymentSheet), but the hook MUST be called unconditionally at
+  // top level to satisfy the React Hooks rule (see file-top comment).
+  useStripe();
   const {
     setupPaymentSheet,
     presentSheet,
@@ -149,19 +154,6 @@ export default function TradeOfferScreen() {
       setLoading(false);
     }
   }, [itemId, navigation, refreshSession, user?.id]);
-
-  const hasStripeNativeModule = Boolean(
-    (NativeModules as any)?.StripeSdk ||
-    (NativeModules as any)?.Stripe ||
-    (NativeModules as any)?.RNStripe ||
-    (NativeModules as any)?.StripeReactNative
-  );
-
-  const stripePublishableKey = (process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
-  const stripePublishableKeyLooksValid =
-    stripePublishableKey.startsWith('pk_') &&
-    !stripePublishableKey.includes('YOUR_KEY_HERE') &&
-    !stripePublishableKey.includes('your-key');
 
   useEffect(() => {
     fetchData();
@@ -333,7 +325,7 @@ export default function TradeOfferScreen() {
       setSubmitting(true);
 
       // ── 1. Collect payment method ID (saved card) ─────────────────────────
-      let selectedPaymentMethodId: string | undefined = savedPaymentMethod?.id ?? undefined;
+      const selectedPaymentMethodId: string | undefined = savedPaymentMethod?.id ?? undefined;
 
       if (cashAmountCents > 0 && !selectedPaymentMethodId) {
         Alert.alert('Payment Error', 'No valid payment method selected');
@@ -376,9 +368,10 @@ export default function TradeOfferScreen() {
 
         // D-30: max pending offers per seller (cap is admin-configurable)
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
+          // DT-21 Item 2: cap-blocked alert guidance — the raw server message leaves
+          // the next step ambiguous, so add a short line telling the buyer how to free a slot.
           setOfferLimitMessage(
-            offerResult.error ||
-              'You have reached the offer limit for this seller. Cancel one to make a new offer.'
+            `${offerResult.error || 'You have reached the offer limit for this seller.'}\n\nWait for one of your pending offers to resolve, or cancel one to free a slot.`
           );
           setShowOfferLimitModal(true);
           return;
@@ -423,7 +416,11 @@ export default function TradeOfferScreen() {
         role: 'buyer',
         spUsed: spAmount,
         spAmountDollars: spAmount,
-        remainingSP: walletStats?.available ?? 0,
+        // DT-21 Item 1: project the post-reserve SP balance — `walletStats.available`
+        // is still the pre-reserve figure at submit time (the wallet Realtime refresh
+        // may not have landed before the success screen renders), so subtract this
+        // offer's SP so the buyer sees their true remaining points without mental math.
+        remainingSP: Math.max(0, (walletStats?.available ?? 0) - spAmount),
         listingType: item?.accepts_swap_points ? 'accept_sp' : 'cash_only',
       });
     } catch (error: any) {
@@ -537,6 +534,7 @@ export default function TradeOfferScreen() {
                   placeholderTextColor="#D97706"
                   keyboardType="decimal-pad"
                   testID="sp-amount-input"
+                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 />
                 <Text style={styles.spUnit}>SP</Text>
               </View>
@@ -610,6 +608,11 @@ export default function TradeOfferScreen() {
                       styles.paymentModeOption,
                       paymentInputMode === 'new' && styles.paymentModeOptionSelected,
                     ]}
+                    testID="add-new-card-mode-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Add new card mode"
+                    accessibilityState={{ selected: paymentInputMode === 'new' }}
                   >
                     <Text style={styles.paymentModeTitle}>Add New Card</Text>
                     <Text style={styles.paymentModeSubtitle}>Use Stripe secure checkout</Text>
@@ -741,6 +744,8 @@ export default function TradeOfferScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      <KeyboardDoneAccessory />
+
       <DisclaimerModal
         visible={showDisclaimer}
         onAccept={handleDisclaimerAccept}
@@ -778,6 +783,8 @@ export default function TradeOfferScreen() {
           navigation.navigate('TradeList');
         }}
         onCancel={() => setShowOfferLimitModal(false)}
+        confirmTestID="offer-limit-view-offers-button"
+        cancelTestID="offer-limit-ok-button"
       />
     </ScreenLayout>
   );
