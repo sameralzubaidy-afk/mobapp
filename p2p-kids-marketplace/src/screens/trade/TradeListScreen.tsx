@@ -767,10 +767,12 @@ export default function TradeListScreen({ navigation }: any) {
 
             {item.status === 'pending' && item.offer_expires_at && (
               <View style={styles.expirationLine}>
-                <View style={styles.expirationDot} />
-                <Text style={styles.expirationText}>
-                  Offer expires in {getTimeAgoBrief(item.offer_expires_at)}
-                </Text>
+                <OfferCountdownPill
+                  offerExpiresAt={item.offer_expires_at}
+                  createdAt={item.created_at}
+                  style={styles.offerCountdownPill}
+                  testID={`offer-countdown-pill-${item.id}`}
+                />
               </View>
             )}
           </View>
@@ -893,17 +895,6 @@ export default function TradeListScreen({ navigation }: any) {
         )}
       </View>
     );
-  };
-
-  const getTimeAgoBrief = (dateString: string) => {
-    const target = new Date(dateString);
-    const now = new Date();
-    const diff = target.getTime() - now.getTime();
-    if (diff <= 0) return 'Expired';
-    const hours = Math.floor(diff / 3600000);
-    const mins = Math.floor((diff % 3600000) / 60000);
-    if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-    return `${hours}h ${mins}m`;
   };
 
   const renderEmptyState = () => {
@@ -1140,11 +1131,12 @@ export default function TradeListScreen({ navigation }: any) {
                               )}
                               {bundleOffers[0]?.offer_expires_at && (
                                 <View style={styles.expirationLine}>
-                                  <View style={styles.expirationDot} />
-                                  <Text style={styles.expirationText}>
-                                    Offer expires in{' '}
-                                    {getTimeAgoBrief(bundleOffers[0].offer_expires_at)}
-                                  </Text>
+                                  <OfferCountdownPill
+                                    offerExpiresAt={bundleOffers[0].offer_expires_at}
+                                    createdAt={bundleOffers[0].created_at}
+                                    style={styles.offerCountdownPill}
+                                    testID={`offer-countdown-pill-${bundleOffers[0].id}`}
+                                  />
                                 </View>
                               )}
                             </View>
@@ -1217,10 +1209,12 @@ export default function TradeListScreen({ navigation }: any) {
                             </View>
                             {offer.offer_expires_at && (
                               <View style={styles.expirationLine}>
-                                <View style={styles.expirationDot} />
-                                <Text style={styles.expirationText}>
-                                  Offer expires in {getTimeAgoBrief(offer.offer_expires_at)}
-                                </Text>
+                                <OfferCountdownPill
+                                  offerExpiresAt={offer.offer_expires_at}
+                                  createdAt={offer.created_at}
+                                  style={styles.offerCountdownPill}
+                                  testID={`offer-countdown-pill-${offer.id}`}
+                                />
                               </View>
                             )}
                             {offer.sp_amount > 0 && (
@@ -1451,12 +1445,19 @@ export default function TradeListScreen({ navigation }: any) {
                             </View>
                             {offer.offer_expires_at && (
                               <View style={styles.expirationLine}>
-                                <View style={styles.expirationDot} />
-                                <Text style={styles.expirationText}>
-                                  {offer.status === 'cancelled'
-                                    ? 'Expired'
-                                    : `Offer expires in ${getTimeAgoBrief(offer.offer_expires_at)}`}
-                                </Text>
+                                {offer.status === 'cancelled' ? (
+                                  <>
+                                    <View style={styles.expirationDot} />
+                                    <Text style={styles.expirationText}>Expired</Text>
+                                  </>
+                                ) : (
+                                  <OfferCountdownPill
+                                    offerExpiresAt={offer.offer_expires_at}
+                                    createdAt={offer.created_at}
+                                    style={styles.offerCountdownPill}
+                                    testID={`offer-countdown-pill-${offer.id}`}
+                                  />
+                                )}
                               </View>
                             )}
                             {offer.sp_amount > 0 && (
@@ -1920,6 +1921,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 4,
+  },
+  // Item 4 (Dev Task 41): keep the countdown pill left-aligned so it never
+  // stretches across the row; matches the Review Offer header pill style.
+  offerCountdownPill: {
+    alignSelf: 'flex-start',
   },
   expirationDot: {
     width: 6,

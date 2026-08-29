@@ -165,7 +165,6 @@ export function computeActiveTab(state: NavigationState | undefined): string | n
     name === 'TradeTimeline' ||
     name === 'TradeDetail' ||
     name === 'TradeSuccess' ||
-    name === 'TradeDispute' ||
     name === 'ReviewOffer' ||
     name === 'TradeInitiation'
   ) {
@@ -183,7 +182,6 @@ export function computeActiveTab(state: NavigationState | undefined): string | n
       r === 'TradeTimeline' ||
       r === 'TradeDetail' ||
       r === 'TradeSuccess' ||
-      r === 'TradeDispute' ||
       r === 'ReviewOffer' ||
       r === 'TradeInitiation'
     ) {

@@ -525,7 +525,10 @@ const styles = StyleSheet.create({
   // Bottom sticky actions
   bottomActions: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    // Clear the floating pill nav (PersistentTabBar overlays the stack — pill
+    // top sits ~110pt from the bottom), so the confirm button is never hidden
+    // behind it (Dev Task 41 item 6, BP-58 principle screen-wide).
+    paddingBottom: 120,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',

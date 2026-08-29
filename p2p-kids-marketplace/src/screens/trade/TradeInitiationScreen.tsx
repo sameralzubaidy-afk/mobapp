@@ -29,7 +29,11 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 // TFV2-012A: replaced initiateTradeV2 + processTradePayment with createTradeOfferWithHold (D-30)
-import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
+import {
+  createTradeOfferWithHold,
+  mapStripeErrorToMessage,
+  getBuyerPendingOffersForSeller,
+} from '@/services/trade';
 import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
@@ -407,9 +411,24 @@ export default function TradeInitiationScreen() {
       if (!offerResult.success || !offerResult.trade_id) {
         // D-30: max pending offers per seller (cap is admin-configurable)
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
+          // Dev Task 41 item 7: name the open offers so the buyer can identify
+          // and cancel the right one instead of guessing.
+          const pendingOffers = item ? ((await getBuyerPendingOffersForSeller(item.seller_id)) ?? []) : [];
+          const openList = pendingOffers.length
+            ? pendingOffers
+                .map(
+                  (o) =>
+                    `• ${o.title} — $${(o.cash_amount_cents / 100).toFixed(2)}${
+                      o.sp_amount > 0 ? ` + ${o.sp_amount} SP` : ''
+                    }`
+                )
+                .join('\n')
+            : '';
           setOfferLimitMessage(
-            offerResult.error ||
+            `${
+              offerResult.error ||
               'You have reached the offer limit for this seller. Cancel one to make a new offer.'
+            }\n\nOpen offers:\n${openList}\n\nWait for one of your pending offers to resolve, or cancel one to free a slot.`
           );
           setShowOfferLimitModal(true);
           return;

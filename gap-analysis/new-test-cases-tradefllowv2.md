@@ -98,6 +98,8 @@
 
 ## Group E — Dispute Flow (additions)
 
+> **SUPERSEDED (2026-08-29, DEV-TASK-42):** the `TradeDisputeScreen` these drafts described was removed as fully redundant — dispute filing is the `IssueReportModal` on the trade timeline (`report-problem-button`). See the canonical consolidated guide E07–E10 (re-specified to the modal) instead.
+
 ### TC-E07 · Trade Dispute — no reason (disabled submit)
 
 **Ref:** FLOW-08-05 · TradeDisputeScreen

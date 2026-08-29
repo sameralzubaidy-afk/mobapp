@@ -53,10 +53,8 @@ Each screen below has **zero** test cases referencing it in any of the 6 canonic
 - States: loading (immediately `navigation.replace('ReviewOffer')` on mount)
 - Note: `@deprecated`; kept only for backward-compat with stale notification payloads. Its Accept/Decline UI is dead code. Zero coverage is expected/correct.
 
-**TradeDispute** — `p2p-kids-marketplace/src/screens/trade/TradeDisputeScreen.tsx` — **HIGH**
-- Elements: 5 reason chips · description textarea (shown for "Other") · Submit Dispute · Cancel
-- States: no-reason (disabled submit) · reason selected · "Other" + min-20-char description · submitting · submit-confirm alert
-- Note: dispute filing in tests goes through the `TradeTimeline` `IssueReportModal` (TC-E01); this dedicated screen is never exercised.
+**TradeDispute** — REMOVED (DEV-TASK-42, 2026-08-29)
+- The dedicated screen was fully redundant with the `TradeTimeline` `IssueReportModal` (the active, reachable dispute path) and was unreachable in-app (no route call, no deep link). Screen + route + unit test deleted; guide E07–E10 re-specified to the modal.
 
 **TradeV2ComponentsPreview** — `p2p-kids-marketplace/src/screens/trade/TradeV2ComponentsPreviewScreen.tsx` — LOW
 - Elements: none (static preview of `OfferCountdownPill` ×2 + `AutoCompleteBanner`)

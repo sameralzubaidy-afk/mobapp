@@ -64,7 +64,6 @@ export type RootStackParamList = {
   TradeTimeline: { tradeId: string };
   TradeDetail: { tradeId: string };
   TradeList: undefined;
-  TradeDispute: { tradeId: string };
   TradeSuccess: {
     tradeId: string;
     role?: 'buyer' | 'seller';

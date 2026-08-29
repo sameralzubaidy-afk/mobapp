@@ -23,6 +23,7 @@ import ScreenLayout from '@/components/ScreenLayout';
 import { respondToOffer, acceptBundleOffers } from '@/services/tradeServiceV2';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { previewTotalSPToSeller } from '@/services/spCalculatorService';
+import { getSubscriptionSummary } from '@/services/subscription';
 import { captureException } from '@/services/errorReporter';
 import { getSPReleaseDays } from '@/services/adminConfig';
 
@@ -65,6 +66,9 @@ export default function ReviewOfferScreen() {
   const [offer, setOffer] = useState<OfferData | null>(null);
   // ✅ FIX: Track total SP (buyer SP + platform bonus) for accurate display
   const [totalSpToSeller, setTotalSpToSeller] = useState<number>(0);
+  // C05 (2026-08-28): the seller's platform bonus is only credited to a
+  // subscribed seller — gate the bundle preview on the same check the server uses.
+  const [sellerIsSubscriber, setSellerIsSubscriber] = useState(false);
   // Addendum E: bundle context
   const [bundleSiblings, setBundleSiblings] = useState<OfferData[]>([]);
   const [showBundleList, setShowBundleList] = useState(false);
@@ -204,6 +208,24 @@ export default function ReviewOfferScreen() {
         /* keep default 3 */
       });
   }, [fetchOffer]);
+
+  // C05 (2026-08-28): resolve the seller's subscription status so the bundle
+  // preview can gate the platform bonus exactly like the server credit path
+  // (fn_release_all_sp_on_complete checks the SELLER's subscription).
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let isCancelled = false;
+    getSubscriptionSummary(session.user.id)
+      .then((summary) => {
+        if (!isCancelled) setSellerIsSubscriber(summary.is_subscriber);
+      })
+      .catch(() => {
+        /* keep default false */
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [session?.user?.id]);
 
   // TFV2-012A (D-30): Accept all bundle offers via Edge Function (Stripe capture + in_progress)
   const handleAcceptBundle = async () => {
@@ -356,10 +378,14 @@ export default function ReviewOfferScreen() {
                   const itemSp = o.sp_amount ?? 0;
                   const itemPrice = o.listing?.price ?? 0;
                   const netPayout = itemPrice - itemSp;
-                  // Seller earnings = buyer SP + platform bonus
+                  // Seller earnings = buyer SP + platform bonus. Platform bonus
+                  // mirrors fn_release_all_sp_on_complete: FLOOR(price × 0.25 ×
+                  // multiplier), credited only to a subscribed seller (C05 fix).
                   const multiplier = (o as any).sp_category_multiplier ?? 1.0;
                   const platformBonus =
-                    itemSp > 0 ? Math.floor(itemSp * Math.max(0, multiplier - 1)) : 0;
+                    sellerIsSubscriber && itemPrice > 0
+                      ? Math.floor(itemPrice * 0.25 * multiplier)
+                      : 0;
                   const sellerSpEarned = itemSp + platformBonus;
                   return (
                     <TouchableOpacity
@@ -409,12 +435,14 @@ export default function ReviewOfferScreen() {
                     (s, o) => s + (o.cash_amount_cents ?? 0) / 100,
                     0
                   );
-                  // Seller SP earned per item = sp_amount + floor(sp_amount × (multiplier - 1))
+                  // Seller SP earned per item = sp_amount + platform bonus
+                  // (FLOOR(price × 0.25 × multiplier), subscribed sellers only — C05 fix)
                   const totalSellerSp = allItems.reduce((s, o) => {
                     const sp = o.sp_amount ?? 0;
-                    if (sp <= 0) return s;
                     const mult = (o as any).sp_category_multiplier ?? 1.0;
-                    const bonus = Math.floor(sp * Math.max(0, mult - 1));
+                    const price = o.listing?.price ?? 0;
+                    const bonus =
+                      sellerIsSubscriber && price > 0 ? Math.floor(price * 0.25 * mult) : 0;
                     return s + sp + bonus;
                   }, 0);
                   return (

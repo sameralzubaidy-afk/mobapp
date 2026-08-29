@@ -308,16 +308,16 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-D04 | Auto-complete banner visible to buyer only | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (seller copy differs from guide) |
 | TRD-TC-D05 | Post-meetup nudge after auto-complete | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-D06 | Pickup window drives the auto-complete deadline (R2 — configurable) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E01 | Buyer opens Report a Problem modal | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (Report Problem occluded by tab pill — P2) |
+| TRD-TC-E01 | Buyer opens Report a Problem modal | 1 | PASS | 2026-08-29 | `qa-trd-b-c-d-e-2026-08-28` + DEV-TASK-40 | ✅ PASS (occlusion fixed DEV-TASK-40; modal opens; banner now amber DEV-TASK-42) |
 | TRD-TC-E02 | Disputed trade does not auto-complete | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS |
-| TRD-TC-E03 | Buyer UI during active dispute | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (red banner not amber; I Got It disabled not hidden) |
-| TRD-TC-E04 | Seller UI during active dispute | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (same banner-color deviation) |
+| TRD-TC-E03 | Buyer UI during active dispute | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (banner now amber DEV-TASK-42 — matches guide; I Got It disabled not hidden) |
+| TRD-TC-E04 | Seller UI during active dispute | 1 | PASS | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | ✅ PASS (banner-color deviation resolved DEV-TASK-42) |
 | TRD-TC-E05 | Admin resolves dispute → Complete | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-E06 | Admin resolves dispute → Refund | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-E07 | Trade Dispute — no reason (disabled submit) | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
-| TRD-TC-E08 | Trade Dispute — reason selected (non-Other) | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
-| TRD-TC-E09 | Trade Dispute — "Other" + min-20 description | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
-| TRD-TC-E10 | Trade Dispute — submitting + confirm + success/error | 1 | BLOCKED | 2026-08-28 | `qa-trd-b-c-d-e-2026-08-28` | 🔴 BLOCKED (TradeDisputeScreen unreachable — P2) |
+| TRD-TC-E07 | Report an Issue — no reason (disabled submit) | 1 | — | 2026-08-29 | DEV-TASK-42 | 🟡 RE-SPEC'D to IssueReportModal (TradeDisputeScreen removed — redundant); not yet re-run |
+| TRD-TC-E08 | Report an Issue — reason selected (non-Other) | 1 | — | 2026-08-29 | DEV-TASK-42 | 🟡 RE-SPEC'D to IssueReportModal (TradeDisputeScreen removed — redundant); not yet re-run |
+| TRD-TC-E09 | Report an Issue — "Other" + min-20 description | 1 | — | 2026-08-29 | DEV-TASK-42 | 🟡 RE-SPEC'D to IssueReportModal (TradeDisputeScreen removed — redundant); not yet re-run |
+| TRD-TC-E10 | Report an Issue — submitting + success/error | 1 | — | 2026-08-29 | DEV-TASK-42 | 🟡 RE-SPEC'D to IssueReportModal (TradeDisputeScreen removed — redundant); not yet re-run |
 | TRD-TC-F01 | Payout shown on completion (no dispute) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-F02 | Payout held when dispute is open | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-F03 | Payout needs action when seller has no payout method | 1 | — | — | `—` | NEVER RUN |

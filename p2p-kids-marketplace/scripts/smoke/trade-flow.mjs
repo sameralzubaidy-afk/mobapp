@@ -222,9 +222,11 @@ async function test06_buyerMarkCompleted() {
   assert(data.completed_at, 'Completion timestamp set');
 }
 
-// Test 7: TradeDisputeScreen - File dispute
+// Test 7: Dispute state - open-dispute EF (IssueReportModal flow; screen was removed in
+// DEV-TASK-42 as redundant — this DB-level probe is kept but needs alignment to the
+// dispute_status column model, not the legacy 'disputed' status value)
 async function test07_fileDispute() {
-  console.log('\n🧪 Test 7: TradeDisputeScreen - File dispute');
+  console.log('\n🧪 Test 7: Dispute state - open-dispute EF');
 
   // Create a new trade for dispute testing
   await supabase.auth.setSession(buyerSession);

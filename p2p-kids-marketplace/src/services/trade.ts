@@ -566,6 +566,64 @@ export async function countPendingOffersByBuyer(buyerId: string, sellerId?: stri
   }
 }
 
+export interface PendingOfferSummary {
+  id: string;
+  title: string;
+  cash_amount_cents: number;
+  sp_amount: number;
+  offer_expires_at?: string | null;
+}
+
+/**
+ * Dev Task 41 item 7: fetch the current user's pending offers with a specific
+ * seller so the "Too Many Open Offers" alert can NAME the open offers instead of
+ * making the buyer guess which one to cancel.
+ */
+export async function getBuyerPendingOffersForSeller(
+  sellerId: string
+): Promise<PendingOfferSummary[]> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const buyerId = session?.user?.id;
+    if (!buyerId || !sellerId) return [];
+
+    const { data, error } = await supabase
+      .from('trades')
+      .select(
+        `
+        id,
+        cash_amount_cents,
+        sp_amount,
+        offer_expires_at,
+        listing:items(title)
+      `
+      )
+      .eq('buyer_id', buyerId)
+      .eq('seller_id', sellerId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error('[trade] getBuyerPendingOffersForSeller error:', error);
+      return [];
+    }
+
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      title: row.listing?.title ?? 'Item',
+      cash_amount_cents: row.cash_amount_cents ?? 0,
+      sp_amount: row.sp_amount ?? 0,
+      offer_expires_at: row.offer_expires_at ?? null,
+    }));
+  } catch (err) {
+    console.error('[trade] getBuyerPendingOffersForSeller unexpected error:', err);
+    return [];
+  }
+}
+
 export interface CreateTradeOfferInput {
   /** ID of the listing item */
   item_id: string;

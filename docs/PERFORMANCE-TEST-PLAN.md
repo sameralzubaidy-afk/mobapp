@@ -122,7 +122,6 @@ Legend for **Measure**: Q = Supabase query latency (isolated), R = render commit
 | `TradeReview` (deprecated) | `src/screens/trade/TradeReviewScreen.tsx` | Legacy — exclude from suite, note only | — | — | — |
 | `TradeList` | `src/screens/trade/TradeListScreen.tsx` | Trades w/ joins, tabs | T3 | Q, R, N | ≤ 3.0 s |
 | `TradeDetail` / `TradeTimeline` | `src/screens/trade/TradeTimelineScreen.tsx` | Trade + timeline events + payment details + live tax (`useTaxCalculation`) | **T3** | Q(each), R | ≤ 3.0 s |
-| `TradeDispute` | `src/screens/trade/TradeDisputeScreen.tsx` | Trade + dispute form; submit + photo evidence | T3 | Q, R | ≤ 2.5 s |
 | `TradeSuccess` | `src/screens/trade/TradeSuccessScreen.tsx` | Params-driven, mostly static | T1 | R | ≤ 1.0 s |
 | `TradeV2ComponentsPreview` | `src/screens/trade/TradeV2ComponentsPreviewScreen.tsx` | Dev-only — exclude | — | — | — |
 

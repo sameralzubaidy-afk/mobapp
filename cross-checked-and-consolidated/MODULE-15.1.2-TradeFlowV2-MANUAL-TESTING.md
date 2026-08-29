@@ -48,7 +48,7 @@
 | | TRD-TC-C05 | SP released to seller at trade completion |
 | | TRD-TC-C06 | SP restored to buyer on seller cancel (in_progress) |
 | | TRD-TC-C07 | Free user sees locked Use SP button + upgrade modal |
-| | TRD-TC-C08 | SP entry capped at 50% of item price |
+| | TRD-TC-C08 | SP entry capped by the item's category cap (50–80%, admin-configurable) |
 | **D — Auto-Complete & Timers** | TRD-TC-D01 | Auto-complete when buyer never taps I Got It |
 | | TRD-TC-D02 | Auto-complete skipped when dispute is open |
 | | TRD-TC-D03 | Offer countdown pill color states |
@@ -60,10 +60,10 @@
 | | TRD-TC-E04 | Seller UI during active dispute |
 | | TRD-TC-E05 | Admin resolves dispute → Complete |
 | | TRD-TC-E06 | Admin resolves dispute → Refund |
-| | TRD-TC-E07 | Trade Dispute — no reason (disabled submit) |
-| | TRD-TC-E08 | Trade Dispute — reason selected (non-Other) |
-| | TRD-TC-E09 | Trade Dispute — "Other" + min-20 description |
-| | TRD-TC-E10 | Trade Dispute — submitting + confirm + success/error |
+| | TRD-TC-E07 | Report an Issue modal — no reason (disabled submit) |
+| | TRD-TC-E08 | Report an Issue modal — reason selected (non-Other) |
+| | TRD-TC-E09 | Report an Issue modal — "Other" + min-20 description |
+| | TRD-TC-E10 | Report an Issue modal — submitting + success/error |
 | **F — Payout** | TRD-TC-F01 | Payout shown on completion (no dispute) |
 | | TRD-TC-F02 | Payout held when dispute is open |
 | | TRD-TC-F03 | Payout needs action when seller has no payout method |
@@ -1117,23 +1117,31 @@ SELECT public.rpc_release_pending_sp(200);
 
 ---
 
-### passed TRD-TC-C08 · SP entry capped at 50% of item price
+### passed TRD-TC-C08 · SP entry capped by the item's category cap (not a flat 50%)
 
-**Ref:** TRADING-FLOW-V2 §4.4 FR-SP-003
+**Ref:** TRADING-FLOW-V2 §4.4 FR-SP-003 · reconciled 2026-08-29 to the category-driven model (DEV-TASK-42)
 **Actors:** test-buyer (subscriber)
 
-**Objective:** Verify the SP entry field cannot exceed 50% of the item price.
+**Objective:** Verify the SP entry field is capped by the item's **category** spending cap
+(`categories.sp_spending_cap_percent`), not a flat 50% of the item price.
+
+**Background (actual model):**
+- The cap is per-category and **admin-configurable** in the admin portal (Category Management → SP spending cap %). Valid range **50–80%**; new categories default to 50%; a configured category value **overrides** the global 50% default (owner decision 2026-08-09).
+- Max SP on an item = `FLOOR(item price × cap% / 100)`. The client shows it as the max hint; the server enforces it via `fn_item_effective_sp_cap` + `fn_reserve_sp_on_offer` (an over-cap offer is rejected at the DB — HP-4 invariant).
+- Observed staging category caps: 50% (Toys), 70% (Games), 75% (Sports).
 
 **Steps:**
-1. Log in as **Buyer** and open the SP entry field on the $30 offer screen.
-2. Type a value above 50% (e.g., "16").
-3. Confirm the field clamps to $15 and shows the max hint.
-4. Set SP to exactly $15.
+1. In the admin portal, read the target item's category **SP spending cap %** (e.g. 70%).
+2. Log in as **Buyer** and open the SP entry field on an item in that category (e.g. $30 in a 70%-cap category → max = `FLOOR(30 × 0.70)` = 21 SP).
+3. Type a value above the category max (e.g. "25").
+4. Confirm the field clamps to the category max and shows the max hint.
+5. Set SP to exactly the category max.
 
 **Expected Result:**
-- The field range is 0 to $15 and clamps at $15 (50% of price) — it never accepts a higher value.
-- The field rejects or clamps "16" to 15, and shows a max hint ("Max: 15 SP (50% of price)").
-- At $15 the breakdown reads "$15 cash + 15 SP = $30 total" with the platform fee still charged in cash.
+- The field range is 0 to the category max (e.g. **21** for a $30 item at 70%) and clamps there — it never accepts a higher value. The max is **not** a flat 50% (that would be 15).
+- The field rejects/clamps "25" to 21 and shows the max hint, e.g. "Max: 21 SP (70% of price)" — the percentage matches the item's category cap, never a hardcoded 50%.
+- At the max the breakdown reads "$9 cash + 21 SP = $30 total" with the platform fee still charged in cash.
+- **Server enforcement:** submitting an SP amount over the category cap via a direct API call is rejected (cap error) — the DB invariant holds even if the UI hint is bypassed.
 
 ---
 
@@ -1270,12 +1278,12 @@ SELECT public.rpc_process_expired_offers(100);
 **Steps:**
 1. Log in as **Buyer** and open an **In Progress** trade.
 2. Tap **[Report a Problem]**.
-3. Select "Seller didn't show up", add an optional note, and tap **[Submit Report]**.
+3. Select **Seller was a no-show**, tap **[Submit Report]** (a description is only required for **Other issue**).
 
 **Expected Result:**
 - The trade initially shows [I Got It], [Report a Problem], and [Message Seller].
-- The report modal lists reasons ([Seller didn't show up], [Item not as described], [Couldn't agree on meetup], [Other]) with an optional free-text field.
-- After submitting, a toast appears: "Issue reported. Our team will review within 24 hours."; the trade enters a disputed state and the seller plus admin are notified.
+- The report modal (bottom sheet, title **Report an Issue**) lists five reasons: [Seller was a no-show], [Item not as described], [Seller not responding], [Couldn't agree on meetup], [Other issue] — with a free-text field that appears only for **Other issue** (min 20 characters).
+- After submitting, the modal closes and the timeline refreshes to show the **Dispute in progress** banner (no toast); the trade enters a disputed state and the seller plus admin are notified.
 
 ---
 
@@ -1364,75 +1372,73 @@ SELECT public.rpc_process_expired_offers(100);
 - The buyer receives: "Your refund for [Item] has been issued. It may take 5–10 business days to appear."
 - The seller receives: "Our team resolved the dispute on [Item] in the buyer's favor. The sale has been cancelled."
 
-### TRD-TC-E07 · Trade Dispute — no reason (disabled submit)
+### TRD-TC-E07 · Report an Issue — no reason (disabled submit)
 
-**Ref:** FLOW-08-05 · TradeDisputeScreen
+**Ref:** FLOW-08-05 · IssueReportModal (TradeTimeline `report-problem-button`) · reconciled 2026-08-29 (DEV-TASK-42)
 **Actors:** test-buyer
 
-**Objective:** Verify Submit is disabled until a reason is selected.
+**Objective:** Verify Submit Report is disabled until a reason is selected.
 
 **Steps:**
-1. Open the Trade Dispute screen (heading **File a Dispute**) for a trade.
-2. Observe the **Submit Dispute** button with no reason selected.
+1. Log in as **Buyer** and open an **In Progress** trade.
+2. Tap **[Report Problem]** to open the **Report an Issue** bottom sheet.
+3. Observe the **[Submit Report]** button with no reason selected.
 
 **Expected Result:**
-- The warning banner reads `Filing a dispute is a serious action. Please provide accurate information.`
-- The five reason chips render: **Item not as described** · **Item not received** · **Safety concern** · **Payment issue** · **Other** (each with its description line).
-- **Submit Dispute** is disabled while no reason is selected.
-- **Flag:** the header comment mentions "Evidence upload with Camera icon", but the rendered screen has no evidence-upload section (stale comment).
+- The bottom sheet opens with the title **Report an Issue** and subtitle "What went wrong with this trade?".
+- The five reason options render: **Seller was a no-show** · **Item not as described** · **Seller not responding** · **Couldn't agree on meetup** · **Other issue**.
+- **[Submit Report]** is disabled while no reason is selected.
 
-### TRD-TC-E08 · Trade Dispute — reason selected (non-Other)
+### TRD-TC-E08 · Report an Issue — reason selected (non-Other)
 
-**Ref:** FLOW-08-05 · TradeDisputeScreen
+**Ref:** FLOW-08-05 · IssueReportModal
 **Actors:** test-buyer
 
-**Objective:** Verify selecting a non-"Other" reason enables submit without requiring a description.
+**Objective:** Verify selecting a non-"Other" reason enables submit without a description.
 
 **Steps:**
-1. Tap **Item not as described**.
-2. Observe the description section and the submit button.
+1. Open the **Report an Issue** modal on an In Progress trade.
+2. Tap **Seller was a no-show** (or any non-Other reason).
+3. Observe the description section and the submit button.
 
 **Expected Result:**
-- The chip shows the selected (red) state.
-- No **DESCRIPTION** textarea appears for a non-"Other" reason.
-- **Submit Dispute** becomes enabled.
-- Tapping the selected chip again deselects it (and re-disables submit).
+- The selected option shows the selected (green) radio state.
+- No description textarea appears for a non-Other reason.
+- **[Submit Report]** becomes enabled.
+- Tapping the selected option again deselects it (and re-disables submit).
 
-### TRD-TC-E09 · Trade Dispute — "Other" + min-20 description
+### TRD-TC-E09 · Report an Issue — "Other" + min-20 description
 
-**Ref:** FLOW-08-05 · TradeDisputeScreen
+**Ref:** FLOW-08-05 · IssueReportModal
 **Actors:** test-buyer
 
-**Objective:** Verify the "Other" description requirement (min 20 chars, max 1000).
+**Objective:** Verify the "Other" description requirement (min 20 chars, max 500).
 
 **Steps:**
-1. Tap **Other**.
+1. Open the **Report an Issue** modal and tap **Other issue**.
 2. Enter a short description (e.g., 10 characters).
 3. Then enter a description of 20 or more characters.
 
 **Expected Result:**
-- A **DESCRIPTION** textarea appears with placeholder `Describe what happened in detail...` and a `{n}/1000` character counter.
-- With fewer than 20 characters, **Submit Dispute** stays disabled (guard: `Please provide a detailed description (minimum 20 characters)`).
-- At 20+ characters the button enables; input is capped at 1000 characters.
-- Selecting a different reason clears the description.
+- A textarea appears with label "Please describe the issue (min. 20 characters)" and placeholder "Tell us what happened…".
+- With fewer than 20 characters, **[Submit Report]** stays disabled.
+- At 20+ characters the button enables; input is capped at 500 characters.
+- Selecting a different reason hides/clears the description.
 
-### TRD-TC-E10 · Trade Dispute — submitting + confirm + success/error
+### TRD-TC-E10 · Report an Issue — submitting + success/error
 
-**Ref:** FLOW-08-05 · TradeDisputeScreen · `open-dispute`
+**Ref:** FLOW-08-05 · IssueReportModal · `open-dispute`
 **Actors:** test-buyer
 
-**Objective:** Verify the confirm flow, submitting state, and the success navigation.
+**Objective:** Verify the submitting state and the success/error outcomes.
 
 **Steps:**
-1. Select a reason (and, for **Other**, a valid description) and tap **Submit Dispute**.
-2. In the confirm alert, tap **Cancel** (first pass), then repeat and tap **Submit**.
+1. Select a reason (and, for **Other issue**, a valid description) and tap **[Submit Report]**.
 
 **Expected Result:**
-- Confirm alert **Submit Dispute** reads `Are you sure you want to file a dispute? Our support team will review your case.` with **Cancel** / **Submit**.
-- **Cancel** returns without filing.
-- On **Submit**, the button shows a spinner while `open-dispute` runs (body: `trade_id`, `reason`, `description`).
-- On success, **Dispute Reported** reads `Your dispute has been reported. The seller will be notified and you can continue discussing via messages.` and **OK** navigates to `TradeTimeline` (same trade).
-- On failure, an **Error** alert shows the message and the user stays on the screen.
+- The button shows a **Submitting…** spinner while the `open-dispute` Edge Function runs (body: `trade_id`, `reason`, `description`).
+- On success, the modal closes and the trade timeline refreshes to show the **Dispute in progress** banner (no toast); the trade enters a disputed state and the seller plus admin are notified.
+- On failure, an inline error message appears inside the modal; the user stays on the modal and can retry or Cancel.
 
 ---
 
@@ -6683,7 +6689,7 @@ FROM items;
 | SP released to seller at completion | TRD-TC-C05 |
 | SP restored on seller cancel in_progress | TRD-TC-C06 |
 | Free user — locked Use SP + upgrade modal (S9) | TRD-TC-C07 |
-| SP entry 50% cap (FR-SP-003) | TRD-TC-C08 |
+| SP entry capped by category cap (FR-SP-003) | TRD-TC-C08 |
 | Auto-complete fires when buyer inactive (S7) | TRD-TC-D01 |
 | Auto-complete skipped when dispute open (§6.2.4) | TRD-TC-D02 |
 | Offer countdown pill color states (§8.1) | TRD-TC-D03 |

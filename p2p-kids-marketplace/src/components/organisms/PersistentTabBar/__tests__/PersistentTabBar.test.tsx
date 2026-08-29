@@ -113,7 +113,6 @@ describe('computeActiveTab — route → active tab mapping', () => {
       'TradeTimeline',
       'TradeDetail',
       'TradeSuccess',
-      'TradeDispute',
       'ReviewOffer',
       'TradeInitiation',
     ];

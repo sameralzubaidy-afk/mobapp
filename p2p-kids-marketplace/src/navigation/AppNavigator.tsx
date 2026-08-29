@@ -40,7 +40,6 @@ import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
 import TradeReviewScreen from '@/screens/trade/TradeReviewScreen';
 import ReviewOfferScreen from '@/screens/trade/ReviewOfferScreen';
 import TradeListScreen from '@/screens/trade/TradeListScreen';
-import TradeDisputeScreen from '@/screens/trade/TradeDisputeScreen';
 import TradeV2ComponentsPreviewScreen from '@/screens/trade/TradeV2ComponentsPreviewScreen';
 import CartScreen from '@/screens/cart/CartScreen';
 import CartCheckoutScreen from '@/screens/cart/CartCheckoutScreen';
@@ -648,11 +647,6 @@ export function RootNavigator() {
             <Stack.Screen
               name="TradeTimeline"
               component={TradeTimelineScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="TradeDispute"
-              component={TradeDisputeScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

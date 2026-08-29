@@ -195,9 +195,15 @@ export async function calculatePlatformSP(listingId: string): Promise<number> {
       categoryMultiplier = category.sp_earning_multiplier;
     }
 
-    // ⭐ CORRECTED: If buyer pays all cash, seller gets price × multiplier
-    // This is used for preview when buyer hasn't decided yet, so assume all cash case
-    return Math.floor(listing.price * categoryMultiplier);
+    // ⭐ CORRECTED (2026-08-28, C05): the live credit path
+    // (fn_release_all_sp_on_complete, DT-17/DT-19) credits the seller a platform
+    // bonus of FLOOR(price × 0.25 × multiplier) — NOT price × multiplier — and
+    // only when the seller has an active/trial subscription. This mirrors the
+    // actual credited figure (e.g. a $40 item at 1.3x → 13 SP platform bonus).
+    const itemPrice = Number(listing.price) || 0;
+    if (itemPrice <= 0) return 0;
+    if (!(await currentUserIsSubscriber())) return 0;
+    return Math.floor(itemPrice * 0.25 * categoryMultiplier);
   } catch (err: any) {
     console.error('[spCalculatorService] calculatePlatformSP error:', err);
     return 0;
@@ -205,12 +211,35 @@ export async function calculatePlatformSP(listingId: string): Promise<number> {
 }
 
 /**
- * ⭐ CORRECTED FORMULA (2026-06-07): Preview total SP seller will receive.
- * 
- * Formula:
- *   - If buyer uses SP: total = FLOOR(buyer_sp × category_multiplier)
- *   - If buyer pays all cash (buyerSpAmount = 0): total = FLOOR(price × category_multiplier)
- * 
+ * Resolve whether the current user holds an active/trial Kids Club+ subscription.
+ * Used to gate the seller-side platform SP bonus preview, mirroring the server
+ * check (v_seller_is_subscriber in fn_release_all_sp_on_complete).
+ */
+async function currentUserIsSubscriber(): Promise<boolean> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id) return false;
+    const summary = await getSubscriptionSummary(user.id);
+    return summary.is_subscriber;
+  } catch (err: any) {
+    console.warn('[spCalculatorService] Failed to resolve subscriber status:', err);
+    return false;
+  }
+}
+
+/**
+ * ⭐ CORRECTED FORMULA (2026-08-28, C05 fix): Preview total SP seller will receive.
+ *
+ * Mirrors the LIVE credit path (fn_release_all_sp_on_complete, DT-17/DT-19):
+ *   - Seller platform bonus = FLOOR(price × 0.25 × category_multiplier),
+ *     credited ONLY when the seller has an active/trial subscription.
+ *     The buyer's SP amount does NOT scale the bonus — it is always 25% of the
+ *     item price × multiplier. (Previous formula FLOOR(buyerSp × multiplier)
+ *     showed e.g. +10 SP when the real credit was +21 = 8 buyer + 13 platform.)
+ *   - Total = buyerSp + platformSp.
+ *
  * D-11 rule: seller sees ONLY the combined total, never a breakdown.
  */
 export async function previewTotalSPToSeller(
@@ -236,20 +265,19 @@ export async function previewTotalSPToSeller(
       categoryMultiplier = category.sp_earning_multiplier;
     }
 
-    // ⭐ CORRECTED FORMULA
-    let totalSp = 0;
-    if (buyerSpAmount > 0) {
-      // Buyer used SP: multiply buyer's amount by category multiplier
-      totalSp = Math.floor(buyerSpAmount * categoryMultiplier);
-    } else {
-      // Buyer paid all cash: multiply price by category multiplier
-      totalSp = Math.floor(listing.price * categoryMultiplier);
+    const itemPrice = Number(listing.price) || 0;
+
+    let platformSp = 0;
+    if (itemPrice > 0 && (await currentUserIsSubscriber())) {
+      platformSp = Math.floor(itemPrice * 0.25 * categoryMultiplier);
     }
 
+    const buyerSp = Math.max(0, Math.floor(buyerSpAmount || 0));
+
     return {
-      buyerSp: buyerSpAmount,
-      platformSp: totalSp - buyerSpAmount, // For backward compatibility
-      totalSp,
+      buyerSp,
+      platformSp,
+      totalSp: buyerSp + platformSp,
     };
   } catch (err: any) {
     console.error('[spCalculatorService] previewTotalSPToSeller error:', err);

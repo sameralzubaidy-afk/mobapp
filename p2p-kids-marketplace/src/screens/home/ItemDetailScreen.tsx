@@ -122,6 +122,11 @@ export default function ItemDetailScreen() {
   const [toastMessage, setToastMessage] = useState('Added to Trade Basket');
   const [toastSubtitle, setToastSubtitle] = useState<string | undefined>();
 
+  // C07 (Dev Task 41): lightweight upgrade modal for the locked "Use SP 🔒" chip —
+  // an intermediate benefit-summary step BEFORE the full Kids Club+ membership
+  // page, per the guide's expected UX ([Try Kids Club+ Free] / [Not Now]).
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
   useEffect(() => {
     loadListing();
     loadBuyerSubscription();
@@ -889,7 +894,7 @@ export default function ItemDetailScreen() {
           {listing?.accepts_swap_points && !buyerIsSubscriber && (
             <Pressable
               style={styles.useSpLockedChip}
-              onPress={() => navigation.navigate('JoinKidsClub')}
+              onPress={() => setShowUpgradeModal(true)}
               testID="use-sp-locked-chip"
               accessible
               accessibilityRole="button"
@@ -1009,6 +1014,26 @@ export default function ItemDetailScreen() {
             </Pressable>
           </View>
         </View>
+
+        {/* C07 (Dev Task 41): Kids Club+ upgrade modal — lightweight benefit-summary
+            step shown when a free user taps the locked "Use SP 🔒" chip. Primary CTA
+            (green) leads to the membership page; Not Now closes back to the item. */}
+        <Modal
+          visible={showUpgradeModal}
+          type="alert"
+          title="Unlock SP Discounts"
+          message="Unlock SP discounts with Kids Club+. Save up to 50% on items. 30 days free."
+          primaryButtonText="Try Kids Club+ Free"
+          secondaryButtonText="Not Now"
+          primaryButtonTestID="upgrade-modal-try-button"
+          secondaryButtonTestID="upgrade-modal-not-now-button"
+          onPrimaryPress={() => {
+            setShowUpgradeModal(false);
+            navigation.navigate('JoinKidsClub');
+          }}
+          onSecondaryPress={() => setShowUpgradeModal(false)}
+          onClose={() => setShowUpgradeModal(false)}
+        />
 
         {/* Duplicate Trade Modal - Design System Modal */}
         <Modal

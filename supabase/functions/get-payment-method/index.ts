@@ -67,33 +67,105 @@ serve(async (req) => {
 
     // Fetch from canonical subscriptions table first, then fallback to legacy user_subscriptions.
     let paymentMethodId: string | null = null;
+    let customerId: string | null = null;
 
     const { data: subscriptionRow, error: subscriptionError } = await supabaseClient
       .from('subscriptions')
-      .select('stripe_payment_method_id')
+      .select('stripe_payment_method_id, stripe_customer_id')
       .eq('user_id', user_id)
       .maybeSingle();
 
     if (subscriptionError) {
-      console.warn('[get-payment-method] subscriptions lookup failed, falling back:', subscriptionError.message);
+      console.warn('[get-payment-method] subscriptions lookup failed, falling back:', subscriptionError?.message ?? subscriptionError);
     }
 
     if (subscriptionRow?.stripe_payment_method_id) {
       paymentMethodId = subscriptionRow.stripe_payment_method_id;
     }
+    if (subscriptionRow?.stripe_customer_id) {
+      customerId = subscriptionRow.stripe_customer_id;
+    }
 
-    if (!paymentMethodId) {
+    if (!paymentMethodId || !customerId) {
       const { data: legacyRow, error: legacyError } = await supabaseClient
         .from('user_subscriptions')
-        .select('stripe_payment_method_id')
+        .select('stripe_payment_method_id, stripe_customer_id')
         .eq('user_id', user_id)
         .maybeSingle();
 
       if (legacyError) {
-        console.warn('[get-payment-method] user_subscriptions fallback lookup failed:', legacyError.message);
+        console.warn('[get-payment-method] user_subscriptions fallback lookup failed:', legacyError?.message ?? legacyError);
       }
 
-      paymentMethodId = legacyRow?.stripe_payment_method_id ?? null;
+      paymentMethodId = legacyRow?.stripe_payment_method_id ?? paymentMethodId;
+      customerId = legacyRow?.stripe_customer_id ?? customerId;
+    }
+
+    // ── Dev Task 41 item 10: deterministic saved-card selection ─────────────
+    // The stored stripe_payment_method_id can point at an invalid/expired card
+    // (intermittent 400 "Payment method is invalid or expired" on offer submit).
+    // When we have a Stripe customer, list their saved cards, drop expired ones,
+    // and pick a STABLE default: the stored id if still present+valid, else the
+    // customer's default / most recently created card. Persist the choice back so
+    // the selection is deterministic across loads, not a per-request coin flip.
+    if (customerId) {
+      try {
+        const { data: pmList } = await stripe.customers.listPaymentMethods(customerId, {
+          type: 'card',
+          limit: 20,
+        });
+        const nowYear = new Date().getFullYear();
+        const nowMonth = new Date().getMonth() + 1;
+        const cards = (pmList?.data ?? []).filter((pm: any) => {
+          const expYear = pm.card?.exp_year ?? 0;
+          const expMonth = pm.card?.exp_month ?? 0;
+          if (expYear < nowYear) return false;
+          if (expYear === nowYear && expMonth < nowMonth) return false;
+          return true;
+        });
+        console.log(
+          `[get-payment-method] deterministic selection — stored=${paymentMethodId} customer=${customerId} listed=${(pmList?.data ?? []).length} valid_cards=${cards.length}`
+        );
+
+        // listPaymentMethods returns the default payment method first, then by
+        // created_at DESC (most recently used/added first).
+        let selected: string | null;
+        if (paymentMethodId && cards.some((pm: any) => pm.id === paymentMethodId)) {
+          // Stored card still present and valid — keep it (deterministic).
+          selected = paymentMethodId;
+        } else if (cards.length > 0) {
+          // Stored card is gone/expired — fall back to the customer's default /
+          // most recently created valid card.
+          selected = cards[0]?.id ?? null;
+        } else {
+          // No cards returned for this customer from this Stripe account —
+          // NEVER discard the stored id (the retrieve below decides). This
+          // preserves the pre-DT41 behavior if the list call is empty/quirky.
+          selected = paymentMethodId;
+        }
+
+        if (selected && selected !== paymentMethodId) {
+          // Best-effort persist so future calls are deterministic. If the user's
+          // RLS blocks the write, selection still resolves the same way every call.
+          try {
+            await supabaseClient
+              .from('subscriptions')
+              .update({ stripe_payment_method_id: selected })
+              .eq('user_id', user_id);
+          } catch (persistError: any) {
+            console.warn(
+              '[get-payment-method] could not persist deterministic card choice:',
+              persistError?.message || persistError
+            );
+          }
+        }
+        paymentMethodId = selected;
+      } catch (listError: any) {
+        console.warn(
+          '[get-payment-method] listPaymentMethods failed, using stored id:',
+          listError?.message || listError
+        );
+      }
     }
 
     if (!paymentMethodId) {

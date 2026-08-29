@@ -881,9 +881,9 @@ export default function TradeTimelineScreen() {
         )}
 
         {/* TFV2-011 / D-26: Dispute status card — moved ABOVE "What to do next" so a dispute
-            is the first thing the user sees. Redesigned as an elevated alert card that is
-            visually distinct from the amber auto-complete countdown banner.
-            Red = reported, orange = under_review. */}
+            is the first thing the user sees. Redesigned as an elevated alert card.
+            DEV-TASK-42 (2026-08-29): warm amber palette per owner decision (kids-marketplace
+            tone — friendly, not alarming red). Amber = reported, deeper amber/orange = under_review. */}
         {(trade as any).dispute_status === 'reported' && (
           <View style={styles.disputeCard} testID="dispute-banner-reported">
             <View style={styles.disputeCardHeader}>
@@ -899,7 +899,7 @@ export default function TradeTimelineScreen() {
               </View>
             </View>
             <Text style={styles.disputeCardBody}>
-              Dispute reported — our team has been notified and will review shortly.
+              Your issue has been reported. Auto-complete is paused while our team reviews it.
             </Text>
             <Text style={styles.disputeCardNote}>
               The trade is paused while we review. Keep chatting with the other party — we'll notify
@@ -929,7 +929,7 @@ export default function TradeTimelineScreen() {
               </View>
             </View>
             <Text style={[styles.disputeCardBody, styles.disputeCardBodyOrange]}>
-              Dispute under review — our team is actively investigating.
+              Your issue is being reviewed. Auto-complete stays paused while our team investigates.
             </Text>
             <Text style={[styles.disputeCardNote, styles.disputeCardNoteOrange]}>
               No action needed from you right now — we'll notify you as soon as there's an update.
@@ -1510,7 +1510,7 @@ export default function TradeTimelineScreen() {
           <View style={styles.sellerCompletedBox} testID="seller-awaiting-payment-notice">
             <Clock size={20} color="#2563EB" weight="regular" style={{ marginRight: 8 }} />
             <Text style={styles.sellerCompletedText}>
-              Trade accepted. Waiting for buyer payment confirmation.
+              Buyer paid. Awaiting pickup confirmation.
             </Text>
           </View>
         )}
@@ -1856,7 +1856,12 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 32,
+    // Clear the floating pill nav (PersistentTabBar overlays the stack content):
+    // the pill top sits ~110pt from the bottom (safe-area + spacing.sm + pill
+    // height), so bottom-anchored action buttons (Report Problem, I Got It,
+    // Cancel Trade) must scroll fully above it to be reachable — QA E01 was
+    // blocked because the report button sat behind the pill (BP-58).
+    paddingBottom: 100,
   },
   // Addendum C + TC-L09: bundle context banner with expandable item list
   bundleBanner: {
@@ -1950,12 +1955,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
   },
-  // D-26: Dispute status card — elevated alert card, visually distinct from the amber
-  // auto-complete countdown banner. Red = reported, orange = under_review.
+  // D-26: Dispute status card — elevated alert card.
+  // DEV-TASK-42 (2026-08-29): warm amber palette (owner decision — kids-marketplace tone,
+  // not alarming red). Amber = reported, deeper amber/orange = under_review.
   disputeCard: {
-    backgroundColor: '#FFF7F7',
+    backgroundColor: '#FFFBEB',
     borderWidth: 1,
-    borderColor: '#F3C2C9',
+    borderColor: '#FDE68A',
     borderRadius: 16,
     marginBottom: 12,
     padding: 16,
@@ -1966,8 +1972,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   disputeCardOrange: {
-    backgroundColor: '#FFF8F0',
-    borderColor: '#F6CD9C',
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
   },
   disputeCardHeader: {
     flexDirection: 'row',
@@ -1979,7 +1985,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E85D75',
+    backgroundColor: '#F59E0B',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1992,7 +1998,7 @@ const styles = StyleSheet.create({
   disputeCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#9F1239',
+    color: '#92400E',
     lineHeight: 20,
   },
   disputeCardTitleOrange: {
@@ -2008,7 +2014,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E85D75',
+    backgroundColor: '#F59E0B',
   },
   disputeCardBadgeDotOrange: {
     backgroundColor: '#EA580C',
@@ -2016,7 +2022,7 @@ const styles = StyleSheet.create({
   disputeCardBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#9F1239',
+    color: '#92400E',
   },
   disputeCardBadgeTextOrange: {
     color: '#9A3412',
@@ -2024,7 +2030,7 @@ const styles = StyleSheet.create({
   disputeCardBody: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#7F1D1D',
+    color: '#78350F',
   },
   disputeCardBodyOrange: {
     color: '#7C2D12',
@@ -2033,13 +2039,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#F3C2C9',
+    borderTopColor: '#FDE68A',
     fontSize: 12,
     lineHeight: 17,
-    color: '#9F1239',
+    color: '#92400E',
   },
   disputeCardNoteOrange: {
-    borderTopColor: '#F6CD9C',
+    borderTopColor: '#FDBA74',
     color: '#9A3412',
   },
   statusBanner: {
