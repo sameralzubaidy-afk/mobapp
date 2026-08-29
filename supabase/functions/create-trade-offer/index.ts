@@ -547,7 +547,11 @@ serve(async (req) => {
     sp_amount = 0,
     payment_method_id,
     cash_amount_cents,
-    transaction_fee_cents = 0,
+    // DT-54 (2026-08-29): transaction_fee_cents is deliberately NOT destructured — the
+    // server no longer derives any money amount from the client's fee estimate. The cash
+    // portion is computed server-side from the item's DB price minus SP; the client fee
+    // field remains accepted (and documented in the body type below) purely for backward
+    // compatibility with existing clients, but it is ignored for all arithmetic.
     buyer_subscription_status = 'free',
     tax_amount_cents = 0,
     bundle_id,
@@ -1677,14 +1681,44 @@ serve(async (req) => {
       console.warn(`[create-trade-offer] req=${requestId} charge_one_fee_per_bundle read failed, defaulting to per-item:`, feeModeErr);
     }
 
+    // DT-54 (2026-08-29): SERVER-AUTHORITATIVE CASH PORTION — derive the cash
+    // portion from the item's CURRENT DB price minus SP, never the client's
+    // cash_amount_cents. A stale/tampered client can send fee-not-embedded cash
+    // (e.g. cash_amount_cents=price, transaction_fee_cents=149) and under-count the
+    // cash by the fee per item. Honest clients embed the fee, so
+    // (client cash − client fee) == (DB price − SP) — identical result, no behavior
+    // change for the real app. Also aligns cash with the tax base, which is already
+    // server-authoritative on item.price.
+    const { data: priceRows, error: priceErr } = await supabase
+      .from('items')
+      .select('id, price')
+      .in('id', items!.map((it) => it.item_id));
+    if (priceErr) {
+      console.error(`[create-trade-offer] req=${requestId} bundle price lookup failed:`, priceErr.message);
+      return jsonError('Unable to verify item prices. Please try again.', 'PRICE_LOOKUP_ERROR', 500);
+    }
+    const priceRowsArr = (priceRows as Array<{ id: string; price: number }> | null) ?? [];
+    const priceCentsById = new Map(priceRowsArr.map((r) => [r.id, Math.round(r.price * 100)]));
+    // Owner decision (2026-08-29): items that no longer exist in the DB are SKIPPED,
+    // not whole-bundle rejection. They surface in the response `errors` array as
+    // ITEM_NOT_FOUND (same partial-success shape as DUPLICATE_OFFER/L11), so the buyer
+    // is told exactly which item was dropped, and the valid items still complete.
+    const validItems = items!.filter((it) => priceCentsById.has(it.item_id));
+    const missingItems = items!.filter((it) => !priceCentsById.has(it.item_id));
+    if (missingItems.length > 0) {
+      console.warn(`[create-trade-offer] req=${requestId} bundle references missing item(s), skipping:`, missingItems.map((it) => it.item_id));
+    }
+
     // R1 — Tiered Buyer-Fee Engine: server-authoritative buyer fee for the whole
     // checkout. Per-bundle mode (charge_one_fee_per_bundle) = ONE fee on the total
     // cash portion, applied to the first item (items 2..n carry $0). Per-item mode
     // = each item's cash portion gets its own tiered fee. Mirrors the resolver the
     // mobile order summary calls, so preview and charge always agree.
-    const itemCashPortions = items!.map((it) => {
-      const clientFee = it.transaction_fee_cents ?? 0;
-      return Math.max(0, it.cash_amount_cents - clientFee);
+    const itemCashPortions = validItems.map((it) => {
+      // DT-54: cash portion = DB price − SP (server-authoritative). sp_amount arrives
+      // in SP POINTS (1 SP = $1 = 100¢), so convert to cents to keep the cash portion
+      // in cents — matches the client invariant (client cash = price¢ − sp×100 + fee).
+      return Math.max(0, (priceCentsById.get(it.item_id) ?? 0) - (it.sp_amount ?? 0) * 100);
     });
     const totalCashPortion = itemCashPortions.reduce((sum, v) => sum + v, 0);
 
@@ -1692,7 +1726,8 @@ serve(async (req) => {
     try {
       if (oneFeePerBundle) {
         const bundleFee = await resolveBuyerFee(supabase, buyerId, totalCashPortion);
-        resolvedBuyerFees = items!.map((_, idx) => ({
+        // DT-54: fee array must line up with validItems (missing items carry no fee).
+        resolvedBuyerFees = validItems.map((_, idx) => ({
           feeCents: idx === 0 ? bundleFee.feeCents : 0,
           feeState: bundleFee.feeState,
         }));
@@ -1714,7 +1749,10 @@ serve(async (req) => {
     // which this EF maps to TRADE_INSERT_ERROR and can leave a PARTIAL bundle (some
     // trades inserted, others failed). Validate the total up front so a malicious or
     // outdated client gets a clean structured error instead of breaking the insert.
-    const totalRequestedSp = items!.reduce((sum, it) => sum + (it.sp_amount ?? 0), 0);
+    // DT-54: only valid items reserve SP (missing items are skipped), so validate SP
+    // against the valid subset — otherwise a missing item's SP would over-reject the
+    // bundle and defeat the skip-missing-item partial-success behavior.
+    const totalRequestedSp = validItems.reduce((sum, it) => sum + (it.sp_amount ?? 0), 0);
     if (totalRequestedSp > 0) {
       const { data: walletRow } = await supabase
         .from('sp_wallets')
@@ -1735,7 +1773,7 @@ serve(async (req) => {
     }
 
     const phase1Results = await Promise.allSettled(
-      items!.map((it, idx) => {
+      validItems.map((it, idx) => {
         const cashPortion = itemCashPortions[idx];
         const serverFee = resolvedBuyerFees[idx].feeCents;
         const serverCash = cashPortion + serverFee;
@@ -1749,14 +1787,20 @@ serve(async (req) => {
         });
       })
     );
-    console.log(`[perf][batch] phase1 (DB inserts) settled for all ${items!.length} items at t=${Date.now() - tBatchStart}ms`);
+    console.log(`[perf][batch] phase1 (DB inserts) settled for ${validItems.length} valid items (${missingItems.length} missing) at t=${Date.now() - tBatchStart}ms`);
 
     const trades: Array<{ trade_id: string; status: string; sp_amount: number; cash_amount_cents: number }> = [];
-    const errors: Array<{ item_id: string; error: string; code: string }> = [];
+    // DT-54: missing items surface here exactly like per-item phase-1 failures, so the
+    // buyer is told which item was dropped (client maps errors via buildCheckoutWarning).
+    const errors: Array<{ item_id: string; error: string; code: string }> = missingItems.map((it) => ({
+      item_id: it.item_id,
+      error: 'Item not found',
+      code: 'ITEM_NOT_FOUND',
+    }));
     const stripeJobs: BundlePhase1Success[] = [];
 
     for (let i = 0; i < phase1Results.length; i++) {
-      const itemId = items![i].item_id;
+      const itemId = validItems[i].item_id;
       const result = phase1Results[i];
       if (result.status === 'fulfilled') {
         const value = result.value;
@@ -1831,11 +1875,24 @@ serve(async (req) => {
   }
 
   // R1 — Tiered Buyer-Fee Engine: the buyer fee is computed SERVER-SIDE and is
-  // authoritative. The client still sends its own fee estimate (backward compat);
-  // we derive the true cash portion (cash after SP, excluding any fee) and let the
-  // resolver return the correct tiered fee. This also snapshots buyer_fee_state.
-  const clientFeeCents = transaction_fee_cents ?? 0;
-  const cashPortionCents = Math.max(0, cash_amount_cents! - clientFeeCents);
+  // authoritative. DT-54 (2026-08-29): the cash portion is now derived from the
+  // item's CURRENT DB price minus SP (server-authoritative), never from the client's
+  // cash_amount_cents — a stale/tampered client can send fee-not-embedded cash and
+  // under-count by the fee. Honest clients embed the fee, so
+  // (client cash − client fee) == (DB price − SP) — identical result, no behavior
+  // change. Also aligns cash with the tax base (already server-authoritative).
+  const { data: singleItemRow, error: singleItemErr } = await supabase
+    .from('items')
+    .select('price')
+    .eq('id', item_id!)
+    .maybeSingle();
+  if (singleItemErr || !singleItemRow) {
+    return jsonError('Item not found', 'ITEM_NOT_FOUND', 404);
+  }
+  const serverItemPriceCents = Math.round((singleItemRow as { price: number }).price * 100);
+  // DT-54: sp_amount is in SP POINTS (1 SP = $1 = 100¢) — convert to cents so the cash
+  // portion stays in cents (matches client invariant: client cash = price¢ − sp×100 + fee).
+  const cashPortionCents = Math.max(0, serverItemPriceCents - sp_amount * 100);
   let buyerFee: { feeCents: number; feeState: string; label: string };
   try {
     buyerFee = await resolveBuyerFee(supabase, buyerId, cashPortionCents);
