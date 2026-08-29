@@ -15,7 +15,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Pressable,
   Image,
@@ -30,10 +29,8 @@ import { supabase } from '@/config/supabase';
 import { acceptBundleOffers, declineBundleOffers } from '@/services/tradeServiceV2';
 import {
   Receipt,
-  ArrowRight,
   ArrowsLeftRight,
   Check,
-  CaretRight,
   ChatTeardropText,
 } from 'phosphor-react-native';
 import { OfferCountdownPill } from '@/components/trade';
@@ -43,6 +40,15 @@ type TabType = 'active' | 'history';
 
 // History tab loads this many trades per page, then appends more on scroll.
 const HISTORY_PAGE_SIZE = 10;
+
+// DEV-TASK-48 (perf): short-TTL cache for listing card-preview data. The screen
+// calls attachListingDataToOffers up to 5× per focus (fetchTrades, fetchPendingOffers,
+// fetchAllOffers×2, fetchHistoryPage), each firing an `items` + `item_images` query
+// against heavily overlapping listingId sets → 8-10 round-trips per focus. This
+// cache collapses them to ~2 (one for the first attach, cache hits afterwards),
+// with a 30s TTL so listing status/price can still refresh across focus cycles.
+const LISTING_CACHE_TTL_MS = 30_000;
+const listingPreviewCache = new Map<string, { cachedAt: number; data: unknown }>();
 
 interface PendingOffer {
   id: string;
@@ -70,13 +76,13 @@ export default function TradeListScreen({ navigation }: any) {
   const route = useRoute();
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [trades, setTrades] = useState<any[]>([]);
   // History tab is paginated so large trade histories load fast.
   const [historyTrades, setHistoryTrades] = useState<any[]>([]);
   const [historyHasMore, setHistoryHasMore] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [pendingOffers, setPendingOffers] = useState<PendingOffer[]>([]);
+  const [_pendingOffers, setPendingOffers] = useState<PendingOffer[]>([]);
   const [allOffers, setAllOffers] = useState<PendingOffer[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [refreshing, setRefreshing] = useState(false);
@@ -101,7 +107,7 @@ export default function TradeListScreen({ navigation }: any) {
   }>({ visible: false, action: 'accept', bundleId: '', offerIds: [], title: '' });
 
   // TFV2-015: seller ignoring offers prompt (D-13)
-  const [ignoredOfferItems, setIgnoredOfferItems] = useState<
+  const [_ignoredOfferItems, setIgnoredOfferItems] = useState<
     { listing_id: string; title: string; count: number }[]
   >([]);
   const [showIgnoringModal, setShowIgnoringModal] = useState(false);
@@ -184,18 +190,29 @@ export default function TradeListScreen({ navigation }: any) {
     }
   };
 
-  /** Shared helper: attach listing data (title + images) to offer/trade rows */
+  /** Shared helper: attach listing data (title + images) to offer/trade rows.
+   *  DEV-TASK-48 (perf): backed by a short-TTL listingPreviewCache so the many
+   *  calls per focus don't re-fetch the same listings' items + item_images. */
   const attachListingDataToOffers = useCallback(async (offers: any[]): Promise<any[]> => {
     const listingIds = [...new Set(offers.map((o: any) => o.listing_id).filter(Boolean))];
-    const listingMap: Record<string, any> = {};
-    if (listingIds.length > 0) {
+    const now = Date.now();
+    const isFresh = (e: { cachedAt: number }) => now - e.cachedAt < LISTING_CACHE_TTL_MS;
+
+    // Only listings that are absent OR cache-expired need a (re)fetch.
+    const missing = listingIds.filter((id) => {
+      const entry = listingPreviewCache.get(id);
+      return !entry || !isFresh(entry);
+    });
+
+    if (missing.length > 0) {
+      const listingMap: Record<string, any> = {};
       // Fetch items without join to avoid FK issues
       const { data: items } = await supabase
         .from('items')
         // DT-21 Item 3: include `status` so History rows can tell whether a declined/
         // expired offer's listing is still available before offering "View Item".
         .select('id, title, price, status')
-        .in('id', listingIds);
+        .in('id', missing);
 
       if (items) {
         for (const item of items) {
@@ -206,7 +223,7 @@ export default function TradeListScreen({ navigation }: any) {
         const { data: allImages } = await supabase
           .from('item_images')
           .select('item_id, id, url, thumbnail_url, display_order')
-          .in('item_id', listingIds)
+          .in('item_id', missing)
           .order('display_order', { ascending: true });
 
         if (allImages) {
@@ -222,11 +239,16 @@ export default function TradeListScreen({ navigation }: any) {
           }
         }
       }
+
+      // Cache whatever we found (missing ids → null, preserving "no listing" behavior).
+      for (const id of missing) {
+        listingPreviewCache.set(id, { cachedAt: now, data: listingMap[id] ?? null });
+      }
     }
 
     return offers.map((offer: any) => ({
       ...offer,
-      listing: listingMap[offer.listing_id] || null,
+      listing: listingPreviewCache.get(offer.listing_id)?.data ?? null,
     }));
   }, []);
 
@@ -347,7 +369,11 @@ export default function TradeListScreen({ navigation }: any) {
         )
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
         .in('status', ['pending', 'in_progress'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        // DEV-TASK-48 (perf): safety cap on the previously-unbounded active-trades
+        // query. Normal accounts have <20 active trades; 100 only truncates a
+        // pathological account and bounds the payload.
+        .limit(100);
 
       if (tradesError) throw tradesError;
 
@@ -1062,7 +1088,7 @@ export default function TradeListScreen({ navigation }: any) {
                     <ArrowsLeftRight size={18} color="#5DBB8E" />
                     <Text style={styles.sectionTitle}>YOUR OFFERS</Text>
                   </View>
-                  {groupedSubmittedOffers.map((row, idx) => {
+                  {groupedSubmittedOffers.map((row, _idx) => {
                     if (row.type === 'bundle') {
                       // Bundle card — grouped offers share the same bundle_id
                       const bundleOffers = row.offers;
@@ -1254,7 +1280,7 @@ export default function TradeListScreen({ navigation }: any) {
                     <ArrowsLeftRight size={18} color="#6B6B6B" />
                     <Text style={styles.sectionTitle}>NEEDS ACTION</Text>
                   </View>
-                  {groupedReceivedOffers.map((row, idx) => {
+                  {groupedReceivedOffers.map((row, _idx) => {
                     if (row.type === 'bundle') {
                       const bundleOffers = row.offers;
                       return (

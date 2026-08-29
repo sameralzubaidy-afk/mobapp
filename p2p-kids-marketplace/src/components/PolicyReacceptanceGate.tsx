@@ -22,6 +22,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { navigationRef } from '@/navigation/navigationRef';
 import { getTOSService } from '@/services/tos';
 import { getPrivacyPolicyService } from '@/services/privacyPolicy';
+// QA login-as deep link (Dev Task 51 item 2): while it is signing in a persona
+// and auto-accepting the current TOS/Privacy, skip the prompt so the gate never
+// races the handler to the TOS screen. No-op in production (flag is only ever
+// set by the dev/staging-gated handler).
+import { isQaLoginAsInProgress } from '@/components/QaLoginAsDeepLinkHandler';
 
 /** Max time to wait for the navigation container to become ready before the
  *  re-prompt is skipped for this session (fail-open — never block the app). */
@@ -47,6 +52,10 @@ export default function PolicyReacceptanceGate({ enabled }: { enabled: boolean }
 
   useEffect(() => {
     if (!enabled || !userId) return;
+    // A qa-login-as deep link is actively signing in + auto-accepting policies —
+    // never race it to the TOS screen (Dev Task 51 item 2). Once the handler
+    // finishes, the acceptance rows exist, so the next launch finds them accepted.
+    if (isQaLoginAsInProgress()) return;
     if (lastPromptedUserId === userId) return;
     if (inFlightRef.current) return;
     inFlightRef.current = true;

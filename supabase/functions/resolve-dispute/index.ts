@@ -120,16 +120,39 @@ serve(async (req) => {
       dispute_resolution: resolution,
       dispute_resolved_at: now,
       updated_at:         now,
-      // resolve_complete: mark trade completed; resolve_refund: cancelled
-      ...(action === 'resolve_complete'
-        ? { status: 'completed', completed_at: now }
-        : { status: 'cancelled', cancellation_reason: 'dispute_resolved_refund' }),
+      // resolve_complete: status/completed_at are delegated to complete_trade_v2 below
+      //                   (DEV-TASK-48: writing status='completed' directly here skipped
+      //                   the payout math and left payout_amount_cents NULL → $0 payout);
+      //                   resolve_refund: cancelled (refund path unchanged).
+      ...(action === 'resolve_refund'
+        ? { status: 'cancelled', cancellation_reason: 'dispute_resolved_refund' }
+        : {}),
     })
     .eq('id', trade_id);
 
   if (resolveErr) {
     console.error('[resolve-dispute] Resolve error:', resolveErr);
     return errResp(500, 'UPDATE_FAILED', 'Failed to resolve dispute');
+  }
+
+  // DEV-TASK-48 (P1): resolve_complete must run the SAME canonical completion money
+  // path as normal buyer completion — complete_trade_v2 computes
+  // payout_amount_cents = GREATEST(0, cash − seller_fee), marks the item sold and
+  // creates the seller_payouts row. Previously resolve_complete skipped all of this,
+  // so initiate-payout read NULL → processed $0.
+  if (action === 'resolve_complete') {
+    const { data: completion, error: completeErr } = await svcClient.rpc('complete_trade_v2', {
+      p_trade_id: trade_id,
+      p_user_id:  trade.buyer_id,
+    });
+    if (completeErr) {
+      console.error('[resolve-dispute] complete_trade_v2 error:', completeErr);
+      return errResp(500, 'COMPLETE_FAILED', 'Failed to finalize trade completion');
+    }
+    if (completion && completion.success === false) {
+      console.error('[resolve-dispute] complete_trade_v2 returned failure:', completion);
+      return errResp(500, 'COMPLETE_FAILED', completion.error ?? 'Failed to finalize trade completion');
+    }
   }
 
   // TAX-STATUS-LIFECYCLE: On refund path, cancel the Stripe PI and void/refund tax

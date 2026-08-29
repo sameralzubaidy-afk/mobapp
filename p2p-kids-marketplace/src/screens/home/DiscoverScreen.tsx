@@ -493,7 +493,15 @@ export default function DiscoverScreen({ navigation }: Props) {
 
   // Perform search when debouncedQuery, debouncedFilters, debouncedSortBy or
   // the node scope (showAllNodes / waitlisted / userNodeId) change.
+  // DEV-TASK-48 (perf): skip the FIRST run — useFocusEffect already performs the
+  // initial search on mount/focus, so without this guard search_listings +
+  // count_listings + item_images fire twice on first load.
+  const initialSearchRef = useRef(false);
   useEffect(() => {
+    if (!initialSearchRef.current) {
+      initialSearchRef.current = true;
+      return;
+    }
     performSearch({ resetOffset: true });
   }, [
     debouncedQuery,
@@ -658,8 +666,9 @@ export default function DiscoverScreen({ navigation }: Props) {
       const combinedDict = Array.from(new Set([...categoryNames, ...searches, ...commonWords]));
       setDictionary(combinedDict);
 
-      // DISCOVER-REDESIGN: load state-scoped trending categories (non-blocking)
-      await loadTrending();
+      // DEV-TASK-48 (perf): trending is loaded in useFocusEffect — remove the
+      // duplicate call here so get_top_categories_by_state fires once, not twice,
+      // on first mount.
     } catch (err) {
       captureException(err, {
         tags: { screen: 'DiscoverScreen', action: 'load_initial_data' },

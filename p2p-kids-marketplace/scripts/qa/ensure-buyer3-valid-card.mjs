@@ -9,6 +9,13 @@
  * `subscriptions.stripe_payment_method_id` so the deterministic DT41 selection
  * (and the `payment_card` QA toggle, Dev Task 44 item 1) return a working card.
  *
+ * DEV-TASK-51 (2026-08-29) — NOTE: this is the buyer-3-specific single-persona
+ * script. The generalized version lives in `ensure-valid-cards.mjs`
+ * (`npm run qa:ensure-cards`), which provisions a valid saved card for ALL QA
+ * buyer personas (test-buyer, test-free, test-buyer-2, test-buyer-3) with
+ * `--persona <name>` targeting — use that for new runs; this script is kept for
+ * backward compatibility with existing runbooks.
+ *
  * The valid card is created from the magic test token `tok_mastercard` (BP-69),
  * which yields MASTERCARD •••• 4444 — the exact brand+last4 the QA run confirmed
  * works on this account (VISA 4242 was the invalid one). This also means the

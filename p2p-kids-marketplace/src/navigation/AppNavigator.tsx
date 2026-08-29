@@ -91,6 +91,9 @@ import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 // QA-only logout deep link handler (dev/staging only) — see component for the security gate.
 import QaLogoutDeepLinkHandler from '@/components/QaLogoutDeepLinkHandler';
+import QaLoginAsDeepLinkHandler from '@/components/QaLoginAsDeepLinkHandler';
+import QaForceTradeSuccessDeepLinkHandler from '@/components/QaForceTradeSuccessDeepLinkHandler';
+import GlobalAlertProvider from '@/providers/GlobalAlertProvider';
 // QA-only session-local toggle deep link handler (dev/staging only) — arms/disarms
 // the A03/D02/C04 QA toggles via p2pkidsmarketplace://qa-dev-toggle. See component.
 import QaDevToggleDeepLinkHandler from '@/components/QaDevToggleDeepLinkHandler';
@@ -1026,13 +1029,29 @@ export default function AppNavigator() {
         {/* QA-only logout deep link handler — must live inside AuthProvider (uses useAuth).
             Inert in production builds (see QaLogoutDeepLinkHandler gate). */}
         <QaLogoutDeepLinkHandler />
+        {/* QA-only login-as deep link handler (Dev Task 51) — signs in a named QA
+            persona + auto-accepts current TOS/Privacy in one call. Must live inside
+            AuthProvider (uses useAuth → setSession). Inert in production builds. */}
+        <QaLoginAsDeepLinkHandler />
+        {/* QA-only force-trade-success deep link (Dev Task 51 item 5) — renders
+            the TradeSuccess completion screen with explicit params (unblocks
+            TRD-TC-H04). Must live inside AuthProvider (checks session). Inert in
+            production builds. */}
+        <QaForceTradeSuccessDeepLinkHandler />
         {/* QA-only session-local toggle handler (no auth dependency — safe anywhere).
             Inert in production builds (see QaDevToggleDeepLinkHandler gate). */}
         <QaDevToggleDeepLinkHandler />
         {/* iOS keyboard-done accessory — mounted once at the root for every wired
             TextInput app-wide (Dev Task 44 item 3). Android: renders nothing. */}
         <KeyboardDoneAccessory />
-        <RootNavigator />
+        {/* Global branded alert provider (Dev Task 51 item 4): routes EVERY
+            Alert.alert through an AX-exposed branded modal (buttons get
+            accessible + accessibilityRole="button" + testID), so no native
+            UIAlertController ever blocks QA automation. Use useGlobalAlert()
+            inside screens for explicit per-button testIDs. */}
+        <GlobalAlertProvider>
+          <RootNavigator />
+        </GlobalAlertProvider>
       </StripeProviderWrapper>
     </AuthProvider>
   );

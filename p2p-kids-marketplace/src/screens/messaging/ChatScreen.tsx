@@ -40,7 +40,6 @@ import {
   Image,
   Pressable,
   Modal,
-  ScrollView,
   Dimensions,
   Animated,
 } from 'react-native';
@@ -491,14 +490,19 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = async (text?: string) => {
+    // DEV-TASK-48 (I05): accept an optional text so quick-reply chips can pass
+    // their message directly instead of relying on a stale state closure (the
+    // old setTimeout(() => handleSend(), 100) captured empty inputText and the
+    // guard below early-returned, so chip taps never persisted a message).
+    const messageToSend = (text ?? inputText).trim();
     // Guard: do not allow sending when trade is no longer active (cancelled/completed)
     const tradeActive = trade?.status === 'pending' || trade?.status === 'in_progress';
-    if (!inputText.trim() || !session?.user?.id || sending || !tradeActive) {
+    if (!messageToSend || !session?.user?.id || sending || !tradeActive) {
       return;
     }
 
-    const messageText = inputText.trim();
+    const messageText = messageToSend;
     console.log(
       `[ChatScreen.handleSend] Attempting to send message with ${messageText.length} chars`
     );
@@ -924,11 +928,10 @@ export default function ChatScreen() {
                 if (isPrefill) {
                   setInputText(message);
                 } else {
-                  setInputText(message);
-                  // Send immediately after a short delay to let state settle
-                  setTimeout(() => {
-                    handleSend();
-                  }, 100);
+                  // DEV-TASK-48 (I05): pass the chip text directly into
+                  // handleSend — the old setTimeout(() => handleSend(), 100)
+                  // read empty inputText from a stale closure and never sent.
+                  void handleSend(message);
                 }
               }}
             />
@@ -1019,7 +1022,9 @@ export default function ChatScreen() {
               accessibilityRole="button"
               accessibilityLabel="Send button"
               style={[styles.sendButton, (sending || sendingImage) && styles.sendButtonDisabled]}
-              onPress={handleSend}
+              // DEV-TASK-48 (I05): wrap so the GestureResponderEvent isn't passed as
+              // handleSend's `text` param (handleSend(text?: string)).
+              onPress={() => handleSend()}
               disabled={sending || sendingImage}
             >
               {sending ? (

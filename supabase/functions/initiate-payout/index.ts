@@ -194,6 +194,20 @@ serve(async (req) => {
     );
   }
 
+  // DEV-TASK-48 defense-in-depth: a NULL payout amount means the completion path
+  // never computed it (the resolve-complete $0-payout bug class). Never silently
+  // mark such a trade 'paid' with $0, and never create a $0 payout row from a
+  // NULL amount — flag it for admin review instead. Must run BEFORE the
+  // requires_action / no-connect-account fallbacks which read payout_amount_cents.
+  if (trade.payout_amount_cents == null) {
+    console.error(`[initiate-payout] Trade ${trade_id} has NULL payout_amount_cents — payout math not run; refusing to process`);
+    await svcClient
+      .from('trades')
+      .update({ payout_status: 'requires_action', updated_at: new Date().toISOString() })
+      .eq('id', trade_id);
+    return errResp(409, 'PAYOUT_AMOUNT_MISSING', 'Payout amount was not computed on completion; needs admin review');
+  }
+
   // requires_action: payout was created by complete_trade_v2 but seller has no
   // payout method. Send BOTH an in-app and push notification and return — do NOT
   // attempt Stripe transfer. (§6.3.3)
@@ -389,7 +403,7 @@ serve(async (req) => {
     return errResp(500, 'STRIPE_NOT_CONFIGURED', 'Payment provider not configured');
   }
 
-  const payoutAmountCents = trade.payout_amount_cents ?? 0;
+  const payoutAmountCents = trade.payout_amount_cents;
   if (payoutAmountCents <= 0) {
     console.log(`[initiate-payout] Trade ${trade_id} has zero payout (donate or cash-hold), marking paid`);
     await svcClient.from('trades').update({ payout_status: 'paid', payout_initiated_at: new Date().toISOString() }).eq('id', trade_id);

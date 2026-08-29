@@ -174,7 +174,15 @@ serve(async (req) => {
             title,
             body,
             channels: ['push', 'in_app'],
-            data: { trade_id: notif.trade_id, event_type: notif.event_type, ...(notif.extra_data ?? {}) },
+            data: {
+              trade_id: notif.trade_id,
+              event_type: notif.event_type,
+              // DEV-TASK-48 (G04): include `type` so parseNotificationDeepLink can
+              // resolve offer_reminder_6h/1h → ReviewOffer from the in-app row too
+              // (push already carries `type`; in-app previously only had event_type).
+              type: notif.event_type,
+              ...(notif.extra_data ?? {}),
+            },
           });
         if (insertErr) {
           console.warn('[send-offer-reminders] in-app insert failed', notif.event_type, notif.trade_id, insertErr.message);

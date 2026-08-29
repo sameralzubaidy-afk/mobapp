@@ -1706,6 +1706,34 @@ serve(async (req) => {
       return jsonError(fe.message ?? 'Fee configuration is unavailable. Please try again.', fe.code ?? 'CONFIG_UNAVAILABLE', 500);
     }
 
+    // DEV-TASK-48 (K10): server-side SP availability enforcement for bundles.
+    // Fee distribution on items 2..N is already zeroed server-side (verified), but
+    // a stale/outdated client can also send sp_amount on EVERY bundle item. If the
+    // total exceeds the buyer's wallet available_balance, the per-item
+    // fn_reserve_sp_on_offer AFTER INSERT trigger raises 'Insufficient available SP',
+    // which this EF maps to TRADE_INSERT_ERROR and can leave a PARTIAL bundle (some
+    // trades inserted, others failed). Validate the total up front so a malicious or
+    // outdated client gets a clean structured error instead of breaking the insert.
+    const totalRequestedSp = items!.reduce((sum, it) => sum + (it.sp_amount ?? 0), 0);
+    if (totalRequestedSp > 0) {
+      const { data: walletRow } = await supabase
+        .from('sp_wallets')
+        .select('available_balance')
+        .eq('user_id', buyerId)
+        .maybeSingle();
+      const availableSp = Number((walletRow as { available_balance?: number } | null)?.available_balance ?? 0);
+      if (totalRequestedSp > availableSp) {
+        console.error(
+          `[create-trade-offer] req=${requestId} bundle SP ${totalRequestedSp} exceeds wallet available ${availableSp} — rejecting before insert`
+        );
+        return jsonError(
+          `You don't have enough Swap Points for this bundle. You have ${availableSp} SP available.`,
+          'SP_INSUFFICIENT',
+          409
+        );
+      }
+    }
+
     const phase1Results = await Promise.allSettled(
       items!.map((it, idx) => {
         const cashPortion = itemCashPortions[idx];

@@ -563,6 +563,60 @@ export default function CartScreen() {
           ))}
         </View>
 
+        {/* SELLER-GROUP-007: "More from this seller" banner — shown when seller
+            has items not yet in basket. DEV-TASK-49: placed right after the item
+            list (above the summary + fixed CTA sheet) so it can never render in
+            the CTA/pill zone and look like an overlapping control. */}
+        {sellerId && remainingFromSeller > 0 && showMoreFromSellerBanner && (
+          <View style={styles.moreFromSellerBanner} testID="cart-more-from-seller-banner">
+            <TouchableOpacity
+              style={styles.moreFromSellerBannerContent}
+              onPress={() => {
+                navigation.navigate('MoreFromThisSeller', {
+                  sellerId,
+                  returnToCart: true,
+                });
+              }}
+              activeOpacity={0.7}
+            >
+              <SquaresFour size={18} color="#2D6A4F" weight="fill" />
+              <View style={styles.moreFromSellerBannerTextWrap}>
+                <Text style={styles.moreFromSellerBannerTitle}>
+                  This seller has {remainingFromSeller} more item
+                  {remainingFromSeller !== 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.moreFromSellerBannerLink}>View</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreFromSellerBannerDismiss}
+              onPress={() => setShowMoreFromSellerBanner(false)}
+              hitSlop={8}
+              testID="cart-more-from-seller-dismiss"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Cart more from seller dismiss"
+            >
+              <X size={16} color="#6B7280" weight="bold" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* CART-005: Clear Basket button */}
+        {cartItems.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearBasketRow}
+            onPress={handleClearCart}
+            testID="clear-basket-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Clear basket button"
+          >
+            <Trash size={16} color={theme.colors.error[500]} weight="regular" />
+            <Text style={styles.clearBasketText}>Clear Basket</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Summary Card */}
         <View style={styles.summaryCard} testID="cart-summary">
           <View style={styles.summaryRow}>
@@ -620,58 +674,14 @@ export default function CartScreen() {
           showCloseButton={false}
         />
 
-        {/* CART-005: Clear Basket button */}
-        {cartItems.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearBasketRow}
-            onPress={handleClearCart}
-            testID="clear-basket-button"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Clear basket button"
-          >
-            <Trash size={16} color={theme.colors.error[500]} weight="regular" />
-            <Text style={styles.clearBasketText}>Clear Basket</Text>
-          </TouchableOpacity>
-        )}
+      </ScrollView>
 
-        {/* SELLER-GROUP-007: "More from this seller" banner — shown when seller has items not yet in basket */}
-        {sellerId && remainingFromSeller > 0 && showMoreFromSellerBanner && (
-          <View style={styles.moreFromSellerBanner} testID="cart-more-from-seller-banner">
-            <TouchableOpacity
-              style={styles.moreFromSellerBannerContent}
-              onPress={() => {
-                navigation.navigate('MoreFromThisSeller', {
-                  sellerId,
-                  returnToCart: true,
-                });
-              }}
-              activeOpacity={0.7}
-            >
-              <SquaresFour size={18} color="#2D6A4F" weight="fill" />
-              <View style={styles.moreFromSellerBannerTextWrap}>
-                <Text style={styles.moreFromSellerBannerTitle}>
-                  This seller has {remainingFromSeller} more item
-                  {remainingFromSeller !== 1 ? 's' : ''}
-                </Text>
-                <Text style={styles.moreFromSellerBannerLink}>View</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.moreFromSellerBannerDismiss}
-              onPress={() => setShowMoreFromSellerBanner(false)}
-              hitSlop={8}
-              testID="cart-more-from-seller-dismiss"
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Cart more from seller dismiss"
-            >
-              <X size={16} color="#6B7280" weight="bold" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* SELLER-GROUP-005: Make-offer CTA — always visible, runs validation before navigating */}
+      {/* SELLER-GROUP-005: Make-offer CTA — fixed above the floating pill nav so
+          it never overlaps the tab bar (DEV-TASK-48 P3: it used to be the last
+          in-flow ScrollView child at y 845-916, sliding under the tab bar
+          y 868-905 → taps near the CTA bottom hit a tab). Same bottom:120
+          clearance BulkPublishBar uses (pill top ~110pt from screen bottom). */}
+      <View style={styles.bundleCtaBar}>
         <TouchableOpacity
           style={styles.bundleCta}
           onPress={async () => {
@@ -741,7 +751,7 @@ export default function CartScreen() {
             </Text>
           </View>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </ScreenLayout>
   );
 }
@@ -823,7 +833,12 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 100,
+    // DEV-TASK-48 (P3): the Make-offer CTA is now a FIXED bar above the floating
+    // tab pill, so scroll content needs enough bottom clearance to fully scroll
+    // past it. DEV-TASK-49 (UX): the bar is now a bottom-sheet card at bottom:164
+    // with ~88pt height (top ≈252pt from screen bottom) — 244pt clearance keeps
+    // the last rows fully scrollable above the sheet.
+    paddingBottom: 244,
   },
 
   favoritesLink: {
@@ -1148,14 +1163,31 @@ const styles = StyleSheet.create({
   },
 
   // SELLER-GROUP-005: Bundle CTA styles
+  // DEV-TASK-48 (P3): fixed bar cleared above the floating pill nav — the bar
+  // renders outside the ScrollView so it never slides under the tab bar.
+  // DEV-TASK-49 (UX): restyled as a padded bottom-sheet-style container for
+  // unambiguous visual separation from the pill on every device size:
+  //  - bottom:164 keeps the sheet's bottom edge clearly above the pill top
+  //    (~110pt from screen bottom). Measured on-device (iPhone 17 Pro Max):
+  //    bottom:132 landed the sheet touching the pill; 164 yields ~30pt of air.
+  //  - white card + shadow level2 ("modals, bottom sheets") + 8pt padding make
+  //    the CTA read as a floating sheet rather than a tab-bar extension.
+  bundleCtaBar: {
+    position: 'absolute',
+    bottom: 164,
+    left: 16,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: theme.spacing.sm,
+    ...theme.shadows.level2,
+  },
   bundleCta: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EEF9F4',
     borderRadius: 12,
     padding: theme.spacing.md,
-    marginHorizontal: 24,
-    marginTop: theme.spacing.md,
     borderWidth: 1,
     borderColor: '#5DBB8E',
     gap: 12,

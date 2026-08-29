@@ -177,6 +177,9 @@ const TYPE_TO_ROUTE_MAP: Record<
   trade_message: { route: 'Chat', action: 'navigate' },
   ac_reminder_24h: { route: 'TradeTimeline', action: 'navigate' },
   ac_reminder_2h: { route: 'TradeTimeline', action: 'navigate' },
+  // DEV-TASK-48 (G04): offer reminders should open the seller Review Offer screen
+  offer_reminder_6h: { route: 'ReviewOffer', action: 'navigate' },
+  offer_reminder_1h: { route: 'ReviewOffer', action: 'navigate' },
 
   // Message Events (MODULE-14 NOTIF-V2-007 - Message notifications)
   message: { route: 'Chat', action: 'navigate' },
@@ -223,6 +226,9 @@ export function parseNotificationDeepLink(
     (typeof data.deepLink === 'string' ? data.deepLink : null);
   const type = typeof data.type === 'string' ? data.type : null;
   const event = typeof data.event === 'string' ? data.event : null;
+  // DEV-TASK-48 (G04): in-app offer-reminder rows carry only `event_type` in data
+  // (no `type`/`event`), so fall back to it for route resolution.
+  const eventType = typeof data.event_type === 'string' ? data.event_type : null;
 
   // Extract entity IDs for parameterized routes
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -254,8 +260,8 @@ export function parseNotificationDeepLink(
   }
 
   // Priority 2: Notification type or event mapping
-  if (!target && (type || event)) {
-    const typeKey = type || event;
+  if (!target && (type || event || eventType)) {
+    const typeKey = type || event || eventType;
     if (typeKey && TYPE_TO_ROUTE_MAP[typeKey]) {
       const { route, action } = TYPE_TO_ROUTE_MAP[typeKey];
       target = { route, action, params: {} };
@@ -267,12 +273,16 @@ export function parseNotificationDeepLink(
     return null;
   }
 
-  const notificationType = type || event;
+  const notificationType = type || event || eventType;
 
   // Enrich target with entity-specific params
   if (tradeId) {
-    // Incoming offer notifications should open seller review flow directly.
-    if (notificationType === 'trade_request') {
+    // Incoming offers + offer reminders should open the seller review flow directly.
+    if (
+      notificationType === 'trade_request' ||
+      notificationType === 'offer_reminder_6h' ||
+      notificationType === 'offer_reminder_1h'
+    ) {
       target.route = 'ReviewOffer';
       target.params = { tradeId };
     } else if (target.route === 'TradeList') {

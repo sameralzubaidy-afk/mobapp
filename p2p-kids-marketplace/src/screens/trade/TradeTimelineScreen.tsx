@@ -1223,6 +1223,27 @@ export default function TradeTimelineScreen() {
                 })
               : null;
 
+            // DEV-TASK-49 (UX): single source of truth for the pending release
+            // time — trades.pending_sp_release_at (set by the completion trigger
+            // to completed_at + pending_sp_release_days). Derive BOTH the
+            // countdown and the explicit date from it. Fall back to the same
+            // trigger formula (completed_at + spReleaseDays) only for legacy
+            // trades whose pending_sp_release_at is NULL.
+            const pendingReleaseAt = trade.pending_sp_release_at
+              ? new Date(trade.pending_sp_release_at)
+              : trade.completed_at
+                ? new Date(new Date(trade.completed_at).getTime() + spReleaseDays * 86400000)
+                : null;
+            const pendingReleaseDays = pendingReleaseAt
+              ? Math.max(0, Math.ceil((pendingReleaseAt.getTime() - Date.now()) / 86400000))
+              : spReleaseDays;
+            const pendingReleaseDateLabel = pendingReleaseAt
+              ? pendingReleaseAt.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                })
+              : null;
+
             return (
               <View style={[styles.card, { backgroundColor: isReleased ? '#F0FDF4' : '#FFF9EC' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
@@ -1249,7 +1270,7 @@ export default function TradeTimelineScreen() {
                     <Text style={{ fontSize: 14, color: '#6B6B6B', lineHeight: 20 }}>
                       {isReleased
                         ? `${totalSpForSeller} SP released to your wallet${releaseDate ? ` on ${releaseDate}` : ''}.`
-                        : `${totalSpForSeller} SP releasing in ${spReleaseDays} days — added to your pending wallet.`}
+                        : `${totalSpForSeller} SP releasing in ${pendingReleaseDays} day${pendingReleaseDays === 1 ? '' : 's'} — added to your pending wallet${pendingReleaseDateLabel ? `. Releases ${pendingReleaseDateLabel}` : ''}.`}
                     </Text>
                     <Pressable
                       style={{

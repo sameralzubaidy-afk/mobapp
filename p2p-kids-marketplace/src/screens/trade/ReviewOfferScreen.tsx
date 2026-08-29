@@ -26,6 +26,9 @@ import { previewTotalSPToSeller } from '@/services/spCalculatorService';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { captureException } from '@/services/errorReporter';
 import { getSPReleaseDays } from '@/services/adminConfig';
+// Dev Task 51 item 4: branded, AX-exposed success notices instead of native
+// Alert.alert — deterministic testIDs for QA + design-system-consistent buttons.
+import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 
 type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
 
@@ -59,6 +62,7 @@ export default function ReviewOfferScreen() {
   const route = useRoute<ReviewOfferRouteProp>();
   const navigation = useNavigation<any>();
   const { session } = useAuth();
+  const { showAlert } = useGlobalAlert();
   const { tradeId } = route.params;
 
   const [loading, setLoading] = useState(true);
@@ -243,9 +247,13 @@ export default function ReviewOfferScreen() {
       // Single EF call — processes all trades in parallel internally
       await acceptBundleOffers(pendingIds);
       setShowAcceptBundleModal(false);
-      Alert.alert('Bundle Accepted!', 'Payment captured. Trades are now in progress.', [
-        { text: 'OK', onPress: () => navigation.navigate('MyListings') },
-      ]);
+      showAlert({
+        title: 'Bundle Accepted!',
+        message: 'Payment captured. Trades are now in progress.',
+        buttons: [
+          { text: 'OK', onPress: () => navigation.navigate('MyListings'), testID: 'bundle-accepted-ok-button' },
+        ],
+      });
     } catch (err: any) {
       captureException(err, {
         tags: { screen: 'ReviewOfferScreen', action: 'accept_bundle' },
@@ -269,16 +277,17 @@ export default function ReviewOfferScreen() {
       setSubmitting(true);
       setShowAcceptModal(false);
       await respondToOffer(offer.id, 'accept');
-      Alert.alert(
-        'Offer Accepted!',
-        'Payment captured. Trade is now in progress. The buyer can confirm receipt.',
-        [
+      showAlert({
+        title: 'Offer Accepted!',
+        message: 'Payment captured. Trade is now in progress. The buyer can confirm receipt.',
+        buttons: [
           {
             text: 'OK',
             onPress: () => navigation.navigate('MyListings'),
+            testID: 'offer-accepted-ok-button',
           },
-        ]
-      );
+        ],
+      });
     } catch (error: any) {
       captureException(error, {
         tags: { screen: 'ReviewOfferScreen', action: 'accept_offer' },
@@ -301,12 +310,17 @@ export default function ReviewOfferScreen() {
       setSubmitting(true);
       setShowDeclineModal(false);
       await respondToOffer(offer.id, 'decline');
-      Alert.alert('Offer Declined', 'The buyer has been notified. The item stays listed.', [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('MyListings'),
-        },
-      ]);
+      showAlert({
+        title: 'Offer Declined',
+        message: 'The buyer has been notified. The item stays listed.',
+        buttons: [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('MyListings'),
+            testID: 'offer-declined-ok-button',
+          },
+        ],
+      });
     } catch (error: any) {
       captureException(error, {
         tags: { screen: 'ReviewOfferScreen', action: 'decline_offer' },
