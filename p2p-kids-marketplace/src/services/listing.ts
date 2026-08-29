@@ -1498,6 +1498,7 @@ export interface MaskedSellerListing {
 export async function getMaskedSellerListings(
   seller_id: string,
   exclude_listing_id?: string,
+  options?: { limit?: number; offset?: number },
 ): Promise<{ listings: MaskedSellerListing[]; total_count: number }> {
   let query = supabase
     .from('items')
@@ -1508,6 +1509,13 @@ export async function getMaskedSellerListings(
 
   if (exclude_listing_id) {
     query = query.neq('id', exclude_listing_id);
+  }
+
+  // Optional pagination: when limit+offset are supplied, fetch just that page.
+  // `count: 'exact'` still returns the TOTAL matching count (not the page size),
+  // so callers can compute "has more" as listings.length < total_count.
+  if (options?.limit != null && options?.offset != null) {
+    query = query.range(options.offset, options.offset + options.limit - 1);
   }
 
   const { data, error, count } = await query;
@@ -1524,7 +1532,7 @@ export async function getMaskedSellerListings(
 
   // Fetch first image for each listing (batch)
   const listingIds = rows.map((r) => r.id);
-  let imageMap: Map<string, string> = new Map();
+  const imageMap: Map<string, string> = new Map();
   if (listingIds.length > 0) {
     const { data: images } = await supabase
       .from('item_images')

@@ -14,7 +14,7 @@
  * - Renders nothing identifiable — purely a filtered item grid.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -38,27 +38,38 @@ import { addToCart, getCartItems, saveCurrentCart, clearCart } from '@/services/
 import { useCartContext } from '@/contexts/CartContext';
 import { getSellerGroup, isSameSellerGroup } from '@/utils/sellerGroup';
 import { ShoppingCart, Heart, HeartStraight } from 'phosphor-react-native';
-import { isFavorited, toggleFavorite } from '@/services/favoritesService';
+import { getFavorites, toggleFavorite } from '@/services/favoritesService';
 import { trackEvent } from '@/services/analytics';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'MoreFromThisSeller'>;
 
+// Load listings in pages of 10 so the initial render stays fast when a seller
+// has many items; further pages load on scroll until "No more items" shows.
+const PAGE_SIZE = 10;
+
 export default function MoreFromThisSellerScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { sellerId, excludeListingId, returnToCart } = route.params;
+  const { sellerId, excludeListingId } = route.params;
   const { refreshCartCount } = useCartContext();
 
   const [listings, setListings] = useState<MaskedSellerListing[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [matchesCart, setMatchesCart] = useState(false);
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
   const [inCartIds, setInCartIds] = useState<Set<string>>(new Set());
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Added to Trade Basket');
   const [toastSubtitle, setToastSubtitle] = useState<string | undefined>();
+
+  // Pagination guards — refs avoid stale-closure issues in onEndReached.
+  const listingsRef = useRef<MaskedSellerListing[]>([]);
+  const totalCountRef = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const hasMore = listings.length < totalCount;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -79,18 +90,22 @@ export default function MoreFromThisSellerScreen() {
         setInCartIds(new Set());
       }
 
-      // Load masked listings
-      const result = await getMaskedSellerListings(sellerId, excludeListingId);
+      // Load the FIRST page of masked listings (PAGE_SIZE at a time)
+      const result = await getMaskedSellerListings(sellerId, excludeListingId, {
+        limit: PAGE_SIZE,
+        offset: 0,
+      });
+      listingsRef.current = result.listings;
       setListings(result.listings);
+      totalCountRef.current = result.total_count;
       setTotalCount(result.total_count);
 
-      // Load favorites
-      const favIds: string[] = [];
-      for (const item of result.listings) {
-        const fav = await isFavorited(item.id);
-        if (fav) favIds.push(item.id);
+      // Load ALL favorites in ONE call. (The old per-item isFavorited loop
+      // re-fetched the entire favorites list on every item — O(N) RPC calls.)
+      const favRes = await getFavorites();
+      if (favRes.success) {
+        setFavoritedIds(new Set(favRes.data.map((f) => f.listingId)));
       }
-      setFavoritedIds(new Set(favIds));
     } catch (e) {
       captureException(e, {
         tags: { screen: 'MoreFromThisSellerScreen', action: 'load_listings' },
@@ -104,6 +119,34 @@ export default function MoreFromThisSellerScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current) return;
+    const currentCount = listingsRef.current.length;
+    if (currentCount >= totalCountRef.current) return;
+
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const result = await getMaskedSellerListings(sellerId, excludeListingId, {
+        limit: PAGE_SIZE,
+        offset: currentCount,
+      });
+      const merged = [...listingsRef.current, ...result.listings];
+      listingsRef.current = merged;
+      setListings(merged);
+      totalCountRef.current = result.total_count;
+      setTotalCount(result.total_count);
+    } catch (e) {
+      captureException(e, {
+        tags: { screen: 'MoreFromThisSellerScreen', action: 'load_more' },
+      });
+      // Keep hasMore true so a later scroll retries instead of dead-ending.
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [sellerId, excludeListingId]);
 
   const handleAddToCart = async (item: MaskedSellerListing) => {
     trackEvent('cart_item_added_attempt', { item_id: item.id, source: 'more_from_seller' });
@@ -295,6 +338,17 @@ export default function MoreFromThisSellerScreen() {
         columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          <View style={styles.footer}>
+            {loadingMore ? (
+              <ActivityIndicator size="small" color="#5DBB8E" />
+            ) : !hasMore && listings.length > 0 ? (
+              <Text style={styles.footerText}>No more items</Text>
+            ) : null}
+          </View>
+        }
         testID="more-from-seller-list"
       />
 
@@ -430,5 +484,16 @@ const styles = StyleSheet.create({
   },
   addToCartTextInCart: {
     color: '#9CA3AF',
+  },
+  footer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });

@@ -899,11 +899,10 @@ export default function TradeTimelineScreen() {
               </View>
             </View>
             <Text style={styles.disputeCardBody}>
-              Your issue has been reported. Auto-complete is paused while our team reviews it.
+              Your issue has been reported. Our team will review within 24 hours. Auto-complete is paused.
             </Text>
             <Text style={styles.disputeCardNote}>
-              The trade is paused while we review. Keep chatting with the other party — we'll notify
-              you with the outcome.
+              Keep chatting with the other party — we'll notify you with the outcome.
             </Text>
           </View>
         )}

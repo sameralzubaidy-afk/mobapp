@@ -12,6 +12,8 @@ import { getSubscriptionSummary } from './subscription';
 import { getAdminConfig } from './adminConfig';
 import { getUserReviews } from './review';
 import { getSimulatedCardDeclineMode, getSimulatedConfigFetchFailure } from './devTestingService';
+import { captureException, captureMessage } from './errorReporter';
+import { trackEvent } from './analytics';
 
 const ACTIVE_OFFER_STATUSES = ['pending', 'payment_failed', 'in_progress'];
 
@@ -1134,5 +1136,55 @@ export async function monitorMidTradeSubscriptionChanges(): Promise<{
       success: false,
       error: error instanceof Error ? error.message : 'Monitoring failed',
     };
+  }
+}
+
+/**
+ * DT-52 (2026-08-29): Record a trade liability-disclaimer acknowledgment (best effort).
+ *
+ * Fire-and-forget semantics preserved: never throws, never blocks the trade flow.
+ * But it must NOT fail silently — DT-45 showed that when the
+ * `acknowledge_trade_disclaimer` RPC is missing/unavailable the failure went
+ * undetected for a while because only a `console.warn` logged it. Every failure is
+ * now surfaced to Sentry (captureMessage/captureException) AND emitted as an
+ * `analytics_events` row (trackEvent → analytics-track EF) so a future
+ * RPC-missing / RPC-error scenario is caught immediately, not silently.
+ *
+ * @param tradeId  the just-created trade id to acknowledge the disclaimer for
+ * @param policyId the disclaimer policy id that was shown/accepted
+ * @param source   the calling screen (for triage)
+ */
+export async function acknowledgeTradeDisclaimer(
+  tradeId: string,
+  policyId: string,
+  source = 'trade_flow'
+): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('acknowledge_trade_disclaimer', {
+      p_trade_id: tradeId,
+      p_disclaimer_policy_id: policyId,
+    });
+    if (error) {
+      console.error('[trade] acknowledge_trade_disclaimer RPC failed:', error);
+      captureMessage('acknowledge_trade_disclaimer RPC failed', 'error');
+      trackEvent('disclaimer_ack_failed', {
+        source,
+        trade_id: tradeId,
+        code: error.code ?? 'RPC_ERROR',
+        message: error.message,
+      });
+    }
+  } catch (disclaimerErr) {
+    console.error('[trade] acknowledge_trade_disclaimer threw:', disclaimerErr);
+    captureException(disclaimerErr, {
+      tags: { action: 'acknowledge_trade_disclaimer', source },
+      extra: { tradeId, policyId },
+    });
+    trackEvent('disclaimer_ack_failed', {
+      source,
+      trade_id: tradeId,
+      code: 'UNEXPECTED',
+      message: disclaimerErr instanceof Error ? disclaimerErr.message : String(disclaimerErr),
+    });
   }
 }

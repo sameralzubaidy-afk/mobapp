@@ -33,6 +33,7 @@ import {
   createTradeOfferWithHold,
   mapStripeErrorToMessage,
   getBuyerPendingOffersForSeller,
+  acknowledgeTradeDisclaimer,
 } from '@/services/trade';
 import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
@@ -42,7 +43,6 @@ import { calculateCategorySP } from '@/services/categoryService';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { supabase } from '@/config/supabase';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
@@ -450,18 +450,10 @@ export default function TradeInitiationScreen() {
       const tradeId = offerResult.trade_id;
 
       // ── 3. Record disclaimer acknowledgment (best effort) ─────────────────
+      // DT-52: never silent — the shared helper logs RPC failures to Sentry and
+      // emits a `disclaimer_ack_failed` analytics metric (DT-45 lesson).
       if (policyId) {
-        try {
-          const { error: disclaimerError } = await supabase.rpc('acknowledge_trade_disclaimer', {
-            p_trade_id: tradeId,
-            p_disclaimer_policy_id: policyId,
-          });
-          if (disclaimerError) {
-            console.warn('⚠️ Failed to record disclaimer acknowledgment:', disclaimerError);
-          }
-        } catch (disclaimerErr) {
-          console.warn('⚠️ Disclaimer acknowledgment error:', disclaimerErr);
-        }
+        await acknowledgeTradeDisclaimer(tradeId, policyId, 'TradeInitiationScreen');
       }
 
       // ── 4. Success ─────────────────────────────────────────────────────────

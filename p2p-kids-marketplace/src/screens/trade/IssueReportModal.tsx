@@ -90,7 +90,9 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
               <TouchableOpacity
                 key={reason.id}
                 style={[styles.option, selected === reason.id && styles.optionSelected]}
-                onPress={() => setSelected(reason.id)}
+                // DEV-TASK-53 (E08): toggle-to-deselect — re-tapping the selected reason clears it
+                // (and re-disables Submit), matching the guide's assertion (single-select w/ deselect).
+                onPress={() => setSelected(prev => (prev === reason.id ? null : reason.id))}
                 activeOpacity={0.7}
                 testID={`issue-reason-${reason.id}`}
                 accessible

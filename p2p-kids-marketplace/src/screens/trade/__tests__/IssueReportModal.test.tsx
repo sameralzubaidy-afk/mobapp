@@ -71,6 +71,38 @@ describe('IssueReportModal', () => {
       fireEvent.press(getByText('Other issue'));
       expect(getByPlaceholderText('Tell us what happened…')).toBeTruthy();
     });
+
+    // DEV-TASK-53 (E08): toggle-to-deselect — re-tapping the selected reason clears the selection
+    // and re-disables Submit (guide assertion).
+    it('should deselect a reason when the selected reason is tapped again (toggle)', () => {
+      const { getByTestId, getByText } = render(
+        <IssueReportModal visible={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
+      );
+      const submitDisabled = () =>
+        getByTestId('issue-submit-button').props.accessibilityState?.disabled;
+
+      // No reason selected → submit disabled
+      expect(submitDisabled()).toBe(true);
+
+      // Select a non-"other" reason → submit enabled
+      fireEvent.press(getByText('Item not as described'));
+      expect(submitDisabled()).toBe(false);
+
+      // Tap the same reason again → deselects → submit disabled again
+      fireEvent.press(getByText('Item not as described'));
+      expect(submitDisabled()).toBe(true);
+    });
+
+    it('should hide the description textarea when "Other issue" is deselected', () => {
+      const { getByText, getByPlaceholderText, queryByPlaceholderText } = render(
+        <IssueReportModal visible={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
+      );
+      fireEvent.press(getByText('Other issue'));
+      expect(getByPlaceholderText('Tell us what happened…')).toBeTruthy();
+
+      fireEvent.press(getByText('Other issue'));
+      expect(queryByPlaceholderText('Tell us what happened…')).toBeNull();
+    });
   });
 
   describe('Description Validation (Other)', () => {

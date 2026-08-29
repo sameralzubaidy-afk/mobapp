@@ -43,6 +43,7 @@ import {
   CheckoutWarning,
   buildSkippedItemsCopy,
 } from '@/services/cartService';
+import { acknowledgeTradeDisclaimer } from '@/services/trade';
 import { useSubscriptionStatus } from '@/hooks/useAuth';
 import { calculateTax, isTaxExemptCategory } from '@/services/tax';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
@@ -554,18 +555,10 @@ export default function CartCheckoutScreen() {
       const tradeIds = result.data.tradeIds;
 
       // ── Record disclaimer acknowledgment for each trade (best effort) ──
+      // DT-52: never silent — the shared helper logs RPC failures to Sentry and
+      // emits a `disclaimer_ack_failed` analytics metric (DT-45 lesson).
       if (policyId && tradeIds.length > 0) {
-        try {
-          const { error: disclaimerError } = await supabase.rpc('acknowledge_trade_disclaimer', {
-            p_trade_id: tradeIds[0],
-            p_disclaimer_policy_id: policyId,
-          });
-          if (disclaimerError) {
-            console.warn('⚠️ Failed to record disclaimer acknowledgment:', disclaimerError);
-          }
-        } catch (disclaimerErr) {
-          console.warn('⚠️ Disclaimer acknowledgment error:', disclaimerErr);
-        }
+        await acknowledgeTradeDisclaimer(tradeIds[0], policyId, 'CartCheckoutScreen');
       }
 
       // PARTIAL-SUCCESS (2026-08-01): If the bundle checkout skipped one or more items

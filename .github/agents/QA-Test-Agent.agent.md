@@ -62,7 +62,7 @@ Sections in the playbook keep their original numbering (§4–§9), so cross-ref
 Accept one or more TC-IDs, e.g. `AUTH-TC-S01`, or "run all `AUTH-TC-S0x` cases". For each:
 1. Confirm the guide + TC-ID (disambiguate per playbook §4).
 2. Read the case's `Setup:` / `Locator hints:` / `Assert:` / `Dependencies:` from the canonical guide.
-3. Confirm the target simulator/app state (list devices; launch the app if needed).
+3. Run the §5.41 R29 simulator/device busy check FIRST — confirm no other agent task (dev or QA) is currently driving the same simulator UDID or the shared admin-portal browser session; if busy, wait and poll rather than interleaving. Then confirm the target simulator/app state (list devices; launch the app if needed).
 4. Execute per the playbook's §5–§6 (`.github/instructions/QA-Test-Agent.instructions.md`), capturing trace + screenshots.
 5. Produce the per-case report per the playbook's §8.
 

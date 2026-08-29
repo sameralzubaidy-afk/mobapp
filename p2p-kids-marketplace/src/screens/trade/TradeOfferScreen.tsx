@@ -34,6 +34,7 @@ import {
   createTradeOfferWithHold,
   mapStripeErrorToMessage,
   getBuyerPendingOffersForSeller,
+  acknowledgeTradeDisclaimer,
 } from '@/services/trade';
 import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
@@ -408,18 +409,10 @@ export default function TradeOfferScreen() {
       const tradeId = offerResult.trade_id;
 
       // ── 3. Record disclaimer acknowledgment (best effort) ─────────────────
+      // DT-52: never silent — the shared helper logs RPC failures to Sentry and
+      // emits a `disclaimer_ack_failed` analytics metric (DT-45 lesson).
       if (policyId) {
-        try {
-          const { error: disclaimerError } = await supabase.rpc('acknowledge_trade_disclaimer', {
-            p_trade_id: tradeId,
-            p_disclaimer_policy_id: policyId,
-          });
-          if (disclaimerError) {
-            console.warn('⚠️ Failed to record disclaimer acknowledgment:', disclaimerError);
-          }
-        } catch (disclaimerErr) {
-          console.warn('⚠️ Disclaimer acknowledgment error:', disclaimerErr);
-        }
+        await acknowledgeTradeDisclaimer(tradeId, policyId, 'TradeOfferScreen');
       }
 
       // ── 4. Success ─────────────────────────────────────────────────────────
