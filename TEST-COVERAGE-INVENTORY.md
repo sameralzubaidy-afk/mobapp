@@ -318,46 +318,46 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-E08 | Report an Issue — reason selected (non-Other) | 1 | — | 2026-08-29 | DEV-TASK-42 | 🟡 RE-SPEC'D to IssueReportModal (TradeDisputeScreen removed — redundant); not yet re-run |
 | TRD-TC-E09 | Report an Issue — "Other" + min-20 description | 1 | — | 2026-08-29 | DEV-TASK-42 | 🟡 RE-SPEC'D to IssueReportModal (TradeDisputeScreen removed — redundant); not yet re-run |
 | TRD-TC-E10 | Report an Issue — submitting + success/error | 1 | — | 2026-08-29 | DEV-TASK-42 | 🟡 RE-SPEC'D to IssueReportModal (TradeDisputeScreen removed — redundant); not yet re-run |
-| TRD-TC-F01 | Payout shown on completion (no dispute) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-F02 | Payout held when dispute is open | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-F03 | Payout needs action when seller has no payout method | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-G01 | Offer expiry reminders to seller | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-G02 | Auto-complete reminders to buyer | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-G03 | Notification throttle per trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-G04 | Push notifications deep-link to correct screen | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-F01 | Payout shown on completion (no dispute) | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-F02 | Payout held when dispute is open | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | 🔴 PASS w/ P1 finding (admin resolve leaves payout_amount_cents NULL → $0 payout) |
+| TRD-TC-F03 | Payout needs action when seller has no payout method | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (requires_action + notification + deep-link) |
+| TRD-TC-G01 | Offer expiry reminders to seller | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-G02 | Auto-complete reminders to buyer | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-G03 | Notification throttle per trade | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-G04 | Push notifications deep-link to correct screen | 1 | 🟡 PARTIAL | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | 🟡 PARTIAL — auto-complete ✓; offer_reminder_6h/1h NOT in TYPE_TO_ROUTE_MAP (P2) |
 | TRD-TC-G05 | Pickup-window reminders to buyer (R2) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-H01 | Free buyer sees subscription CTA | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-H02 | Subscriber buyer used SP — "You saved $X" | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-H03 | Subscriber seller on Accept SP listing — SP pending notice | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-H04 | Subscriber seller on Cash Only listing — upsell | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-H05 | Subscription lifecycle — trial / paid / cancel regression | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I01 | Safe meetup card on in_progress trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I02 | Safe meetup card dismissible per trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I03 | In-chat safety banner persistent | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I04 | Pre-first-message safety modal once per listing | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I05 | Chat quick-reply chips on in_progress trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I06 | Liability disclaimer modal gates purchase (checkbox + Accept & Continue) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I07 | Disclaimer modal Cancel path — no trade created | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I08 | Disclaimer modal ✕ close behaves like Cancel | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I09 | Disclaimer checkbox resets to unchecked on reopen | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I10 | Disclaimer modal loading state | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I11 | Disclaimer modal not shown for non-trade actions | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-J01 | Seller cancels in_progress trade → Level 1 | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-J02 | 2nd post-acceptance cancel → Level 2 | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-J03 | 3rd post-acceptance cancel → Level 3 | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-J04 | Seller cancel button only on in_progress | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-J05 | Seller cancel modal shows seller reasons only | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K01 | Subscriber sees $0.99 fee + Sales Tax line in value stack | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K02 | Non-subscriber sees $2.99 fee + Sales Tax line in value stack | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K03 | SP discount row conditional on SP used | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K04 | Bundle checkout — fee charged per item (admin toggle OFF) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K05 | Bundle checkout — one fee per bundle (admin toggle ON) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K06 | Bundle timeline — fee display matches charge mode | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K07 | Admin partial refund — refund price only, keep fee | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K08 | Admin partial refund — tax ledger partially refunded | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K09 | Payments reconciliation page — charged vs refunded per trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K11 | Seller fee = 5% × cash portion (SP trade) | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-H01 | Free buyer sees subscription CTA | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (copy = R1 savings-$0 variant; guide $2 branch requires legacy fees) |
+| TRD-TC-H02 | Subscriber buyer used SP — "You saved $X" | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (copy drift: "You saved $8.00") |
+| TRD-TC-H03 | Subscriber seller on Accept SP listing — SP pending notice | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (18 SP releasing in 2 days + View Wallet) |
+| TRD-TC-H04 | Subscriber seller on Cash Only listing — upsell | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (source+unit P5; on-device seller TradeSuccess not reachable single-sim) |
+| TRD-TC-H05 | Subscription lifecycle — trial / paid / cancel regression | 1 | ⛔ BLOCKED | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ⛔ BLOCKED (trial start unreachable: D-001 removed in-app subscription choice; trial_enabled=false) — state machine source-verified |
+| TRD-TC-I01 | Safe meetup card on in_progress trade | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (copy dev) |
+| TRD-TC-I02 | Safe meetup card dismissible per trade | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-I03 | In-chat safety banner persistent | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (copy dev) |
+| TRD-TC-I04 | Pre-first-message safety modal once per listing | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-I05 | Chat quick-reply chips on in_progress trade | 1 | 🔴 FAIL | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | 🔴 FAIL — P2 stale-closure auto-send bug (0 messages persisted) |
+| TRD-TC-I06 | Liability disclaimer modal gates purchase (checkbox + Accept & Continue) | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS + P2 (acknowledge_trade_disclaimer RPC missing) |
+| TRD-TC-I07 | Disclaimer modal Cancel path — no trade created | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-I08 | Disclaimer modal ✕ close behaves like Cancel | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-I09 | Disclaimer checkbox resets to unchecked on reopen | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-I10 | Disclaimer modal loading state | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-I11 | Disclaimer modal not shown for non-trade actions | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-J01 | Seller cancels in_progress trade → Level 1 | 1 | 🔴 FAIL vs guide | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | 🔴 FAIL vs guide (backend verified: count 0→1; Level alerts removed per TFV2-023) |
+| TRD-TC-J02 | 2nd post-acceptance cancel → Level 2 | 1 | 🔴 FAIL vs guide | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | 🔴 FAIL vs guide (backend verified: count 1→2) |
+| TRD-TC-J03 | 3rd post-acceptance cancel → Level 3 | 1 | 🔴 FAIL vs guide | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | 🔴 FAIL vs guide (backend verified: count 2→3 + admin flag) |
+| TRD-TC-J04 | Seller cancel button only on in_progress | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-J05 | Seller cancel modal shows seller reasons only | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (copy dev) |
+| TRD-TC-K01 | Subscriber sees $0.99 fee + Sales Tax line in value stack | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (actual fee $1.49 flat — tiered engine; guide $0.99 stale) |
+| TRD-TC-K02 | Non-subscriber sees $2.99 fee + Sales Tax line in value stack | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (first-trade $1.49; no SP input; tiered 5%+$1.99 confirmed post-first-trade) |
+| TRD-TC-K03 | SP discount row conditional on SP used | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS |
+| TRD-TC-K04 | Bundle checkout — fee charged per item (admin toggle OFF) | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (×3 items $4.47; DB 3×149) |
+| TRD-TC-K05 | Bundle checkout — one fee per bundle (admin toggle ON) | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS ($1.49 single; DB 1×149) |
+| TRD-TC-K06 | Bundle timeline — fee display matches charge mode | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (both modes DB + on-device; aggregate totals for completed bundle not exercised) |
+| TRD-TC-K07 | Admin partial refund — refund price only, keep fee | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (refunded $22, fee kept, partially_refunded, trade_refunds split) |
+| TRD-TC-K08 | Admin partial refund — tax ledger partially refunded | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS + P2 (tax_records NOT updated: status stays collected, refunded_tax_cents 0) |
+| TRD-TC-K09 | Payments reconciliation page — charged vs refunded per trade | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (Charged $25.03 = PI, Refunded $23.54, pill partially refunded) |
+| TRD-TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client | 1 | 🟡 PARTIAL | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | 🟡 PARTIAL + P2 (enforcement proven via K05 + source; stale-client repro hits TRADE_INSERT_ERROR) |
+| TRD-TC-K11 | Seller fee = 5% × cash portion (SP trade) | 1 | ✅ PASS | 2026-08-29 | qa-task5-trd-f-k-2026-08-29 | ✅ PASS (fee = pct × cash portion; config drift: staging 10/20% not 5%) |
 | TRD-TC-L01 | Bundle banner on trade detail | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-L02 | Confirm All shortcut for bundle (buyer) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-L03 | Bundle offer rows in Offers tab (seller) | 1 | — | — | `—` | NEVER RUN |
