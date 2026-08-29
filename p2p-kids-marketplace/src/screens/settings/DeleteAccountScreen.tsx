@@ -26,6 +26,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { captureException } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 const CONSEQUENCES = [
   'Your profile and listings will be permanently deleted.',
@@ -160,7 +161,7 @@ export default function DeleteAccountScreen({ navigation }: any) {
           {/* Password confirmation */}
           <View style={styles.inputContainer}>
             <Lock size={20} color="#6B6B6B" weight="regular" style={styles.inputIcon} />
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.input}
               placeholder="Enter your password to confirm"
               placeholderTextColor="#999999"

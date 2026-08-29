@@ -37,7 +37,8 @@ function usage() {
     'usage: npm run qa:badge-scan -- --img <path> --region x,y,w,h --token name=SP100,rmin=250,rmax=255,gmin=235,gmax=252,bmin=180,bmax=215 [--token ...]\n' +
       '  --img <path>      screenshot file (required)\n' +
       '  --region x,y,w,h  scan region (required)\n' +
-      '  --token <def>     one or more token defs: name=...,rmin=..,rmax=..,gmin=..,gmax=..,bmin=..,bmax=..'
+      '  --token <def>     one or more token defs: name=...,rmin=..,rmax=..,gmin=..,gmax=..,bmin=..,bmax=..\n' +
+      '                    the name may also LEAD without the key: SP100,rmin=...,... (Dev Task 44 item 4)'
   );
   process.exit(2);
 }
@@ -61,9 +62,22 @@ function parseRegion(spec) {
 
 function parseToken(def) {
   const tok = { name: undefined, rmin: NaN, rmax: NaN, gmin: NaN, gmax: NaN, bmin: NaN, bmax: NaN };
-  for (const part of String(def).split(',')) {
+  const parts = String(def).split(',');
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].trim();
     const eq = part.indexOf('=');
-    if (eq === -1) throw new Error(`token part has no '=': '${part}'`);
+    if (eq === -1) {
+      // Bare-color-name fallback (Dev Task 44 item 4): a part with no '=' is
+      // accepted as the token's NAME when it is the FIRST part (e.g.
+      // `SP100,rmin=250,...`). A bare part anywhere else is genuinely malformed.
+      if (i === 0 && !tok.name) {
+        tok.name = part;
+        continue;
+      }
+      throw new Error(
+        `token part has no '=': '${part}' — expected key=value (or a bare name as the FIRST part, e.g. 'SP100,rmin=250,rmax=255,...')`
+      );
+    }
     const k = part.slice(0, eq).trim();
     const v = part.slice(eq + 1).trim();
     if (k === 'name') {
@@ -76,7 +90,9 @@ function parseToken(def) {
   }
   const keys = ['rmin', 'rmax', 'gmin', 'gmax', 'bmin', 'bmax'];
   if (!tok.name || keys.some((k) => !Number.isFinite(tok[k]))) {
-    throw new Error(`token def must include name and all of ${keys.join('/')}`);
+    throw new Error(
+      `token def must include a name and all of ${keys.join('/')}; use name=<label> or lead with the bare name, e.g. 'SP100,rmin=250,rmax=255,gmin=235,gmax=252,bmin=180,bmax=215'`
+    );
   }
   if (tok.rmin > tok.rmax || tok.gmin > tok.gmax || tok.bmin > tok.bmax) {
     throw new Error(`token '${tok.name}': min > max in at least one channel`);

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Warning } from 'phosphor-react-native';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 const REASONS = [
   { id: 'no_show',          label: 'Seller was a no-show',         description: 'The seller did not show up to the agreed meetup.' },
@@ -106,7 +107,7 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
             {requiresDescription && (
               <View style={styles.descriptionContainer}>
                 <Text style={styles.descriptionLabel}>Please describe the issue (min. 20 characters)</Text>
-                <TextInput
+                <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   style={styles.textArea}
                   placeholder="Tell us what happened…"
                   placeholderTextColor="#9CA3AF"

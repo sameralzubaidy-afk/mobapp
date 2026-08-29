@@ -22,6 +22,7 @@ import {
   getTrialExtensionHistory,
 } from '../../services/subscriptions/trialExtension';
 import { useAuth } from '../../hooks/useAuth';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export default function TrialExtensionTestScreen() {
   const { user } = useAuth();
@@ -96,7 +97,7 @@ export default function TrialExtensionTestScreen() {
         <Text style={styles.cardTitle}>Test Trial Extension</Text>
 
         <Text style={styles.label}>Referral User ID:</Text>
-        <TextInput
+        <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
           style={styles.input}
           value={referralUserId}
           onChangeText={setReferralUserId}

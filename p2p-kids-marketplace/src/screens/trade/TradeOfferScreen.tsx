@@ -53,10 +53,7 @@ import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
-import {
-  KeyboardDoneAccessory,
-  KEYBOARD_DONE_ACCESSORY_ID,
-} from '@/components/shared/KeyboardDoneAccessory';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type TradeOfferRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -758,8 +755,6 @@ export default function TradeOfferScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <KeyboardDoneAccessory />
 
       <DisclaimerModal
         visible={showDisclaimer}

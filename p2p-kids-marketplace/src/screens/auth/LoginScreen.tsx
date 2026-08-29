@@ -25,6 +25,7 @@ import { theme } from '@/theme';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import AccountLinkingPrompt from '@/components/auth/AccountLinkingPrompt';
 import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -206,7 +207,7 @@ export default function LoginScreen() {
             {/* Form */}
             <View style={styles.form}>
               {/* Email */}
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 label="Email"
                 placeholder="your.email@example.com"
                 value={email}
@@ -223,7 +224,7 @@ export default function LoginScreen() {
               />
 
               {/* Password */}
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 label="Password"
                 placeholder="Enter your password"
                 value={password}

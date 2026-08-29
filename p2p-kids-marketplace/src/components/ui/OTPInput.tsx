@@ -5,6 +5,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TextInput, StyleSheet, View } from 'react-native';
 import { theme } from '@/theme';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface OTPInputProps {
   length?: number;
@@ -50,7 +51,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 
   return (
     <View style={styles.container}>
-      <TextInput
+      <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
         ref={inputRef}
         style={inputStyle}
         keyboardType="number-pad"

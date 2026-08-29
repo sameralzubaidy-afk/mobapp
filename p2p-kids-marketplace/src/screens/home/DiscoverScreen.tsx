@@ -56,6 +56,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DiscoverHeader from './DiscoverHeader';
 import { ds, dsRadii, dsType } from '@/theme/discoveryTokens';
 import { componentSize, spacing } from '@/theme/spacing';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
 const KEYSTROKE_DEBOUNCE_MS = 200;
@@ -1347,7 +1348,7 @@ export default function DiscoverScreen({ navigation }: Props) {
                 weight="regular"
                 style={{ marginRight: 8 }}
               />
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 testID="discover-search-input"
                 accessibilityLabel="Search for items"
                 style={styles.searchInput}

@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { setPasswordForSocialUser, validatePasswordStrength } from '@/services/passwordService';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface SetPasswordModalProps {
   visible: boolean;
@@ -150,7 +151,7 @@ export default function SetPasswordModal({
             <View style={styles.field}>
               <Text style={styles.label}>New Password</Text>
               <View style={styles.passwordContainer}>
-                <TextInput
+                <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   style={styles.input}
                   placeholder="Enter password"
                   secureTextEntry={!showPassword}
@@ -204,7 +205,7 @@ export default function SetPasswordModal({
             <View style={styles.field}>
               <Text style={styles.label}>Confirm Password</Text>
               <View style={styles.passwordContainer}>
-                <TextInput
+                <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   style={styles.input}
                   placeholder="Re-enter password"
                   secureTextEntry={!showConfirmPassword}

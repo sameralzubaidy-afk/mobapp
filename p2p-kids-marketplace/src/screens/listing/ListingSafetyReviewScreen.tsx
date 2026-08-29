@@ -24,6 +24,7 @@ import { Listing } from '@/types/listing';
 import { ShieldWarning } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type ListingSafetyRoute = RouteProp<RootStackParamList, 'ListingSafetyReview'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -300,7 +301,7 @@ export default function ListingSafetyReviewScreen() {
           {isRejected && (
             <View style={styles.appealBox}>
               <Text style={styles.appealTitle}>Appeal Reason for Admin Review</Text>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 value={appealReason}
                 onChangeText={setAppealReason}
                 multiline

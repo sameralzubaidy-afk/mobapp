@@ -22,6 +22,7 @@ import type { ProfileSetupData } from '@/types/profile.types';
 import { useAuth } from '@/hooks/useAuth';
 import { User, Camera, MapPin } from 'phosphor-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export default function ProfileSetupScreen({ navigation: _navigation }: any) {
   const { refreshSession } = useAuth();
@@ -372,7 +373,7 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         </Text>
         <View style={[styles.inputWrapper, errors.displayName && styles.inputError]}>
           <User size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={styles.input}
             placeholder="Enter your display name"
             value={displayName}
@@ -397,7 +398,7 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
         </Text>
         <View style={[styles.inputWrapper, errors.zipCode && styles.inputError]}>
           <MapPin size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={styles.input}
             placeholder="Enter your 5-digit zip code"
             value={zipCode}
@@ -427,7 +428,7 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
           BIO (OPTIONAL)
         </Text>
         <View style={[styles.inputWrapper, styles.textArea]}>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
             placeholder="Tell us a bit about yourself..."
             value={bio}

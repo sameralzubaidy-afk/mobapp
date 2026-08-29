@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, ScrollView, Pressable, TextInput, StyleSheet } from 'react-native';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export interface CancellationReason {
   id: string;
@@ -185,7 +186,7 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
 
             {selectedReason === 'other' && (
               <View style={styles.customInputContainer}>
-                <TextInput
+                <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   style={styles.customInput}
                   placeholder="Please describe why you're cancelling..."
                   placeholderTextColor="#999"

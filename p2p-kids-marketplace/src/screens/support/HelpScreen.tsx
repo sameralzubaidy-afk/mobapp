@@ -16,6 +16,7 @@ import {
 import { MagnifyingGlass, Question, CaretRight } from 'phosphor-react-native';
 import { fetchPublishedFaqs, type FAQ } from '../../services/faqService';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface HelpScreenProps {
   navigation: any;
@@ -65,7 +66,7 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
         {/* Search Bar */}
         <View style={styles.searchWrapper}>
           <MagnifyingGlass size={20} color="#999999" />
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={styles.searchInput}
             placeholder="Search help articles…"
             placeholderTextColor="#999999"

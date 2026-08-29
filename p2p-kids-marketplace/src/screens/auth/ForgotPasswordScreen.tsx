@@ -21,6 +21,7 @@ import { getSimulatedForgotPasswordError } from '@/services/devTestingService';
 import { captureException } from '@/services/errorReporter';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation();
@@ -170,7 +171,7 @@ export default function ForgotPasswordScreen() {
           </View>
 
           {/* Email Input */}
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             label="Email Address"
             testID="forgot-email-input"
             placeholder="you@example.com"

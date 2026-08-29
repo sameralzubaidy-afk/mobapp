@@ -32,7 +32,7 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-12 RPC RETURNS TABLE changes — DROP FUNCTION before changing the signature.
 - BP-16 Stale trigger comments — if a referenced trigger doesn't exist in any migration, it's a defect.
 - BP-21 RPC → data-only refactor — the corresponding cron.schedule must exist in the same migration.
-- BP-22 API-key COALESCE chains — always include a hardcoded fallback, not just for base URLs.
+- BP-22 Secret keys (service role) — resolve ONLY from config at runtime; NEVER a hardcoded fallback and NEVER baked into a cron `net.http_post` header (hardcoded fallback allowed only for non-secret base URLs).
 - BP-44 RPC tax/SP/fee recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
@@ -341,16 +341,17 @@ Problem: An RPC was refactored to data-only (removed HTTP calls), but the corres
 
 Rules:
 - When refactoring an RPC from HTTP-calling to data-only, ALWAYS verify the corresponding cron job or trigger is created in the SAME migration.
-- Follow the established pattern: DO block with `cron.schedule` that calls the Edge Function via `net.http_post`, using `admin_config` + hardcoded fallbacks for the project URL and service role key (since `current_setting()` is blocked in Supabase managed Postgres).
+- Follow the established pattern: DO block with `cron.schedule` that calls the Edge Function via `net.http_post`, using `admin_config` + a hardcoded fallback for the project URL ONLY — the service role key MUST resolve at runtime from config via a wrapper function, never baked into the cron command or hardcoded in the migration (BP-22; DEV-TASK-45). Use the `current_setting(..., true)` missing-ok form — it returns NULL (not an error) when the GUC is unset.
 - Verify the cron was created: `SELECT jobname, schedule, command FROM cron.job WHERE jobname = '<job-name>';`
 
-## BP-22: COALESCE Chains for API Keys Must Include Hardcoded Fallback
-Problem: A migration's DO block has a COALESCE chain for `v_service_role_key` that relies on `current_setting()` and `admin_config` lookups, but lacks a hardcoded fallback — when neither source resolves, the key stays NULL and the cron job is silently skipped.
+## BP-22: Secret Keys Must Resolve from Config at Runtime — Never Hardcoded or Baked into a Cron Header
+Problem: A migration's DO block has a COALESCE chain for `v_service_role_key` that relies on `current_setting()` and `admin_config` lookups. The ORIGINAL guidance was to add a hardcoded fallback so the cron is never silently skipped — but a hardcoded service-role JWT is a COMMITTED SECRET: DEV-TASK-45 (2026-08-29) found the same service_role JWT committed since 2026-02-17 (~6.5 months) in six migrations plus scripts and chat logs, pushed to GitHub — an ACTIVE leak. The correct fix for an unresolvable key is a LOUD failure + a runtime-resolving cron entry, never baking the secret into the migration or `cron.job`.
 
 Rules:
-- Every COALESCE chain for API keys/secrets in a migration DO block MUST include a hardcoded fallback as the last element — not just for base URLs, but also for service role keys.
-- Cross-check against existing sibling migrations that successfully schedule cron jobs.
-- Verify the cron was actually created after running the DO block: `SELECT jobname FROM cron.job WHERE jobname = '<job-name>';`. Zero rows means the fallback chain is incomplete.
+- A hardcoded fallback in a migration DO block is allowed ONLY for NON-secret values (project URL, edge-function base URL). NEVER for secret keys (service-role key, Stripe/secret keys).
+- Secret keys MUST resolve only from config at runtime: `NULLIF(current_setting('app.service_role_key', true), '')` → `NULLIF(current_setting('custom.service_role_key', true), '')` → `(SELECT ac.value FROM public.admin_config ac WHERE ac.key = 'service_role_key' AND ac.is_active = true LIMIT 1)`. If none resolves, FAIL LOUD — `RAISE NOTICE` + skip, or return `CONFIG_UNAVAILABLE` — never silently fall back to a baked credential.
+- NEVER bake a literal credential into a cron `net.http_post` Authorization header at schedule time. A cron that fires an Edge Function must call a runtime config-resolving wrapper function (e.g. `rpc_fire_<job>()` — the CPSC-cron pattern in `304_schedule_cpsc_import.sql`) so a rotated key is picked up without re-scheduling and no secret ever sits in `cron.job`.
+- Verify no secret landed in the DB/cron: `SELECT jobname, command FROM cron.job WHERE jobname = '<job-name>';` — the command must be a function call, not a header containing a token; and `SELECT position('<token-suffix>' IN prosrc) > 0 FROM pg_proc WHERE proname LIKE '%<fn>%';` must be false.
 
 ## BP-44: RPCs That Recompute Tax/SP/Fees on a Trade Must Be Category-Aware and Match the Offer-Time Calculation
 Problem: `apply_tax_to_trade` (migration `20260510000003`) recomputed tax from the seller node's FLAT rate on `(cash_amount_cents - buyer_transaction_fee_cents)` and OVERWROTE `trades.tax_amount_cents`. For a tax-exempt item, `create-trade-offer` had already stored the authoritative category-aware value ($0). But because exempt trades have no `tax_records` row, the RPC's idempotency check did not short-circuit — it rewrote the correct $0 to $6.29 (`FLOOR(9900 * 0.0635 + 0.5) = 629` for a $100 exempt item with a $1 fee). The phantom tax then showed on the mobile timeline, the admin Trade Details page, and the admin refund card while Stripe captured $101 with zero tax.

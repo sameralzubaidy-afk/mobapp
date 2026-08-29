@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/config/supabase';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface PasswordReauthModalProps {
   visible: boolean;
@@ -120,7 +121,7 @@ export default function PasswordReauthModal({
               <View style={styles.content}>
                 <Text style={styles.label}>Password</Text>
                 <View style={[styles.passwordContainer, error && styles.inputError]}>
-                  <TextInput
+                  <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                     style={styles.input}
                     placeholder="Enter your password"
                     secureTextEntry={!showPassword}

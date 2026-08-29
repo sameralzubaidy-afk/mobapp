@@ -5,6 +5,7 @@
 import React from 'react';
 import { View, TextInput, Pressable, StyleSheet, ViewStyle } from 'react-native';
 import { MagnifyingGlass, X } from 'phosphor-react-native';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface SearchBarProps {
   value: string;
@@ -28,7 +29,7 @@ export function SearchBar({
   return (
     <View style={[styles.container, containerStyle]}>
       <MagnifyingGlass size={20} color="#999999" weight="regular" />
-      <TextInput
+      <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

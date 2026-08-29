@@ -41,6 +41,7 @@ import { GenderSelector } from '../../components/listing/GenderSelector';
 import ScreenLayout from '@/components/ScreenLayout';
 import { LoadingSpinner } from '@/components/ui';
 import { PriceAdjustmentModal } from '../../components/listing/PriceAdjustmentModal';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface ListingCategory {
   id: string;
@@ -358,7 +359,7 @@ export default function EditListingScreen({ route, navigation }: any) {
 
           {/* Title */}
           <Text style={styles.label}>Title *</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={styles.input}
             placeholder="e.g., LEGO Star Wars Set"
             value={title}
@@ -371,7 +372,7 @@ export default function EditListingScreen({ route, navigation }: any) {
 
           {/* Description */}
           <Text style={styles.label}>Description</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={[styles.input, styles.textArea]}
             placeholder="Describe your item..."
             value={description}
@@ -387,7 +388,7 @@ export default function EditListingScreen({ route, navigation }: any) {
 
           <View style={styles.field} onLayout={(e) => setPriceFieldY(e.nativeEvent.layout.y)}>
             <Text style={styles.label}>Price ($) *</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               ref={priceInputRef}
               style={styles.input}
               placeholder="0.00"
@@ -464,7 +465,7 @@ export default function EditListingScreen({ route, navigation }: any) {
           {isOtherCategory && (
             <>
               <Text style={styles.label}>Custom Category Name *</Text>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={styles.input}
                 placeholder="e.g., Board Games"
                 value={requestedCategoryName}
@@ -475,7 +476,7 @@ export default function EditListingScreen({ route, navigation }: any) {
           )}
 
           <Text style={styles.label}>Brand</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={styles.input}
             placeholder="e.g., Nike"
             value={brand}

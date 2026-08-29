@@ -792,6 +792,7 @@ export async function clearQaLocalValues(): Promise<void> {
       QA_POLICY_LOAD_FAILURE_KEY,
       QA_FORCE_CARD_DECLINE_KEY,
       QA_CONFIG_FETCH_FAILURE_KEY,
+      QA_PAYMENT_CARD_KEY,
     ]);
   } catch (err) {
     console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
@@ -1130,6 +1131,60 @@ export async function getSimulatedConfigFetchFailure(): Promise<QaConfigFetchFai
 }
 
 // ========================================
+// QA FORCED-CARD SELECTION (TRD-TC-B03/B06 QA toggle — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that forces which SAVED Stripe card the offer
+ * / checkout flow uses. Absence, 'none', or any unknown value = no override
+ * (fail-closed). Values:
+ *   - 'mastercard_4444' / 'visa_4242' → the get-payment-method Edge Function
+ *     returns the customer's saved card matching brand+last4 (see its
+ *     `force_card` body param), so the offer/checkout screen deterministically
+ *     shows and charges THAT card.
+ *   - a raw `pm_...` id is also accepted and matched by PaymentMethod id.
+ *
+ * Why this exists: the QA run (2026-08-28, decision-outcome-log §4.1) measured
+ * the offer screen's saved-card selection as the #1 time sink — a customer with
+ * two saved cards (one valid, one invalid) could default to the invalid one,
+ * costing repeated 400 "Payment method is invalid or expired" failures and
+ * forced relaunches. Arming this toggle lets QA force the valid card on demand
+ * instead of relaunching until the default happens to be the valid one.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return null and the real DT41 deterministic
+ * selection always runs. The simulation never alters server state by itself
+ * (the EF may persist the chosen card to subscriptions.stripe_payment_method_id,
+ * exactly as the normal DT41 path already does).
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=payment_card&value=mastercard_4444"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=payment_card&value=none"
+ */
+export const QA_PAYMENT_CARD_KEY = 'qa_local_payment_card';
+
+export type QaPaymentCardPreference = 'mastercard_4444' | 'visa_4242' | 'none';
+
+/**
+ * Read the armed forced-card preference, or null when unset/expired/unknown
+ * (fail-closed). Returns the short name (e.g. 'mastercard_4444') or a raw
+ * `pm_...` id if the QA agent armed one.
+ */
+export async function getSimulatedPaymentCardPreference(): Promise<string | null> {
+  if (!isDevEnvironment()) {
+    return null;
+  }
+  const value = await readQaLocalValue(QA_PAYMENT_CARD_KEY);
+  if (!value || value === 'none') {
+    return null;
+  }
+  if (value === 'mastercard_4444' || value === 'visa_4242' || value.startsWith('pm_')) {
+    return value;
+  }
+  return null;
+}
+
+// ========================================
 // QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04/J07-J12)
 // ========================================
 
@@ -1146,6 +1201,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   policy_failure: QA_POLICY_LOAD_FAILURE_KEY,
   card_decline: QA_FORCE_CARD_DECLINE_KEY,
   config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
+  payment_card: QA_PAYMENT_CARD_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1157,6 +1213,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_POLICY_LOAD_FAILURE_KEY]: ['no_policy', 'fetch_failure', 'none'],
   [QA_FORCE_CARD_DECLINE_KEY]: ['hold_decline', 'none'],
   [QA_CONFIG_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
+  [QA_PAYMENT_CARD_KEY]: ['mastercard_4444', 'visa_4242', 'none'],
 };
 
 /**
@@ -1229,6 +1286,9 @@ export default {
 
   // QA Config-Fetch-Failure Simulation (TRD-TC-B05i)
   getSimulatedConfigFetchFailure,
+
+  // QA Forced-Card Selection (TRD-TC-B03/B06)
+  getSimulatedPaymentCardPreference,
 
   // Session-local QA toggle storage (A03/D02/C04)
   setQaLocalValue,

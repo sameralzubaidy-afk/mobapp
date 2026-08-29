@@ -60,6 +60,7 @@ import { Modal } from '@/components/ui/Modal';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'CartCheckout'>;
@@ -708,7 +709,7 @@ export default function CartCheckoutScreen() {
                         weight="regular"
                         style={{ marginRight: 12 }}
                       />
-                      <TextInput
+                      <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         style={styles.spInput}
                         value={spState.spApplied === 0 ? '' : spState.spApplied.toString()}
                         onChangeText={(text) => handleSpChange(item.listingId, text)}

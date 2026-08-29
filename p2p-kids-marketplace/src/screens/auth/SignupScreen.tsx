@@ -28,6 +28,7 @@ import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { captureException } from '@/services/errorReporter';
 import { getAllTestUsers, TestUser } from '@/utils/testUsers';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 // TODO: Integrate Sentry
@@ -454,7 +455,7 @@ export default function SignupScreen() {
           {/* Form */}
           <View style={styles.form}>
             {/* Name Input */}
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               label="Full Name"
               placeholder="Enter your full name"
               value={formData.name}
@@ -469,7 +470,7 @@ export default function SignupScreen() {
             />
 
             {/* Email Input */}
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               label="Email"
               placeholder="Enter your email"
               value={formData.email}
@@ -485,7 +486,7 @@ export default function SignupScreen() {
             />
 
             {/* Phone Input */}
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               label="Phone Number"
               placeholder="+1234567890"
               value={formData.phone}
@@ -515,7 +516,7 @@ export default function SignupScreen() {
             </View>
 
             {/* Password Input */}
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               label="Password"
               placeholder="Enter your password"
               value={formData.password}
@@ -534,7 +535,7 @@ export default function SignupScreen() {
             />
 
             {/* Confirm Password Input */}
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               label="Confirm Password"
               placeholder="Confirm your password"
               value={formData.confirmPassword}
@@ -552,7 +553,7 @@ export default function SignupScreen() {
             />
 
             {/* Referral Code Input (Optional) */}
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               label="Referral Code (Optional)"
               placeholder="Enter referral code"
               value={formData.referralCode}

@@ -10,7 +10,8 @@
  * anchor-based filtering + pagination, no truncation.
  *
  * Usage:
- *   node scripts/qa/ax-tree.mjs <resource-file> [--name <substring>] [--max N]
+ *   node scripts/qa/ax-tree.mjs <resource-file> [--name <substring>] [--max N] \
+ *     [--screen-width W] [--screen-height H] [--pill-top N] [--pill-bottom M]
  *
  *   <resource-file>  path to the mobile-mcp element-tree resource file
  *                    (JSON or a text file containing a JSON blob)
@@ -20,9 +21,23 @@
  *   --list           print only names/labels (no coordinates) — compact grep
  *   --raw            dump the raw JSON (normalized) instead of a table
  *
+ * VIEWPORT / OCCLUSION FLAGS (Dev Task 44 item 2): when the screen geometry is
+ * known, every printed element is annotated so the QA agent can avoid the class
+ * of silent no-op taps this run hit twice (off-screen Send Offer button;
+ * occluded Report Problem button under the floating tab pill):
+ *   --screen-width W   viewport width  in POINTS (e.g. 440 for iPhone 17 Pro Max)
+ *   --screen-height H  viewport height in POINTS (e.g. 956 for iPhone 17 Pro Max)
+ *   --pill-top N       y of the top edge of the floating tab pill band (points)
+ *   --pill-bottom M    y of the bottom edge of the pill band (points)
+ *   If --screen-height is omitted, a best-effort value is auto-detected from the
+ *   tree (a top-level screen/window object, else the max element bottom). Pass
+ *   --pill-top/--pill-bottom only when you need the occlusion flag.
+ *
  * Output: one row per matched element with its coordinates (POINTS, matching
  * the AX tree — remember screenshots are 3x, so multiply by 3 for pixel
- * regions, per QA playbook §5.1 Phase 13.42).
+ * regions, per QA playbook §5.1 Phase 13.42). Elements flagged with
+ * "⚠ below-viewport" start below the visible screen; "⚠ under-pill" overlap
+ * the floating tab pill band.
  *
  * Read-only; no side effects. Not part of the app runtime.
  */
@@ -37,7 +52,9 @@ function valueOf(name) {
 }
 
 function usage() {
-  console.error('usage: node scripts/qa/ax-tree.mjs <resource-file> [--name <substring>] [--max N] [--list] [--raw]');
+  console.error(
+    'usage: node scripts/qa/ax-tree.mjs <resource-file> [--name <substring>] [--max N] [--list] [--raw] [--screen-width W] [--screen-height H] [--pill-top N] [--pill-bottom M]'
+  );
   process.exit(2);
 }
 
@@ -52,6 +69,16 @@ const maxRaw = valueOf('--max');
 const max = maxRaw === undefined ? 40 : Number(maxRaw) === 0 ? Infinity : Number(maxRaw);
 const listOnly = args.includes('--list');
 const rawDump = args.includes('--raw');
+
+// Viewport / occlusion geometry (Dev Task 44 item 2) — all in POINTS.
+const screenWidthRaw = valueOf('--screen-width');
+const screenHeightRaw = valueOf('--screen-height');
+const pillTopRaw = valueOf('--pill-top');
+const pillBottomRaw = valueOf('--pill-bottom');
+const screenWidth = screenWidthRaw ? Number(screenWidthRaw) : undefined;
+const screenHeight = screenHeightRaw ? Number(screenHeightRaw) : undefined;
+const pillTop = pillTopRaw ? Number(pillTopRaw) : undefined;
+const pillBottom = pillBottomRaw ? Number(pillBottomRaw) : undefined;
 
 // ─── Parse: try JSON, then JSON-embedded-in-text ───────────────────────────
 let parsed;
@@ -119,6 +146,62 @@ if (elements.length === 0) {
   console.error(`WARNING: no element objects found in ${file} (looked for name/label keys)`);
 }
 
+// ─── Viewport geometry (Dev Task 44 item 2) — resolve auto-detected size ─────
+// Priority: explicit --screen-* flags > a top-level screen/window/viewport
+// object in the resource > max element bottom (best-effort content-height proxy).
+let resolvedScreenHeight = screenHeight;
+let resolvedScreenWidth = screenWidth;
+if (resolvedScreenHeight === undefined || resolvedScreenWidth === undefined) {
+  const firstRoot = (Array.isArray(parsed) ? parsed[0] : parsed) ?? {};
+  const screenInfo =
+    firstRoot?.screen ?? firstRoot?.window ?? firstRoot?.viewport ?? firstRoot?.bounds ?? firstRoot?.frame ?? {};
+  const sw = Number(screenInfo?.width ?? screenInfo?.w);
+  const sh = Number(screenInfo?.height ?? screenInfo?.h);
+  if (resolvedScreenWidth === undefined && Number.isFinite(sw) && sw > 0) resolvedScreenWidth = sw;
+  if (resolvedScreenHeight === undefined && Number.isFinite(sh) && sh > 0) resolvedScreenHeight = sh;
+}
+if (resolvedScreenHeight === undefined) {
+  const maxBottom = elements.reduce((acc, el) => {
+    const [, y, , h] = coordOf(el);
+    if (y === undefined) return acc;
+    return Math.max(acc, y + (h ?? 0));
+  }, 0);
+  if (maxBottom > 0) resolvedScreenHeight = maxBottom;
+}
+
+/** Per-element viewport/occlusion warnings (points, matches AX coords). */
+function flagsOf(el) {
+  const [x, y, w, h] = coordOf(el);
+  const out = [];
+  if (y === undefined) return out;
+  const bottom = y + (h ?? 0);
+  if (resolvedScreenHeight !== undefined && resolvedScreenHeight > 0) {
+    if (y >= resolvedScreenHeight) {
+      out.push('below-viewport (y ≥ screen height)');
+    } else if (bottom > resolvedScreenHeight) {
+      out.push('below-viewport (bottom extends past screen)');
+    }
+    if (
+      resolvedScreenWidth !== undefined &&
+      resolvedScreenWidth > 0 &&
+      x !== undefined &&
+      x + (w ?? 0) > resolvedScreenWidth
+    ) {
+      out.push('off-screen right');
+    }
+  }
+  if (
+    h !== undefined &&
+    pillTop !== undefined &&
+    pillBottom !== undefined &&
+    y < pillBottom &&
+    y + h > pillTop
+  ) {
+    out.push('under-pill (floating tab bar occlusion)');
+  }
+  return out;
+}
+
 // ─── Filter by anchor ──────────────────────────────────────────────────────
 let matches = elements;
 if (nameFilter) {
@@ -140,6 +223,15 @@ if (listOnly) {
 // ─── Table output (name + coords), paginated ───────────────────────────────
 process.stdout.write(`AX-tree: ${elements.length} element(s) in ${file}\n`);
 if (nameFilter) process.stdout.write(`Filter: name/label contains "${nameFilter}"\n`);
+if (resolvedScreenHeight !== undefined) {
+  process.stdout.write(
+    `Viewport: ${resolvedScreenWidth ?? '?'}x${resolvedScreenHeight} pt` +
+      (pillTop !== undefined && pillBottom !== undefined
+        ? ` · pill band y ${pillTop}–${pillBottom}`
+        : '') +
+      ` (add --screen-height/--pill-top/--pill-bottom to refine)\n`
+  );
+}
 process.stdout.write('─'.repeat(72) + '\n');
 
 const shown = matches.slice(0, max);
@@ -151,6 +243,10 @@ for (const el of shown) {
       ? `x=${x} y=${y}${w !== undefined ? ` w=${w}` : ''}${h !== undefined ? ` h=${h}` : ''}`
       : '(no coords)';
   process.stdout.write(`• ${label}\n    ${coords}\n`);
+  const flags = flagsOf(el);
+  if (flags.length) {
+    process.stdout.write(`    ⚠ ${flags.join(' · ')}\n`);
+  }
 }
 
 const total = matches.length;

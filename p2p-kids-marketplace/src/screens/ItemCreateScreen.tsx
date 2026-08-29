@@ -65,6 +65,7 @@ import { isPhoneRequired } from '../services/phoneService';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 // State machine states
 type CreateScreenState =
@@ -1265,7 +1266,7 @@ export default function ItemCreateScreen() {
             {/* Title */}
             <View style={styles.field}>
               <Text style={styles.label}>Title *</Text>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={styles.input}
                 value={title}
                 onChangeText={setTitle}
@@ -1279,7 +1280,7 @@ export default function ItemCreateScreen() {
             {/* Description */}
             <View style={styles.field}>
               <Text style={styles.label}>Description</Text>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={[styles.input, styles.textArea]}
                 value={description}
                 onChangeText={setDescription}
@@ -1314,7 +1315,7 @@ export default function ItemCreateScreen() {
             {(category?.id === 'other' || category?.name?.toLowerCase() === 'other') && (
               <View style={styles.field}>
                 <Text style={styles.label}>Custom Category Name *</Text>
-                <TextInput
+                <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   style={styles.input}
                   value={requestedCategoryName}
                   onChangeText={setRequestedCategoryName}
@@ -1406,7 +1407,7 @@ export default function ItemCreateScreen() {
             {/* Price (manual only) */}
             <View style={styles.field} onLayout={(e) => setPriceFieldY(e.nativeEvent.layout.y)}>
               <Text style={styles.label}>Price *</Text>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 ref={priceInputRef}
                 style={styles.input}
                 value={priceInput}

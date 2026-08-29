@@ -77,6 +77,7 @@ import {
 import { idBadgeService } from '@/services/idBadge';
 import { captureException, captureMessage } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type ChatScreenRouteProp = RouteProp<{ Chat: { tradeId: string } }, 'Chat'>;
 
@@ -965,7 +966,7 @@ export default function ChatScreen() {
 
           {/* Message input (filled, 40px, #F0F0F0, 20px radius) */}
           <View style={styles.inputWrapper}>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               testID="message-input"
               style={[styles.input, !isTradeActive && styles.inputDisabled]}
               placeholder={isTradeActive ? 'Type a message...' : 'Chat is no longer active'}

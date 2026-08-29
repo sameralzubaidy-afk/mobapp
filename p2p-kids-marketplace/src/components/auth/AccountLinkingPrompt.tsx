@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { linkSocialAccount } from '@/services/accountService';
 import type { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
 import { EmailMismatchError } from '@/types/auth-v3-errors';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface AccountLinkingPromptProps {
   visible: boolean;
@@ -130,7 +131,7 @@ export default function AccountLinkingPrompt({
 
                 <Text style={styles.label}>Password</Text>
                 <View style={styles.passwordContainer}>
-                  <TextInput
+                  <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                     style={styles.input}
                     placeholder="Enter your password"
                     secureTextEntry={!showPassword}

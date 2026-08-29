@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { OTPInput } from '@/components/ui/OTPInput';
 import { usePhoneVerification } from '@/hooks/usePhoneVerification';
 import { DEV_SMS_BYPASS_CODE } from '@/services/phoneService';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface PhoneVerificationModalProps {
   visible: boolean;
@@ -163,7 +164,7 @@ export default function PhoneVerificationModal({
                 </Text>
 
                 <Text style={styles.label}>Phone Number</Text>
-                <TextInput
+                <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   ref={phoneInputRef}
                   style={styles.phoneInput}
                   placeholder="+1 (555) 123-4567"

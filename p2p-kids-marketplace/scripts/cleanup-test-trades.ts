@@ -39,10 +39,41 @@ const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
 const BUYER_ID = '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
 const SELLER_ID = '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller
 
+// Test personas that add to carts (fixed UUIDs from seed-staging-data.ts —
+// signupTestUser creates auth users with these exact ids via admin.createUser).
+// Dev Task 44 item 5: the reset also clears their cart_items so a run never
+// starts with months-old stale cart rows (QA had to remove them via the UI).
+const CART_USER_IDS = [
+  BUYER_ID, // test-buyer
+  'a1234567-0000-0000-0000-000000000001', // test-free
+  'a1234567-0000-0000-0000-000000000003', // test-buyer-2
+  'a1234567-0000-0000-0000-000000000004', // test-buyer-3
+];
+
 async function main() {
   console.log('🧹 CLEANUP TEST TRADES');
   console.log(`   Target: ${SUPABASE_URL}`);
   console.log('');
+
+  // Dev Task 44 item 5: clear stale cart_items for test personas FIRST so it
+  // runs even when there are no pending trades to clean up. Service role
+  // bypasses RLS; `.select('id')` returns the deleted rows so we can count.
+  const { data: deletedCarts, error: cartError } = await admin
+    .from('cart_items')
+    .delete()
+    .select('id')
+    .in('user_id', CART_USER_IDS);
+
+  if (cartError) {
+    console.error(`   ⚠️  Failed to clear cart items: ${cartError.message}`);
+  } else {
+    const count = deletedCarts?.length ?? 0;
+    if (count > 0) {
+      console.log(`   🧺 Cleared ${count} stale cart item(s) for test personas.`);
+    } else {
+      console.log('   🧺 No stale cart items for test personas.');
+    }
+  }
 
   // Dev Task 25 (item 7): clear ALL pending offers for the standard fixture
   // pair. Per-seller cap tests (TRD-TC-B05 series) count every pending offer

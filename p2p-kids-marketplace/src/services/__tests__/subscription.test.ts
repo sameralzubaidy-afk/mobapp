@@ -21,16 +21,33 @@ import {
   checkTrialEligibility,
   getTransactionFee,
   getSubscriptionDetails,
+  getPaymentMethod,
 } from '../subscription';
+import { getSimulatedPaymentCardPreference } from '../devTestingService';
+
+// QA forced-card toggle (Dev Task 44) — control it directly so the
+// subscription service test doesn't need AsyncStorage fixture plumbing.
+jest.mock('../devTestingService', () => ({
+  getSimulatedPaymentCardPreference: jest.fn(),
+}));
 
 // Mock Supabase
 jest.mock('../../config/supabase', () => ({
   supabase: {
     rpc: jest.fn(),
+    auth: { getSession: jest.fn(), refreshSession: jest.fn() },
+    functions: { invoke: jest.fn() },
   },
 }));
 
 const mockRpc = supabase.rpc as jest.MockedFunction<typeof supabase.rpc>;
+const mockInvoke = supabase.functions.invoke as jest.MockedFunction<
+  typeof supabase.functions.invoke
+>;
+const mockGetSession = supabase.auth.getSession as jest.MockedFunction<
+  typeof supabase.auth.getSession
+>;
+const mockGetPaymentCardPreference = getSimulatedPaymentCardPreference as jest.Mock;
 
 describe('Subscription Service - TASK SUB-002', () => {
   beforeEach(() => {
@@ -508,6 +525,69 @@ describe('Subscription Service - TASK SUB-002', () => {
 
       const result = await getSubscriptionDetails('user-123');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getPaymentMethod — QA forced-card pass-through (Dev Task 44)', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockGetSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'test-token',
+            // Far-future expiry so the refresh branch is never hit in these tests.
+            expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+          },
+        },
+        error: null,
+      });
+    });
+
+    it('passes force_card to the Edge Function when the QA toggle is armed', async () => {
+      mockGetPaymentCardPreference.mockResolvedValue('mastercard_4444');
+      mockInvoke.mockResolvedValue({
+        data: {
+          payment_method: {
+            id: 'pm_mc_4444',
+            brand: 'mastercard',
+            last4: '4444',
+            exp_month: 12,
+            exp_year: 2035,
+          },
+        },
+        error: null,
+      });
+
+      const pm = await getPaymentMethod();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'get-payment-method',
+        expect.objectContaining({ body: { force_card: 'mastercard_4444' } })
+      );
+      expect(pm?.id).toBe('pm_mc_4444');
+    });
+
+    it('sends no force_card (and caches) when the toggle is disarmed', async () => {
+      mockGetPaymentCardPreference.mockResolvedValue(null);
+      mockInvoke.mockResolvedValue({
+        data: {
+          payment_method: {
+            id: 'pm_default_4242',
+            brand: 'visa',
+            last4: '4242',
+            exp_month: 12,
+            exp_year: 2035,
+          },
+        },
+        error: null,
+      });
+
+      const pm = await getPaymentMethod(true);
+
+      const call = mockInvoke.mock.calls[0][1] as Record<string, unknown>;
+      expect(mockInvoke).toHaveBeenCalledWith('get-payment-method', expect.any(Object));
+      expect(call.body).toBeUndefined();
+      expect(pm?.id).toBe('pm_default_4242');
     });
   });
 });

@@ -18,9 +18,11 @@ import {
   getSimulatedLinkEmailMismatch,
   getQaCrashTriggerMode,
   getQaPolicyLoadFailureMode,
+  getSimulatedPaymentCardPreference,
   QA_PUSH_SIMULATION_KEY,
   QA_FORCE_PREF_SAVE_FAILURE_KEY,
   QA_LINK_EMAIL_MISMATCH_KEY,
+  QA_PAYMENT_CARD_KEY,
 } from '@/services/devTestingService';
 
 jest.mock('expo-linking', () => ({
@@ -151,5 +153,26 @@ describe('QaDevToggleDeepLinkHandler', () => {
 
     await new Promise((r) => setTimeout(r, 20));
     await expect(AsyncStorage.getItem(QA_PUSH_SIMULATION_KEY)).resolves.toBeNull();
+  });
+
+  it('arms payment_card (forced-card selection) and reads it back through the getter', async () => {
+    parseAs('payment_card', 'mastercard_4444');
+    render(<QaDevToggleDeepLinkHandler />);
+
+    triggerUrl('p2pkidsmarketplace://qa-dev-toggle?key=payment_card&value=mastercard_4444');
+
+    await waitFor(() => expect(getSimulatedPaymentCardPreference()).resolves.toBe('mastercard_4444'));
+    await expect(AsyncStorage.getItem(QA_PAYMENT_CARD_KEY)).resolves.toContain('mastercard_4444');
+  });
+
+  it('rejects an invalid payment_card value — nothing written (fail-closed)', async () => {
+    parseAs('payment_card', 'american_express_0001');
+    render(<QaDevToggleDeepLinkHandler />);
+
+    triggerUrl('p2pkidsmarketplace://qa-dev-toggle?key=payment_card&value=american_express_0001');
+
+    await new Promise((r) => setTimeout(r, 20));
+    await expect(AsyncStorage.getItem(QA_PAYMENT_CARD_KEY)).resolves.toBeNull();
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBeNull();
   });
 });

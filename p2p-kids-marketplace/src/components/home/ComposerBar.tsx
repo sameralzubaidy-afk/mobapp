@@ -28,6 +28,7 @@ import { Camera, Plus } from 'phosphor-react-native';
 import { trackEvent } from '@/services/analytics';
 import { COMPOSER_EVENTS } from '@/constants/analytics-events';
 import { colors, borderRadius, componentSize, spacing } from '@/theme';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export default function ComposerBar() {
   const navigation = useNavigation<any>();
@@ -85,7 +86,7 @@ export default function ComposerBar() {
             focus, and the "+" button's hitSlop — so the bar onPress (and thus
             the old event wiring) was unreachable by normal taps. onFocus fires
             for the primary "tap into the composer" interaction. */}
-        <TextInput
+        <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
           ref={inputRef}
           style={styles.input}
           value={text}

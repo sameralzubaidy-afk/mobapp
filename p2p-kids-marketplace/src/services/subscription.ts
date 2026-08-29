@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '../config/supabase';
+import { getSimulatedPaymentCardPreference } from './devTestingService';
 
 function isTransientNetworkError(error: unknown): boolean {
   const message =
@@ -783,72 +784,107 @@ let _pmPromise: Promise<PaymentMethodInfo | null> | null = null;
  * Get the buyer's saved Stripe payment method.
  * Results are cached in-memory for the session.
  * Pass forceRefresh=true to bypass cache (e.g., after adding a new PM).
+ *
+ * QA forced-card override (Dev Task 44): when the `payment_card` QA toggle is
+ * armed (dev/test builds only), this bypasses the cache and passes `force_card`
+ * to the get-payment-method Edge Function, which returns a SPECIFIC saved card
+ * (matched by brand+last4 or raw pm_ id) instead of the DT41 deterministic
+ * default. Forced reads never write the shared cache, so disarming the toggle
+ * restores the real server-selected card on the next call.
  */
 export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMethodInfo | null> {
-  if (!forceRefresh && _pmCache !== undefined) {
+  const forcedCard = await getSimulatedPaymentCardPreference();
+  const force = forceRefresh || forcedCard !== null;
+
+  if (!force && _pmCache !== undefined) {
     return _pmCache;
   }
   // Dedup concurrent calls — share the same in-flight promise
-  if (!forceRefresh && _pmPromise !== null) {
+  if (!force && _pmPromise !== null) {
     return _pmPromise;
   }
-  _pmPromise = (async (): Promise<PaymentMethodInfo | null> => {
-    try {
-      console.log('[subscription] 📤 Fetching payment method...');
 
-      // Get current session
-      const {
-        data: { session },
-        error: authError,
-      } = await supabase.auth.getSession();
-      if (authError || !session) {
-        console.error('[subscription] ❌  No active session');
-        return null;
-      }
+  const fetchPm = (): Promise<PaymentMethodInfo | null> => {
+    return (async (): Promise<PaymentMethodInfo | null> => {
+      try {
+        console.log(
+          '[subscription] 📤 Fetching payment method...' +
+            (forcedCard ? ` (QA forced card: ${forcedCard})` : '')
+        );
 
-      let accessToken = session.access_token;
-      const nowEpoch = Math.floor(Date.now() / 1000);
-      if (session.expires_at && session.expires_at <= nowEpoch + 60) {
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData?.session?.access_token) {
-          console.error('[subscription] ❌ Session refresh failed');
+        // Get current session
+        const {
+          data: { session },
+          error: authError,
+        } = await supabase.auth.getSession();
+        if (authError || !session) {
+          console.error('[subscription] ❌  No active session');
           return null;
         }
-        accessToken = refreshData.session.access_token;
-      }
 
-      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+        let accessToken = session.access_token;
+        const nowEpoch = Math.floor(Date.now() / 1000);
+        if (session.expires_at && session.expires_at <= nowEpoch + 60) {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError || !refreshData?.session?.access_token) {
+            console.error('[subscription] ❌ Session refresh failed');
+            return null;
+          }
+          accessToken = refreshData.session.access_token;
+        }
 
-      // Call the get-payment-method Edge Function
-      const { data, error } = await supabase.functions.invoke('get-payment-method', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          ...(anonKey ? { apikey: anonKey } : {}),
-        },
-      });
+        const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-      if (error) {
-        console.error('[subscription] ❌ Get payment method error:', error.message);
+        // Call the get-payment-method Edge Function
+        const { data, error } = await supabase.functions.invoke('get-payment-method', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            ...(anonKey ? { apikey: anonKey } : {}),
+          },
+          // QA forced-card toggle (dev/test only — never armed in release): ask
+          // the EF to return a specific saved card instead of its default.
+          ...(forcedCard ? { body: { force_card: forcedCard } } : {}),
+        });
+
+        if (error) {
+          console.error('[subscription] ❌ Get payment method error:', error.message);
+          return null;
+        }
+
+        if (!data || !data.payment_method) {
+          console.log('[subscription] ℹ️ No payment method found');
+          if (!forcedCard) {
+            _pmCache = null;
+          }
+          return null;
+        }
+
+        const pm = data.payment_method as PaymentMethodInfo;
+        if (forcedCard) {
+          // QA-forced read: never poison the shared cache — a later disarmed
+          // read must see the real server-selected card.
+          console.log(`[subscription] ✅ Payment method retrieved (QA forced: ${forcedCard})`);
+          return pm;
+        }
+        _pmCache = pm;
+        console.log('[subscription] ✅ Payment method retrieved');
+        return _pmCache;
+      } catch (error) {
+        const err = error as Error;
+        console.error('[subscription] ❌ getPaymentMethod error:', err.message);
+        if (!forcedCard) {
+          _pmCache = null;
+        }
         return null;
       }
+    })();
+  };
 
-      if (!data || !data.payment_method) {
-        console.log('[subscription] ℹ️ No payment method found');
-        _pmCache = null;
-        return null;
-      }
-
-      _pmCache = data.payment_method as PaymentMethodInfo;
-      console.log('[subscription] ✅ Payment method retrieved');
-      return _pmCache;
-    } catch (error) {
-      const err = error as Error;
-      console.error('[subscription] ❌ getPaymentMethod error:', err.message);
-      _pmCache = null;
-      return null;
-    }
-  })();
-
+  if (forcedCard) {
+    // QA-forced read: do not dedupe against, or store into, the shared promise.
+    return fetchPm();
+  }
+  _pmPromise = fetchPm();
   return _pmPromise;
 }
 

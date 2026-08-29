@@ -45,6 +45,7 @@ import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
 import { BillingHistoryLink } from '@/components/subscription/BillingHistoryLink';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
 const CANCELLATION_REASONS = [
@@ -539,7 +540,7 @@ export default function ManageKidsClubScreen() {
 
             {/* Custom Reason Input */}
             {selectedReason === 'other' && (
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 testID="cancel-reason-other-input"
                 accessibilityLabel="Other cancellation reason"
                 style={styles.customReasonInput}

@@ -32,6 +32,7 @@ import { getBrandSuggestions } from '@/services/brandAutocomplete';
 import { countListings } from '@/services/discovery';
 import { ds, dsRadii, dsType } from '@/theme/discoveryTokens';
 import RadiusSlider from '@/components/RadiusSlider';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface Category {
   id: string;
@@ -380,7 +381,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             <Text style={styles.sectionTitle}>LOCATION</Text>
 
             <View style={styles.locationInputsRow}>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={styles.locationZipInput}
                 placeholder="ZIP code"
                 placeholderTextColor={COLORS.textTertiary}
@@ -574,7 +575,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>BRAND</Text>
                   <View style={styles.brandInputContainer}>
-                    <TextInput
+                    <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                       style={styles.brandInput}
                       placeholder="Type brand name (min 2 chars)..."
                       value={brandQuery}
@@ -634,7 +635,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                   </View>
                   <Text style={styles.customPriceLabel}>Custom Range:</Text>
                   <View style={styles.priceInputRow}>
-                    <TextInput
+                    <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                       style={styles.priceInput}
                       placeholder="Min"
                       keyboardType="numeric"
@@ -644,7 +645,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                       testID="filter-price-min"
                     />
                     <Text style={styles.priceToText}>to</Text>
-                    <TextInput
+                    <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                       style={styles.priceInput}
                       placeholder="Max"
                       keyboardType="numeric"

@@ -65,6 +65,7 @@ import {
   Trash,
 } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -1161,7 +1162,7 @@ function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModa
         {selectedType === 'paypal' && (
           <View style={styles.inputSection}>
             <Text style={styles.inputLabel}>PayPal Email</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.input}
               placeholder="your.email@example.com"
               keyboardType="email-address"
@@ -1175,7 +1176,7 @@ function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModa
         {selectedType === 'venmo' && (
           <View style={styles.inputSection}>
             <Text style={styles.inputLabel}>Venmo Handle or Phone</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.input}
               placeholder="@username or +1234567890"
               autoCapitalize="none"

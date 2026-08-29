@@ -18,6 +18,7 @@ import { supabase } from '@/config/supabase';
 import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface ContactSupportScreenProps {
   navigation: any;
@@ -151,7 +152,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
             <Text style={styles.label}>SUBJECT</Text>
             <View style={styles.inputWrapper}>
               <EnvelopeSimple size={20} color="#6B6B6B" />
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={styles.input}
                 placeholder="Enter subject"
                 placeholderTextColor="#999999"
@@ -170,7 +171,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
             <>
               {/* HONEYPOT — positioned off-screen + zero opacity, invisible to real
                   users but present in the tree so automated fillers pick it up. */}
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={styles.honeypot}
                 placeholder="Company (optional)"
                 placeholderTextColor="transparent"
@@ -187,7 +188,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
                 <Text style={styles.label}>YOUR EMAIL (SO WE CAN REPLY)</Text>
                 <View style={styles.inputWrapper}>
                   <EnvelopeSimple size={20} color="#6B6B6B" />
-                  <TextInput
+                  <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                     style={styles.input}
                     placeholder="you@example.com"
                     placeholderTextColor="#999999"
@@ -206,7 +207,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>PHONE (OPTIONAL)</Text>
                 <View style={styles.inputWrapper}>
-                  <TextInput
+                  <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                     style={styles.input}
                     placeholder="(XXX) XXX-XXXX"
                     placeholderTextColor="#999999"
@@ -226,7 +227,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
           <View style={styles.inputGroup}>
             <Text style={styles.label}>MESSAGE</Text>
             <View style={styles.textareaWrapper}>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={styles.textarea}
                 placeholder="Describe your issue or question…"
                 placeholderTextColor="#999999"

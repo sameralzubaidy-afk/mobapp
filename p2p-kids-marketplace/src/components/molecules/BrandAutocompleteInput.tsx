@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 
 import { getBrandSuggestions } from '@/services/brandAutocomplete';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export interface BrandAutocompleteInputProps extends Omit<TextInputProps, 'onChange' | 'value'> {
   value: string;
@@ -149,7 +150,7 @@ export function BrandAutocompleteInput({
       )}
 
       <View style={styles.inputContainer}>
-        <TextInput
+        <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
           style={styles.input}
           value={query}
           onChangeText={handleChangeText}

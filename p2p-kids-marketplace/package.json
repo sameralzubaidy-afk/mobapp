@@ -10,6 +10,7 @@
     "qa:image-diff": "node scripts/qa/image-diff.mjs",
     "qa:inspect-screen": "node scripts/qa/inspect-screen.mjs",
     "qa:ax-tree": "node scripts/qa/ax-tree.mjs",
+    "qa:ensure-buyer3-card": "node scripts/qa/ensure-buyer3-valid-card.mjs",
     "testid-drift-check": "node scripts/testid-drift-check.mjs",
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start --clear",

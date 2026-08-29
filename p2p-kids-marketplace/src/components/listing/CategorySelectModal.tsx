@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BonusBadge } from '../shared/BonusBadge';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export interface Category {
   id: string;
@@ -137,7 +138,7 @@ export function CategorySelectModal({
           </TouchableOpacity>
         </View>
 
-        <TextInput
+        <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
           style={styles.searchInput}
           placeholder="Search categories..."
           value={searchQuery}
@@ -185,7 +186,7 @@ export function CategorySelectModal({
         ) : (
           <View style={styles.otherInputContainer}>
             <Text style={styles.otherLabel}>Enter custom category name:</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.otherInput}
               placeholder="e.g., Baby Gear, Sports Equipment"
               value={customCategory}

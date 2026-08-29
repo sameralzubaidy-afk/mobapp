@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { PriceTier, PriceSuggestion } from '../../types/listing';
 import { calculateCategorySP } from '../../services/categoryService';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export interface PriceSuggestionCardProps {
   tiers: PriceSuggestion[];
@@ -183,7 +184,7 @@ export function PriceSuggestionCard({
         <Text style={styles.manualLabel}>Set custom price</Text>
         <View style={styles.inputWrapper}>
           <Text style={styles.currencySymbol}>$</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={styles.input}
             value={manualValue}
             onChangeText={onChangeManual}

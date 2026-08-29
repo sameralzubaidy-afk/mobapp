@@ -94,6 +94,11 @@ import QaLogoutDeepLinkHandler from '@/components/QaLogoutDeepLinkHandler';
 // QA-only session-local toggle deep link handler (dev/staging only) — arms/disarms
 // the A03/D02/C04 QA toggles via p2pkidsmarketplace://qa-dev-toggle. See component.
 import QaDevToggleDeepLinkHandler from '@/components/QaDevToggleDeepLinkHandler';
+// Dev Task 44 item 3: the iOS keyboard-done accessory is rendered ONCE at the app
+// root so every TextInput carrying inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+// app-wide (including the shared TextInput components) gets the Done bar. Renders
+// nothing on Android and is inert/empty otherwise.
+import { KeyboardDoneAccessory } from '@/components/shared/KeyboardDoneAccessory';
 // F03 (ACC-TC-F03): real connectivity boundary — navigates to Offline when the
 // network drops during active (authenticated) use. Uses navigationRef.
 import ConnectivityGate from '@/components/ConnectivityGate';
@@ -1024,6 +1029,9 @@ export default function AppNavigator() {
         {/* QA-only session-local toggle handler (no auth dependency — safe anywhere).
             Inert in production builds (see QaDevToggleDeepLinkHandler gate). */}
         <QaDevToggleDeepLinkHandler />
+        {/* iOS keyboard-done accessory — mounted once at the root for every wired
+            TextInput app-wide (Dev Task 44 item 3). Android: renders nothing. */}
+        <KeyboardDoneAccessory />
         <RootNavigator />
       </StripeProviderWrapper>
     </AuthProvider>

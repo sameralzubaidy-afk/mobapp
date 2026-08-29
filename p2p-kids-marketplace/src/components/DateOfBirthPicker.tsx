@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, TextInput, StyleSheet, Text } from 'react-native';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface DateOfBirthPickerProps {
   value: string; // Expected format: YYYY-MM-DD
@@ -89,7 +90,7 @@ export const DateOfBirthPicker: React.FC<DateOfBirthPickerProps> = ({
         {/* Day Input */}
         <View style={styles.fieldWrapper}>
           <Text style={styles.fieldLabel}>Day</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             style={[styles.dateInput, error && styles.dateInputError]}
             placeholder="DD"
             placeholderTextColor="#999"
@@ -105,7 +106,7 @@ export const DateOfBirthPicker: React.FC<DateOfBirthPickerProps> = ({
         {/* Month Input */}
         <View style={styles.fieldWrapper}>
           <Text style={styles.fieldLabel}>Month</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             ref={monthRef}
             style={[styles.dateInput, error && styles.dateInputError]}
             placeholder="MM"
@@ -122,7 +123,7 @@ export const DateOfBirthPicker: React.FC<DateOfBirthPickerProps> = ({
         {/* Year Input */}
         <View style={styles.fieldWrapper}>
           <Text style={styles.fieldLabel}>Year</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             ref={yearRef}
             style={[styles.dateInput, error && styles.dateInputError]}
             placeholder="YYYY"

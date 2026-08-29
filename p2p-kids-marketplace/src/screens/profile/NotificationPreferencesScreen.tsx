@@ -31,6 +31,7 @@ import {
   NotificationCategory,
 } from '@/services/notificationPreferences';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 const CATEGORY_LABELS: Record<NotificationCategory, string> = {
   subscription: 'Subscription & Membership',
@@ -364,7 +365,7 @@ export default function NotificationPreferencesScreen({ navigation: _navigation 
                     <View style={styles.timeRow}>
                       <View style={styles.timeInputBlock}>
                         <Text style={styles.timeLabel}>Start (HH:MM)</Text>
-                        <TextInput
+                        <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                           testID="quiet-hours-start-input"
                           style={styles.timeInput}
                           value={quietHoursStartInput}
@@ -378,7 +379,7 @@ export default function NotificationPreferencesScreen({ navigation: _navigation 
 
                       <View style={styles.timeInputBlock}>
                         <Text style={styles.timeLabel}>End (HH:MM)</Text>
-                        <TextInput
+                        <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                           testID="quiet-hours-end-input"
                           style={styles.timeInput}
                           value={quietHoursEndInput}

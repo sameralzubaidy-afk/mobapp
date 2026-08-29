@@ -17,6 +17,7 @@ import { ColorPicker } from '../listing/ColorPicker';
 import { AgeGroupSelector } from '../listing/AgeGroupSelector';
 import { GenderSelector } from '../listing/GenderSelector';
 import { SPEarningsPreview } from '../listing/SPEarningsPreview';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 /**
  * Human-readable labels for missingRequired field keys.
@@ -238,7 +239,7 @@ export function BulkItemCard({
       {expanded && (
         <ScrollView style={styles.form} nestedScrollEnabled>
           <Text style={styles.fieldLabel}>Title *</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             value={item.title}
             onChangeText={(title) => onChange({ title })}
             placeholder="Title *"
@@ -247,7 +248,7 @@ export function BulkItemCard({
           />
 
           <Text style={styles.fieldLabel}>Description</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             value={item.description}
             onChangeText={(description) => onChange({ description })}
             placeholder="Description"
@@ -272,7 +273,7 @@ export function BulkItemCard({
           {isOtherCategory && (
             <>
               <Text style={styles.fieldLabel}>Custom Category Name *</Text>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 value={item.requested_category_name || ''}
                 onChangeText={(requested_category_name) => onChange({ requested_category_name })}
                 placeholder="e.g., Board Games"
@@ -292,7 +293,7 @@ export function BulkItemCard({
           />
 
           <Text style={styles.fieldLabel}>Price *</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             value={item.price}
             onChangeText={(price) => onChange({ price })}
             keyboardType="numeric"
@@ -311,7 +312,7 @@ export function BulkItemCard({
           />
 
           <Text style={styles.fieldLabel}>Brand</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             value={item.brand}
             onChangeText={(brand) => onChange({ brand })}
             placeholder="Brand"

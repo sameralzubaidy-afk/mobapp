@@ -30,6 +30,7 @@ import { captureException } from '@/services/errorReporter';
 import type { SellerPayoutMethod } from '@/types/payout.types';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -222,7 +223,7 @@ export default function RequestPayoutScreen() {
               testID="amount-input-wrapper"
             >
               <Coins size={20} color="#F59E0B" weight="fill" />
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 testID="amount-input"
                 style={styles.amountInput}
                 placeholder="0"

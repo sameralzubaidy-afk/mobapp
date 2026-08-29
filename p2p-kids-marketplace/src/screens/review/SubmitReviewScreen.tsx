@@ -25,6 +25,7 @@ import { StarRating } from '@/components/StarRating';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 import { theme } from '@/theme';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
@@ -190,7 +191,7 @@ export function SubmitReviewScreen() {
           {/* Comment Section */}
           <View style={styles.section}>
             <Text style={styles.label}>Comment (optional)</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.commentInput}
               placeholder="Share your experience with this trade..."
               placeholderTextColor="#9CA3AF"

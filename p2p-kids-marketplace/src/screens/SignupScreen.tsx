@@ -26,6 +26,7 @@ import { signupWithTrial } from '../services/auth';
 import { SignupInput, AuthError } from '../types/user';
 import { SocialLoginButtons } from '../components/auth/SocialLoginButtons';
 import type { OAuthProvider } from '@/types/auth-v3';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -250,7 +251,7 @@ export const SignupScreen: React.FC = () => {
           {/* Email */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               ref={emailInputRef}
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
@@ -268,7 +269,7 @@ export const SignupScreen: React.FC = () => {
           {/* Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="At least 8 characters"
               testID="signup-password-input"
@@ -285,7 +286,7 @@ export const SignupScreen: React.FC = () => {
           {/* Confirm Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.confirmPassword && styles.inputError]}
               placeholder="Re-enter password"
               testID="signup-confirm-password-input"
@@ -304,7 +305,7 @@ export const SignupScreen: React.FC = () => {
           {/* Display Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Display Name</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.displayName && styles.inputError]}
               placeholder="How should we call you?"
               testID="signup-display-name-input"
@@ -320,7 +321,7 @@ export const SignupScreen: React.FC = () => {
           {/* Age */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Age (5-17)</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.age && styles.inputError]}
               placeholder="Your age"
               testID="signup-age-input"
@@ -336,7 +337,7 @@ export const SignupScreen: React.FC = () => {
           {/* ZIP Code */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>ZIP Code</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.zipCode && styles.inputError]}
               placeholder="12345"
               testID="signup-zip-input"
@@ -355,7 +356,7 @@ export const SignupScreen: React.FC = () => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Parent/Guardian Email</Text>
               <Text style={styles.helperText}>Required for users under 13 (COPPA compliance)</Text>
-              <TextInput
+              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={[styles.input, errors.parentalEmail && styles.inputError]}
                 placeholder="parent@example.com"
                 testID="signup-parent-email-input"

@@ -47,6 +47,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner, OTPInput } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 import type { ProfileUpdateData } from '@/types/profile.types';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 // Temporary fallback: generated Database types may be missing in local dev.
 // Use `any` here to unblock type-checking until DB types are generated.
 type UserProfile = any;
@@ -1150,7 +1151,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
           </View>
           <View style={[styles.inputWrapper, styles.inputDisabled]}>
             <User size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, styles.inputTextDisabled]}
               value={displayName}
               editable={false}
@@ -1175,7 +1176,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
           </View>
           <View style={[styles.inputWrapper, styles.inputDisabled]}>
             <CalendarBlank size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, styles.inputTextDisabled]}
               value={formatDobForDisplay(dob)}
               editable={false}
@@ -1193,7 +1194,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
               weight="regular"
               style={{ marginRight: 12 }}
             />
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               testID="edit-profile-email-input"
               accessibilityLabel="Email address"
               style={styles.input}
@@ -1214,7 +1215,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
           <Text style={styles.label}>PHONE NUMBER</Text>
           <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
             <Phone size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               testID="edit-profile-phone-input"
               accessibilityLabel="Phone number"
               style={styles.input}
@@ -1234,7 +1235,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
           <Text style={styles.label}>ZIP CODE (CANNOT BE CHANGED)</Text>
           <View style={[styles.inputWrapper, styles.inputDisabled]}>
             <MapPin size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, styles.inputTextDisabled]}
               value={zipCode}
               editable={false}
@@ -1246,7 +1247,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
         {/* Bio */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>BIO</Text>
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             testID="edit-profile-bio-input"
             accessibilityLabel="Bio"
             style={styles.textArea}

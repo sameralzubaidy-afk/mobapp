@@ -34,6 +34,20 @@ serve(async (req) => {
   }
 
   try {
+    // Parse optional force_card (QA forced-card toggle, Dev Task 44). Test-only:
+    // the mobile client only sends this when the `payment_card` QA toggle is
+    // armed in a dev/test build. Harmless in production — an absent/invalid
+    // body is simply ignored and the normal DT41 selection runs.
+    let forceCard: string | null = null;
+    try {
+      const body = await req.json();
+      if (typeof body?.force_card === 'string' && body.force_card) {
+        forceCard = body.force_card;
+      }
+    } catch {
+      // No body (plain GET or empty POST) — force_card stays null.
+    }
+
     // Get user from JWT
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -129,19 +143,46 @@ serve(async (req) => {
 
         // listPaymentMethods returns the default payment method first, then by
         // created_at DESC (most recently used/added first).
-        let selected: string | null;
-        if (paymentMethodId && cards.some((pm: any) => pm.id === paymentMethodId)) {
-          // Stored card still present and valid — keep it (deterministic).
-          selected = paymentMethodId;
-        } else if (cards.length > 0) {
-          // Stored card is gone/expired — fall back to the customer's default /
-          // most recently created valid card.
-          selected = cards[0]?.id ?? null;
-        } else {
-          // No cards returned for this customer from this Stripe account —
-          // NEVER discard the stored id (the retrieve below decides). This
-          // preserves the pre-DT41 behavior if the list call is empty/quirky.
-          selected = paymentMethodId;
+        let selected: string | null = null;
+        if (forceCard) {
+          // QA forced-card selection (Dev Task 44): match the armed preference —
+          // a raw `pm_...` id or a `brand_last4` short name (e.g. mastercard_4444)
+          // — against the customer's valid cards. If it resolves, use it;
+          // otherwise fail-closed to the DT41 default below (never break a
+          // normal request because a QA preference can't be found).
+          const forced = cards.find((pm: any) => {
+            if (pm.id === forceCard) return true;
+            if (!forceCard.includes('_')) return false; // short names carry '_'
+            const brand = String(pm.card?.brand ?? '').toLowerCase().replace(/[\s-]/g, '');
+            const last4 = String(pm.card?.last4 ?? '');
+            return `${brand}_${last4}` === forceCard;
+          });
+          if (forced) {
+            selected = forced.id;
+            console.log(
+              `[get-payment-method] QA force_card "${forceCard}" → ${forced.id} (${forced.card?.brand} •••• ${forced.card?.last4})`
+            );
+          } else {
+            console.warn(
+              `[get-payment-method] QA force_card "${forceCard}" not found among ${cards.length} valid card(s); falling back to DT41 default`
+            );
+            selected = null;
+          }
+        }
+        if (!selected) {
+          if (paymentMethodId && cards.some((pm: any) => pm.id === paymentMethodId)) {
+            // Stored card still present and valid — keep it (deterministic).
+            selected = paymentMethodId;
+          } else if (cards.length > 0) {
+            // Stored card is gone/expired — fall back to the customer's default /
+            // most recently created valid card.
+            selected = cards[0]?.id ?? null;
+          } else {
+            // No cards returned for this customer from this Stripe account —
+            // NEVER discard the stored id (the retrieve below decides). This
+            // preserves the pre-DT41 behavior if the list call is empty/quirky.
+            selected = paymentMethodId;
+          }
         }
 
         if (selected && selected !== paymentMethodId) {

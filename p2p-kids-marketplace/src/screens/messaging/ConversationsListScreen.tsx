@@ -43,6 +43,7 @@ import { supabase } from '@/config/supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export default function ConversationsListScreen() {
   const navigation = useNavigation<any>();
@@ -357,7 +358,7 @@ export default function ConversationsListScreen() {
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <MagnifyingGlass size={20} color="#6B6B6B" weight="regular" />
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             testID="conversations-search-input"
             style={styles.searchInput}
             placeholder="Search conversations"

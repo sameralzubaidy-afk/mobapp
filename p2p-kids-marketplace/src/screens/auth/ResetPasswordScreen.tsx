@@ -20,6 +20,7 @@ import { supabase } from '@/services/supabase/client';
 import { captureException } from '@/services/errorReporter';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export default function ResetPasswordScreen() {
   const navigation = useNavigation();
@@ -282,7 +283,7 @@ export default function ResetPasswordScreen() {
           </View>
 
           {/* New Password Input */}
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             label="New Password"
             testID="reset-new-password-input"
             placeholder="Enter new password"
@@ -301,7 +302,7 @@ export default function ResetPasswordScreen() {
           />
 
           {/* Confirm Password Input */}
-          <TextInput
+          <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             label="Confirm Password"
             testID="reset-confirm-password-input"
             placeholder="Confirm new password"

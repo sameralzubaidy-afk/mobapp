@@ -22,6 +22,7 @@ import { useAuth } from '../hooks/useAuth';
 import { AuthError } from '../types/user';
 import { SocialLoginButtons } from '../components/auth/SocialLoginButtons';
 import type { OAuthProvider } from '@/types/auth-v3';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -180,7 +181,7 @@ export const LoginScreen: React.FC = () => {
           {/* Email */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               ref={emailInputRef}
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
@@ -198,7 +199,7 @@ export const LoginScreen: React.FC = () => {
           {/* Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
+            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Enter your password"
               testID="login-password-input"

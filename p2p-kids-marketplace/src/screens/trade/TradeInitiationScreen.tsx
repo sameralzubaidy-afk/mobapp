@@ -47,10 +47,7 @@ import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import ScreenLayout from '@/components/ScreenLayout';
-import {
-  KeyboardDoneAccessory,
-  KEYBOARD_DONE_ACCESSORY_ID,
-} from '@/components/shared/KeyboardDoneAccessory';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 // MODULE-15.3-PART3 TAX-011: tax preview row
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
@@ -845,8 +842,6 @@ export default function TradeInitiationScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <KeyboardDoneAccessory />
 
       {/* Disclaimer Modal - Conditional render to prevent aggressive native view parsing */}
       {showDisclaimer && (

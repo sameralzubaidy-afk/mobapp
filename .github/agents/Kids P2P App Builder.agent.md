@@ -700,7 +700,7 @@ Issue: "Admin changed a config value but the app/UI still shows the old value"
 
 ✅ Check: Pull-to-refresh passes `forceRefresh = true` to bypass in-memory caches (BP-15)
 ✅ Check: Client error copy isn't hardcoding a numeric value the server should own (BP-28)
-✅ Check: COALESCE chain for the config/secret has a hardcoded fallback, not just the base URL (BP-22)
+✅ Check: the COALESCE chain's hardcoded fallback covers ONLY non-secret values (base URL) — the service role key resolves from config with no baked-in fallback, and no literal credential is baked into a cron `net.http_post` header (BP-22)
 Issue: "Tax amount looks wrong when the buyer applies Swap Points"
 
 ✅ Check: Tax is calculated on the full item price, never on `cash_amount_cents`/SP-reduced amount (BP-37)
@@ -1300,7 +1300,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-19 Cron-invoked EFs — `verify_jwt = false` in config.toml + `--no-verify-jwt` on deploy.
 - BP-20 Before building notifications — search for existing DB triggers that already cover the event.
 - BP-21 RPC → data-only refactor — the corresponding cron.schedule must exist in the same migration.
-- BP-22 API-key COALESCE chains — always include a hardcoded fallback, not just for base URLs.
+- BP-22 Secret keys (service role) — resolve ONLY from config at runtime; never a hardcoded fallback and never baked into a cron `net.http_post` header (hardcoded fallback allowed only for non-secret base URLs).
 - BP-23 Realtime callbacks — must mirror the same side effects the mount-time effect performs.
 - BP-24 Partial reverts — leave a `// DEFERRED-DECISION` comment on code that survives a partial revert.
 - BP-25 Edge Function compile gate — use `deno check --no-lock`, not `get_errors` (false positives on Deno globals).
@@ -1415,7 +1415,7 @@ If a trigger already exists, only implement code for events the trigger does NOT
 
 BP-21: Cron Job Must Be Created When Refactoring RPC from HTTP-Calling to Data-Only — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-BP-22: COALESCE Chains for API Keys Must Include Hardcoded Fallback — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+BP-22: Secret Keys Must Resolve from Config at Runtime — Never Hardcoded or Baked into a Cron Header — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
 BP-44: Tax/SP/Fee RPC Recompute Must Be Category-Aware and Match the Offer-Time Value — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 

@@ -11,6 +11,10 @@ import {
   TextInputProps,
   ViewStyle,
 } from 'react-native';
+// Dev Task 44 item 3: shared TextInput renders the iOS keyboard-done accessory
+// for every field (the <KeyboardDoneAccessory /> bar is mounted once at the app
+// root). Harmless on Android (InputAccessoryView renders nothing there).
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -59,6 +63,7 @@ export function TextInput({
           testID={testID}
           accessibilityLabel={label}
           {...rest}
+          inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
         />
         {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
       </View>

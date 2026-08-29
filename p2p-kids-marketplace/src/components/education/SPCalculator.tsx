@@ -17,6 +17,7 @@ import type { CategoryWithCount } from '../../services/categoryService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
 import { CategorySelectModal } from '../listing/CategorySelectModal';
 import { BonusCategoryBadge } from './BonusCategoryBadge';
+import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface SPCalculatorProps {
   mode: 'free' | 'auto' | 'locked';
@@ -205,7 +206,7 @@ export function SPCalculator({
       {/* Price Input */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Item Price ($)</Text>
-        <TextInput
+        <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
           style={[styles.input, !isEditable && styles.readonlyInput]}
           value={price}
           onChangeText={(text) => {

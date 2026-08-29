@@ -26,6 +26,10 @@ import {
   getQaCrashTriggerMode,
   QA_POLICY_LOAD_FAILURE_KEY,
   getQaPolicyLoadFailureMode,
+  QA_FORCE_CARD_DECLINE_KEY,
+  QA_CONFIG_FETCH_FAILURE_KEY,
+  QA_PAYMENT_CARD_KEY,
+  getSimulatedPaymentCardPreference,
   setQaLocalValue,
   clearQaLocalValues,
   isValidQaToggleValue,
@@ -327,6 +331,9 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
       crash_trigger: QA_CRASH_TRIGGER_KEY,
       policy_failure: QA_POLICY_LOAD_FAILURE_KEY,
+      card_decline: QA_FORCE_CARD_DECLINE_KEY,
+      config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
+      payment_card: QA_PAYMENT_CARD_KEY,
     });
   });
 
@@ -363,7 +370,73 @@ describe('devTestingService — session-local QA toggle storage + validation', (
     expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'none')).toBe(true);
     expect(isValidQaToggleValue(QA_POLICY_LOAD_FAILURE_KEY, 'random_junk')).toBe(false);
 
+    // payment_card
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'mastercard_4444')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'visa_4242')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'pm_1To5Vb4I6kCJlvXoCUYo0CI3')).toBe(false);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'random_junk')).toBe(false);
+
     // Unknown storage key → always invalid.
     expect(isValidQaToggleValue('qa_unknown', 'token')).toBe(false);
+  });
+});
+
+describe('devTestingService — getSimulatedPaymentCardPreference (TRD-TC-B03/B06, session-local)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+  });
+
+  it('returns null when the toggle is unset (fail-closed)', async () => {
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBeNull();
+  });
+
+  it('returns the armed brand+last4 short name', async () => {
+    await setQaLocalValue(QA_PAYMENT_CARD_KEY, 'mastercard_4444');
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBe('mastercard_4444');
+
+    await setQaLocalValue(QA_PAYMENT_CARD_KEY, 'visa_4242');
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBe('visa_4242');
+  });
+
+  it('returns a raw pm_... id when armed with one', async () => {
+    const pmId = 'pm_1To5Vb4I6kCJlvXoCUYo0CI3';
+    await setQaLocalValue(QA_PAYMENT_CARD_KEY, pmId);
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBe(pmId);
+  });
+
+  it('returns null for "none" and unknown values (fail-closed)', async () => {
+    await setQaLocalValue(QA_PAYMENT_CARD_KEY, 'none');
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBeNull();
+
+    await setQaLocalValue(QA_PAYMENT_CARD_KEY, 'random_junk');
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBeNull();
+  });
+
+  it('expires the toggle after the TTL (fail-closed)', async () => {
+    const expired = JSON.stringify({
+      value: 'mastercard_4444',
+      setAt: new Date(Date.now() - 61 * 60 * 1000).toISOString(),
+    });
+    await AsyncStorage.setItem(QA_PAYMENT_CARD_KEY, expired);
+
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBeNull();
+  });
+
+  it('registers payment_card in the deep-link short-name map + validation', () => {
+    expect(QA_TOGGLE_SHORT_NAMES.payment_card).toBe(QA_PAYMENT_CARD_KEY);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'mastercard_4444')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'visa_4242')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'bogus')).toBe(false);
+  });
+
+  it('clearQaLocalValues removes the forced-card toggle', async () => {
+    await setQaLocalValue(QA_PAYMENT_CARD_KEY, 'mastercard_4444');
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBe('mastercard_4444');
+
+    await clearQaLocalValues();
+    await expect(getSimulatedPaymentCardPreference()).resolves.toBeNull();
   });
 });
