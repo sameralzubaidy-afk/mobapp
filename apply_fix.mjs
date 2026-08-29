@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 
+// DEV-TASK-47: the service-role key was previously hardcoded here (a committed
+// secret). It must now come from the environment only — fail fast if unset.
 const supabaseUrl = 'https://drntwgporzabmxdqykrp.supabase.co';
-const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybnR3Z3BvcnphYm14ZHF5a3JwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTI3NzU2NSwiZXhwIjoyMDgwODUzNTY1fQ.6a7vFP2L4OjUcEqEUkwdryGPwONQe3-LR6BY3FA2Qss';
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!serviceRoleKey) {
+  console.error('SUPABASE_SERVICE_ROLE_KEY env var is required (DEV-TASK-47 removed the hardcoded key).');
+  process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
