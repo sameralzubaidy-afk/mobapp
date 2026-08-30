@@ -498,6 +498,31 @@ This subsection encodes the four money-path verification standards from the QA T
 
 **R36 — Read the applied tax/fee rate from the DB/config, never a fixed guide number, when writing verification assertions.** Rates are admin-configurable and guide numbers go stale. When computing the expected money figure, SELECT the live rate first and use it in the assertion so a changed config can't silently invalidate the verdict. Extends R25 (pre-case live-config re-read) to assertion time.
 
+### 5.44 Standing rules — Legitimate `admin_config` write paths for QA fixtures (DEV-TASK-65, 2026-08-30) — R37
+
+QA Task 7 N01 rediscovered (the hard way, via wasted calls) that writing `admin_config` through MCP SQL now correctly fails with `P0001 UNAUTHORIZED`. That is the DT-56a/DT-59 security lockdown working as intended (`admin_config` holds every money lever), NOT a bug. Do NOT rediscover it again — use the documented legitimate paths below. *Evidence: `e2e-test-results/qa-task7-expanded-lmn-retest-2026-08-30/decision-and-outcome-log.md` D2; grants verified live 2026-08-30 (`upsert_admin_config_setting` → authenticated+service_role; `secure_upsert_admin_config` → service_role only).*
+
+**R37 — Use the `qa:admin-config-set` helper (or the admin-portal UI/API) for ANY QA fixture that needs to set an `admin_config` value. Never attempt a raw MCP-SQL write** (anon/no-role JWT → `P0001 UNAUTHORIZED` — the lockdown working). The three legitimate paths, fastest first:
+
+1. **Helper script (preferred, no UI/no server):** from `p2p-kids-marketplace/`:
+   - `npm run qa:admin-config-set -- set --key <k> --value <v> [--category <cat>] [--data-type <t>] [--is-active true|false] [--is-secret true|false] [--admin-id <uuid>] [--dry-run]` — calls `public.upsert_admin_config_setting` (the exact shared BP-48 write RPC the admin settings pages + `/config` API use) authenticated with `SUPABASE_SERVICE_ROLE_KEY` from `.env`/`.env.staging` (the same credential the admin portal's server-side API routes use). The RPC's own guard (`current_setting('role')='service_role'` OR `admin_has_role(auth.uid())`) still applies — nothing is bypassed. The script auto-reads the row back after `set`; `get --key <k>` and `list [--category <cat>]` read current values. Defaults: `category=feature_flags`, `data-type=string`, `is-active=true`, `is-secret=false`, `admin-id=null` (null preserves the previous `updated_by` editor, per DT-59).
+   - Verified live 2026-08-30: set `cart_min_value_cents` 0→7777→0 with DB read-back matching on both writes.
+2. **Admin portal settings-page UI (browser, admin JWT):** what QA Task 7 N01 ended up using (e.g. `/settings/cart`). Slow but fully legitimate; the same RPC runs with `auth.uid()` = the signed-in admin.
+3. **Admin portal API (portal must be running on `:3001`):** `PATCH http://localhost:3001/api/admin/config` with header `x-admin-secret: <ADMIN_UI_SECRET>` and body `{"key":"<k>","value":"<v>","user_id":null}` → server-side service_role → `secure_upsert_admin_config` (key/value only; preserves existing category; always `is_active=true`; auto-pauses listings when raising `min_listing_price`).
+
+**R37 notes —** `qa:admin-config-set` NEVER re-grants/weakens anything; if it ever errors `P0001 UNAUTHORIZED`, the credential in `.env`/`.env.staging` is wrong or missing — fix the env, don't hunt for a bypass. Always restore fixture config values after the case (same zero-residue discipline as §5.37/D6) and record the touched keys + restored values in `App State Left Behind`.
+
+### 5.45 Standing rules — Accepted verdict class for VoiceOver swipe-gesture testing (DEV-TASK-65, 2026-08-30) — R38
+
+Dev Task 62's AX-modal fix (item 5) was repeatedly marked PARTIAL because VoiceOver swipe-gesture interaction "isn't directly testable via the current mobile-mcp tooling." DEV-TASK-65 investigated option (a) — drive VoiceOver swipe gestures for real — and concluded it is infeasible with any available tool; the accepted convention is option (b), a named verdict class, so future runs classify consistently instead of rediscovering the limitation each time. *Evidence: `e2e-test-results/dev-task-65-qa-toolkit-r3-2026-08-30/` (investigation trace: plist enable attempts, Settings-UI attempt, gesture observations, tool-inventory enumeration).*
+
+**R38 — For any AX/dialog/accessibility verification where the question is "does VoiceOver really work here?", classify with the accepted verdict class `AX-tree-exposure-verified, VoiceOver-swipe-interaction-not-directly-testable`** — NOT a rediscovered PARTIAL, and never a guess. The class is defined as:
+
+- **Verified leg (must be done every time):** the element(s) ARE exposed in the iOS accessibility hierarchy — confirm via `mobile_list_elements_on_screen` (the AX tree is exactly what VoiceOver sees: BP-53-conformant testIDs/labels present with valid frames). This is the meaningful, assertable part of an AX fix.
+- **Not-directly-testable leg (accepted limitation, no re-litigation):** the VoiceOver *gesture interaction model* (one-finger swipes to move the VoiceOver cursor, double-tap to activate, rotor rotation, spoken-utterance feedback) cannot be driven or observed by any available tool: mobile-mcp exposes only raw coordinate touches (no rotor / no focus-next / no activate-focused / no utterance capture), the AX tree does NOT report the VoiceOver cursor position or its speech, and the VoiceOver enable path itself is not reliably drivable on the shared iOS 26.1 sim (plist key didn't activate it; the Settings→Accessibility VoiceOver row is not AX-exposed). Maestro/WDA/`simctl` expose no VoiceOver APIs either. Concluding infeasible required no more than the bounded attempts above — do not burn calls re-attempting VoiceOver gesture driving.
+- **How to label:** use the class name as the verdict in §8.1 item 3 AND in the §8.2 roll-up (count it under the accepted class, not PARTIAL/FAIL). In `Known Gaps / Not Tested`, state the untested leg explicitly: "VoiceOver swipe-interaction behavior (focus cursor movement, double-tap activation, rotor) was NOT directly driven — tooling cannot observe it; verdict covers AX-tree exposure only."
+- **Do NOT:** mark such a case FAIL or PARTIAL purely because the VoiceOver swipe leg can't be driven; do NOT silently mark it PASS implying the gesture leg was tested. The class name says exactly what was and wasn't verified.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
@@ -570,7 +595,7 @@ Before creating a throwaway account for a case, check the maintained registry of
 
 1. **Execution trace** — every tool call, in order (device, element tree, tap, type, screenshot, relaunch, …) **plus the perceived load time for each transition (see §5.7)**.
 2. **Screenshots captured** — paths + one-line description of each.
-3. **Assert result** — PASS / FAIL / BLOCKED / SKIPPED, with the specific evidence.
+3. **Assert result** — PASS / FAIL / BLOCKED / SKIPPED / `AX-tree-exposure-verified, VoiceOver-swipe-interaction-not-directly-testable` (the §5.45 R38 accepted class for AX/accessibility verifications where the VoiceOver gesture leg can't be driven — use the class name verbatim, never a rediscovered PARTIAL), with the specific evidence.
 4. **UX notes** — three clearly separated subsections:
    - *Structural / affordance*: findings + severity.
    - *Wording / copy clarity*: findings + concrete rewrite proposals.

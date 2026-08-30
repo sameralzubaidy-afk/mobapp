@@ -15,6 +15,7 @@
     "qa:reset-offer-fixtures": "node scripts/qa/reset-offer-fixtures.mjs",
     "qa:create-bundle-fixture": "node scripts/qa/create-bundle-fixture.mjs",
     "qa:ef-repro": "node scripts/qa/ef-repro.mjs",
+    "qa:admin-config-set": "node scripts/qa/admin-config-set.mjs",
     "testid-drift-check": "node scripts/testid-drift-check.mjs",
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start --clear",
