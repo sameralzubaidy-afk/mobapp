@@ -997,21 +997,25 @@ export default function ItemDetailScreen() {
                 </Pressable>
               ) : null)}
 
-            <Pressable
-              style={[styles.buyNowButton, (loading || checkingActiveTrade) && { opacity: 0.7 }]}
-              onPress={handleMakeOffer}
-              disabled={loading || checkingActiveTrade}
-              testID="request-to-buy-button"
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Request to buy button"
-            >
-              {checkingActiveTrade ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buyNowButtonText}>Request to Buy</Text>
-              )}
-            </Pressable>
+            {/* DEV-TASK-66 item 4: gate Request to Buy for the listing owner
+                (mirror the CART-014 Add-to-Cart gate — no buy CTA on own listings). */}
+            {user?.id !== listing?.seller_id && (
+              <Pressable
+                style={[styles.buyNowButton, (loading || checkingActiveTrade) && { opacity: 0.7 }]}
+                onPress={handleMakeOffer}
+                disabled={loading || checkingActiveTrade}
+                testID="request-to-buy-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Request to buy button"
+              >
+                {checkingActiveTrade ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.buyNowButtonText}>Request to Buy</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         </View>
 

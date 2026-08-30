@@ -506,7 +506,13 @@ export default function ManageKidsClubScreen() {
         onRequestClose={() => setShowCancelModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent} testID="cancel-reason-modal">
+          <View
+            style={styles.modalContent}
+            testID="cancel-reason-modal"
+            accessible
+            accessibilityRole="alert"
+            accessibilityLabel="Cancel Reason dialog"
+          >
             <Text style={styles.modalTitle}>Cancel Kids Club+?</Text>
 
             <Text style={styles.modalSubtitle}>

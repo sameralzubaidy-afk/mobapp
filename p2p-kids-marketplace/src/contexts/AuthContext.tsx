@@ -766,9 +766,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
 
             // ADMIN-V2-003: can_spend_sp now checks BOTH subscription AND wallet state
+            // DEV-TASK-66 item 1: grace users may spend (wallet 'grace_period' is
+            // spendable — consistent with R6 fn_reserve_sp_on_offer).
             const canSpendSP =
-              (subscriptionStatus === 'trial' || subscriptionStatus === 'active') &&
-              walletSummary.wallet_state === 'active';
+              (subscriptionStatus === 'trial' ||
+                subscriptionStatus === 'active' ||
+                subscriptionStatus === 'grace' ||
+                subscriptionStatus === 'grace_period') &&
+              (walletSummary.wallet_state === 'active' ||
+                walletSummary.wallet_state === 'grace_period');
 
             authLog('[AUTH] SP spending eligibility:', {
               subscriptionStatus,

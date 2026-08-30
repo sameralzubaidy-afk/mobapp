@@ -78,7 +78,13 @@ export default function CartCheckoutScreen() {
   const route = useRoute<RouteProps>();
   const { bundleId, bundleMode } = route.params;
   const { canSpendSP, status } = useSubscriptionStatus();
-  const isSubscriber = status === 'active' || status === 'trial';
+  // DEV-TASK-66 item 1: grace users keep the member fee tier (R6-consistent).
+  // Canonical grace literal is 'grace_period' (BP-76); keep 'grace' as legacy alias.
+  const isSubscriber =
+    status === 'active' ||
+    status === 'trial' ||
+    status === 'grace' ||
+    status === 'grace_period';
 
   const {
     setupPaymentSheet,

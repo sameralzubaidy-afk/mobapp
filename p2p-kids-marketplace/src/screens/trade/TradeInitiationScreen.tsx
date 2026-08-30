@@ -287,8 +287,13 @@ export default function TradeInitiationScreen() {
   }
 
   // Business Rules using standardized hooks
+  // DEV-TASK-66 item 1: canonical grace literal is 'grace_period' (BP-76) —
+  // keep 'grace' as a legacy alias so both real and legacy rows match.
   const isSubscriber =
-    subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
+    subStatus.status === 'active' ||
+    subStatus.status === 'trial' ||
+    subStatus.status === 'grace' ||
+    subStatus.status === 'grace_period';
   // R1: server-resolved tiered fee for display + request (legacy fallback only).
   const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
   const itemPriceCents = Math.round(item.price * 100);

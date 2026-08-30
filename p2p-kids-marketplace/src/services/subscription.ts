@@ -54,7 +54,7 @@ export type SubscriptionStatus =
 export interface SubscriptionSummary {
   // Core status
   status: SubscriptionStatus;
-  is_subscriber: boolean; // Whether user has active subscription benefits (trial, active, paused)
+  is_subscriber: boolean; // Whether user has active membership benefits (trial, active, paused, grace)
 
   // Feature gates
   can_earn_sp: boolean; // Can earn Swap Points from sales
@@ -195,10 +195,12 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
 
     // Business rule: cancelled users remain active subscribers until period end,
     // then transition to grace_period/expired via backend lifecycle jobs.
-    const isSubscriber = ['trial', 'active', 'paused', 'cancelled'].includes(status);
-
-    // SP feature gates (trial, active, paused can use SP; grace_period cannot)
-    const canEarnSpend = ['trial', 'active', 'paused', 'cancelled'].includes(status);
+    // DEV-TASK-66 item 1 (R6-consistent): grace users keep membership benefits
+    // (member fee tier, badge, no "upgrade" prompts — ItemDetail/ReviewOffer/
+    // spCalculator read this flag) and may SPEND but NOT earn.
+    const isSubscriber = ['trial', 'active', 'paused', 'cancelled', 'canceled', 'grace', 'grace_period'].includes(status);
+    const canEarnSp = ['trial', 'active', 'paused', 'cancelled'].includes(status);
+    const canSpendSp = ['trial', 'active', 'paused', 'cancelled', 'canceled', 'grace', 'grace_period'].includes(status);
 
     // Transaction fee: Read dynamically from admin_config via RPC (V2.1 enhancement)
     // This allows admins to adjust fees without code changes
@@ -218,8 +220,8 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     return {
       status,
       is_subscriber: isSubscriber,
-      can_earn_sp: canEarnSpend,
-      can_spend_sp: canEarnSpend,
+      can_earn_sp: canEarnSp,
+      can_spend_sp: canSpendSp,
       transaction_fee_cents: transactionFeeCents,
       subscription_tier_id: sub.tier_id || null,
       tier_name: isSubscriber ? 'Kids Club+' : 'Free',

@@ -160,7 +160,7 @@ describe('Subscription Service - TASK SUB-002', () => {
       expect(result.stripe_subscription_id).toBe('sub_123');
     });
 
-    it('should handle grace_period status correctly (SP frozen)', async () => {
+    it('should handle grace_period status correctly (can spend, cannot earn)', async () => {
       const mockGraceData = {
         id: 'sub-123',
         user_id: 'user-123',
@@ -197,10 +197,10 @@ describe('Subscription Service - TASK SUB-002', () => {
       const result = await getSubscriptionSummary('user-123');
 
       expect(result.status).toBe('grace_period');
-      expect(result.is_subscriber).toBe(false); // No active benefits
-      expect(result.can_earn_sp).toBe(false); // Wallet frozen
-      expect(result.can_spend_sp).toBe(false); // Wallet frozen
-      expect(result.transaction_fee_cents).toBe(299); // Non-subscriber fee
+      expect(result.is_subscriber).toBe(true); // Grace keeps membership benefits (DEV-TASK-66)
+      expect(result.can_earn_sp).toBe(false); // Grace cannot earn (R6)
+      expect(result.can_spend_sp).toBe(true); // Grace CAN spend existing SP (R6)
+      expect(result.transaction_fee_cents).toBe(299); // Mocked fee RPC returns 299
       expect(result.grace_ends_at).toBe('2026-05-02T00:00:00Z');
       expect(result.cancelled_at).toBe('2026-02-01T00:00:00Z');
       expect(result.payment_retry_count).toBe(3);

@@ -2902,7 +2902,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 3. Tap the heart icon.
 
 **Expected Result:**
-- A pink/red heart icon button is visible in the Discover header controls row with accessibility label "View Favorites".
+- A neutral-gray heart icon button is visible in the Discover header controls row (consistent with the header icon system) with accessibility label "View Favorites".
 - Tapping it navigates to the Favorites screen showing the user's saved items.
 - The heart icon does not toggle or change state — it is a navigation trigger only.
 

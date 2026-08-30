@@ -76,7 +76,9 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
         <View
           style={styles.sheet}
           testID="issue-report-modal"
+          accessible
           accessibilityRole="alert"
+          accessibilityLabel="Report an Issue dialog"
         >
           {/* Handle pill */}
           <View style={styles.handle} />

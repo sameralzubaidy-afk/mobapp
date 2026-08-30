@@ -295,8 +295,13 @@ export default function TradeOfferScreen() {
   const handleInitiateTrade = async (policyId?: string) => {
     if (!item) return;
 
+    // DEV-TASK-66 item 1: canonical grace literal is 'grace_period' (BP-76) —
+    // keep 'grace' as a legacy alias so both real and legacy rows match.
     const isSubscriber =
-      subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
+      subStatus.status === 'active' ||
+      subStatus.status === 'trial' ||
+      subStatus.status === 'grace' ||
+      subStatus.status === 'grace_period';
 
     // Calculate cash amount (item price - SP discount + fee)
     const itemPriceCents = Math.round(item.price * 100);

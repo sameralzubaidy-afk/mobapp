@@ -226,7 +226,12 @@ export default function TradeTimelineScreen() {
           // Always use cash amount — fee is on what the seller actually receives in cash
           const cashAmountCents = tradeData.cash_amount_cents ?? 0;
           const subStatus = session?.subscription_status;
-          const isSubscriber = subStatus === 'active' || subStatus === 'trial';
+          // DEV-TASK-66 item 1: grace users keep the member seller-fee tier (R6-consistent).
+          const isSubscriber =
+            subStatus === 'active' ||
+            subStatus === 'trial' ||
+            subStatus === 'grace' ||
+            subStatus === 'grace_period';
           // Use absolute percentage for the seller's tier
           const effectivePct = isSubscriber
             ? config.platform_fee_seller_discount_percentage_kids_club_plus
