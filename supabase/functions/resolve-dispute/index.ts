@@ -99,6 +99,16 @@ serve(async (req) => {
       metadata: { action: 'marked_under_review', admin_id: user.id },
     });
 
+    // DEV-TASK-62 (Item 1): record the acting admin in the audit trail.
+    await svcClient.from('admin_audit_logs').insert({
+      actor_id: user.id,
+      action_type: 'dispute_marked_under_review',
+      entity_type: 'trade',
+      entity_id: trade_id,
+      payload: { action: 'mark_under_review', previous_status: 'reported', admin_id: user.id },
+      reason: notes?.substring(0, 500) ?? null,
+    });
+
     return new Response(
       JSON.stringify({ success: true, dispute_status: 'under_review' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -119,6 +129,7 @@ serve(async (req) => {
       dispute_status:     'resolved',
       dispute_resolution: resolution,
       dispute_resolved_at: now,
+      dispute_resolved_by: user.id,   // DEV-TASK-62 (Item 1): who resolved it
       updated_at:         now,
       // resolve_complete: status/completed_at are delegated to complete_trade_v2 below
       //                   (DEV-TASK-48: writing status='completed' directly here skipped
@@ -290,6 +301,17 @@ serve(async (req) => {
     trade_id, event_type: action === 'resolve_complete' ? 'trade_completed' : 'offer_cancelled',
     actor_id: user.id,
     metadata: { resolution, notes: notes?.substring(0, 500), admin_id: user.id },
+  });
+
+  // DEV-TASK-62 (Item 1): record the resolution + the acting admin in the
+  // audit trail (admin_audit_logs — the money/trade trail).
+  await svcClient.from('admin_audit_logs').insert({
+    actor_id: user.id,
+    action_type: 'dispute_resolved',
+    entity_type: 'trade',
+    entity_id: trade_id,
+    payload: { action, resolution, notes: notes?.substring(0, 500), admin_id: user.id },
+    reason: notes?.substring(0, 500) ?? null,
   });
 
   // Notify buyer + seller (non-blocking)

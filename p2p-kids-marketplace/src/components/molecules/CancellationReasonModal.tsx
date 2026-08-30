@@ -126,11 +126,19 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
   const isConfirmDisabled = !selectedReason || (selectedReason === 'other' && !customReason.trim());
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+      accessibilityViewIsModal
+    >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={styles.container} accessibilityRole="alert">
           <View style={styles.header}>
-            <Text style={styles.title}>Why are you cancelling?</Text>
+            <Text style={styles.title} accessibilityRole="header">
+              Why are you cancelling?
+            </Text>
             {itemTitle && (
               <Text style={styles.itemTitle} numberOfLines={1}>
                 {itemTitle}

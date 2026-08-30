@@ -114,7 +114,9 @@ export default function DisclaimerModal({
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Liability Disclaimer</Text>
+          <Text style={styles.headerTitle} accessibilityRole="header">
+            Liability Disclaimer
+          </Text>
           <Pressable
             accessible
             accessibilityRole="button"

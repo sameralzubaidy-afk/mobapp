@@ -42,6 +42,7 @@ interface OfferData {
   sp_amount: number;
   cash_amount_cents: number;
   buyer_transaction_fee_cents: number;
+  seller_transaction_fee_cents?: number; // DEV-TASK-62 (Item 2): net payout = cash − seller fee
   created_at: string;
   offer_expires_at?: string | null;
   bundle_id?: string | null;
@@ -101,6 +102,7 @@ export default function ReviewOfferScreen() {
           sp_amount,
           cash_amount_cents,
           buyer_transaction_fee_cents,
+          seller_transaction_fee_cents,
           created_at,
           offer_expires_at,
           bundle_id,
@@ -172,6 +174,7 @@ export default function ReviewOfferScreen() {
               sp_amount,
               cash_amount_cents,
               buyer_transaction_fee_cents,
+              seller_transaction_fee_cents,
               created_at,
               offer_expires_at,
               bundle_id,
@@ -351,6 +354,14 @@ export default function ReviewOfferScreen() {
   const listingPrice = offer.listing.price.toFixed(2);
   const firstImage = offer.listing.images?.[0];
 
+  // DEV-TASK-62 (Item 2): Net Cash Payout must be cash MINUS the seller
+  // platform fee. Server formula (complete_trade_v2 / TradeTimelineScreen):
+  // payout = GREATEST(0, cash_amount_cents − seller_transaction_fee_cents).
+  const sellerFeeCents = offer.seller_transaction_fee_cents ?? 0;
+  const sellerNetCents = Math.max(0, offer.cash_amount_cents - sellerFeeCents);
+  const sellerNet = (sellerNetCents / 100).toFixed(2);
+  const sellerFee = (sellerFeeCents / 100).toFixed(2);
+
   return (
     <ScreenLayout variant="detail" title="Review Offer">
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -391,7 +402,10 @@ export default function ReviewOfferScreen() {
                 {[offer, ...bundleSiblings].map((o) => {
                   const itemSp = o.sp_amount ?? 0;
                   const itemPrice = o.listing?.price ?? 0;
-                  const netPayout = itemPrice - itemSp;
+                  // DEV-TASK-62 (Item 2): per-item NET payout = cash portion
+                  // (price − SP) − seller platform fee.
+                  const netPayout =
+                    Math.max(0, (o.cash_amount_cents ?? 0) - (o.seller_transaction_fee_cents ?? 0)) / 100;
                   // Seller earnings = buyer SP + platform bonus. Platform bonus
                   // mirrors fn_release_all_sp_on_complete: FLOOR(price × 0.25 ×
                   // multiplier), credited only to a subscribed seller (C05 fix).
@@ -525,26 +539,30 @@ export default function ReviewOfferScreen() {
           </View>
         )}
 
-        {/* NEW: Payout Breakdown — shows points applied and net payout */}
-        {offer.sp_amount > 0 && (
-          <View style={styles.payoutCard} testID="payout-breakdown">
-            <Text style={styles.payoutCardTitle}>Your Payout</Text>
-            <View style={styles.payoutRow}>
-              <Text style={styles.payoutLabel}>Item Price</Text>
-              <Text style={styles.payoutValue}>${listingPrice}</Text>
-            </View>
+        {/* Payout Breakdown — DEV-TASK-62 (Item 2): shows the cash amount, the
+            seller platform fee, and the true NET payout; now shown for ALL
+            offers (was gated on sp_amount > 0 and displayed gross cash). */}
+        <View style={styles.payoutCard} testID="payout-breakdown">
+          <Text style={styles.payoutCardTitle}>Your Payout</Text>
+          <View style={styles.payoutRow}>
+            <Text style={styles.payoutLabel}>Cash Amount</Text>
+            <Text style={styles.payoutValue}>${cashAmount}</Text>
+          </View>
+          <View style={styles.payoutRow}>
+            <Text style={styles.payoutLabel}>Platform Fee</Text>
+            <Text style={[styles.payoutValue, styles.payoutFeeText]}>-${sellerFee}</Text>
+          </View>
+          {totalSpToSeller > 0 && (
             <View style={styles.payoutRow}>
               <Text style={styles.payoutLabel}>Points Earned</Text>
               <Text style={[styles.payoutValue, styles.spDiscountText]}>+{totalSpToSeller} SP</Text>
             </View>
-            <View style={[styles.payoutRow, styles.payoutTotalRow]}>
-              <Text style={styles.payoutTotalLabel}>Net Cash Payout</Text>
-              <Text style={styles.payoutTotalValue}>
-                ${(parseFloat(listingPrice) - offer.sp_amount).toFixed(2)}
-              </Text>
-            </View>
+          )}
+          <View style={[styles.payoutRow, styles.payoutTotalRow]}>
+            <Text style={styles.payoutTotalLabel}>Net Cash Payout</Text>
+            <Text style={styles.payoutTotalValue}>${sellerNet}</Text>
           </View>
-        )}
+        </View>
 
         {/* Safety Disclaimer */}
         <View style={styles.disclaimerCard}>
@@ -993,6 +1011,11 @@ const styles = StyleSheet.create({
   },
   spEarnedText: {
     color: '#F59E0B',
+    fontWeight: '600',
+  },
+  // DEV-TASK-62 (Item 2): platform-fee deduction row on the payout card
+  payoutFeeText: {
+    color: '#DC2626',
     fontWeight: '600',
   },
   payoutTotalRow: {

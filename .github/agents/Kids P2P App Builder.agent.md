@@ -234,7 +234,7 @@ Required in every SQL deliverable:
 
 Full Postgres RPC / SQL naming convention and required verification queries moved to .github/instructions/supabase-sql.instructions.md (auto-attaches when editing supabase/migrations/**/*.sql).
 
-See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-77) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
+See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-78) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
 UI Performance Defaults (MANDATORY)
 Debounce defaults:
 
@@ -1173,6 +1173,15 @@ If a change touches DB migrations, RootNavigator/auth boundary, Stripe webhooks,
 
 what to revert
 how to verify rollback succeeded If rollback is not feasible, you MUST say so and propose a safe forward fix.
+
+Money-Path Fix Discipline (MANDATORY when tightening grants or replacing client-derived money math)
+1. Every destructive grant change (REVOKE/GRANT) needs a stated one-line rollback plan, confirmed correct, BEFORE execution — plus before/after LIVE verification (via `aclexplode(pg_proc.proacl)`), not just a migration-file read (BP-78).
+2. When replacing client-derived money math with server-authoritative math, explicitly verify the UNITS of every client-sent field (points vs. cents vs. dollars) against how the original formula consumed them, and include a unit-sensitive control case (e.g., an SP-blended offer) before declaring done — a units bug produced the exact same symptom as a logic bug (DT-54 cash portion).
+3. Always verify which env file a running server actually loads before trusting a service-role key's freshness — a stale key produces the identical 401/permission-denied symptom as a correctly-tightened grant (DT-45/47), risking false positives/negatives on any lockdown verification.
+
+Root-Cause Discipline (NOT just re-fixing)
+When a fix has apparently failed to persist, find out WHY before re-applying it — distinguish "migration recorded-applied but DDL never ran" (silent deploy drift; BP-47) from "the original fix was simply incomplete in scope" (e.g., `complete_trade_v2`'s original lockdown only revoked `anon`, never `authenticated`). These need different remedies: re-apply/verify the DDL for drift; extend the REVOKE/GRANT scope for incomplete fixes.
+
 D) COMPLETE Flow List (Agent MUST use this list for mapping + checks)
 Use these Flow IDs in docs/flow-registry.md and in every response.
 
@@ -1273,7 +1282,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-72)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-78)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1352,6 +1361,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-74 Tier-1 harness notification assertion — assert on the linkage key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`) when verifying a DB-triggered notification; a shared/fuzzy filter helper can silently drop the row and cause a false fail (DT-19, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-76 Enum-like status/reason values — DB writers must emit the canonical snake literal (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column, or expired-offer surfacing / the seller-ignore streak silently break (TRD re-verify, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-77 Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path for large self-contained single-file functions too (no `_shared` deps, e.g. the 82KB/1,840-line `create-trade-offer`) — no per-deploy approval needed, per the DEV-TASK-36 resolution that retired the MCP-deploy mandate; MCP is a documented last-resort fallback only; post-deploy verification (version bump + real invocation, BP-66/BP-71) is mandatory on any path (DEV-TASK-33, 2026-08-28; DEV-TASK-36, 2026-08-28) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps, and PostgREST maps `42501` to HTTP 401 — treat a 401 from a revoked caller as the expected rejection (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30) — full text: `.github/instructions/supabase-sql.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

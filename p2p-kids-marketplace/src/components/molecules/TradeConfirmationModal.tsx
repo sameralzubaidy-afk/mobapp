@@ -69,11 +69,14 @@ export function TradeConfirmationModal({
       transparent
       animationType="fade"
       onRequestClose={onCancel}
+      accessibilityViewIsModal
     >
       <View style={styles.overlay}>
-        <View style={styles.dialog}>
+        <View style={styles.dialog} accessibilityRole="alert">
           {/* Title */}
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
 
           {/* Message */}
           <Text style={styles.message}>{message}</Text>

@@ -152,10 +152,15 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
         transparent
         animationType="fade"
         onRequestClose={handleDismissRequest}
+        accessibilityViewIsModal
       >
         <View style={styles.backdrop}>
-          <View style={styles.card}>
-            {current?.title ? <Text style={styles.title}>{current.title}</Text> : null}
+          <View style={styles.card} accessibilityRole="alert">
+            {current?.title ? (
+              <Text style={styles.title} accessibilityRole="header">
+                {current.title}
+              </Text>
+            ) : null}
             {current?.message ? <Text style={styles.message}>{current.message}</Text> : null}
 
             <View

@@ -486,6 +486,18 @@ This subsection encodes three efficiency rules from the QA Task 8 cumulative reg
 
 **Meta-rule — AX-tree-first for every modal (extends §5.1 / R27):** before ANY OCR band-scan, pixel color inspection, or coordinate guess inside a modal, list the AX tree and re-list once — modals populate on the second listing. Tree coordinates are authoritative for taps; OCR/pixel-scan is the fallback ONLY when the second listing is still empty. The three rules above are concrete instances of this meta-rule.
 
+### 5.43 Standing rules — QA Task 8 security-track money/SP verification discipline (2026-08-30) — R33–R36
+
+This subsection encodes the four money-path verification standards from the QA Task 8 security-track run (Dev Tasks 54–59: cash portion, money-trust audit, grant lockdowns, RPC identity, tax checkout, grant sweep). They close the class of invariants a scripted DOM/AX suite cannot see.
+
+**R33 — Scripted suites (Maestro/Detox/`run-suite.sh`) are a smoke layer only; money/SP invariants are closed by DB read-back, not by a green automated run.** An automated DOM/AX assertion run proves the UI rendered and the happy path executed; it cannot prove ledger/wallet/trade rows were written correctly or that grants are tight. For ANY money/SP/payout/grant assertion, the DB-read-back methodology (§5.37 / R11 / R24) is the standard and is NOT optional even when the automated suite passes. *Evidence: QA Task 8 — the security-track findings (dispute-resolve traceability, SP-adjustment attribution) were DB-side only; no AX assertion could have caught them.*
+
+**R34 — A live-verification harness run more than once against the same staging DB must APPEND-MERGE its fixture ledger, not overwrite between runs.** Overwriting orphans the first run's cleanup artifacts (its rows stay around untracked, or its cleanup IDs point at replaced rows). Treat the ledger as append-only per run: new run appends, then cleanup removes the union of all runs' artifacts. Extends §5.33 (repurpose state) and BP-70 (cleanup discipline).
+
+**R35 — Assert admin-actor attribution on every money-affecting admin action — `actor_id`/`admin_id`/`resolved_by` must be non-NULL, not just that the money moved.** QA Task 8 found dispute-resolve and SP-adjustment paths where the money/state changed correctly but the acting-admin traceability was NULL (lost attribution). When verifying an admin money action, read back the audit/actor columns and assert they are populated, in addition to the balance/state change. Complements BP-48 (settings writes must pass `p_admin_id`) and extends R24 (DB read-back) to the attribution columns.
+
+**R36 — Read the applied tax/fee rate from the DB/config, never a fixed guide number, when writing verification assertions.** Rates are admin-configurable and guide numbers go stale. When computing the expected money figure, SELECT the live rate first and use it in the assertion so a changed config can't silently invalidate the verdict. Extends R25 (pre-case live-config re-read) to assertion time.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
