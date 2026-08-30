@@ -215,6 +215,33 @@ describe('ItemCreateScreen', () => {
       expect(getByTestId('condition-new').props.accessibilityState?.checked).toBe(true);
     });
 
+    it('dev-set-price overrides the price field to the dev amount (below-threshold cases)', async () => {
+      const { getByTestId } = renderScreen();
+
+      // The fixture must be exposed for automation to reach it.
+      expect(getByTestId('dev-set-price')).toBeTruthy();
+
+      // Add a photo first so the price field renders (mirrors dev-fill-item).
+      fireEvent.press(getByTestId('dev-fill-item'));
+      await waitFor(() => {
+        expect(getByTestId('manual-price-input').props.value).toBe('20');
+      });
+
+      // Default dev amount ($3 — below the admin threshold) applies in one tap,
+      // so QA can drive the "Let's Adjust Your Price" modal without the keyboard.
+      fireEvent.press(getByTestId('dev-set-price'));
+      await waitFor(() => {
+        expect(getByTestId('manual-price-input').props.value).toBe('3');
+      });
+
+      // Parameterized: change the dev amount then re-apply.
+      fireEvent.changeText(getByTestId('dev-price-input'), '4.99');
+      fireEvent.press(getByTestId('dev-set-price'));
+      await waitFor(() => {
+        expect(getByTestId('manual-price-input').props.value).toBe('4.99');
+      });
+    });
+
     it('dev-add-test-photo-uploaded records a mock URL so AI + draft paths fire', async () => {
       const saveMock = jest.fn();
       mockUseItemDraft.mockReturnValue({

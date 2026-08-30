@@ -338,6 +338,23 @@ export default function ProfileScreen({ route }: any) {
   // Keep Profile SP in sync with canonical wallet session summary.
   const profileSpBalance = session?.available_points ?? user?.swap_points_balance ?? 0;
 
+  // DEV-TASK-67 item 3: grace display consistency — grace users keep member
+  // benefits on the money/spend paths (DT-66: is_active_subscriber includes
+  // grace), so the promotional surfaces must match. Drive the promo card from
+  // the same subscriber-status set DT-66's is_subscriber uses (trial / active /
+  // paused / cancelled / grace / grace_period).
+  const promoStatus = trialStatus?.status;
+  const isPromoMember = [
+    'trial',
+    'active',
+    'paused',
+    'cancelled',
+    'canceled',
+    'grace',
+    'grace_period',
+  ].includes(promoStatus ?? '');
+  const isPromoGrace = promoStatus === 'grace' || promoStatus === 'grace_period';
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
@@ -464,39 +481,39 @@ export default function ProfileScreen({ route }: any) {
             <TouchableOpacity
               style={[
                 styles.promoCard,
-                trialStatus?.status === 'active' || trialStatus?.status === 'trial'
-                  ? styles.clubActiveCard
-                  : styles.clubPromoCard,
+                isPromoMember ? styles.clubActiveCard : styles.clubPromoCard,
               ]}
               onPress={() =>
                 navigation.navigate(
-                  trialStatus?.status === 'active' || trialStatus?.status === 'trial'
-                    ? 'MySubscription'
-                    : 'JoinKidsClub'
+                  isPromoGrace
+                    ? 'ManageKidsClub'
+                    : isPromoMember
+                      ? 'MySubscription'
+                      : 'JoinKidsClub'
                 )
               }
             >
               <View style={styles.promoIconContainer}>
                 <Crown
                   size={24}
-                  color={
-                    trialStatus?.status === 'active' || trialStatus?.status === 'trial'
-                      ? '#F59E0B'
-                      : '#5DBB8E'
-                  }
+                  color={isPromoMember ? '#F59E0B' : '#5DBB8E'}
                   weight="fill"
                 />
               </View>
               <View style={styles.promoContent}>
                 <Text style={styles.promoTitle}>
-                  {trialStatus?.status === 'active' || trialStatus?.status === 'trial'
-                    ? "Kid's Club Member"
-                    : "Join Kid's Club"}
+                  {isPromoGrace
+                    ? 'Grace Period'
+                    : isPromoMember
+                      ? "Kid's Club Member"
+                      : "Join Kid's Club"}
                 </Text>
                 <Text style={styles.promoSubtitle}>
-                  {trialStatus?.status === 'active' || trialStatus?.status === 'trial'
-                    ? 'Exclusive perks active'
-                    : 'Unlock Swap Points & free listings'}
+                  {isPromoGrace
+                    ? 'Renew to keep your benefits'
+                    : isPromoMember
+                      ? 'Exclusive perks active'
+                      : 'Unlock Swap Points & free listings'}
                 </Text>
               </View>
               <CaretRight size={18} color="#9CA3AF" weight="bold" />

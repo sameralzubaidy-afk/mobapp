@@ -163,6 +163,11 @@ export default function ItemCreateScreen() {
   const [ageGroup, setAgeGroup] = useState<'0-2' | '3-5' | '6-8' | '9-12' | '13+' | null>(null);
   const [gender, setGender] = useState<'boy' | 'girl' | 'unisex' | null>(null);
   const [priceInput, setPriceInput] = useState('');
+  // DEV-TASK-67 item 2: dev-only price override for the below-threshold publish
+  // cases (N04/N05/N09-N14). Local form state only, gated by __DEV__ — never in
+  // release builds. Defaults to $3 (below the admin min_listing_price so QA can
+  // drive the "Let's Adjust Your Price" modal in one tap).
+  const [devPriceInput, setDevPriceInput] = useState('3');
   const [requestedCategoryName, setRequestedCategoryName] = useState('');
 
   // Payment preference state
@@ -773,6 +778,22 @@ export default function ItemCreateScreen() {
     setCondition('new');
   }, [photos.length, handleAddDevTestPhoto]);
 
+  // DEV-ONLY fixture (sibling of `dev-fill-item`): set the price field to a
+  // controlled amount in ONE tap, bypassing the native price field's keyboard /
+  // ScrollView friction (QA Task 10 Group N blocker — keyboard undismissable +
+  // binary-snapping scroll). The amount is parameterized via `dev-price-input`
+  // (default $3 = below the admin threshold for N04/N05/N09-N14); QA can also
+  // re-tap `dev-fill-item` ($20) for the above-threshold recovery path. Local
+  // form state only — canPublish()/publish still enforce the real threshold.
+  // Gated by __DEV__ — never in release builds.
+  const handleDevSetPrice = useCallback(() => {
+    const raw = devPriceInput.trim();
+    if (raw === '') return;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) return;
+    setPriceInput(String(parsed));
+  }, [devPriceInput]);
+
   useEffect(() => {
     if (hasHandledInitialPhotoSourceRef.current) {
       return;
@@ -1229,6 +1250,39 @@ export default function ItemCreateScreen() {
               Dev: Fill Item (Title/Price/Condition)
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* DEV-ONLY: set the price field to a controlled amount in one tap —
+            bypassing the native price field's keyboard/scroll friction (QA Task
+            10 Group N blocker). The adjacent dev-price-input parameterizes the
+            amount; the default ($3) drives the below-threshold publish cases
+            (N04/N05/N09-N14) without touching the keyboard. Never rendered in
+            release builds (__DEV__ false). */}
+        {__DEV__ && (
+          <View style={styles.devPriceRow}>
+            <TextInput
+              style={styles.devPriceInput}
+              value={devPriceInput}
+              onChangeText={setDevPriceInput}
+              keyboardType="decimal-pad"
+              placeholder="3"
+              placeholderTextColor="#9CA3AF"
+              maxLength={6}
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              testID="dev-price-input"
+              accessibilityLabel="Dev price amount (dev only)"
+            />
+            <TouchableOpacity
+              style={styles.devPriceButton}
+              onPress={handleDevSetPrice}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Set price to dev amount (dev only)"
+              testID="dev-set-price"
+            >
+              <Text style={styles.devTestPhotoButtonText}>Dev: Set Price</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* AI Analysis Card */}
@@ -2124,5 +2178,34 @@ const styles = StyleSheet.create({
   },
   devFixtureButtonDisabled: {
     opacity: 0.5,
+  },
+  devPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  devPriceInput: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: '#111827',
+    textAlign: 'center',
+  },
+  devPriceButton: {
+    backgroundColor: '#EAF7F0',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

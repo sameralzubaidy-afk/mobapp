@@ -27,6 +27,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  AccessibilityInfo,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -104,6 +105,18 @@ export default function ManageKidsClubScreen() {
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [checkingPaymentMethod, setCheckingPaymentMethod] = useState(false);
   const [renewing, setRenewing] = useState(false);
+
+  // DEV-TASK-67 item 1: imperative screen-reader announcement when the cancel
+  // modal becomes visible. The passive `accessible` + `accessibilityRole="alert"` +
+  // `accessibilityLabel` on the modal container is flattened by iOS (QA Task 10
+  // FV2b — container absent from the AX tree), so announce explicitly on
+  // visibility change (mirrors SuccessToast's DT-63 announce pattern), IN
+  // ADDITION to the passive attrs.
+  useEffect(() => {
+    if (showCancelModal) {
+      AccessibilityInfo.announceForAccessibility('Cancel Reason dialog');
+    }
+  }, [showCancelModal]);
 
   // Fetch subscription on mount
   const fetchPaymentMethodStatus = useCallback(
@@ -504,6 +517,7 @@ export default function ManageKidsClubScreen() {
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowCancelModal(false)}
+        accessibilityViewIsModal
       >
         <View style={styles.modalOverlay}>
           <View
@@ -513,7 +527,7 @@ export default function ManageKidsClubScreen() {
             accessibilityRole="alert"
             accessibilityLabel="Cancel Reason dialog"
           >
-            <Text style={styles.modalTitle}>Cancel Kids Club+?</Text>
+            <Text style={styles.modalTitle} accessibilityRole="header">Cancel Kids Club+?</Text>
 
             <Text style={styles.modalSubtitle}>
               {isTrial

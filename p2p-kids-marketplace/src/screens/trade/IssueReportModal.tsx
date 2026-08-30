@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Modal,
   View,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  AccessibilityInfo,
 } from 'react-native';
 import { Warning } from 'phosphor-react-native';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
@@ -33,6 +34,18 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
   const [description, setDescription] = React.useState('');
   const [submitting, setSubmitting]  = React.useState('');
   const [error, setError]            = React.useState('');
+
+  // DEV-TASK-67 item 1: imperative screen-reader announcement when the modal
+  // becomes visible. The passive `accessible` + `accessibilityRole="alert"` +
+  // `accessibilityLabel` on the sheet wrapper is flattened by iOS — QA Task 10
+  // FV2a showed the container never surfaces as a distinct AX element even with
+  // those props present. Announce explicitly on visibility change (mirrors
+  // SuccessToast's DT-63 announce pattern), IN ADDITION to the passive attrs.
+  useEffect(() => {
+    if (visible) {
+      AccessibilityInfo.announceForAccessibility('Report an Issue dialog');
+    }
+  }, [visible]);
 
   const requiresDescription = selected === 'other';
   const canSubmit =
@@ -85,7 +98,7 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
 
           <View style={styles.header}>
             <Warning size={20} color="#D97706" weight="fill" />
-            <Text style={styles.title}>Report an Issue</Text>
+            <Text style={styles.title} accessibilityRole="header">Report an Issue</Text>
           </View>
 
           <Text style={styles.subtitle}>
