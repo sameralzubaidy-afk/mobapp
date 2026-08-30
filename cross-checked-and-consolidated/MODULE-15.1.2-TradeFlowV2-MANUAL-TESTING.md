@@ -123,7 +123,7 @@
 | | TRD-TC-M07 | Duplicate item prevented in same cart |
 | | TRD-TC-M08 | Remove item from cart |
 | | TRD-TC-M09 | Clear cart |
-| | TRD-TC-M10 | Saved carts: max 3, LRU eviction, switch cart |
+| | TRD-TC-M10 | Saved carts: max 3, server rejects 4th save, switch cart |
 | | TRD-TC-M11 | Minimum cart value warning + checkout blocked |
 | | TRD-TC-M12 | Max SP available shown per cart item (subscriber) |
 | | TRD-TC-M13 | Realtime: item becomes unavailable while in cart |
@@ -2717,11 +2717,11 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - All items are removed and the screen shows an empty-cart state.
 - The cart badge shows 0 or disappears.
 
-### passed TRD-TC-M10 · Saved carts: max 3, LRU eviction, switch cart
+### passed TRD-TC-M10 · Saved carts: max 3, server rejects 4th save, switch cart
 
 **Actors:** test-buyer
 
-**Objective:** Verify the saved-cart limit of 3, oldest-cart eviction, and switching between carts.
+**Objective:** Verify the saved-cart limit of 3, the server-side rejection of a 4th save, and switching between carts.
 
 **Steps:**
 1. Build and save carts from 4 different sellers in turn, using **Save & Start New Cart** each time.
@@ -2729,7 +2729,9 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 3. Tap **Switch Cart** on one of the saved carts.
 
 **Expected Result:**
-- At most 3 saved carts are kept; the oldest saved cart is dropped when the 4th is saved.
+- At most 3 saved carts are kept; the 4th save is **rejected by the server** with a clear message
+  ("You already have 3 saved carts. Delete one to save a new one."). There is **no silent LRU eviction** —
+  this is deliberate, because silently dropping the oldest saved cart would lose a cart the user may still want.
 - Tapping Switch Cart makes the chosen saved cart the active cart and moves the previously active cart into saved.
 
 ### deffered TRD-TC-M11 · Minimum cart value warning and blocked checkout
@@ -2760,8 +2762,11 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 3. Open the **Cart** screen.
 
 **Expected Result:**
-- Each SP-eligible item shows a "Up to N SP" indicator equal to 50% of that item's price.
+- Each SP-eligible item shows an "Accepts Points · Up to N SP" indicator **for subscribers only**, where N is
+  that item's category Swap Point spending cap for the item's price — the same cap the checkout screen uses,
+  **not a fixed 50%** (the cap is admin-configurable per category, defaulting to 70%).
 - Items from Cash Only sellers show no SP indicator.
+- Unavailable items keep the plain "Accepts Points" badge (no numeric).
 - The actual SP amount is chosen later on the checkout screen, not in the cart.
 
 ### passed TRD-TC-M13 · Realtime: item becomes unavailable while in cart
@@ -2928,12 +2933,13 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Objective:** Verify the admin portal validates the minimum cart value input.
 
 **Steps:**
-1. In the **admin portal** cart settings, enter a value below the allowed floor (e.g., $4.00, below the $5.00 minimum).
+1. In the **admin portal** cart settings, enter a negative value (e.g., −5).
 2. Attempt to save.
 
 **Expected Result:**
-- An inline validation error prevents saving values below $5.00.
-- A valid value (≥ $5.00) saves successfully.
+- An inline validation error prevents saving negative values ("Minimum cart value cannot be negative").
+- A valid value (≥ $0; **0 = no minimum**) saves successfully. There is **no hard $5 floor** — the admin may
+  configure any non-negative minimum, and setting 0 disables the minimum entirely.
 
 > Current limitation: `cart_max_saved_carts` and `cart_saved_expiry_days` can be edited in admin, but the runtime cart flow still hardcodes the 3-cart cap and has no verified configurable expiry consumption. Do not mark those two config-to-mobile paths covered until the implementation is wired end to end.
 

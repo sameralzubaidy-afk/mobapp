@@ -62,6 +62,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+import { computeMaxSpForItem } from '@/utils/cartSpMath';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'CartCheckout'>;
@@ -373,11 +374,14 @@ export default function CartCheckoutScreen() {
     }
   }, [cart, loadPointsData]);
 
-  // Compute remaining balance available for new SP
-  const getAvailableBalance = useCallback(() => {
-    const used = Object.values(itemSpState).reduce((sum, s) => sum + (s.spApplied ?? 0), 0);
-    return Math.max(0, walletBalance - used);
-  }, [itemSpState, walletBalance]);
+  // DT-63 (QA Task 7, item 2): max SP this item can apply = min(category cap,
+  // wallet balance minus what OTHER items already apply). The old inline math
+  // double-subtracted this item's own applied amount and showed "Max: 0 SP"
+  // even with SP available. Logic lives in utils/cartSpMath (pure, unit-tested).
+  const getMaxSpForItem = useCallback(
+    (itemId: string) => computeMaxSpForItem(itemSpState, walletBalance, itemId),
+    [itemSpState, walletBalance]
+  );
 
   // Handle SP amount change for a specific item
   const handleSpChange = (itemId: string, text: string) => {
@@ -715,10 +719,7 @@ export default function CartCheckoutScreen() {
                     </View>
                     <Text style={styles.spHint}>
                       Max:{' '}
-                      {Math.min(
-                        spState.maxAllowed,
-                        Math.max(0, walletBalance - getAvailableBalance() + spState.spApplied)
-                      )}{' '}
+                      {getMaxSpForItem(item.listingId)}{' '}
                       SP
                     </Text>
                     {spState.spApplied > 0 && spState.spApplied < spState.maxAllowed && (

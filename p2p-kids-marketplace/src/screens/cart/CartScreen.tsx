@@ -24,6 +24,7 @@ import {
   SavedCartSummary,
 } from '@/services/cartService';
 import { getMaskedSellerListings } from '@/services/listing';
+import { calculateCategorySP } from '@/services/categoryService';
 import { captureException } from '@/services/errorReporter';
 import { supabase } from '@/config/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -75,6 +76,15 @@ export default function CartScreen() {
   const sellerId = cartItems.length > 0 ? cartItems[0].sellerId : null;
   const remainingFromSeller = Math.max(0, sellerTotalListings - cartItems.length);
 
+  // CART M12 (QA Task 7): subscriber flag + per-item "Up to N SP" (category cap)
+  const [isSubscriber, setIsSubscriber] = useState(false);
+  const [spMaxByListing, setSpMaxByListing] = useState<Record<string, number>>({});
+
+  // M13 (QA Task 7): an item is "unavailable" when its live status is present and
+  // not 'available' — mirrors the inline "no longer available" label logic below.
+  const isItemUnavailable = (item: CartItem) =>
+    !!item.liveStatus && item.liveStatus !== 'available';
+
   const loadCartItems = useCallback(async () => {
     try {
       setLoading(true);
@@ -93,6 +103,7 @@ export default function CartScreen() {
         }));
         setCartItems(mapped);
         setSavedCarts(result.data.savedCarts ?? []);
+        setIsSubscriber(!!result.data.isSubscriber);
       } else {
         console.warn('[CartScreen] Load warning:', result.error.message);
       }
@@ -179,6 +190,39 @@ export default function CartScreen() {
       }
     })();
   }, []);
+
+  // CART M12 (QA Task 7): for subscribers, load each Accept-SP item's category
+  // spending cap (same calculateCategorySP source checkout uses) so the cart can
+  // show a "Up to N SP" figure before the buyer reaches checkout.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const targets = cartItems.filter((item) => item.acceptsSP && !isItemUnavailable(item));
+      const next: Record<string, number> = {};
+      await Promise.all(
+        targets.map(async (item) => {
+          if (!isSubscriber) return;
+          try {
+            const { data: listingData } = await supabase
+              .from('items')
+              .select('category_id')
+              .eq('id', item.listingId)
+              .single();
+            if (!listingData?.category_id) return;
+            const spConfig = await calculateCategorySP(listingData.category_id, item.price);
+            if (spConfig) next[item.listingId] = spConfig.max_spend_sp;
+          } catch {
+            console.warn(`[CartScreen] Could not load SP cap for listing ${item.listingId}`);
+          }
+        })
+      );
+      if (!cancelled) setSpMaxByListing(next);
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [cartItems, isSubscriber]);
 
   const handleClearCart = () => {
     Alert.alert(
@@ -343,8 +387,14 @@ export default function CartScreen() {
     }
   };
 
+  // M13 (QA Task 7): subtotal excludes realtime-unavailable items (they stay in
+  // the list, flagged "no longer available"), so the total reflects only what can
+  // actually be traded. calculateTotal and subtotalCents both derive from this.
   const calculateSubtotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return cartItems.reduce(
+      (sum, item) => sum + (isItemUnavailable(item) ? 0 : item.price * item.quantity),
+      0
+    );
   };
 
   const calculateTotal = () => {
@@ -542,7 +592,12 @@ export default function CartScreen() {
                     {item.acceptsSP && (
                       <View style={styles.acceptsSpBadge}>
                         <Coins size={14} color="#F59E0B" weight="fill" />
-                        <Text style={styles.acceptsSpText}>Accepts Points</Text>
+                        <Text style={styles.acceptsSpText}>
+                          Accepts Points
+                          {isSubscriber && spMaxByListing[item.listingId] != null ? (
+                            ` · Up to ${spMaxByListing[item.listingId]} SP`
+                          ) : null}
+                        </Text>
                       </View>
                     )}
                   </View>

@@ -1608,22 +1608,44 @@ export default function TradeTimelineScreen() {
         variant="accept"
         onConfirm={async () => {
           if (!bundleConfirmData) return;
+          const data = bundleConfirmData;
           setSubmitting(true);
           setBundleConfirmData(null);
           try {
-            for (const tid of bundleConfirmData.allIds) {
-              await completeTradeV2(tid);
-            }
-            if (refreshSession) await refreshSession();
-            showNotif(
-              'Done!',
-              `All ${bundleConfirmData.total} items marked as completed.`,
-              'accept',
-              () => {
-                setNotifModal(null);
-                navigation.goBack();
-              }
+            // DT-63 (QA Task 7): complete all bundle siblings in PARALLEL. The
+            // previous for-await loop ran each complete_trade_v2 serially, so N
+            // trades took ~N× the single-trade latency (QA: two trades completed
+            // 7s apart, "Done!" modal >3s). Each trade is an independent DB
+            // transaction, so parallel calls are safe — Postgres row locks
+            // serialize any shared wallet updates. Also check each result
+            // (BP-35) and background the session refresh so the success modal
+            // is not blocked on it (same pattern as the single-trade path).
+            const results = await Promise.all(
+              data.allIds.map((tid) => completeTradeV2(tid))
             );
+            const failed = results.filter((r) => !r.success);
+            if (refreshSession) {
+              void refreshSession().catch(() => {
+                console.warn('[TradeTimeline] refreshSession after confirm-all failed');
+              });
+            }
+            if (failed.length > 0) {
+              showNotif(
+                'Error',
+                'Some items could not be confirmed. Try confirming each one.',
+                'decline'
+              );
+            } else {
+              showNotif(
+                'Done!',
+                `All ${data.total} items marked as completed.`,
+                'accept',
+                () => {
+                  setNotifModal(null);
+                  navigation.goBack();
+                }
+              );
+            }
           } catch {
             showNotif('Error', 'Could not confirm all items. Try confirming each one.', 'decline');
           } finally {

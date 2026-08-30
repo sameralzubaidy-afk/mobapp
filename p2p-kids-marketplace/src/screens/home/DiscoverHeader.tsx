@@ -17,7 +17,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { BookmarkSimple, Bell, ChatCircleText } from 'phosphor-react-native';
+import { Heart, Bell, ChatCircleText } from 'phosphor-react-native';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useNotificationBadge } from '@/hooks/useNotificationBadge';
@@ -49,17 +49,21 @@ export default function DiscoverHeader() {
       </Text>
 
       <View style={styles.headerActions}>
-        {/* Saved / Bookmark → Favorites */}
+        {/* Favorites (heart) → Favorites — DT-63 (QA Task 7 M20): the header used
+            a bookmark labeled "Saved items" while every other favorites surface in
+            the app (item-card heart overlay, Favorites empty state, dashboard tile,
+            cart "View Favorites →") uses a heart. Aligned to heart + "View Favorites"
+            for app-internal consistency and to match the canonical QA guide. */}
         <TouchableOpacity
           style={styles.headerActionBtn}
           onPress={() => navigateTo('Favorites')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Saved items"
-          testID="discover-header-bookmark"
+          accessibilityLabel="View Favorites"
+          testID="discover-header-favorites"
         >
-          <BookmarkSimple size={24} color={ds.neutral[700]} weight="regular" />
+          <Heart size={24} color={ds.neutral[700]} weight="regular" />
         </TouchableOpacity>
 
         {/* Notifications bell (existing behavior) */}

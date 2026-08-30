@@ -179,16 +179,16 @@ describe('DiscoverScreen', () => {
       });
     });
 
-    it('renders header bookmark and navigates to Favorites on press', async () => {
+    it('renders header favorites button and navigates to Favorites on press', async () => {
       const { getByTestId } = render(
         <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
       );
 
       await waitFor(() => {
-        expect(getByTestId('discover-header-bookmark')).toBeTruthy();
+        expect(getByTestId('discover-header-favorites')).toBeTruthy();
       });
 
-      fireEvent.press(getByTestId('discover-header-bookmark'));
+      fireEvent.press(getByTestId('discover-header-favorites'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Favorites');
     });
 

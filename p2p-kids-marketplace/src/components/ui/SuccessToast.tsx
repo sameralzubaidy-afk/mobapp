@@ -24,7 +24,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet, View, Platform } from 'react-native';
+import { Animated, Text, StyleSheet, View, Platform, AccessibilityInfo } from 'react-native';
 import { ShoppingCart } from 'phosphor-react-native';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -58,6 +58,12 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
     if (!visible || isAnimating.current) return;
 
     isAnimating.current = true;
+
+    // DT-63 (QA Task 7): explicitly announce the toast so screen-reader users get
+    // the same confirmation sighted users see. The toast auto-dismisses in 2.5s,
+    // so relying only on the mounted live-region/alert roles is unreliable on iOS
+    // (the element mounts + unmounts quickly inside an Animated.View).
+    AccessibilityInfo.announceForAccessibility(message);
 
     // Reset to hidden state
     translateY.setValue(-120);

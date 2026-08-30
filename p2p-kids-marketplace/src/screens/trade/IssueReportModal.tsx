@@ -70,9 +70,14 @@ export function IssueReportModal({ visible, onClose, onSubmit }: Props) {
       transparent
       animationType="slide"
       onRequestClose={handleClose}
+      accessibilityViewIsModal
     >
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View
+          style={styles.sheet}
+          testID="issue-report-modal"
+          accessibilityRole="alert"
+        >
           {/* Handle pill */}
           <View style={styles.handle} />
 
