@@ -179,10 +179,32 @@ FROM pg_default_acl d;
 1. **DT-56 [P0] — Lock down `secure_upsert_admin_config`.** Add `auth.role()`
    /admin check inside the function (or restrict to service_role) and
    `REVOKE EXECUTE ON FUNCTION ... FROM anon, authenticated`.
+   **→ RESOLVED (2026-08-29, via DT-56a, REVOKE-only approach):** applied
+   `REVOKE EXECUTE ON FUNCTION public.secure_upsert_admin_config(TEXT, TEXT, UUID)
+   FROM anon, authenticated, PUBLIC;` (kept `service_role` — the role the admin
+   portal config PATCH authenticates with). Live-verified on
+   `drntwgporzabmxdqykrp`: after-state Q1 shows only `service_role` + owner;
+   real admin-portal UI config save works (HTTP 200, RPC returns the row with
+   `updated_by` set); adversarial anon-key call rejected (`42501 permission denied
+   for function`). Migration:
+   `supabase/migrations/20260830000008_dev_task_56a_revoke_secure_upsert_admin_config_execute.sql`.
 2. **DT-57 [P0] — Scope the 4 SP ledger RPCs.** `credit_sp_for_cancelled_trade`,
    `debit_sp_for_trade`, `earn_sp_for_trade`, `admin_adjust_sp_wallet`:
    enforce `auth.uid()`/role and `REVOKE ... FROM PUBLIC`; keep service_role callable
    (used by EFs/triggers). Verify every caller (trigger, EF, admin route) still works.
+   **→ RESOLVED (2026-08-29, via DT-56b, REVOKE-only approach):** applied
+   `REVOKE EXECUTE ... FROM anon, authenticated, PUBLIC` + re-asserted `service_role`
+   on all 4. Caller analysis: EFs (`trade-payment`, `cancel-trade`, `complete-trade`,
+   `transactions-accept-bundle`) use service keys; DB callers (`complete_trade_v2`,
+   `cancel_trade_v2`, `rpc_auto_cancel_trade`, `rpc_apply_trade_extension`,
+   `admin_force_cancel_trade_db`) are SECURITY DEFINER (internal calls run as owner);
+   `admin_adjust_sp_wallet` via admin portal route (service key + admin-secret gate).
+   Live-verified on `drntwgporzabmxdqykrp`: after-state Q1 shows only `service_role`
+   + owner; real trade completion → SP released to seller (`earn_sp_for_trade`, ledger
+   `earn_reward`, pending 177→185); real trade cancel → SP restored; admin UI SP
+   adjustment works (HTTP 200, `earn_admin_grant`, exact revert); all 4 adversarial
+   anon calls rejected (`42501 permission denied`). Migration:
+   `supabase/migrations/20260830000009_dev_task_56b_revoke_sp_ledger_rpcs.sql`.
 3. **DT-58 [P1] — Replace self-declared identity in trade RPCs.** `complete_trade_v2`,
    `cancel_trade_v2`, `admin_force_cancel_trade_db`, `rpc_record_payment_refund`:
    derive identity from `auth.uid()` (or a role check) instead of `p_user_id`, and
