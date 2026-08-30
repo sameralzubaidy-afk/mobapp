@@ -392,66 +392,66 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-N01 | Admin sets minimum cart value → reflects in app | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (admin set $20 → DB 2000¢; on-device "Add $6.00 more" + "Minimum checkout is $20.00" + blocked checkout modal; reverted to 0, DB-verified) |
 | TRD-TC-N02 | Admin minimum cart value validation | 1 | PASS | 2026-08-30 | `qa-task9-dt63-fix-verify-2026-08-30` | ✅ PASS (guide updated: no $5 floor, negative rejected at admin UI "Minimum cart value cannot be negative", ≥$0 saves, 0=no minimum). DEV-TASK-66 (QA Task 10 FV3): server-side guard VERIFIED on-device — `qa:admin-config-set set -5` → `NEGATIVE_MONEY_VALUE: key=cart_min_value_cents must be >= 0, got -5` (rejected, value stayed 0); positive 5 writes; reverted to 0 |
 | TRD-TC-N03 | Admin updates Minimum Listing Price on Config → Fees tab | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N04 | Seller cannot publish single-item listing below threshold | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N05 | Bulk: below-threshold items flagged, valid items publish | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N06 | Existing listing auto-paused when threshold raised above price | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-N04 | Seller cannot publish single-item listing below threshold | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (dev-set-price $3 → "Let's Adjust Your Price" modal; $20 published; DB item 755e1774 pending $20, no $3 item) |
+| TRD-TC-N05 | Bulk: below-threshold items flagged, valid items publish | 1 | BLOCKED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | 🚫 BLOCKED (driving-limited): bulk per-item form not reliably drivable (ScrollView binary-snapping, publish gated with incomplete items); source-confirmed flag logic. Rec: `dev-fill-bulk-items` fixture |
+| TRD-TC-N06 | Existing listing auto-paused when threshold raised above price | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin-web/Playwright surface; not mobile-testable by this agent) |
 | TRD-TC-N07 | Seller raises price to meet threshold → listing repurchasable | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-N08 | Regression: single-item + bundle checkout at/above threshold | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N09 | Price adjustment modal displays correct copy and button text (single-item) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N10 | "Update Price" dismisses modal and auto-scrolls + auto-focuses price field (single-item) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N11 | Price adjustment modal in edit listing flow (single-item edit) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N12 | Bulk listing: per-item chip shows dynamic threshold in missing-required warning | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N13 | Bulk listing: publish failure shows clear error message for below-threshold items | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N14 | Regression: minimum-price validation still blocks publish in single-item and bulk flows | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-N09 | Price adjustment modal displays correct copy and button text (single-item) | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (modal copy "$5.00 or more" + Update Price button, green 94.87% #5DBB8E) |
+| TRD-TC-N10 | "Update Price" dismisses modal and auto-scrolls + auto-focuses price field (single-item) | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (modal dismiss + auto-scroll to price field y≈462, value "3") |
+| TRD-TC-N11 | Price adjustment modal in edit listing flow (single-item edit) | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (edit-listing deep link → price 3 → same modal → Update Price dismiss+focus; DB Puzzle Set dd8fc177 still $18, NOT saved) |
+| TRD-TC-N12 | Bulk listing: per-item chip shows dynamic threshold in missing-required warning | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (bulk Item 3 chip: "Missing: Title, Condition, Price, Price must be $5.00+" dynamic threshold; source-confirmed StatusChip) |
+| TRD-TC-N13 | Bulk listing: publish failure shows clear error message for below-threshold items | 1 | BLOCKED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | 🚫 BLOCKED (driving-limited): bulk per-item form not reliably drivable; publish gate source-confirmed (BulkPublishConfirmSheet price_below_minimum → "Price must be $5.00+"). Rec: `dev-fill-bulk-items` fixture |
+| TRD-TC-N14 | Regression: minimum-price validation still blocks publish in single-item and bulk flows | 1 | PARTIAL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⚠️ PARTIAL (single+edit legs PASS via N04/N11: $3 blocked; bulk leg shares N05/N13 driving limitation) |
 | TRD-TC-N2 | Retried offer submission → exactly 1 PaymentIntent / 1 trade / 1 SP reservation / 1 audit row | 10 | — | — | `—` | NEVER RUN |
-| TRD-TC-O01 | Sales tax shown in checkout/cart breakdown (0 SP) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O02 | Tax base stays on full item price as SP slider moves (offer + checkout) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O03 | Tax $0 when globally disabled | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O04 | Tax $0 when node tax disabled | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O05 | Tax-exempt user sees Tax Free badge | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O06 | Transaction history shows tax details | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O07 | Refund shows proportional tax refunded | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O08 | Tax shown on trade timeline/detail for buyer only | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-O1 | Admin creates a new tax rule for general_tangible_goods | 17 | — | — | `—` | NEVER RUN |
-| TRD-TC-O2 | Single taxable item, no SP — offer is quoted/authorized, not collected | 12 | — | — | `—` | NEVER RUN |
-| TRD-TC-O3 | Buyer wording: "Payment authorized" before capture (Awaiting Seller) | 14 | — | — | `—` | NEVER RUN |
-| TRD-TC-P01 | Node tax rate config (view/edit, validation) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-P02 | Bulk tax update across nodes | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-P03 | Tax rate change history / audit | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-P04 | Global tax settings toggle + warning banner | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-P05 | Tax reporting dashboard: summary + date presets | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-P06 | Jurisdiction breakdown + 7 report types | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-P07 | CSV export for filing | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-P08 | Admin changes rate → new transactions use new rate | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q01 | Review prompt ([Rate Seller] / [Rate Buyer]) on completion | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q02 | Star rating required — submit blocked without rating | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q03 | Comment optional, max 500 characters | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q04 | Anonymous review hides reviewer identity | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q05 | Skip review — no blocking, no re-prompt for same trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q06 | Mutual review status shown on completed trade detail | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q07 | Completed reviews visible on counterparty's profile | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q08 | Average rating and total review count on user profile | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q09 | Rating breakdown (5 → 1 stars) on profile | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q10 | Edit review succeeds within 24h window | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q11 | Edit blocked after 24h window | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q12 | One review per trade — duplicate submission blocked | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q13 | 30-day same-counterparty cooldown enforced | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q14 | 24h post-completion cooldown — review locked | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q15 | Flag a review (select reason) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q16 | Auto-hide review after 3+ reports | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q17 | Cannot flag own review | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q18 | Admin moderation queue — reported reviews with counts | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q19 | Admin approves (unhides) a reported review | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-Q20 | Admin deletes a reported review | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R01 | Buyer cancels pending trade → cancelled, auth voided, SP restored | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R02 | Seller declines pending offer → cancelled, SP restored | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R03 | Offer expiry → auto-cancel + competing offers cancelled | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R04 | Card declined at offer submission → no trade created | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R05 | Seller cancels in_progress → refund + consequence level | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R06 | Refund settlement breakdown (cash + proportional tax + fee) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R07 | SP reversal on refund (reserved/transferred returned) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R08 | Seller payout withheld / cancelled on refund | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-R09 | Admin dispute resolve → Refund (full settlement) | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-O01 | Sales tax shown in checkout/cart breakdown (0 SP) | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (offer: Offer $30, Fee $1.49, Sales Tax $2.10 @ 6.99% live rule rate, Total $33.59; $18 → $1.26). NOTE: guide numbers (6.35%) stale — live = 6.99% rule |
+| TRD-TC-O02 | Tax base stays on full item price as SP slider moves (offer + checkout) | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (SP=4 → tax stays $2.10 on full $30 base; BP-37 confirmed) |
+| TRD-TC-O03 | Tax $0 when globally disabled | 1 | FAIL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ❌ FAIL (real bug): `sales_tax_enabled=false` did NOT zero tax — offer still showed Sales Tax $2.10 on $30 after relaunch. Root cause: `calculate_tax` selects the flag but never conditions on it (write path ignores it). Flag reverted to true (read-back) |
+| TRD-TC-O04 | Tax $0 when node tax disabled | 1 | PARTIAL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⚠️ NOT-DIRECTLY-TESTABLE (admin-leg needed): tax engine uses CATEGORY tax RULES (general_tangible_goods 6.99% v3 bc94b4e0) which OVERRIDE node rate 6.35% — node-toggle effect not observable via mobile |
+| TRD-TC-O05 | Tax-exempt user sees Tax Free badge | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (Vintage Comic 07af560b Books/exempt: "Tax Free" badge + $0.00 on item detail AND offer; total = price+fee only) |
+| TRD-TC-O06 | Transaction history shows tax details | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (completed trade 6cbe3c5d Payment Details: Paid $18 / 0 SP / $1.49 fee / Sales Tax $1.26 / Total $20.75; matches tax_records, tax_status collected) |
+| TRD-TC-O07 | Refund shows proportional tax refunded | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (guide entry marked ⏭️ status). Related: R05/R06 cancel voids tax (tax_status=voided) rather than proportional refund in staging |
+| TRD-TC-O08 | Tax shown on trade timeline/detail for buyer only | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (buyer timeline "Estimated Sales Tax $1.26"; seller timeline shows Platform Fee+Total, NO tax row) |
+| TRD-TC-O1 | Admin creates a new tax rule for general_tangible_goods | 17 | PARTIAL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⚠️ PARTIAL: admin-rule creation is Playwright scope; verification queries O1-C05/C06 confirmed Books→tax_exempt mapping + applied_rule_id bc94b4e0 (6.99% v3) governs new offers |
+| TRD-TC-O2 | Single taxable item, no SP — offer is quoted/authorized, not collected | 12 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (mobile leg: O01/O03 offer flow — quote shown, PI authorized not captured until accept; R05 confirmed capture on accept) |
+| TRD-TC-O3 | Buyer wording: "Payment authorized" before capture (Awaiting Seller) | 14 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (mobile leg: buyer timeline shows "Payment authorized: $20.00" + "Estimated Sales Tax" while Awaiting Seller — verified in O08/R01/R05 flows) |
+| TRD-TC-P01 | Node tax rate config (view/edit, validation) | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin-UI). Finding: category tax RULES override node rate — node rate edit not observable in mobile offers |
+| TRD-TC-P02 | Bulk tax update across nodes | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin-UI/Playwright) |
+| TRD-TC-P03 | Tax rate change history / audit | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin-UI/Playwright) |
+| TRD-TC-P04 | Global tax settings toggle + warning banner | 1 | FAIL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ❌ FAIL (mobile leg = same bug as O03): global toggle ignored — tax still charged when disabled. Admin-UI toggle+warning banner leg out-of-scope (Playwright) |
+| TRD-TC-P05 | Tax reporting dashboard: summary + date presets | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin-UI/Playwright) |
+| TRD-TC-P06 | Jurisdiction breakdown + 7 report types | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin-UI/Playwright) |
+| TRD-TC-P07 | CSV export for filing | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin-UI/Playwright) |
+| TRD-TC-P08 | Admin changes rate → new transactions use new rate | 1 | PARTIAL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⚠️ PARTIAL-OUT-OF-SCOPE (admin-UI). Finding: new transactions use the CATEGORY RULE rate (6.99%) not the node rate — node-rate edits do NOT propagate to new offers. O1-C05/C06 queries confirm rule-override mapping |
+| TRD-TC-Q01 | Review prompt ([Rate Seller] / [Rate Buyer]) on completion | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (Rate Seller prompt on Trade Complete screen) |
+| TRD-TC-Q02 | Star rating required — submit blocked without rating | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (Submit w/o rating → "Rating Required / Please select a star rating before submitting.") |
+| TRD-TC-Q03 | Comment optional, max 500 characters | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (comment "Great seller, smooth pickup!" → char-count "28/500"; maxLength 500 source) |
+| TRD-TC-Q04 | Anonymous review hides reviewer identity | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (is_anonymous=true DB; profile shows "Anonymous User") |
+| TRD-TC-Q05 | Skip review — no blocking, no re-prompt for same trade | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (not UI-verified this run — budget). Q12 related: review button gone after submit |
+| TRD-TC-Q06 | Mutual review status shown on completed trade detail | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (timeline Reviews: "You have reviewed the seller" / "The seller hasn't reviewed you") |
+| TRD-TC-Q07 | Completed reviews visible on counterparty's profile | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (review visible on seller profile: Anonymous User + 5★ + comment) |
+| TRD-TC-Q08 | Average rating and total review count on user profile | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (profile "4.5 / Based on 2 reviews", Reviews (2)) |
+| TRD-TC-Q09 | Rating breakdown (5 → 1 stars) on profile | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (breakdown 5★/4★/3★/2★/1★ rows shown) |
+| TRD-TC-Q10 | Edit review succeeds within 24h window | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (time-window dependent — needs a review <24h old with edit affordance; not exercised this run) |
+| TRD-TC-Q11 | Edit blocked after 24h window | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (time-window dependent) |
+| TRD-TC-Q12 | One review per trade — duplicate submission blocked | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (after submit, timeline review-button GONE → no duplicate re-prompt) |
+| TRD-TC-Q13 | 30-day same-counterparty cooldown enforced | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (multi-account/time-window) |
+| TRD-TC-Q14 | 24h post-completion cooldown — review locked | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (time-window) |
+| TRD-TC-Q15 | Flag a review (select reason) | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (not UI-verified this run — budget; IssueReportModal reasons verified in Rev-3 re-verify) |
+| TRD-TC-Q16 | Auto-hide review after 3+ reports | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (needs 3+ reports from distinct accounts + admin moderation) |
+| TRD-TC-Q17 | Cannot flag own review | 1 | DEFERRED | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⏭️ DEFERRED (not UI-verified this run — budget) |
+| TRD-TC-Q18 | Admin moderation queue — reported reviews with counts | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin/Playwright) |
+| TRD-TC-Q19 | Admin approves (unhides) a reported review | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin/Playwright) |
+| TRD-TC-Q20 | Admin deletes a reported review | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin/Playwright) |
+| TRD-TC-R01 | Buyer cancels pending trade → cancelled, auth voided, SP restored | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (trade 85c42fbf: buyer cancel "Changed mind" → status cancelled, listing restored available, auth released (stripe_refund_id null, auth-only). SP-restore leg N/A — cash offer, 0 SP) |
+| TRD-TC-R02 | Seller declines pending offer → cancelled, SP restored | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (trade 6aebf360: seller Decline → conf modal "Your item stays listed…" → status cancelled, reason seller_declined, listing restored available, PI released, 0 SP) |
+| TRD-TC-R03 | Offer expiry → auto-cancel + competing offers cancelled | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (trade 8dbefa7c: fast-clock offer_expires_at → rpc_process_expired_offers → processed:1, notifications offer_expired(buyer, item_still_available=true)+offer_expired_seller(seller); status cancelled, reason "Offer expired", listing restored available). Competing-offers secondary leg NOT exercised (single pending offer) |
+| TRD-TC-R04 | Card declined at offer submission → no trade created | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (card_decline toggle → "Payment Hold Failed / Payment method declined" alert; DB: NO trade created) |
+| TRD-TC-R05 | Seller cancels in_progress → refund + consequence level | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (trade 2be6c3e8: offer → seller accept (in_progress, "Payment captured") → seller cancel "Item no longer available" → status cancelled, listing 0ce8434f restored available, NO seller_payouts row, tax_record voided, PI released). Staging capture is SIMULATED → cancel VOIDS rather than creating real refund (see R06 note) |
+| TRD-TC-R06 | Refund settlement breakdown (cash + proportional tax + fee) | 1 | PARTIAL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⚠️ PARTIAL-FINDING: staging in_progress cancel sets tax_status=voided (refunded_tax_cents 0) + synthetic stripe_refund_id "cancelled_pi_...", NO trade_refunds row — capture never actually created in staging, so cancel VOIDS instead of issuing proportional refund. No real money moves to assert a refund breakdown. Needs live-processor capture to fully verify |
+| TRD-TC-R07 | SP reversal on refund (reserved/transferred returned) | 1 | PARTIAL | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⚠️ PARTIAL: all R01-R05 trades used 0 SP (cash-only offers) → reversal path not exercised; UI copy "Any Swap Points have been refunded to your wallet" displayed. Needs an SP-using trade to fully verify |
+| TRD-TC-R08 | Seller payout withheld / cancelled on refund | 1 | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS (R05: NO seller_payouts row for cancelled trade 2be6c3e8 — payout never created) |
+| TRD-TC-R09 | Admin dispute resolve → Refund (full settlement) | 1 | OUT-OF-SCOPE | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ⛔ OUT-OF-SCOPE (admin/Playwright surface) |
 | TRD-TC-R10 | Admin dispute resolve → Complete (no refund) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-R11 | Refund / cancellation notifications to both parties | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-R12 | Refund idempotency — no double refund | 1 | — | — | `—` | NEVER RUN |
