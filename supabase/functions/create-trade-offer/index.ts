@@ -694,7 +694,10 @@ serve(async (req) => {
     buyerFeeState: string;
     taxCents: number;
   }) {
-    const { itemId, cashCents, spAmt, txFeeCents, buyerFeeState, taxCents: clientTaxCents } = params;
+    // DT-58 (2026-08-30): taxCents (client-supplied tax_amount_cents) is deliberately
+    // NOT destructured — the client's tax value is NEVER trusted. Tax is computed
+    // server-side; if the server cannot compute it, the offer fails closed below.
+    const { itemId, cashCents, spAmt, txFeeCents, buyerFeeState } = params;
 
     // PERF-DIAG (temporary): timing instrumentation to locate the source of multi-second
     // bundle checkout latency. Safe to remove once root cause is confirmed — logging only,
@@ -897,10 +900,21 @@ serve(async (req) => {
       }
     }
     console.log(`[perf][${itemId}] taxCalc done t=${Date.now() - tStart}ms`);
-    // BP-FIX (2026-07-27): Use vServerCalculatedTax to distinguish "server intentionally
-    // calculated $0 (exempt)" from "server calc failed (error)". Previously, vTaxAmountCents === 0
-    // for exempt items would fall back to clientTaxCents (the client's non-category-aware value).
-    const finalTaxCents = vServerCalculatedTax ? vTaxAmountCents : clientTaxCents;
+    // DT-58 (2026-08-30): FAIL CLOSED on tax — the client's tax_amount_cents is never
+    // trusted. When the item has a price but the server could not compute tax (seller has
+    // no node_id, or the server-side calc threw), the offer is rejected outright instead of
+    // accepting a client-controlled tax amount into the Stripe hold + trade row. Free /
+    // donation items (price $0) have no cash to tax, so tax is provably 0.
+    let finalTaxCents: number;
+    if (Math.round(item.price * 100) > 0) {
+      if (!vServerCalculatedTax) {
+        console.error(`[create-trade-offer] req=${requestId} refusing offer for ${itemId}: server could not compute tax (sellerNodeId=${sellerNodeId})`);
+        return { error: 'We could not calculate the tax for this offer. Please try again in a moment.', code: 'TAX_CALC_UNAVAILABLE', status: 500 };
+      }
+      finalTaxCents = vTaxAmountCents;
+    } else {
+      finalTaxCents = 0;
+    }
 
     // SEL-005: Calculate seller transaction fee (platform commission deducted from seller's payout).
     // SEL-FEE-BASE (2026-07-27): Fee is based on item price (after SP), EXCLUDING buyer transaction fee.
@@ -1170,7 +1184,10 @@ serve(async (req) => {
     buyerFeeState: string;
     taxCents: number;
   }): Promise<BundlePhase1Success | BundlePhase1Error> {
-    const { itemId, cashCents, spAmt, txFeeCents, buyerFeeState, taxCents: clientTaxCents } = params;
+    // DT-58 (2026-08-30): taxCents (client-supplied tax_amount_cents) is deliberately
+    // NOT destructured — the client's tax value is NEVER trusted. Tax is computed
+    // server-side; if the server cannot compute it, this item fails closed below.
+    const { itemId, cashCents, spAmt, txFeeCents, buyerFeeState } = params;
     const tStart = Date.now();
     console.log(`[perf][${itemId}] (bundle) phase1 start t=0ms`);
 
@@ -1341,10 +1358,21 @@ serve(async (req) => {
       }
     }
     console.log(`[perf][${itemId}] (bundle) taxCalc done t=${Date.now() - tStart}ms`);
-    // BP-FIX (2026-07-27): Use vServerCalculatedTax to distinguish "server intentionally
-    // calculated $0 (exempt)" from "server calc failed (error)". Previously, vTaxAmountCents === 0
-    // for exempt items would fall back to clientTaxCents (the client's non-category-aware value).
-    const finalTaxCents = vServerCalculatedTax ? vTaxAmountCents : clientTaxCents;
+    // DT-58 (2026-08-30): FAIL CLOSED on tax (bundle path — same rule as single-item).
+    // The client's tax_amount_cents is never trusted. When the item has a price but the
+    // server could not compute tax (no seller node_id, or the server-side calc threw),
+    // this item is rejected and surfaces in the bundle `errors` array like any other
+    // per-item failure. Free / donation items (price $0) have no cash to tax → tax is 0.
+    let finalTaxCents: number;
+    if (Math.round(item.price * 100) > 0) {
+      if (!vServerCalculatedTax) {
+        console.error(`[create-trade-offer] req=${requestId} refusing bundle item ${itemId}: server could not compute tax (sellerNodeId=${sellerNodeId})`);
+        return { error: 'We could not calculate the tax for this item. Please try again in a moment.', code: 'TAX_CALC_UNAVAILABLE', status: 500 };
+      }
+      finalTaxCents = vTaxAmountCents;
+    } else {
+      finalTaxCents = 0;
+    }
     const needsStripeHold = cashCents > 0;
 
     // SEL-005: Calculate seller transaction fee for bundle item

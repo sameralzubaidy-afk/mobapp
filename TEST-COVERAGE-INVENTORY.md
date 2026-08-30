@@ -939,7 +939,7 @@ Latest verdict FAIL or BLOCKED with **no later PASS re-verification** on disk. T
 
 Within the AUTH guide the only NEVER-RUN case is `AUTH-TC-J10` (explicitly excluded from the Group J run per the test brief as already closed).
 
-## 6 · Evidence source register (58 reports on disk)
+## 6 · Evidence source register (59 reports on disk)
 
 All report.md files found and parsed for this inventory, with the per-case evidence rows each produced (deduplicated).
 
@@ -1003,6 +1003,7 @@ All report.md files found and parsed for this inventory, with the per-case evide
 | 2026-08-24 | manual | `group-j-closure-j02-j04-j11-j12-j13-j15-2026-08-24` | 6/0/0/0 | 13 |
 | 2026-08-24 | manual | `group-j-h-closure-2026-08-24` | 3/0/0/0 | 4 |
 | 2026-08-24 | manual | `group-j-listing-creation-single-2026-08-24` | 8/1/5/0 | 28 |
+| 2026-08-30 | manual | `qa-task8-cumulative-regression-2026-08-30` | 5/0/0/0 | 7 |
 
 Additional evidence not captured as report.md rows:
 

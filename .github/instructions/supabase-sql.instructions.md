@@ -41,6 +41,7 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-75 RLS-disabled audit — the authoritative source for "which tables have RLS off" is the LIVE `pg_class.relrowsecurity` query, not migration greps (greps miss DO-block/seed enablement, commented-out `ENABLE RLS` lines, and orphaned DB-only tables); trace every table's readers/writers (client vs service-role vs SECURITY DEFINER) before enabling RLS.
 - BP-74 Tier-1 notification assertion — anchor on the linkage key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`); never a shared/fuzzy filter helper that can silently drop the row (DT-19, 2026-08-28).
 - BP-76 Enum-like status/reason literals — DB writers must emit the canonical snake value (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column (silently breaks surfacing/counters, TRD re-verify 2026-08-28).
+- BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, and audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30).
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -446,3 +447,25 @@ Rules:
 - Cross-layer check when judging a surfaced/expired UI case: compare the client's literal against the LIVE DB value (`SELECT DISTINCT cancellation_reason FROM trades`) — a silent no-error mismatch means the literals differ, not that the feature "just doesn't render".
 
 Detection checklist: an expired/declined offer missing from the app's "Your Offers", or a counter resetting unexpectedly on expiry, with no error → compare the client/trigger literal against the live DB value in `trades.cancellation_reason`; a `'offer_expired'` vs `'Offer expired'` difference is the bug. Cross-ref BP-3 (silent mis-filtering), BP-16 (stale trigger comments), BP-31 (verify both trigger AND RPC layers).
+
+## BP-78: Money-Mutating RPCs Must Have Explicit Minimal Grants + `auth.uid()`/Role Checks — Grant Audits Use Live `aclexplode`, Not Migration Greps
+Problem (Dev Task 59, 2026-08-30): the systemic root cause behind DT-55's money-function grant finding is that `GRANT EXECUTE ... TO <role>` **never revokes the PUBLIC default** — a migration that "grants to service_role only" still leaves `PUBLIC`+`anon`+`authenticated` executable unless it also does `REVOKE ... FROM PUBLIC`. Live `aclexplode(pg_proc.proacl)` showed **ALL 33 audited money-mutating functions executable by PUBLIC/anon/authenticated** on staging, even ones whose migrations granted only service_role — because no migration ever REVOKEd PUBLIC. Migration-file greps under-report this (they show the GRANTs, not the surviving PUBLIC default). Two more live gotchas confirmed the same day: `request.jwt.claim.role` is NEVER set by this Supabase/PostgREST (the `sub_020` carry-forward `admin_reset_trial_uses` guard using it rejected every caller), and helper functions referenced even inside short-circuited branches must exist on the target DB (plpgsql resolves refs regardless of branch).
+
+Rules (standing playbook — Dev Task 59 §5):
+- **Money-mutating RPCs (writes to trades/sp_ledger/sp_wallets/seller_payouts/subscriptions/admin_config/tax_records/refunds) must have an explicit minimal grant posture**: `REVOKE EXECUTE ON FUNCTION <name>(<sig>) FROM anon, authenticated, PUBLIC;` then `GRANT EXECUTE ... TO <minimal set>` (service_role for internal/admin/cron; authenticated+service_role only when a legitimate user-JWT caller exists). A `GRANT` with no matching `REVOKE FROM PUBLIC` is a P0 — treat `GRANT ... TO anon, authenticated` and default-PUBLIC money RPCs as **Tier-0 findings**, verified against the LIVE grant state, never migration greps:
+  ```sql
+  -- Authoritative grant list (reads pg_proc.proacl; includes PUBLIC + owner)
+  SELECT p.proname, string_agg(CASE WHEN x.grantee = 0 THEN 'PUBLIC'
+        ELSE x.grantee::regrole::text END, ', ' ORDER BY x.grantee) AS grantees
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) x
+  WHERE n.nspname = 'public' AND p.proname IN (...)
+  GROUP BY p.proname;
+  ```
+- **Identity**: SECURITY DEFINER money RPCs must derive the actor from `auth.uid()` (`v_actor_id := COALESCE(auth.uid(), p_user_id)` — user-JWT calls use the real caller so a self-declared `p_user_id` can't be spoofed; service_role calls use the EF-resolved id). Admin-only functions gate on `admin_has_role(auth.uid())` (NOT the self-declared `p_admin_user_id`). Party-constrained functions (tax apply/refund, complete/cancel) check `auth.uid() IN (buyer_id, seller_id)` for user-JWT calls, leaving service_role unaffected.
+- **Role checks use `current_setting('role', true)`** (returns service_role/anon/authenticated even inside SECURITY DEFINER), **never `request.jwt.claim.role`** — that GUC is never set by this PostgREST (verified live DT-57), so any guard using it is dead code that either always passes or always rejects.
+- **Verify referenced helper functions exist on the target DB** before relying on them, even in short-circuited branches (plpgsql resolves references regardless of execution path — a missing helper 500s EVERY call): `SELECT proname, pg_get_function_identity_arguments(oid) FROM pg_proc WHERE proname IN ('admin_has_role','is_admin','edu_is_admin')`. Known staging fact: `is_admin()` (no-arg) does NOT exist; use `is_admin(user_id uuid)` / `admin_has_role(uuid)` / `edu_is_admin(uuid)`.
+- When locking a function to `service_role`, confirm the caller analysis first (every EF + mobile service caller + its credential), so no legitimate user-JWT/anon path is broken; internal trigger/owner-context callers bypass grants.
+
+Detection checklist: any money RPC that is (a) granted to `anon`/`authenticated`, (b) PUBLIC-by-default (no `REVOKE FROM PUBLIC` anywhere), or (c) trusts a self-declared `p_user_id`/`p_admin_user_id` with no `auth.uid()` gate → Tier-0 finding. Verify the grant against LIVE `aclexplode(pg_proc.proacl)` before and after any lockdown. Cross-ref BP-1 (RLS on new tables), BP-22 (secrets from config), BP-75 (live-vs-grep audits for RLS).

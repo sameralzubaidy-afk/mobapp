@@ -123,36 +123,55 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // ── Resolve the Stripe price (BP-28: fail loud, no hardcoded fallback) ──
-    let priceId = body.price_id || null;
+    // DT-58 (2026-08-30): price_id is validated against an ALLOWLIST — the set of
+    // stripe_price_id values on ACTIVE subscription_tiers rows. An unmatched price_id
+    // is rejected (INVALID_PRICE_ID); a client can no longer point checkout at an
+    // arbitrary Stripe price. trial_days is ALWAYS derived server-side from the
+    // resolved tier (admin-configured); the client's trial_days is ignored entirely.
+    const { data: activeTiers, error: tiersError } = await supabase
+      .from('subscription_tiers')
+      .select('id, stripe_price_id, trial_days, is_default')
+      .eq('is_active', true)
+      .not('stripe_price_id', 'is', null)
+      .order('is_default', { ascending: false });
+
+    if (tiersError) {
+      console.error('[create-checkout-session] tier lookup error:', tiersError);
+      return new Response(
+        JSON.stringify({ success: false, error: { code: 'CONFIG_UNAVAILABLE', message: 'Subscription pricing is not configured yet. Please try again later.' } }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const requestedPriceId = body.price_id || null;
+    let priceId: string | null = null;
     let tierId: string | null = null;
     let trialDays: number | null = null;
 
-    if (!priceId) {
-      const { data: tier, error: tierError } = await supabase
-        .from('subscription_tiers')
-        .select('id, stripe_price_id, trial_days, is_default')
-        .eq('is_active', true)
-        .not('stripe_price_id', 'is', null)
-        .order('is_default', { ascending: false })
-        .limit(1)
-        .maybeSingle<TierRow>();
-
-      if (tierError) {
-        console.error('[create-checkout-session] tier lookup error:', tierError);
+    const allowlist = (activeTiers ?? []) as Array<TierRow>;
+    if (requestedPriceId) {
+      const matchedTier = allowlist.find((t) => t.stripe_price_id === requestedPriceId);
+      if (!matchedTier) {
+        console.error(`[create-checkout-session] rejected unknown price_id: ${requestedPriceId}`);
+        return new Response(
+          JSON.stringify({ success: false, error: { code: 'INVALID_PRICE_ID', message: 'This subscription plan is no longer available. Please refresh and try again.' } }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      priceId = requestedPriceId;
+      tierId = matchedTier.id;
+      trialDays = matchedTier.trial_days ?? null;
+    } else {
+      const defaultTier = allowlist.find((t) => t.is_default) ?? allowlist[0] ?? null;
+      if (!defaultTier?.stripe_price_id) {
         return new Response(
           JSON.stringify({ success: false, error: { code: 'CONFIG_UNAVAILABLE', message: 'Subscription pricing is not configured yet. Please try again later.' } }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
-      if (!tier?.stripe_price_id) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: 'CONFIG_UNAVAILABLE', message: 'Subscription pricing is not configured yet. Please try again later.' } }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
-      }
-      priceId = tier.stripe_price_id;
-      tierId = tier.id;
-      trialDays = tier.trial_days ?? null;
+      priceId = defaultTier.stripe_price_id;
+      tierId = defaultTier.id;
+      trialDays = defaultTier.trial_days ?? null;
     }
 
     // ── Trial eligibility (one-time; skip if the account already used trial) ─
@@ -169,8 +188,11 @@ serve(async (req: Request): Promise<Response> => {
         useTrial = false;
       }
     }
-    const trialDaysToUse = body.trial_days ?? trialDays ?? 30;
-    // BP-40: trial_period_days and trial_end are mutually exclusive — we only ever set trial_period_days here.
+    // DT-58 (2026-08-30): trial_days is server-derived ONLY (the resolved tier's
+    // admin-configured value). The client's trial_days is ignored — no self-granted
+    // trial length. 0/null → no trial period. BP-40: trial_period_days and trial_end
+    // are mutually exclusive — we only ever set trial_period_days here.
+    const trialDaysToUse = trialDays && trialDays > 0 ? trialDays : null;
 
     // ── Create Stripe Checkout Session (hosted; Apple Pay / Google Pay / card) ─
     const bindToken = resolvedUserId ? null : await hmacToken(email);
@@ -179,7 +201,7 @@ serve(async (req: Request): Promise<Response> => {
     const checkout = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: useTrial ? { trial_period_days: trialDaysToUse } : undefined,
+      subscription_data: useTrial && trialDaysToUse ? { trial_period_days: trialDaysToUse } : undefined,
       customer_email: email,
       client_reference_id: resolvedUserId ?? undefined,
       metadata: {
@@ -187,7 +209,11 @@ serve(async (req: Request): Promise<Response> => {
         email,
         tier_id: tierId ?? '',
       },
-      automatic_payment_methods: { enabled: true },
+      // DT-58 (2026-08-30): `automatic_payment_methods` is NOT a valid parameter for
+      // `checkout.sessions.create` (it belongs on payment intents / payment links) —
+      // Stripe rejects the whole request with `parameter_unknown`, so NO session could
+      // ever be created. Removed so hosted Checkout uses its default card payment flow
+      // (Apple Pay / Google Pay are enabled automatically for card on Checkout).
       success_url: successUrl,
       cancel_url: `${webBaseUrl}/join?cancelled=1`,
     });
