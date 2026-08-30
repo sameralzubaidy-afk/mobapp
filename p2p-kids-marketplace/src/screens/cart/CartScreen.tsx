@@ -272,7 +272,17 @@ export default function CartScreen() {
     const prevCartId = bundleId;
     const r = await switchToSavedCart(switchTargetCartId);
     if (!r.success) {
-      Alert.alert('Could not switch', r.error.message);
+      // QA Task 9 (M10): never surface the raw server error string. The switch
+      // path previously leaked "SAVED_CART_LIMIT_REACHED: user already has 3
+      // saved carts" (DB trigger text) to the user. The RPC now returns the
+      // friendly structured message, but map the known raw prefix here too as
+      // a safety net so no developer-facing text can ever reach the UI.
+      const message =
+        r.error.code === 'SAVED_CART_LIMIT_REACHED' ||
+        r.error.message.includes('SAVED_CART_LIMIT_REACHED')
+          ? 'You already have 3 saved carts. Delete one to save a new one.'
+          : r.error.message;
+      Alert.alert('Could not switch', message);
       return;
     }
     // CART-018: analytics
@@ -890,9 +900,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     // DEV-TASK-48 (P3): the Make-offer CTA is now a FIXED bar above the floating
     // tab pill, so scroll content needs enough bottom clearance to fully scroll
-    // past it. DEV-TASK-49 (UX): the bar is now a bottom-sheet card at bottom:164
-    // with ~88pt height (top ≈252pt from screen bottom) — 244pt clearance keeps
-    // the last rows fully scrollable above the sheet.
+    // past it. DEV-TASK-49 (UX): the bar is a bottom-sheet card at bottom:134
+    // with ~88pt height (sheet top ≈737pt from screen top) — 244pt clearance
+    // keeps the last rows fully scrollable above the sheet (~25pt of air at max
+    // scroll: 244 − (134 + 85 card height)).
     paddingBottom: 244,
   },
 
@@ -1222,14 +1233,18 @@ const styles = StyleSheet.create({
   // renders outside the ScrollView so it never slides under the tab bar.
   // DEV-TASK-49 (UX): restyled as a padded bottom-sheet-style container for
   // unambiguous visual separation from the pill on every device size:
-  //  - bottom:164 keeps the sheet's bottom edge clearly above the pill top
-  //    (~110pt from screen bottom). Measured on-device (iPhone 17 Pro Max):
-  //    bottom:132 landed the sheet touching the pill; 164 yields ~30pt of air.
+  //  - bottom:134 keeps the sheet clearly above the pill top (~848pt from the
+  //    top on iPhone 17 Pro Max) while ALSO clearing the last scroll row: the
+  //    old bottom:164 floated the sheet ~56pt above the pill, which landed the
+  //    sheet's top edge (~706pt) ON TOP of the Subtotal row (ends ~712pt) —
+  //    read as "CTA overlaps content / not anchored at the bottom". At bottom:134
+  //    the sheet top (~737pt) clears Subtotal by ~25pt and the sheet bottom
+  //    (~822pt) sits ~26pt above the pill. Measured on-device (iPhone 17 Pro Max).
   //  - white card + shadow level2 ("modals, bottom sheets") + 8pt padding make
   //    the CTA read as a floating sheet rather than a tab-bar extension.
   bundleCtaBar: {
     position: 'absolute',
-    bottom: 164,
+    bottom: 134,
     left: 16,
     right: 16,
     backgroundColor: '#FFFFFF',
