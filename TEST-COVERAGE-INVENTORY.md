@@ -315,16 +315,16 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-E05 | Admin resolves dispute → Complete | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-E06 | Admin resolves dispute → Refund | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-E07 | Report an Issue — no reason (disabled submit) | 1 | PASS | 2026-08-29 | `qa-task6-e-reverify-2026-08-29` | ✅ PASS (modal opens — title "Report an Issue" / subtitle "What went wrong with this trade?" / 5 reasons; Submit disabled with no reason: 62% disabled-light-green, 0% enabled) |
-| TRD-TC-E08 | Report an Issue — reason selected (non-Other) | 1 | PASS | 2026-08-29 | `qa-task6-e-reverify-2026-08-29` → resolved by **DEV-TASK-53** | ✅ PASS (non-Other → green selected radio + no textarea + Submit enabled ✅; **deselect-on-retap IMPLEMENTED (DEV-TASK-53)** — `IssueReportModal` onPress now toggles (`setSelected(prev => prev===id?null:id)`); on-device: tap-select (#5DBB8E) → tap-deselect (#A7D7BE) verified via pixel scan; Other→textarea→deselect→textarea hidden verified; 2 new unit tests) |
+| TRD-TC-E08 | Report an Issue — reason selected (non-Other) | 1 | PASS | 2026-08-30 | `qa-task6-e-reverify-2026-08-29` + `qa-task7-expanded-lmn-retest-2026-08-30` (retest DT-53) | ✅ PASS (re-verified 2026-08-30: select "Seller was a no-show" → Submit solid green 52.35%; re-tap → 0% solid green (deselect toggle works); screenshots E08-reason-selected/deselected.png) |
 | TRD-TC-E09 | Report an Issue — "Other" + min-20 description | 1 | PASS | 2026-08-29 | `qa-task6-e-reverify-2026-08-29` | ✅ PASS (textarea + min-20 label + placeholder on-device; <20 → disabled verified; switching reason hides textarea verified; 20+ enable unit-tested `IssueReportModal.test.tsx` + source `maxLength=500`; on-device 20+ enable not observable — automation text-injection doesn't fire onChangeText into the controlled multiline field) |
-| TRD-TC-E10 | Report an Issue — submitting + success/error | 1 | PASS | 2026-08-29 | `qa-task6-e-reverify-2026-08-29` (copy aligned by **DEV-TASK-53**) | ✅ PASS (Submit (non-Other) → modal closes → amber "Dispute in progress" banner; DB: `dispute_status=reported` reason `no_show`, 1 `trade_disputed` event, 1 seller `trade_dispute_opened` notif; Report Problem hidden + I Got It disabled post-submit; **banner copy now matches the guide/TRADING-FLOW-V2.md SLA: "Our team will review within 24 hours"** — DEV-TASK-53) |
+| TRD-TC-E10 | Report an Issue — submitting + success/error | 1 | PASS | 2026-08-30 | `qa-task6-e-reverify-2026-08-29` + `qa-task7-expanded-lmn-retest-2026-08-30` (retest DT-53) | ✅ PASS (re-verified 2026-08-30: banner "Dispute in progress" + "Your issue has been reported. Our team will review within 24 hours. Auto-complete is paused." + "Keep chatting with the other party..."; DB dispute_status=reported reason no_show; screenshot E10-dispute-banner-24h.png) |
 | TRD-TC-F01 | Payout shown on completion (no dispute) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-F02 | Payout held when dispute is open | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-F02 | Payout held when dispute is open | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` (retest DT-48) | ✅ PASS (admin resolve→complete: status completed, dispute resolved_seller, dispute_resolved_by=1a546991 (actor attribution R35); payout_amount_cents=1600 NOT zeroed; seller_payouts row gross 1600 / fee 29 / net 1571, idempotency_key trade:…:seller:14be337c) |
 | TRD-TC-F03 | Payout needs action when seller has no payout method | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-G01 | Offer expiry reminders to seller | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-G02 | Auto-complete reminders to buyer | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-G03 | Notification throttle per trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-G04 | Push notifications deep-link to correct screen | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-G04 | Push notifications deep-link to correct screen | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` (retest DT-48) | ✅ PASS (offer_reminder_6h in-app notification tap → navigates to Review Offer with correct trade/expiry; rpc_send_offer_reminders returned offer_reminder_6h + reminder_6h_sent:1) |
 | TRD-TC-G05 | Pickup-window reminders to buyer (R2) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-H01 | Free buyer sees subscription CTA | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-H02 | Subscriber buyer used SP — "You saved $X" | 1 | — | — | `—` | NEVER RUN |
@@ -335,7 +335,7 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-I02 | Safe meetup card dismissible per trade | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-I03 | In-chat safety banner persistent | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-I04 | Pre-first-message safety modal once per listing | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-I05 | Chat quick-reply chips on in_progress trade | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-I05 | Chat quick-reply chips on in_progress trade | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` (retest DT-48) | ✅ PASS (📅 Available today + 📆 Available tomorrow chips sent correct messages; DB: 2 messages rows created 16:43:43 + 16:44:04) |
 | TRD-TC-I06 | Liability disclaimer modal gates purchase (checkbox + Accept & Continue) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-I07 | Disclaimer modal Cancel path — no trade created | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-I08 | Disclaimer modal ✕ close behaves like Cancel | 1 | — | — | `—` | NEVER RUN |
@@ -354,43 +354,43 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-K05 | Bundle checkout — one fee per bundle (admin toggle ON) | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-K06 | Bundle timeline — fee display matches charge mode | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-K07 | Admin partial refund — refund price only, keep fee | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K08 | Admin partial refund — tax ledger partially refunded | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-K08 | Admin partial refund — tax ledger partially refunded | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` (retest DT-48) | ✅ PASS (refund of Sales Tax $1.40 only → tax_records tax_status=refunded refunded_tax_cents=140; payments partially_refunded refunded_cents=140 refunded_tax_cents=140; Stripe refund re_3UABZ44I6kCJlvXo0EhPQLID; trade_refunds row) |
 | TRD-TC-K09 | Payments reconciliation page — charged vs refunded per trade | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` (retest DT-48) | ✅ PASS (EF repro 3×2 SP bundle w/ 4 SP available → HTTP 409 SP_INSUFFICIENT "You don't have enough Swap Points for this bundle"; 0 trades created) |
 | TRD-TC-K11 | Seller fee = 5% × cash portion (SP trade) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L01 | Bundle banner on trade detail | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L02 | Confirm All shortcut for bundle (buyer) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L03 | Bundle offer rows in Offers tab (seller) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L04 | Non-bundle offers render as single rows | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L05 | In-progress bundles section in Buying tab | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L06 | Bundle banner in Review Offer screen | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L07 | Accept All N Items in Review Offer screen | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L08 | Individual accept/decline alongside bundle siblings | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L09 | **Bundle card in Your Offers (buyer)** | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L10 | Bundle cancel prompt (buyer + seller) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-L11 | Bundle checkout skips items already in an active trade — buyer notified, flow continues | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M01 | Add first item → active cart created | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M02 | Add second item from same seller | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M03 | Add item from different seller → choice modal | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M04 | Replace Cart option | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M05 | Cannot add own item to cart | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M06 | Cannot add unavailable / out-of-node item | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M07 | Duplicate item prevented in same cart | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M08 | Remove item from cart | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M09 | Clear cart | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M10 | Saved carts: max 3, LRU eviction, switch cart | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M11 | Minimum cart value warning + checkout blocked | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M12 | Max SP available shown per cart item (subscriber) | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M13 | Realtime: item becomes unavailable while in cart | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M14 | Favorites add / remove | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M15 | Favorites screen: availability + empty state | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M16 | Success toast appears and auto-dismisses on add-to-cart | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M17 | Cart badge increments in sync with toast | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M18 | Toast copy uses "Trade Basket" terminology | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M19 | Home dashboard Favorites quick-action tile navigates to Favorites | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-M20 | Discover header heart icon navigates to Favorites | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N01 | Admin sets minimum cart value → reflects in app | 1 | — | — | `—` | NEVER RUN |
-| TRD-TC-N02 | Admin minimum cart value validation | 1 | — | — | `—` | NEVER RUN |
+| TRD-TC-L01 | Bundle banner on trade detail | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS ("Bundle offer · 2 items" + expand/collapse "View all items", buyer + seller views) |
+| TRD-TC-L02 | Confirm All shortcut for bundle (buyer) | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS ("Confirm all 2 items received?" + [Confirm All 2]/[Just This One]; both completed; ⚠ load-time flag: Done! modal >3s — see report §4) |
+| TRD-TC-L03 | Bundle offer rows in Offers tab (seller) | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (NEEDS ACTION bundle row: Bundle Offer · 2 items + Review Each / Accept All / Decline All) |
+| TRD-TC-L04 | Non-bundle offers render as single rows | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (single offer → trade-offer-row-a2222222 with only Review action) |
+| TRD-TC-L05 | In-progress bundles section in Buying tab | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (buyer IN PROGRESS "📦 Bundle · 2 items" group) |
+| TRD-TC-L06 | Bundle banner in Review Offer screen | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` (incl. DT-62 item 2 bundle) | ✅ PASS (bundle banner + expand 2 item rows; Buyer's Total Paid $38; Points Earned +10 SP; net payout Cash $18 / Fee −$3.60 / Net $14.40) |
+| TRD-TC-L07 | Accept All N Items in Review Offer screen | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (Accept All 2 → both in_progress) |
+| TRD-TC-L08 | Individual accept/decline alongside bundle siblings | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (individual Accept alongside sibling; Puzzle Set in_progress, QA Canned stayed pending; DB-verified) |
+| TRD-TC-L09 | **Bundle card in Your Offers (buyer)** | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (bundle card PENDING/Buying, item rows, 48h left, View Details, NO Accept/Decline All) — **MAJOR finding: disclaimer modal body = Amazon.com seller-insurance boilerplate (P1 content defect)** |
+| TRD-TC-L10 | Bundle cancel prompt (buyer + seller) | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (buyer "Cancel all 2 items?" + [Cancel All 2] both cancelled; seller [Just This One] — pending cash sibling not seller-cancellable, correct per source) |
+| TRD-TC-L11 | Bundle checkout skips items already in an active trade — buyer notified, flow continues | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS ("Already In an Active Trade" notice lists skipped item; eligible offer created, no duplicate) |
+| TRD-TC-M01 | Add first item → active cart created | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS |
+| TRD-TC-M02 | Add second item from same seller | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (same-seller direct add, no modal) |
+| TRD-TC-M03 | Add item from different seller → choice modal | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (GlobalAlertProvider modal AX-exposed: Save & Start New Trade Basket / Replace Trade Basket / Cancel) |
+| TRD-TC-M04 | Replace Cart option | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS |
+| TRD-TC-M05 | Cannot add own item to cart | 1 | SKIP | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ⏭ SKIPPED (needs a second persona's own-listing state; deferred, low value) |
+| TRD-TC-M06 | Cannot add unavailable / out-of-node item | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (sold item → "❌ Listing not found") |
+| TRD-TC-M07 | Duplicate item prevented in same cart | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (duplicate add → "View Trade Basket" in-cart button) |
+| TRD-TC-M08 | Remove item from cart | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS |
+| TRD-TC-M09 | Clear cart | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (shows $0 state, not full empty, when saved carts exist — per design) |
+| TRD-TC-M10 | Saved carts: max 3, LRU eviction, switch cart | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (3/3 cap + Switch works) — **doc drift: 4th save is server REJECTED ("You already have 3 saved carts"), NOT LRU eviction** |
+| TRD-TC-M11 | Minimum cart value warning + checkout blocked | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` (verified via N01) | ✅ PASS (Add $X more banner + "Minimum checkout is $20.00" + blocked checkout modal; see N01) |
+| TRD-TC-M12 | Max SP available shown per cart item (subscriber) | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS ("Accepts Points" badge shown) — **doc drift: no numeric "Up to N SP"** |
+| TRD-TC-M13 | Realtime: item becomes unavailable while in cart | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS ("This item is no longer available" shown) — **P3: subtotal still $18 (item not excluded)** |
+| TRD-TC-M14 | Favorites add / remove | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS |
+| TRD-TC-M15 | Favorites screen: availability + empty state | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS ("No longer available" overlay + "No favorites yet" empty state) |
+| TRD-TC-M16 | Success toast appears and auto-dismisses on add-to-cart | 1 | PARTIAL | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ⚠️ PARTIAL (toast observed; 2.5s auto-dismiss not directly capturable via screenshot — source-corroborated, behavior verified) |
+| TRD-TC-M17 | Cart badge increments in sync with toast | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (badge "2") |
+| TRD-TC-M18 | Toast copy uses "Trade Basket" terminology | 1 | PARTIAL | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ⚠️ PARTIAL (copy "Added to Trade Basket" source-verified; same 2.5s capture limitation as M16) |
+| TRD-TC-M19 | Home dashboard Favorites quick-action tile navigates to Favorites | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS |
+| TRD-TC-M20 | Discover header heart icon navigates to Favorites | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (navigates to Favorites) — **copy/icon drift: bookmark "Saved items", not heart/"View Favorites"** |
+| TRD-TC-N01 | Admin sets minimum cart value → reflects in app | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (admin set $20 → DB 2000¢; on-device "Add $6.00 more" + "Minimum checkout is $20.00" + blocked checkout modal; reverted to 0, DB-verified) |
+| TRD-TC-N02 | Admin minimum cart value validation | 1 | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | ✅ PASS (min=0; negative → "Minimum cart value cannot be negative", write blocked) — **doc drift: no $5 floor (guide expects one)** |
 | TRD-TC-N03 | Admin updates Minimum Listing Price on Config → Fees tab | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-N04 | Seller cannot publish single-item listing below threshold | 1 | — | — | `—` | NEVER RUN |
 | TRD-TC-N05 | Bulk: below-threshold items flagged, valid items publish | 1 | — | — | `—` | NEVER RUN |
@@ -1004,10 +1004,11 @@ All report.md files found and parsed for this inventory, with the per-case evide
 | 2026-08-24 | manual | `group-j-h-closure-2026-08-24` | 3/0/0/0 | 4 |
 | 2026-08-24 | manual | `group-j-listing-creation-single-2026-08-24` | 8/1/5/0 | 28 |
 | 2026-08-30 | manual | `qa-task8-cumulative-regression-2026-08-30` | 5/0/0/0 | 7 |
+| 2026-08-30 | manual | `qa-task7-expanded-lmn-retest-2026-08-30` | 37/0/0/1 (2 PARTIAL) | 40 + DT-62 bonus |
 
 Additional evidence not captured as report.md rows:
 
-- **Decision / outcome logs** (8): `group-a-b-d-auth`, `group-h-profile-setup`, `group-l-playwright-l01-l04`, `group-p-full-run-19-cases`, `phase22-auth-group-b-d-e`, `phase23-wrapup-f06-reverify-f07-h03`, `phase25-auth-group-k-bulk`, `phase26-bulk-four-fixes-verify` (each `decision*-log.md` in the run folder).
+- **Decision / outcome logs** (9): `group-a-b-d-auth`, `group-h-profile-setup`, `group-l-playwright-l01-l04`, `group-p-full-run-19-cases`, `phase22-auth-group-b-d-e`, `phase23-wrapup-f06-reverify-f07-h03`, `phase25-auth-group-k-bulk`, `phase26-bulk-four-fixes-verify`, `qa-task7-expanded-lmn-retest-2026-08-30` (each `decision*-log.md` in the run folder).
 - **results.json** (12 automated runs) — used as the authoritative per-case source for the automated runs in §7.
 - **Screenshot-only run folder** `group-o-locator-fixes-2026-08-23/` (no report.md; fix-evidence captured as screenshots only).
 - **Stage harness reports** `stage2/report.md`, `stage3/report.md` + `report-*.md`, `stage4/report-write-based-provisioning.md`, `stage5/report-auth-teardown.md`, `Stage1-iOS-Signup-HappyPath-report.md` (A01–A03/B01/B02 PASS merged above), `itemcreate-scroll-investigation-2026-08-17/report.md`.
