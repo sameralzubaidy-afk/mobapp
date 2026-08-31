@@ -113,6 +113,23 @@ export default function TradeTimelineScreen() {
   const [nextStepsDismissed, setNextStepsDismissed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [spReleaseDays, setSpReleaseDays] = useState(3);
+  // DEV-TASK-75 (2026-08-31) — O07 refund-detail view: refund rows for a trade
+  // resolved with a refund (dispute-refund / seller-cancel / force-cancel /
+  // partial). Read via rpc_get_trade_refunds (trade_refunds is service-role only;
+  // the RPC is party-scoped so only buyer/seller get the rows). Null = not loaded.
+  const [refunds, setRefunds] = useState<
+    | {
+        id: string;
+        refund_amount_cents: number;
+        refund_price_cents: number;
+        refund_fee_cents: number;
+        refund_tax_cents: number;
+        reason: string | null;
+        status: string;
+        created_at: string;
+      }[]
+    | null
+  >(null);
   // Track previous trade status to detect transitions to 'completed'
   const previousStatusRef = useRef<string | null>(null);
 
@@ -265,6 +282,32 @@ export default function TradeTimelineScreen() {
             verification_status: (profile as any).verification?.[0]?.status || 'none',
           });
         }
+      }
+
+      // DEV-TASK-75 (2026-08-31) — O07: load refund rows for the trade.
+      // Graceful if the RPC isn't deployed yet (rolling deploy) or errors — the
+      // refund section simply doesn't render (backward compatible).
+      try {
+        const { data: refundRpc } = await supabase.rpc('rpc_get_trade_refunds', {
+          p_trade_id: tradeId,
+        });
+        const refundPayload = (refundRpc ?? {}) as {
+          success?: boolean;
+          data?: {
+            id: string;
+            refund_amount_cents: number;
+            refund_price_cents: number;
+            refund_fee_cents: number;
+            refund_tax_cents: number;
+            reason: string | null;
+            status: string;
+            created_at: string;
+          }[];
+        };
+        setRefunds(refundPayload.success ? (refundPayload.data ?? []) : []);
+      } catch {
+        // RPC not available / error — no refund section.
+        setRefunds([]);
       }
 
       if (user?.id && enrichedTrade.status === 'completed') {
@@ -671,6 +714,21 @@ export default function TradeTimelineScreen() {
   const hasUnresolvedDispute =
     !!(trade as any).dispute_status &&
     !['none', 'resolved'].includes((trade as any).dispute_status);
+  // DEV-TASK-75 (2026-08-31) — O07: derive refund-display values from the fetched
+  // refund rows. Only succeeded/pending refunds count as money actually refunded
+  // (failed/canceled rows are excluded). Rows come back DESC by created_at, so
+  // the first succeeded/pending row is the most recent.
+  const refundRows = (refunds ?? []).filter(
+    (r) => r.status === 'succeeded' || r.status === 'pending'
+  );
+  const totalRefundCents = refundRows.reduce(
+    (sum, r) => sum + (r.refund_amount_cents ?? 0),
+    0
+  );
+  const refundTaxCents = refundRows.reduce((sum, r) => sum + (r.refund_tax_cents ?? 0), 0);
+  const hasPendingRefund = refundRows.some((r) => r.status === 'pending');
+  const latestRefundDate = refundRows.length > 0 ? refundRows[0].created_at : null;
+  const showRefundSection = refundRows.length > 0 && totalRefundCents > 0;
   // Compute auto-complete countdown for the seller payout card
   const autoCompleteCountdownLabel = (() => {
     if (!trade.auto_complete_at) return '';
@@ -1410,6 +1468,77 @@ export default function TradeTimelineScreen() {
             </>
           )}
         </View>
+
+        {/* DEV-TASK-75 (2026-08-31) — O07 refund-detail view.
+            Appears on the Trade Timeline when the trade was resolved with a refund
+            (dispute-resolve-refund / seller-cancel refund / admin force-cancel /
+            partial refund) — i.e. one or more succeeded/pending trade_refunds rows.
+            Buyer sees the full refund breakdown (amount, proportional tax, payment
+            method, date/status) mirroring the Review Offer "Net Cash Payout" money
+            breakdown style; seller sees a role-appropriate status note (the refund
+            is the buyer's money — no breakdown for the seller, consistent with the
+            DT73 buyer/seller copy differentiation pattern). */}
+        {showRefundSection && isBuyer && (
+          <View style={styles.refundCard} testID="timeline-refund-detail">
+            <Text style={styles.refundCardTitle}>Refund</Text>
+            <View style={styles.refundStatusRow}>
+              {hasPendingRefund ? (
+                <>
+                  <WarningCircle size={18} color="#FFA726" weight="fill" />
+                  <Text style={[styles.refundStatusText, styles.refundStatusTextPending]}>
+                    Your refund is being processed.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={18} color="#5DBB8E" weight="fill" />
+                  <Text style={styles.refundStatusText}>Your refund has been issued.</Text>
+                </>
+              )}
+            </View>
+            <View style={styles.refundRow}>
+              <Text style={styles.refundLabel}>Refund Amount</Text>
+              <Text style={styles.refundValue}>${(totalRefundCents / 100).toFixed(2)}</Text>
+            </View>
+            {refundTaxCents > 0 && (
+              <View style={styles.refundRow}>
+                <Text style={styles.refundLabel}>Refunded Sales Tax</Text>
+                <Text style={styles.refundValue}>${(refundTaxCents / 100).toFixed(2)}</Text>
+              </View>
+            )}
+            <View style={styles.refundRow}>
+              <Text style={styles.refundLabel}>Refunded to</Text>
+              <Text style={styles.refundValue}>
+                {trade.stripe_payment_method_brand && trade.stripe_payment_method_last4
+                  ? `${trade.stripe_payment_method_brand.toUpperCase()} •••• ${trade.stripe_payment_method_last4}`
+                  : 'Your original payment method'}
+              </Text>
+            </View>
+            {latestRefundDate && (
+              <View style={styles.refundRow}>
+                <Text style={styles.refundLabel}>Refunded on</Text>
+                <Text style={styles.refundValue}>
+                  {new Date(latestRefundDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Seller-side refund note — no payout breakdown (it's the buyer's money). */}
+        {showRefundSection && isSeller && (
+          <View style={styles.sellerRefundBox} testID="timeline-refund-seller-note">
+            <WarningCircle size={20} color="#FFA726" weight="regular" style={{ marginRight: 8 }} />
+            <Text style={styles.sellerRefundText}>
+              This trade was cancelled and the buyer was refunded. No payout was issued for
+              this sale.
+            </Text>
+          </View>
+        )}
 
         {/* Hide message button for cancelled and pending trades — no active trade exists */}
         {trade.status !== 'cancelled' && trade.status !== 'pending' && (
@@ -2254,6 +2383,67 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1A1A1A',
+  },
+  // DEV-TASK-75 (2026-08-31) — O07 refund-detail view. Mirrors the Review Offer
+  // "Net Cash Payout" money-breakdown convention (label/value rows + total) and
+  // the existing Payment Details card on this screen.
+  refundCard: {
+    backgroundColor: '#F7F7F7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E8F5F0',
+  },
+  refundCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  refundStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  refundStatusText: {
+    fontSize: 15,
+    color: '#2D6A4F',
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  refundStatusTextPending: {
+    color: '#B45309',
+  },
+  refundRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  refundLabel: {
+    fontSize: 15,
+    color: '#6B6B6B',
+  },
+  refundValue: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  sellerRefundBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  sellerRefundText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#92400E',
+    lineHeight: 20,
   },
   messageButton: {
     flexDirection: 'row',

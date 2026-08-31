@@ -53,6 +53,12 @@ export interface Trade {
   // External IDs
   stripe_payment_intent_id?: string | null;
 
+  // DT-69 (2026-08-30): buyer card brand/last4 captured at offer time (PII-lite
+  // display fields). Used by the Review Offer "pays via" line and the O07
+  // refund-detail "Refunded to" line (refunds return to the original method).
+  stripe_payment_method_brand?: string | null;
+  stripe_payment_method_last4?: string | null;
+
   // D-30 pre-auth
   authorization_expires_at?: string | null;
 

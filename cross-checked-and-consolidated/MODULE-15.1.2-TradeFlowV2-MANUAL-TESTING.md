@@ -294,7 +294,7 @@
 | | TRD-TC-U03 | Notification bell behavior + badge accuracy |
 | | TRD-TC-U04 | Screens without ScreenLayout still have working headers |
 | | TRD-TC-U05 | Checkout/payment screens intentionally hide the bell |
-| **V — Copy Rename Verification** | TRD-TC-V01 | "Trade Basket" appears in bottom tab bar |
+| **V — Copy Rename Verification** | TRD-TC-V01 | "Basket" (short form) appears in bottom tab bar |
 | | TRD-TC-V02 | "Trade Basket" appears as screen title on Cart screen |
 | | TRD-TC-V03 | Empty state shows "trade basket" in copy |
 | | TRD-TC-V04 | "View Trade Basket" button on Item Detail screen |
@@ -3324,14 +3324,24 @@ ORDER BY t.created_at DESC LIMIT 1;
 
 ---
 
-### ⏭️ TRD-TC-O07 · Refund shows proportional tax refunded
+### ✅ TRD-TC-O07 · Refund shows proportional tax refunded — end-user refund-detail view built (Dev Task 75)
 
-**Status:** Admin dispute refund flow exists, but end-user "refund detail view" showing proportional tax is deferred.
+**Status (2026-08-31):** the end-user **refund-detail view is now BUILT on the Trade Timeline screen** (buyer/seller of the trade). The backend proportional-tax-refund logic was already correct and DB-verified (QA Task 14 — `trade_refunds.refund_tax_cents` tracks the tax component separately from price/fee); the UI was the missing piece.
 
-**When implemented, verify:**
-- Partial refund (50%) → tax refunded = 50% of original tax.
-- Full refund → tax refunded = 100% of original tax.
-- Multiple partial refunds accumulate correctly, never exceeding original tax.
+**Ref:** Trade Timeline screen (Payment Details area); `rpc_get_trade_refunds` (SECURITY DEFINER, party-scoped read path for the service-role-only `trade_refunds` table); `trade_refunds` (per-refund price/fee/tax split, migration 317).
+
+**Trigger condition:** the trade has at least one `trade_refunds` row with `status IN ('succeeded','pending')` (dispute-resolve-refund, seller-cancel refund, admin force-cancel, partial refund). Rendered role-appropriately:
+- **Buyer** — a full refund card: status ("Your refund has been issued." / "Your refund is being processed."), **Refund Amount** (sum of succeeded/pending refunds), **Refunded Sales Tax** (tax portion), **Refunded to** (payment method — trade's `stripe_payment_method_brand`/`last4`, fallback "Your original payment method"), **Refunded on** (most recent refund date).
+- **Seller** — a status note only (no money breakdown — it's the buyer's money): "This trade was cancelled and the buyer was refunded. No payout was issued for this sale."
+
+**Verify:**
+- Partial refund (50%) → refunded sales tax = 50% of original tax; the buyer's refund card shows the accumulated partial amount and tax portion.
+- Full refund → refund card shows the full refund amount with 100% of original tax as the tax portion.
+- Multiple partial refunds accumulate correctly (the card totals all succeeded/pending rows), never exceeding original tax (DB-enforced via `rpc_record_payment_refund`'s per-component remaining checks).
+- Buyer sees the card on the Trade Timeline; seller sees only the status note (no breakdown).
+- The card uses the same money-breakdown formatting convention as Review Offer's "Net Cash Payout" (label/value rows + total), consistent across the app.
+
+> **Deploy note:** the UI degrades gracefully if `rpc_get_trade_refunds` is not yet deployed (the section simply doesn't render) — apply migration `20260831235900_dev_task_75_trade_refunds_read.sql` to staging to activate.
 
 ---
 
@@ -4740,28 +4750,36 @@ FROM items;
 
 ---
 
-### passed TRD-TC-Q15 · Flag a review (select reason)
+### ✅ passed TRD-TC-Q15 · Flag a review (select reason) — reviewee-only model
 
 **Ref:** MODULE-08 REVIEW-006
-**Actors:** test-buyer (flagging a review on test-seller's profile)
-**Precondition:** test-seller has a publicly visible review authored by a different user.
+**Actors:** test-seller (the reviewee) reporting a review written about them, from their **own** profile
 
-**Objective:** Verify any user can flag a review for inappropriate content and select a reason.
+**Status note (Dev Task 75, 2026-08-31):** the guide now matches the **implemented model**. The report menu is shown **only to the reviewee on their own profile** (`ProfileScreen` renders `ReviewCard` with `currentUserId`; `ReviewCard.canReport = currentUserId === reviewee_id`; `SellerProfileScreen` hardcodes `showReportMenu={false}`). Public seller profiles hide the report menu entirely, and non-reviewees never see it. This supersedes the older "any user flags from a public profile" wording (which was never implemented). Report reasons (4: **Spam / Offensive / False information / Other**) and the confirmation copy ("Review reported. Thank you!") are now aligned between guide and app.
+
+**Precondition:** test-seller has at least one review written about them (by any user) visible on their own profile.
+
+**Objective:** Verify the reviewee can flag a review written about them and select a reason.
 
 **Steps:**
-1. Open **test-seller**'s public profile → Reviews section.
-2. On a review card authored by another user, tap the overflow menu (⋯) and select **Report**.
-3. On the report screen, choose reason **"Offensive"** and tap **[Submit Report]**.
+1. Log in as **test-seller** (the reviewee) and open **your own profile** → Reviews section.
+2. On a review card written about you (by another user), tap the overflow menu (⋯, `review-menu-button`).
+3. Select **Report** (e.g. **Report as Offensive**) and confirm.
 
 **Expected Result:**
-- An overflow or flag icon is visible on review cards not authored by the current user.
-- The report reason options shown are: **Spam**, **Offensive**, **False information**, **Other**.
-- After submitting, a confirmation appears: "Review reported. Thank you!"
-- The review remains visible to the reporter immediately (it is not hidden until the 3-report threshold is reached).
+- The overflow menu (⋯) is visible **only on the reviewee's own profile**, only on review cards written about them.
+- The report reason options shown are: **Spam**, **Offensive**, **False information**, **Other** (4 reasons).
+- After submitting, a confirmation appears: **"Review reported. Thank you!"**
+- The review remains visible immediately (it is not hidden until the 3-report threshold is reached — see Q16).
+- **Negative checks:** on a public seller profile (viewing another user's profile), NO overflow/report menu appears on any card; a non-reviewee user never sees a report option on any review.
+
+**Backend enforcement:** `reportReview` rejects reporters who are not the reviewee ("You can only report reviews that were written about you"), and `ReviewCard.canReport` gates the UI to `currentUserId === reviewee_id`.
 
 ---
 
 ### deffered TRD-TC-Q16 · Auto-hide review after 3+ reports
+
+**Status note (Dev Task 75, 2026-08-31):** under the reviewee-only reporting model (Q15), a given review can only ever be reported by **one** reporter — the reviewee — so the "3 distinct reporter accounts" precondition is **not reachable** through the app. This is a product question to confirm: either the auto-hide-at-3 trigger is dead code / unreachable by design (acceptable, since self-flagging doesn't indicate brigading), or public-profile reporting should be re-opened for real (a product decision — see Q15's status note). Until resolved, this case remains deferred with the reachability caveat documented here.
 
 **Ref:** MODULE-08 REVIEW-006
 **Actors:** 3 distinct reporter accounts + test-buyer
@@ -4780,7 +4798,9 @@ FROM items;
 
 ---
 
-### can not test- TRD-TC-Q17 · Cannot flag own review
+### ✅ passed TRD-TC-Q17 · Cannot flag own review
+
+**Status note (Dev Task 75, 2026-08-31):** the reviewee-only model satisfies this outcome by construction — a reviewer can never flag their own review because only the reviewee can report a review, and the reporter is by definition a different user than the reviewer. QA-verified PASS 2026-08-31 (no flag/report affordance appears on a reviewer's own cards, nor on any card when viewing a public profile).
 
 **Ref:** MODULE-08 REVIEW-006
 **Actors:** test-buyer
@@ -5677,9 +5697,9 @@ FROM items;
 2. Observe the bottom nav bar.
 
 **Expected Result:**
-- 5 items visible: Home (highlighted), Discover, orange Sell FAB, Trades, Trade Basket.
+- 5 items visible: Home (highlighted), Discover, orange Sell FAB, Trades, Basket.
 - Home icon is `House` (fill variant, green `#5DBB8E`).
-- Labels read "Home", "Discover", "Trades", "Trade Basket".
+- Labels read "Home", "Discover", "Trades", "Basket" — the basket tab uses the short form **"Basket"** (intentional product behavior per Dev Task 75; the full "Trade Basket" name is used on the Cart screen title and in-app copy, never the tab bar).
 - TestIDs: `tab-home`, `tab-discover`, `tab-sell`, `tab-trades`, `tab-trade-basket`.
 
 ---
@@ -6001,20 +6021,21 @@ FROM items;
 >
 > **Note:** These are visual/text-only tests (no DB migration, no API change). If a test passes for one device (e.g., iOS Simulator), it is safe to assume the same result on the other, unless the text is in a native component that might render differently.
 
-### TRD-TC-V01 · "Trade Basket" appears in bottom tab bar
+### TRD-TC-V01 · "Basket" (short form) appears in bottom tab bar
 
 **Actors:** Any logged-in user (test-buyer)
 
-**Objective:** Verify the bottom tab bar label shows "Trade Basket" instead of "Cart".
+**Objective:** Verify the bottom tab bar shows the accepted short label **"Basket"** — this is intentional product behavior (Dev Task 75): the tab bar uses the short form, while the full name **"Trade Basket"** is reserved for the screen header title and all in-app copy (alerts, buttons, empty state). This is NOT a "Cart" leak and NOT a defect.
 
 **Steps:**
-1. Log in and observe the bottom navigation bar.
-2. Look at the tab that previously said "Cart".
+1. Log in and observe the bottom navigation bar (`PersistentTabBar`).
+2. Look at the tab that previously said "Cart" — the basket tab.
 
 **Expected Result:**
-- The tab label reads **Trade Basket**.
+- The tab label reads **Basket** (short form, intentional — NOT "Trade Basket").
 - The ShoppingCart icon is unchanged.
-- Tapping the tab navigates to the Cart screen (functionally unchanged).
+- Tapping the tab navigates to the Cart/Trade Basket screen whose **header title reads "Trade Basket"** (functionally unchanged).
+- All other in-app surfaces (screen title, alerts, buttons, empty state) continue to use the full **"Trade Basket"** wording per TRD-TC-V02–V09.
 
 ### TRD-TC-V02 · "Trade Basket" appears as screen title on Cart screen
 

@@ -43,11 +43,12 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
     review.reviewee_id &&
     String(currentUserId).trim().toLowerCase() === String(review.reviewee_id).trim().toLowerCase();
 
-  const handleReportPress = (reason: 'spam' | 'offensive' | 'false_info') => {
+  const handleReportPress = (reason: 'spam' | 'offensive' | 'false_info' | 'other') => {
     const reasonLabels = {
       spam: 'Spam',
       offensive: 'Offensive Content',
       false_info: 'False Information',
+      other: 'Other',
     };
 
     Alert.alert('Report Review', `Report this review as ${reasonLabels[reason]}?`, [
@@ -61,7 +62,7 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
     setMenuVisible(false);
   };
 
-  const handleReport = async (reason: 'spam' | 'offensive' | 'false_info') => {
+  const handleReport = async (reason: 'spam' | 'offensive' | 'false_info' | 'other') => {
     if (!currentUserId) return;
 
     setIsReporting(true);
@@ -74,7 +75,10 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
       });
 
       if (result.success) {
-        Alert.alert('Success', 'Thank you for reporting. We will review this content.');
+        // DEV-TASK-75 (2026-08-31): confirmation copy aligned to the manual-testing
+        // guide (TRD-TC-Q15) — "Review reported. Thank you!" (was "Thank you for
+        // reporting. We will review this content.").
+        Alert.alert('Success', 'Review reported. Thank you!');
       } else {
         Alert.alert('Error', result.error || 'Failed to report review');
       }
@@ -142,6 +146,14 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
           <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('false_info')} testID="review-report-false-info" accessible accessibilityRole="button" accessibilityLabel="Report False Information">
             <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
             <Text style={styles.menuItemText}>Report False Information</Text>
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          {/* DEV-TASK-75 (2026-08-31): 4th report reason 'Other' to match the guide (TRD-TC-Q15). */}
+          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('other')} testID="review-report-other" accessible accessibilityRole="button" accessibilityLabel="Report Other">
+            <Ionicons name="ellipsis-horizontal-circle-outline" size={16} color="#6B7280" />
+            <Text style={styles.menuItemText}>Report Other</Text>
           </TouchableOpacity>
         </View>
       )}

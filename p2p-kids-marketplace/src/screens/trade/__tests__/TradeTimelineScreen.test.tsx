@@ -116,6 +116,12 @@ describe('TradeTimelineScreen', () => {
     mockSupabase.removeChannel = jest.fn();
     mockGetPaymentMethod.mockResolvedValue(null);
     mockProcessTradePayment.mockResolvedValue({ success: true, message: 'ok' });
+    // DEV-TASK-75 (O07): default rpc_get_trade_refunds returns no refunds so the
+    // refund section stays hidden unless a test explicitly arms refund rows.
+    mockSupabase.rpc = jest.fn().mockResolvedValue({
+      data: { success: true, data: [] },
+      error: null,
+    });
   });
 
   describe('Rendering', () => {
@@ -397,6 +403,79 @@ describe('TradeTimelineScreen', () => {
       await waitFor(() => {
         // When dispute already exists, the "Report Problem" button should not show
         expect(queryByTestId('report-problem-button')).toBeNull();
+      });
+    });
+  });
+
+  describe('Refund Detail — DEV-TASK-75 / TRD-TC-O07', () => {
+    const refundRow = {
+      id: 'refund-1',
+      refund_amount_cents: 8100,
+      refund_price_cents: 7500,
+      refund_fee_cents: 500,
+      refund_tax_cents: 100,
+      reason: 'dispute_refund',
+      status: 'succeeded',
+      created_at: '2026-08-31T10:00:00.000Z',
+    };
+
+    it('shows the full refund breakdown for the buyer when refund rows exist', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      const cancelledTrade = {
+        ...mockTrade,
+        status: 'cancelled',
+        stripe_payment_method_brand: 'mastercard',
+        stripe_payment_method_last4: '4444',
+      };
+      mockSupabase.from = createFromMock(cancelledTrade) as any;
+      mockSupabase.rpc = jest.fn().mockResolvedValue({
+        data: { success: true, data: [refundRow] },
+        error: null,
+      });
+
+      const { getByTestId, getByText } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('timeline-refund-detail')).toBeTruthy();
+        expect(getByText('Your refund has been issued.')).toBeTruthy();
+        expect(getByText('Refund Amount')).toBeTruthy();
+        expect(getByText('$81.00')).toBeTruthy();
+        expect(getByText('Refunded Sales Tax')).toBeTruthy();
+        expect(getByText('$1.00')).toBeTruthy();
+        expect(getByText('MASTERCARD •••• 4444')).toBeTruthy();
+      });
+    });
+
+    it('shows the role-appropriate seller note (no refund breakdown) for the seller', async () => {
+      mockUseAuth.mockReturnValue({ session: mockSellerSession } as any);
+      const cancelledTrade = { ...mockTrade, status: 'cancelled' };
+      mockSupabase.from = createFromMock(cancelledTrade) as any;
+      mockSupabase.rpc = jest.fn().mockResolvedValue({
+        data: { success: true, data: [refundRow] },
+        error: null,
+      });
+
+      const { getByTestId, queryByTestId, getByText } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('timeline-refund-seller-note')).toBeTruthy();
+        expect(getByText(/buyer was refunded/i)).toBeTruthy();
+        // The seller does NOT see the buyer's refund breakdown card.
+        expect(queryByTestId('timeline-refund-detail')).toBeNull();
+      });
+    });
+
+    it('hides the refund section when no refund rows exist', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      const cancelledTrade = { ...mockTrade, status: 'cancelled' };
+      mockSupabase.from = createFromMock(cancelledTrade) as any;
+      // Default beforeEach mock returns empty data.
+
+      const { queryByTestId } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('timeline-refund-detail')).toBeNull();
+        expect(queryByTestId('timeline-refund-seller-note')).toBeNull();
       });
     });
   });

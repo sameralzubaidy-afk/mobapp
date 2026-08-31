@@ -14,7 +14,7 @@
  * - Contact seller button navigates to messaging
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,7 @@ import { useCartContext } from '@/contexts/CartContext';
 import { addFavorite, removeFavorite, isFavorited } from '@/services/favoritesService';
 import { showDifferentSellerModal } from '@/components/molecules/DifferentSellerModal';
 import MatchesCartBadge from '@/components/molecules/MatchesCartBadge';
-import { getSellerGroup } from '@/utils/sellerGroup';
+import { getSellerGroup, isSameSellerGroup } from '@/utils/sellerGroup';
 import { getMaskedSellerListings } from '@/services/listing';
 import { RootStackParamList } from '@/navigation/types';
 import { formatPrice } from '@/utils/formatPrice';
@@ -79,7 +79,7 @@ interface SellerRatingInfo {
 export default function ItemDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ItemDetailScreenRouteProp>();
-  const { refreshCartCount } = useCartContext();
+  const { refreshCartCount, cartCount } = useCartContext();
   const listing_id =
     (route.params as RootStackParamList['ListingDetail'] & { itemId?: string })?.listing_id ||
     (route.params as RootStackParamList['ListingDetail'] & { itemId?: string })?.itemId;
@@ -160,21 +160,32 @@ export default function ItemDetailScreen() {
   }, [listing, user?.id]);
 
   // SELLER-GROUP: Compute anonymous seller group + matches-cart indicator
-  useEffect(() => {
-    (async () => {
-      if (!listing?.seller_id) return;
-      const group = await getSellerGroup(listing.seller_id);
+  // DEV-TASK-75 (2026-08-31): recompute whenever the CART CHANGES (cartCount), not
+  // just when the listing's seller changes. Previously this ran only on mount /
+  // seller change, so adding an item to the basket from this very screen (or any
+  // cart mutation while ItemDetail was mounted) left the badge stale — it rendered
+  // on the More-from-seller page but not here, because that screen computed fresh
+  // against the populated cart while this effect never re-ran. cartCount is the
+  // reliable 'cart changed' signal (CartContext refreshes it after every cart
+  // mutation + on realtime cart_items changes). Uses isSameSellerGroup for
+  // consistency with MoreFromThisSellerScreen.
+  const computeMatchesCart = useCallback(async () => {
+    if (!listing?.seller_id) return;
+    const group = await getSellerGroup(listing.seller_id);
 
-      // Check if this seller matches the active cart's seller
-      const cartRes = await getCartItems();
-      if (cartRes.success && cartRes.data.sellerId) {
-        const cartGroup = await getSellerGroup(cartRes.data.sellerId);
-        setMatchesCart(cartGroup.hash === group.hash);
-      } else {
-        setMatchesCart(false);
-      }
-    })();
+    // Check if this seller matches the active cart's seller
+    const cartRes = await getCartItems();
+    if (cartRes.success && cartRes.data.sellerId) {
+      const cartGroup = await getSellerGroup(cartRes.data.sellerId);
+      setMatchesCart(isSameSellerGroup(cartGroup.hash, group.hash));
+    } else {
+      setMatchesCart(false);
+    }
   }, [listing?.seller_id]);
+
+  useEffect(() => {
+    computeMatchesCart();
+  }, [computeMatchesCart, cartCount]);
 
   // SELLER-GROUP-007: Check if seller has other approved listings
   useEffect(() => {
