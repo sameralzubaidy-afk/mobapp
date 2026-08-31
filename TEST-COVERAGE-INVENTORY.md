@@ -26,6 +26,18 @@
 - 122 of 137 AUTH cases that have ever been run currently hold a PASS (many after fix→re-verify cycles). 13 remain STILL OPEN — 12 are fixture/config/environment or doc-drift blocks, 1 (Q04) is a stale-guide assertion with the underlying fee behavior verified.
 - The `e2e-test-results/` corpus contains **58 report.md files** plus decision logs, results.json, and screenshot-only evidence; the full source register is in §5.
 
+### QA Task 12 run (2026-08-31) — first manual TRD-guide verdicts + new Groups S/T
+
+QA Task 12 (`e2e-test-results/qa-task12-close-2026-08-30/report.md`) executed **Section A** (fix-verify DT68/DT69 + the 11 previously-out-of-scope admin-dependent cases for real via the admin portal + 4 UX spot-checks) and **Section B** (new Group S S01–S24 + Group T T01–T06). **38 executed with evidence-backed verdicts (27 PASS / 8 PARTIAL / 3 setup-gapped) + 9 honest deferred.**
+
+- **Fix-verified:** O03 ✅, P04 ✅ (Task 11's P1 tax-toggle bug fixed on read + write paths), R06 ✅ (per DT68 scenario-a — void correct for uncaptured auth), R07 ⚠️ (source-confirmed), N05/N13/N14 ⚠️ (dev-fill-bulk-items fix works; below-threshold override driving-limited), O04 ✅, P08 ✅, O1 ✅ (surface).
+- **Admin-dependent (real execution, previously the scoping error):** N06 ✅ (auto-pause), P01 ✅ (node rate + validation), P02 ⚠️ (no bulk UI), P03 ⚠️ (audit on rules page), P05/P06 ✅ (reports), P07 ✅ (env-note), Q18/Q19/Q20 ✅ (review moderation), R09 ⚠️ (queue verified; no active dispute for money-flow).
+- **New Group S (S01–S24):** S01/S02/S04/S05/S07/S09/S13/S14/S17/S20/S21/S23 ✅ PASS; S03/S15 source-confirmed (no single-listing-seller fixture); S06/S08/S10/S11/S12/S16/S18/S19/S22/S24 source-consistent (related regressions).
+- **New Group T (T01–T06):** T01/T03/T05/T06 ✅ PASS; T02/T04 setup-gapped (test-buyer has 4 SP).
+- **Deferred (honest):** O07, Q05, Q10–Q17 (time-window/multi-account/not-built).
+
+**Rollup (Task 12): 27 PASS / 8 PARTIAL / 3 setup-gapped / 9 deferred.** This is the first manual verdict evidence for the **TRD** guide's N/O/P/Q/R/S/T groups (previously ALL "NEVER RUN" in the canonical rows).
+
 ## 2 · Method (read-only reconciliation)
 
 1. **Step 1 — Guides:** parsed the `## Test Case Index` table at the top of each of the 6 canonical files in `cross-checked-and-consolidated/`, extracting every TC-ID with its group and description (876 index rows → **820 unique TC-IDs**; some TC-IDs enumerate multiple sub-step assertions, e.g. `TRD-TC-O1` has 17 rows).
