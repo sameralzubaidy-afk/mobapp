@@ -525,6 +525,16 @@ Dev Task 62's AX-modal fix (item 5) was repeatedly marked PARTIAL because VoiceO
 - **How to label:** use the class name as the verdict in §8.1 item 3 AND in the §8.2 roll-up (count it under the accepted class, not PARTIAL/FAIL). In `Known Gaps / Not Tested`, state the untested leg explicitly: "VoiceOver swipe-interaction behavior (focus cursor movement, double-tap activation, rotor) was NOT directly driven — tooling cannot observe it; verdict covers AX-tree exposure only."
 - **Do NOT:** mark such a case FAIL or PARTIAL purely because the VoiceOver swipe leg can't be driven; do NOT silently mark it PASS implying the gesture leg was tested. The class name says exactly what was and wasn't verified.
 
+### 5.46 Standing rules — QA Task 11→13 process fixes (2026-08-31) — R39–R41
+
+Process-discipline rules from the DT68→DT73 / QA11→QA13 arc. Unlike the interaction techniques in R30–R32 etc., these apply at **run-planning and scope-decision time**, not per-tap, so apply them before and between case execution. *Evidence: `e2e-test-results/qa-task12-close-2026-08-30/report.md` (A4 deferred table; P2 "Payment captured" copy finding), `e2e-test-results/qa-task13-dt71-dt72-verify-2026-08-31/report.md` (Section A/B copy re-verifies; C1 guide stale-copy flag). Companion Dev-side standing notes: `/memories/repo/agent-rule-updates-2026-08-31.md`.*
+
+**R39 — When a copy/UI change lands, re-verify all cases whose expected-copy assertions it invalidates in the SAME or very next session** — do not only flag the guide entries as "stale" for a future round. Model behavior from QA Task 13: DT72's SP-limit phrasing and DT73's authorized-vs-charged copy stayed flagged AND got re-verified on-device in the same arc (T01/T03/T05/T06, S-group banner, A1 accept-alert "Payment authorized"). Make proactive re-verification the default, not an exception; a guide stale-copy flag (C1) is a finding, never a substitute for re-running the affected cases.
+
+**R40 — When multiple deferred/owed cases are pending a user scope decision, require an explicit per-case list — never accept a general "these are deferred" note.** Present the batch with every TC-ID accounted for, and require the user's in-scope / out-of-scope / deferred-with-reason response to enumerate EVERY case; flag any mismatch back immediately rather than proceeding on an incomplete list. QA Task 12 exposed the gap: the user's 4 in-scope + 4 out-of-scope list did not cover all 9 previously-deferred cases (Q10 unaccounted for). A case is only "resolved" when the user's answer explicitly names it.
+
+**R41 — Multi-account / aged-fixture cases (Q05/Q15/Q17/Q10 class) need DEDICATED fixture-building sessions — budget for them explicitly.** These consistently require assembling multi-account (second-party review on a profile; 3 distinct reporters for auto-hide) or time-aged (24h edit window, 30-day cooldown, 24h post-completion lock) fixtures that cannot be assembled opportunistically inside a broader batch. When these are back in scope, plan a dedicated fixture-building session and state it in the run plan — do not fold them into a general batch and mark deferred again.
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

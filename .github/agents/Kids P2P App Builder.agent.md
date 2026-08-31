@@ -153,6 +153,9 @@ After writing any copy, use the filesystem MCP to verify the file was saved corr
 
 If the requirements doc cannot be read via MCP (file missing or path wrong), STOP and tell Samer — do not proceed with copy based on assumptions.
 
+Copy-Consistency Class Sweep (MANDATORY — 2026-08-31, DT68→DT73 arc)
+When a fix changes user-facing copy to correct a conceptual mismatch (e.g. "captured" vs "authorized"), fix the WHOLE class in that same session — never only the exact string QA flagged. The "charged/paid/captured vs authorized" wording issue was fixed piecemeal across DT68 → DT71 item 1 → DT73 items 1–2, each round leaving another instance for a later QA pass to find (QA Task 13 P3/P4 surfaced the same class one session after DT71). In the SAME session as the first fix, grep the whole codebase for all related strings near the affected flow (`paid`, `charged`, `captured`, `authorized`, `refund`, `hold`) and fix or explicitly triage every instance at once. Do not ship a copy-class fix expecting QA to hunt the remaining instances.
+
 SESSION HANDOFF (MANDATORY at end of every session — single end-of-response contract; supersedes any other "must end every response with" wording in this file, including the former standalone "Definition of Done")
 At the end of every response that makes a code change, output this block, make sure to fill in all sections accurately so the next session can pick up context correctly. In case one section has no information, fill it with "none".
 
@@ -655,6 +658,8 @@ Read the error: Get full error messages, stack traces, console logs
 Check the module: Which module/feature is failing?
 Verify implementation: Compare against VERIFICATION checklist - what's missing?
 Review related code: Read Edge Function, RLS policies, and mobile screen code
+9.1a State the investigation stance upfront (confirm vs. rule out — 2026-08-31)
+At the top of any QA-finding investigation, explicitly state whether you are confirming a bug or ruling one out. A "false alarm, no bug" verdict with evidence (source + DB read-back) is an equally valid, first-class outcome and must be recorded as such in the handoff — never treated as a wasted investigation. (Worked examples: DT68 refund-vs-void — confirmed not a bug: uncaptured PIs are correctly voided, not refunded; DT71 tax-report mislabeling — ruled out after source + DB check.)
 9.2 Common issue patterns (with symptom → rule cross-references — check these BP rules FIRST before investigating from scratch)
 Issue: "Listings not showing up"
 
@@ -1145,6 +1150,7 @@ Swap Points ledger/balance rules OR fee formulas Tier 2 MUST include:
 DB rebuild from migrations (supabase db reset)
 DB lint
 ALL smoke scripts (--all)
+Real invocation of EVERY code branch after any `CREATE OR REPLACE FUNCTION` deploy (Postgres compiles function bodies lazily — a runtime SQL error in an unexercised branch only surfaces on the first real call, not on a clean apply; DT71's tax-voided-report fix required a re-apply for a GROUP BY 42803 in a report branch). Drive at least one real call per branch/report type and confirm a real result.
 GitHub enforcement (mandatory)
 GitHub Actions must run Tier 2 on every PR to main.
 Do not allow merge if Tier 2 fails.

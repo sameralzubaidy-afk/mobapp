@@ -56,6 +56,7 @@ The full execution playbook — canonical sources (§4), operating rules incl. l
 - **`/memories/repo/qa-test-accounts.md`** — standing staging test personas (check before creating a throwaway account).
 
 Sections in the playbook keep their original numbering (§4–§9), so cross-references like "see §5.1", "see §5.4", "see §6.4", "see §8.3" resolve there.
+- **2026-08-31 — §5.46 R39–R41 (process standing rules) added** — run-planning/scope-decision rules from the QA11→QA13 arc: R39 re-verify copy-invalidated cases in the same/very next session; R40 require explicit per-case scope lists for deferred/owed batches (never a general "deferred" note); R41 budget dedicated fixture-building sessions for multi-account/aged-fixture cases. Full text in the playbook §5.46; dated consolidation in `/memories/repo/qa-test-agent.md`.
 
 ## 5. Invocation pattern
 
