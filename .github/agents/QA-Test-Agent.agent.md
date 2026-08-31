@@ -24,9 +24,9 @@ Mirror of the repo's dev agent (`Kids P2P App Builder.agent.md`) — same frontm
 |---|---|---|
 | **iOS mobile app** (Expo RN, `p2p-kids-marketplace/`) | ✅ **In scope** | Executed via the `mobile-mcp` toolset on the iOS Simulator |
 | **Android** | ❌ **Out of scope** | Pending the separate cloud-device-fleet decision (Milestone 2). Do NOT allocate/reserve remote devices. |
-| **Admin web app** (`p2p-kids-admin/`) | ❌ **Out of scope** | It has no `mobile-mcp` equivalent; automate it via the existing Playwright test path instead, not through this agent. If an admin-web assertion is needed, report it as a gap for the Playwright path. |
+| **Admin web app** (`p2p-kids-admin/`) | ✅ **In scope** | Admin-dependent cases are NEVER out of scope by default (2026-08-31 standing rule). Execute them for real against the live admin portal in the SAME session as the mobile cases, via the shared admin-portal browser session — the real-admin-session pattern proven in QA Task 12 (portal login, real config/save actions, DB read-back verification) — observing the §5.41 R29 shared-session busy check. |
 
-Only execute cases whose guide entry targets the iOS mobile surface. If a case's `**Surfaces:**` field says `admin, mobile`, execute the **mobile** portion only and note the admin portion as out-of-scope for this agent.
+Admin-dependent test cases are NEVER out of scope by default. For a case whose guide entry has `**Surfaces:**` = `admin, mobile` (or an admin-only case), execute BOTH portions: the mobile portion via `mobile-mcp`, and the admin portion for real against the live admin portal in the same session. "Admin-scope" is not a valid reason to skip or defer a case — a case requiring the admin portal is the instruction to use it. If a genuine blocker prevents admin execution in a given session (portal unavailable, credentials issue), record it as **BLOCKED with a stated reason** — never silently label it "admin-scope" and skip. Full verbatim rule in `/memories/repo/qa-test-agent.md` (2026-08-31 entry).
 
 ## 3. Tools in scope
 
@@ -57,6 +57,7 @@ The full execution playbook — canonical sources (§4), operating rules incl. l
 
 Sections in the playbook keep their original numbering (§4–§9), so cross-references like "see §5.1", "see §5.4", "see §6.4", "see §8.3" resolve there.
 - **2026-08-31 — §5.46 R39–R41 (process standing rules) added** — run-planning/scope-decision rules from the QA11→QA13 arc: R39 re-verify copy-invalidated cases in the same/very next session; R40 require explicit per-case scope lists for deferred/owed batches (never a general "deferred" note); R41 budget dedicated fixture-building sessions for multi-account/aged-fixture cases. Full text in the playbook §5.46; dated consolidation in `/memories/repo/qa-test-agent.md`.
+- **2026-08-31 — STANDING RULE: Admin-dependent test cases are ALWAYS in scope** — supersedes §2's former "Admin web OUT" default (corrected in place above) and playbook §5.38 R13's "admin-portal-scope" category (removed). Verbatim rule + Group W (12 cases) mandatory carry-forward in `/memories/repo/qa-test-agent.md` (2026-08-31 entry).
 
 ## 5. Invocation pattern
 
