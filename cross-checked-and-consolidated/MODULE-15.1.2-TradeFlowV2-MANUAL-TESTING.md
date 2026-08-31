@@ -233,17 +233,17 @@
 | | TRD-TC-R04 | Card declined at offer submission → no trade created |
 | | TRD-TC-R05 | Seller cancels in_progress → refund + consequence level |
 | | TRD-TC-R06 | Refund settlement breakdown (cash + proportional tax + fee) |
-| **T — Points Redemption (Bundle Checkout)** | TRD-TC-T01 | Points toggle appears only on eligible items; ineligible show "Not eligible" label |
-| | TRD-TC-T02 | Toggle ON applies correct amount (wallet + category cap both sufficient) |
-| | TRD-TC-T03 | Toggle ON applies partial amount with "Limited by your SP balance" subtext when wallet insufficient |
+| **T — Points Redemption (Bundle Checkout)** | TRD-TC-T01 | SP input appears only on eligible items; ineligible show "Not eligible" label |
+| | TRD-TC-T02 | Entered SP applies correct amount (wallet + category cap both sufficient) |
+| | TRD-TC-T03 | Entered SP applies partial amount with "Limited by your SP balance" subtext when wallet insufficient |
 | | TRD-TC-T04 | Category cap limits applied points even when wallet covers more |
-| | TRD-TC-T05 | Toggle OFF restores balance for sequential allocation |
-| | TRD-TC-T06 | Running "Points remaining" counter updates accurately across multiple toggles |
-| | TRD-TC-T07 | Order Summary "Points Applied" line and cash total correct after multiple toggles |
+| | TRD-TC-T05 | Clearing SP restores balance for sequential allocation |
+| | TRD-TC-T06 | Running "Points remaining" counter updates accurately across entries/clears |
+| | TRD-TC-T07 | Order Summary "Points Applied" line and cash total correct after multiple SP entries |
 | | TRD-TC-T08 | Seller Review Offer shows per-item points breakdown |
 | | TRD-TC-T09 | Seller Review Offer shows "Total Payout" and "Buyer's Total Paid" correctly |
 | | TRD-TC-T10 | "Includes points redemption" tag on seller's offer list/inbox card |
-| | TRD-TC-T11 | Wallet ledger: buyer debited, seller credited + bonus on acceptance |
+| | TRD-TC-T11 | Wallet ledger: buyer debited at offer, seller credited + bonus at completion |
 | | TRD-TC-T12 | No ledger transaction on offer decline |
 | | TRD-TC-T13 | Regression: single-item (non-bundle) offer flow with SP still works |
 | | TRD-TC-T14 | Regression: bundle CTA, different-seller modal, "more from this seller" still functional |
@@ -5480,9 +5480,9 @@ FROM items;
 
 ## Group T — Points Redemption (Bundle Checkout)
 
-> **Added:** 2026-07-15 — Per-item points toggles, wallet balance validation, category caps, seller payout breakdown, SP transfer on acceptance.
+> **Added:** 2026-07-15 — Per-item numeric SP inputs, wallet balance validation, category caps, seller payout breakdown. **SP transfer to seller happens at COMPLETION, not acceptance** (D-17; `fn_release_all_sp_on_complete` — DEV-TASK-76 doc sync 2026-08-31).
 
-### TRD-TC-T01 · Points toggle appears only on eligible items
+### TRD-TC-T01 · SP input appears only on eligible items
 
 **Ref:** FLOW-08 · FLOW-11
 **Actors:** test-buyer (Kids Club+ subscriber) + test-seller (with both Accept SP and Cash Only listings)
@@ -5493,17 +5493,17 @@ FROM items;
 3. Observe each item row.
 
 **Expected Result:**
-- The Accept SP item shows a toggle switch next to its price.
-- The Cash Only item shows a "Not eligible for points" label with NO toggle.
+- The Accept SP item shows a numeric SP input field next to its price.
+- The Cash Only item shows a "Not eligible for points" label with NO SP input.
 
-### TRD-TC-T02 · Toggle ON applies correct amount (balance + cap sufficient)
+### TRD-TC-T02 · Entered SP applies correct amount (balance + cap sufficient)
 
 **Ref:** FLOW-11
 **Actors:** test-buyer with 500+ SP wallet balance
 
 **Steps:**
 1. Add an Accept SP item ($40 price) to cart.
-2. Navigate to checkout. Toggle points ON for the item.
+2. Navigate to checkout. Enter 20 in the item's SP input field.
 3. Verify the applied amount and label.
 
 **Expected Result:**
@@ -5511,14 +5511,14 @@ FROM items;
 - SP-limit hint shows "You can use up to 20 SP" with subtext "Limited by this item's category" (DEV-TASK-72 unified wording; replaced the old "20 pts applied" label).
 - Points remaining counter decreases by 20.
 
-### TRD-TC-T03 · Toggle ON applies partial amount when wallet insufficient
+### TRD-TC-T03 · Entered SP applies partial amount when wallet insufficient
 
 **Ref:** FLOW-11
 **Actors:** test-buyer with 8 SP wallet balance
 
 **Steps:**
 1. Add an Accept SP item ($40 price) to cart.
-2. Navigate to checkout. Toggle points ON for the item.
+2. Navigate to checkout. Enter 20 in the item's SP input field (clamps to 8 — wallet-limited).
 3. Verify the applied amount and label.
 
 **Expected Result:**
@@ -5534,23 +5534,23 @@ FROM items;
 **Steps:**
 1. Admin: set `sp_redemption_cap = 10` on the item's category.
 2. Add that Accept SP item ($100 price) to cart as test-buyer.
-3. Navigate to checkout, toggle points ON.
+3. Navigate to checkout, enter 50 in the item's SP input field (clamps to the 10 cap).
 
 **Expected Result:**
 - 10 pts applied (category cap of 10, even though 50% cap = 50 and wallet has 200).
 - SP-limit hint shows "You can use up to 10 SP" with subtext "Limited by this item's category" (DEV-TASK-72 unified wording; was "10 pts applied (category cap: 10)").
 
-### TRD-TC-T05 · Toggle OFF restores balance for sequential allocation
+### TRD-TC-T05 · Clearing SP restores balance for sequential allocation
 
 **Ref:** FLOW-11
 **Actors:** test-buyer with 30 SP wallet balance
 
 **Steps:**
 1. Add 2 Accept SP items to cart: Item A ($40) and Item B ($30).
-2. Toggle ON Item A → 20 pts applied (50% of $40). Remaining: 10.
-3. Toggle ON Item B → 10 pts applied (wallet-limited). Remaining: 0.
-4. Toggle OFF Item A → its 20 pts restored. Remaining: 20.
-5. Toggle ON Item A again → 20 pts applied (from restored balance).
+2. Enter 20 SP for Item A → 20 pts applied (50% of $40). Remaining: 10.
+3. Enter 10 SP for Item B → 10 pts applied (wallet-limited). Remaining: 0.
+4. Clear Item A's SP field → its 20 pts restored. Remaining: 20.
+5. Re-enter 20 SP for Item A → 20 pts applied (from restored balance).
 
 **Expected Result:**
 - Step 3: Item B shows "You can use up to 10 SP" with subtext "Limited by your SP balance" (DEV-TASK-72 unified wording; was "10 of 15 pts applied — balance limit").
@@ -5563,12 +5563,12 @@ FROM items;
 **Actors:** test-buyer with 50 SP
 
 **Steps:**
-1. Add 3 Accept SP items. Rapidly toggle each ON then OFF.
+1. Add 3 Accept SP items. Rapidly enter then clear SP values on each item.
 2. Observe the "Points remaining: X" counter after each action.
 
 **Expected Result:**
-- Counter updates immediately after each toggle with no flicker or stale value.
-- After all toggled OFF, counter shows original wallet balance.
+- Counter updates immediately after each entry/clear with no flicker or stale value.
+- After all SP fields cleared, counter shows original wallet balance.
 
 ### TRD-TC-T07 · Order Summary points math correct
 
@@ -5576,7 +5576,7 @@ FROM items;
 **Actors:** test-buyer with 100 SP
 
 **Steps:**
-1. Add 2 Accept SP items: Item A ($40, toggle 20 pts), Item B ($30, toggle 15 pts).
+1. Add 2 Accept SP items: Item A ($40, enter 20 pts), Item B ($30, enter 15 pts).
 2. Verify Order Summary.
 
 **Expected Result:**
@@ -5628,21 +5628,23 @@ FROM items;
 - The offer card shows a green "Includes points redemption" tag.
 - An offer WITHOUT points does NOT show this tag.
 
-### TRD-TC-T11 · Wallet ledger on acceptance (buyer debited, seller credited + bonus)
+### TRD-TC-T11 · Wallet ledger on completion (buyer debited at offer, seller credited + bonus at completion)
 
 **Ref:** FLOW-11
 **Actors:** test-buyer + test-seller
 
 **Steps:**
 1. Buyer submits offer with 10 SP applied.
-2. Seller accepts the offer.
-3. Check both parties' SP wallets and sp_ledger.
+2. Seller accepts the offer (trade → in_progress).
+3. Complete the trade (buyer confirms receipt → status = completed).
+4. Check both parties' SP wallets and sp_ledger.
 
 **Expected Result:**
-- Buyer wallet: available_balance unchanged (was reserved at offer time), reserved_sp decreased by 10.
-- Seller wallet: pending_balance increased by 10 + platform bonus.
-- sp_ledger: buyer has `spend_purchase` entry for -10; seller has `earn_reward` entry for 10 + bonus.
-- `trades.sp_transferred_at` is set.
+- At OFFER time (reservation): buyer available_balance decreased by 10, reserved_sp increased by 10; `sp_ledger` gets the buyer `spend_purchase` entry (-10).
+- At ACCEPTANCE: no SP movement — buyer SP stays in reserved_sp; seller wallet unchanged.
+- At COMPLETION (`fn_release_all_sp_on_complete`, D-17): buyer reserved_sp decreased by 10; seller pending_balance increased by 10 + platform bonus; `sp_ledger` gets the seller `earn_reward` entry (10 + bonus).
+- `trades.sp_transferred_at` is set at completion (the single SP release event).
+- DEV-TASK-76 doc sync 2026-08-31: SP transfers at COMPLETION, not acceptance — matches `docx/TRADING-FLOW-V2.md` D-17 and the app.
 
 ### TRD-TC-T12 · No ledger transaction on offer decline
 

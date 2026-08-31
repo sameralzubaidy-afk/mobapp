@@ -40,7 +40,7 @@ import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import { trackEvent } from '@/services/analytics';
-import { calculateCategorySP } from '@/services/categoryService';
+import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { useStripe } from '@stripe/stripe-react-native';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
@@ -130,7 +130,9 @@ export default function TradeOfferScreen() {
       if (itemData.category_id) {
         const spConfig = await calculateCategorySP(itemData.category_id, itemData.price);
         if (spConfig) {
-          setMaxSpAllowed(spConfig.max_spend_sp);
+          // DEV-TASK-76 (T04): server-authoritative cap (bounds by sp_redemption_cap too)
+          const serverCap = await getItemEffectiveSpCap(itemData.id);
+          setMaxSpAllowed(serverCap ?? spConfig.max_spend_sp);
           setMaxSpPercentage(spConfig.spend_percent);
         } else {
           const fallbackMaxSp = Math.floor(

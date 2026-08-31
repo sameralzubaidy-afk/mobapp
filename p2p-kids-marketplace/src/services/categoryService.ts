@@ -331,6 +331,38 @@ export async function calculateCategorySP(
     return null;
   }
 }
+
+/**
+ * DEV-TASK-76 (T04): authoritative max Swap Points redeemable for an item,
+ * sourced from the server's `fn_item_effective_sp_cap` RPC (R11). The client's
+ * category-percent math (`calculateCategorySP`) only factors
+ * `categories.sp_spending_cap_percent`; the server additionally bounds the cap
+ * by an admin-set absolute `categories.sp_redemption_cap` (or
+ * `admin_config.sp_redemption_cap_global` fallback). Calling the RPC (single
+ * source of truth) makes every client "up to N SP" hint match what the server
+ * will actually accept at submit — no duplicated cap math client-side.
+ *
+ * Returns null when the RPC is unavailable/errors so callers can fall back to
+ * the category-percent estimate; the server remains the enforcement point.
+ */
+export async function getItemEffectiveSpCap(listingId: string): Promise<number | null> {
+  if (!listingId) return null;
+  try {
+    const { data, error } = await supabase.rpc('fn_item_effective_sp_cap', {
+      p_listing_id: listingId,
+    });
+    if (error) {
+      console.warn('[categoryService] fn_item_effective_sp_cap error:', error.message);
+      return null;
+    }
+    const cap = Number(data);
+    return Number.isFinite(cap) && cap >= 0 ? Math.floor(cap) : null;
+  } catch (e: any) {
+    console.warn('[categoryService] fn_item_effective_sp_cap failed:', e?.message);
+    return null;
+  }
+}
+
 /**
  * Get category by ID
  *

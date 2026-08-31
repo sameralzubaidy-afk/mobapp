@@ -48,7 +48,12 @@ interface OfferData {
   bundle_id?: string | null;
   seller_sp_earned?: number; // NEW: total SP to seller (buyer SP + bonus)
   seller_sp_bonus?: number; // NEW: platform-funded bonus
-  sp_transferred_at?: string; // NEW: when SP transferred (set at acceptance)
+  sp_transferred_at?: string; // NEW: when SP transferred (set at completion — DT-17)
+  // DEV-TASK-76 (T08): category SP multiplier snapshot on the trade row. The
+  // bundle-list platform-bonus preview must use THIS (same source as
+  // fn_release_all_sp_on_complete), not a 1.0 fallback — otherwise the bundle
+  // list and the payout card disagree (e.g. +60 vs +61 for Sports 1.10).
+  sp_category_multiplier?: number;
   stripe_payment_method_brand?: string | null; // DT-69 (Item 6): buyer's card brand, offer-time snapshot
   stripe_payment_method_last4?: string | null; // DT-69 (Item 6): buyer's card last4, offer-time snapshot
   listing: {
@@ -111,6 +116,7 @@ export default function ReviewOfferScreen() {
           seller_sp_earned,
           seller_sp_bonus,
           sp_transferred_at,
+          sp_category_multiplier,
           stripe_payment_method_brand,
           stripe_payment_method_last4,
           listing:items(
@@ -258,7 +264,11 @@ export default function ReviewOfferScreen() {
         title: 'Bundle Accepted!',
         message: 'Payment authorized. Trades are now in progress.',
         buttons: [
-          { text: 'OK', onPress: () => navigation.navigate('MyListings'), testID: 'bundle-accepted-ok-button' },
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('MyListings'),
+            testID: 'bundle-accepted-ok-button',
+          },
         ],
       });
     } catch (err: any) {
@@ -409,11 +419,14 @@ export default function ReviewOfferScreen() {
                   // DEV-TASK-62 (Item 2): per-item NET payout = cash portion
                   // (price − SP) − seller platform fee.
                   const netPayout =
-                    Math.max(0, (o.cash_amount_cents ?? 0) - (o.seller_transaction_fee_cents ?? 0)) / 100;
+                    Math.max(
+                      0,
+                      (o.cash_amount_cents ?? 0) - (o.seller_transaction_fee_cents ?? 0)
+                    ) / 100;
                   // Seller earnings = buyer SP + platform bonus. Platform bonus
                   // mirrors fn_release_all_sp_on_complete: FLOOR(price × 0.25 ×
                   // multiplier), credited only to a subscribed seller (C05 fix).
-                  const multiplier = (o as any).sp_category_multiplier ?? 1.0;
+                  const multiplier = o.sp_category_multiplier ?? 1.0;
                   const platformBonus =
                     sellerIsSubscriber && itemPrice > 0
                       ? Math.floor(itemPrice * 0.25 * multiplier)
@@ -471,7 +484,7 @@ export default function ReviewOfferScreen() {
                   // (FLOOR(price × 0.25 × multiplier), subscribed sellers only — C05 fix)
                   const totalSellerSp = allItems.reduce((s, o) => {
                     const sp = o.sp_amount ?? 0;
-                    const mult = (o as any).sp_category_multiplier ?? 1.0;
+                    const mult = o.sp_category_multiplier ?? 1.0;
                     const price = o.listing?.price ?? 0;
                     const bonus =
                       sellerIsSubscriber && price > 0 ? Math.floor(price * 0.25 * mult) : 0;

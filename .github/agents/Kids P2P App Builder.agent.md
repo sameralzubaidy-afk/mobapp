@@ -111,7 +111,7 @@ Principle: Never write to a file you haven't read in the current session. Editin
 Before editing ANY file, read the CURRENT content of that file using filesystem MCP. Do not rely on what you wrote in a previous turn.
 If a file is longer than what can be displayed, read the specific section you are editing plus the lines immediately before and after.
 After writing, re-read the affected lines to confirm the edit landed correctly and no surrounding code was accidentally modified.
-Parallel-edit safety (MANDATORY) — multiple edits to the SAME file must be applied as sequential single replacements. A single multi-replace (e.g., `multi_replace_string_in_file`) is acceptable ONLY when the old strings are non-overlapping and don't shift position relative to each other — i.e., applying the replacements in any order yields the same file (no two replacements touch adjacent or overlapping regions). After ANY batch edit to the same file (a multi-replace, or several quick edits in one turn), READ BACK THE WHOLE FILE before considering the edit done — multi-replace can apply SOME replacements and silently skip others while still reporting overall success, a failure isn't always clearly flagged, and a partially-applied batch leaves the file inconsistent. Verify each edit actually landed; fix any that didn't before continuing.
+Parallel-edit safety (MANDATORY) — multiple edits to the SAME file must be applied as sequential single replacements. A single multi-replace (e.g., `multi_replace_string_in_file`) is acceptable ONLY when the old strings are non-overlapping and don't shift position relative to each other — i.e., applying the replacements in any order yields the same file (no two replacements touch adjacent or overlapping regions). After ANY batch edit to the same file (a multi-replace, or several quick edits in one turn), READ BACK THE WHOLE FILE before considering the edit done — multi-replace can apply SOME replacements and silently skip others while still reporting overall success, a failure isn't always clearly flagged, and a partially-applied batch leaves the file inconsistent. Verify each edit actually landed; fix any that didn't before continuing. For very large files (e.g. a 6000-line manual-testing guide), a targeted `grep` for each intended new string is a cheap alternative to a full read-back and catches silently-skipped rows (2026-08-31: the guide's index-table rows were skipped twice while the tool reported success).
 If two files need to be changed for the same fix, read both BEFORE writing either.
 Verify file state before applying a listed edit (enumerated to-do/reference lists go stale). When a task provides a list of files to edit (e.g., from a prior session's reference-surface search, or a checklist carried over from an earlier report), don't assume each listed change is still needed as described — time may have passed, and another commit may have already made the same change. Before editing, check the file's current state against what the task describes (e.g., `git show HEAD:<path>` or simply reading the current content) to confirm the edit is still required. If it's already correct, note this explicitly as a no-op rather than silently re-applying (or worse, mis-applying) a stale instruction.
 USER-FACING COPY STANDARDS (MANDATORY)
@@ -172,6 +172,8 @@ Suggested to improve agent rules: [the single most logical add rule or update to
 
 You MUST NOT say "done/complete" unless the required regression tiers (per Section 14C) passed.
 
+Two-phase provisioning (BP-80): when a change includes provisioning that mutates staging (applying a migration, re-running the seed, running a fixture script), the deliverable is TWO phases — (1) code/scripts written + Tier 0 green, and (2) executed against staging, which REQUIRES Samer's explicit approval per the MCP Usage Protocol (one call/step at a time). Only claim phase 1 as "done" for the code. In this handoff, state in "Known gaps / not done yet" exactly which approval-gated execution steps are still pending ("written, NOT applied" / "written, NOT run"), and mark the corresponding regression tier (1/2) DEFERRED — never PASS. Never imply a fixture/migration was applied or run when it wasn't.
+
 This block ensures that if a session ends abruptly, or a new session starts weeks later, the context is always recoverable without reading the code.
 
 1. Repo & folder layout (assumed for this agent)
@@ -202,7 +204,7 @@ docx/ holds the canonical product/business/architecture specs as markdown (*.md)
 docs/ holds engineering/testing/operational docs — manual test cases, module implementation summaries, the Flow Registry (docs/flow-registry.md), environment/CI notes, store-submission checklists, etc.
 You MUST NOT create duplicate copies of the same spec in both folders. When in doubt which folder a new doc belongs in, ask.
 Manual-testing guides (e.g., `MODULE-*.md`) are canonical in the `misc/` folder — the test automation (`test-automation/trade-flow-v2/manifest.json`, `RUNBOOK.md`, `run-tradeflow-suite.mjs`) reads them from `misc/`, and `docs/flow-registry.md` points there. NEVER create or maintain a second copy of a manual-testing guide at the workspace root.
-Before editing any manual-testing guide, run a TC-ID diff to detect duplicate or lost test cases: `grep -nE "^### .*TC-[A-Za-z0-9-]+" "misc./<guide>.md"` (and on ANY other copy of the same guide), then confirm exactly ONE canonical copy exists. If you find two diverged copies, merge them into `misc/` first (preserve every TC; re-letter colliding IDs rather than dropping either) and mark the other copy DEPRECATED — never edit both.
+Before editing any manual-testing guide, run a TC-ID diff to detect duplicate or lost test cases: `grep -nE "^### .*TC-[A-Za-z0-9-]+" "misc./<guide>.md"` (and on ANY other copy of the same guide), then confirm exactly ONE canonical copy exists. If you find two diverged copies, merge them into `misc/` first (preserve every TC; re-letter colliding IDs rather than dropping either) and mark the other copy DEPRECATED — never edit both. When you edit a group's section body (re-wording steps / expected results), update that group's index/summary table in the SAME pass — they drift independently (2026-08-31: the TradeFlowV2 T-group body was synced to the numeric SP-input UI, but the group index rows still read "toggle switch" until caught).
 File Path Normalization (MANDATORY)
 Filenames MUST NOT include leading/trailing spaces.
 If you detect a file like docx/ Solution Architecture & Implementation Plan.md (leading space), you MUST do ONE of: A) Rename it to docx/Solution Architecture & Implementation Plan.md and update all references, OR B) If renaming is not possible, STOP and ask Samer to rename it (do not implement features against a "fragile" path).
@@ -831,6 +833,12 @@ Issue: "Expired/declined offer not surfacing in the app's 'Your Offers', or the 
 ✅ Check: DB triggers comparing the same reason use the identical literal — `fn_reset_unanswered_counter`'s `IS DISTINCT FROM 'offer_expired'` never matches the stored `'Offer expired'`, so it resets the streak to 0 on expiry (BP-76)
 See also: BP-76 (enum-like status/reason values — one canonical literal across DB writer, triggers, and client; never a display string in a machine-compared column)
 
+Issue: "The next session / QA pass can't find the trade/column/row the previous session's handoff implied was provisioned"
+
+✅ Check: The prior handoff explicitly said which provisioning steps were "written, NOT applied/run" and which regression tiers were marked DEFERRED (BP-80)
+✅ Check: The migration was actually applied (`list_migrations`) / the fixture script actually run — never assume from the code being committed or a clean script exit; verify the DB state directly (BP-80)
+See also: BP-80 (two-phase provisioning deliverables — code + Tier 0 vs. approval-gated execution against staging)
+
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
 Test in Supabase Studio: Run raw SQL queries to verify data/RLS
@@ -1288,7 +1296,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-78)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-80)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1368,6 +1376,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-76 Enum-like status/reason values — DB writers must emit the canonical snake literal (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column, or expired-offer surfacing / the seller-ignore streak silently break (TRD re-verify, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-77 Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path for large self-contained single-file functions too (no `_shared` deps, e.g. the 82KB/1,840-line `create-trade-offer`) — no per-deploy approval needed, per the DEV-TASK-36 resolution that retired the MCP-deploy mandate; MCP is a documented last-resort fallback only; post-deploy verification (version bump + real invocation, BP-66/BP-71) is mandatory on any path (DEV-TASK-33, 2026-08-28; DEV-TASK-36, 2026-08-28) — full text: `.github/instructions/edge-functions.instructions.md`.
 - BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps, and PostgREST maps `42501` to HTTP 401 — treat a 401 from a revoked caller as the expected rejection (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-80 Two-phase provisioning deliverables — fixture/migration work is delivered as (1) code/scripts/migration file written + Tier 0 green and (2) executed against staging (REQUIRES Samer's explicit approval per the MCP Usage Protocol); in the Session Handoff state "written, NOT applied/run" and mark the regression tier DEFERRED, never implying provisioning happened (DEV-TASK-77, 2026-08-31).
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1662,3 +1671,15 @@ Whenever implementing a state change that should notify users:
 3. When introducing a new shared test-render helper, either reset the params object in `beforeEach` or make it require an explicit params argument (never silently reuse a mutated shared default).
 
 **Detection checklist:** a test fails only when run with the rest of its file (not in isolation), and the screen/hook under test has state keyed off `route.params`/`draftId` — the shared route object is leaking; pass explicit clean params.
+
+## BP-80: Two-Phase Provisioning Deliverables (code/Tier-0 vs. approval-gated execution)
+
+**Problem:** A task that includes provisioning — a new migration file, a seed change, or a fixture script that mutates staging — is often reported as fully "done" even when the mutation was never executed (the migration wasn't applied, the seed wasn't re-run, the fixture wasn't provisioned). Those steps require Samer's explicit approval per the MCP Usage Protocol (one Supabase MCP call at a time), so they often can't happen in the same session as the code. The next session or a QA pass then discovers the "provisioned" state never existed (real case: DEV-TASK-77, 2026-08-31 — a `trades.notes` migration + two fixture scripts delivered with the migration un-applied and the fixtures un-run).
+
+**Rules:**
+1. **Deliver provisioning work in two explicit phases.** Phase 1 = code/scripts/migration file written + Tier 0 green (typecheck + lint + unit tests) — this is what "done" means for the code. Phase 2 = executing against staging (applying the migration, re-running the seed, running the fixture script) — REQUIRES Samer's explicit approval per the MCP Usage Protocol; never run it in the same breath as Phase 1, and never batch multiple approval-gated mutations without separate sign-off.
+2. **Never imply Phase 2 happened when only Phase 1 did.** In the Session Handoff, mark every pending artifact explicitly: "migration written, NOT applied", "fixture script written, NOT run", "seed change written, NOT re-seeded". List the exact command/SQL that needs approval, and mark the corresponding regression tier (1/2) as DEFERRED/pending — never PASS.
+3. **Stop at the approval boundary.** If approval isn't available in the session, stop the work there (don't keep going as if the fixture/migration already exists) and record the pending steps in the handoff's "Known gaps / not done yet" + "Suggested next session". A provisioning task that ends at Phase 1 is a complete, reportable deliverable — not a half-done task.
+4. **Verification before claiming.** If you DO execute provisioning, verify it actually landed (e.g. `list_migrations` for the applied migration, a read-back query for the fixture rows) before marking it done — same spirit as BP-66/BP-71 (a clean run message is never sufficient evidence).
+
+**Detection checklist:** a subsequent session/QA pass can't find a column/trade/row the previous session's handoff implied existed, or a handoff's Regression Plan shows a Tier as PASS when the migration it depends on was never applied — check for the two-phase wording ("written, NOT applied/run") in the prior handoff before assuming the data is there.

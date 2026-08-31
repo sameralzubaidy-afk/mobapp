@@ -1,5 +1,6 @@
 /**
  * DEV-TASK-51 (2026-08-29) — Item 6: bundle fixture generator.
+ * DEV-TASK-77 (2026-08-31) — Item 7b: make bundles SP-eligible.
  *
  * Replaces the current 3×(open item + re-list elements + tap add) UI cycle per
  * bundle case with ONE call: create N same-seller items and preload a given
@@ -13,6 +14,13 @@
  *   3. Inserts all N into the buyer's ACTIVE cart as one bundle
  *      (single bundle_id, single cart_id) — the same shape the app's cart RPC
  *      produces, so CartCheckout / create-trade-offer treat it as a real bundle.
+ *
+ * DEV-TASK-77 item 7b (T06 fix): items now get a REAL category (Toys/Sports/
+ * Books/Electronics) and `item_payment_preference: 'accept_sp'`, so the bundle
+ * is genuinely SP-eligible at checkout (the per-item SP input renders). Before
+ * this change category_id was NULL, which made CartCheckout skip the SP state
+ * entirely (spState undefined → no SP input), blocking the 3-item Accept-SP
+ * bundle scenario (T06).
  *
  * Run (from p2p-kids-marketplace/):
  *   npm run qa:create-bundle-fixture -- --buyer test-buyer --seller test-seller --count 3
@@ -98,6 +106,30 @@ async function main() {
   const cartId = randomUUID();
   const price = 15 + Math.floor(Math.random() * 20); // $15–$34 each
 
+  // DEV-TASK-77 item 7b: resolve a real category so the items are SP-eligible at
+  // checkout (a NULL category_id makes CartCheckout skip the per-item SP state).
+  // Rotate through the standing seed categories so a multi-item bundle doesn't
+  // hit the same category's SP cap for every item.
+  const CATEGORY_NAMES = ['Toys', 'Sports', 'Books', 'Electronics'];
+  const { data: catRows, error: catError } = await admin
+    .from('categories')
+    .select('id, name')
+    .in('name', CATEGORY_NAMES);
+  if (catError || !catRows || catRows.length === 0) {
+    console.error(
+      `❌ Could not resolve categories for SP-eligible items: ${
+        catError?.message ?? 'no category rows found'
+      }`
+    );
+    process.exit(1);
+  }
+  const catIdByName = Object.fromEntries(catRows.map((c) => [c.name, c.id]));
+  const categoryIds = CATEGORY_NAMES.map((n) => catIdByName[n]).filter(Boolean);
+  if (categoryIds.length === 0) {
+    console.error('❌ No valid category ids resolved — aborting.');
+    process.exit(1);
+  }
+
   if (DRY_RUN) {
     log(`DRY-RUN — would create ${COUNT} items for ${SELLER} and add them to ${BUYER}'s active cart as one bundle (bundle_id=${bundleId}).`);
     return;
@@ -112,7 +144,7 @@ async function main() {
         seller_id: seller.id,
         title: `QA Bundle Fixture ${i} of ${COUNT} (${now.slice(0, 10)})`,
         description: `Dev Task 51 bundle fixture item ${i} of ${COUNT} for ${SELLER} (${BUYER} cart).`,
-        category_id: null,
+        category_id: categoryIds[(i - 1) % categoryIds.length],
         condition: 'good',
         price,
         status: 'available',
@@ -143,7 +175,7 @@ async function main() {
     item_title: `QA Bundle Fixture ${listingId.slice(0, 6)}`,
     item_price_cents: price * 100,
     item_image_url: null,
-    item_payment_preference: 'cash_only',
+    item_payment_preference: 'accept_sp',
     updated_at: now,
   }));
 

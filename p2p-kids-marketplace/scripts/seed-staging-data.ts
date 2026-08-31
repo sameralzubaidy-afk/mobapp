@@ -1083,13 +1083,48 @@ async function seedCancelledTradeConversationFixture(
   }
 
   // 2. Canned cancelled trade (idempotent by buyer+listing).
-  const { data: existingTrade } = await adminSupabase
+  //
+  // Dev Task 77 item 6: self-heal duplicates. QA Task 15 found several identical
+  // "QA Canned Cancelled-Trade Item" trades (cancelled + completed + in_progress
+  // QA-run artifacts on the same canned listing). Before (re)using the fixture,
+  // keep the NEWEST CANCELLED trade for this (buyer, listing) and delete every
+  // OTHER trade on it — regardless of status — so a re-seed leaves EXACTLY ONE
+  // clean cancelled fixture trade. Keep-by-status matters: the newest trade is
+  // not always the cancelled fixture (2026-08-31 staging had a newer in_progress
+  // QA artifact that would otherwise be mistaken for the B08 fixture). The
+  // surviving trade is stamped with `notes` = fixture tag (migration
+  // 20260901000000_dev_task_77_fixture_notes.sql) so QA can tell it apart.
+  const { data: allExistingTrades } = await adminSupabase
     .from('trades')
-    .select('id')
+    .select('id, status, created_at')
     .eq('buyer_id', buyerId)
     .eq('listing_id', listing.id)
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
+
+  const cancelledTrades = (allExistingTrades ?? []).filter(
+    (t: any) => t.status === 'cancelled'
+  );
+  // Newest cancelled trade (list is ordered desc); null if none exists.
+  const keepTrade = cancelledTrades[0] ?? null;
+  const staleIds = (allExistingTrades ?? [])
+    .filter((t: any) => t.id !== keepTrade?.id)
+    .map((t: any) => t.id);
+
+  if (staleIds.length > 0) {
+    const { error: dedupeError } = await adminSupabase
+      .from('trades')
+      .delete()
+      .in('id', staleIds);
+    if (dedupeError) {
+      console.warn(`   ⚠️ B08 duplicate-trade cleanup failed: ${dedupeError.message}`);
+    } else {
+      console.log(
+        `   🧹 B08 deduped ${staleIds.length} duplicate trade(s) on this canned item (kept newest cancelled: ${keepTrade?.id ?? 'none'})`
+      );
+    }
+  }
+
+  const existingTrade = keepTrade;
 
   let tradeId: string | null = existingTrade?.id ?? null;
   if (!tradeId) {
@@ -1107,6 +1142,9 @@ async function seedCancelledTradeConversationFixture(
         buyer_transaction_fee_cents: 99,
         created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: now,
+        // Dev Task 77 item 6: fixture tag so QA can distinguish this canned trade
+        // from any QA-run artifact on the same item.
+        notes: 'fixture:TRD-TC-B08',
       })
       .select('id')
       .single();
@@ -1116,6 +1154,16 @@ async function seedCancelledTradeConversationFixture(
     }
     tradeId = (insertRes.data as any).id;
     console.log(`   ✓ Created cancelled trade: ${tradeId}`);
+  } else {
+    // Dev Task 77 item 6: (re)stamp the fixture tag on the surviving trade so a
+    // re-seed keeps the marker even if an earlier version created it untagged.
+    const { error: stampError } = await adminSupabase
+      .from('trades')
+      .update({ notes: 'fixture:TRD-TC-B08', updated_at: now })
+      .eq('id', tradeId);
+    if (stampError) {
+      console.warn(`   ⚠️ B08 notes stamp failed: ${stampError.message}`);
+    }
   }
 
   // 3. Two exchanged messages (idempotent by trade_id + sender).

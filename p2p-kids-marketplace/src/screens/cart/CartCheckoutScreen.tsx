@@ -55,7 +55,7 @@ import {
 import { trackEvent } from '@/services/analytics';
 import { supabase } from '@/config/supabase';
 import { getBuyerSpBalance } from '@/services/spWalletService';
-import { calculateCategorySP } from '@/services/categoryService';
+import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { Modal } from '@/components/ui/Modal';
 import DisclaimerModal from '@/components/DisclaimerModal';
@@ -63,6 +63,10 @@ import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmation
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 import { getSpLimitInfo } from '@/utils/cartSpMath';
+// Dev Task 77 item 3: dev/staging-only SP-set fixture registry — lets the QA deep
+// link p2pkidsmarketplace://qa-set-sp set an item's SP value in one call (no
+// type-and-clear cycle). Registration below is gated to dev/staging builds.
+import { registerQaSpSetter } from '@/services/qaSpFixture';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'CartCheckout'>;
@@ -81,10 +85,7 @@ export default function CartCheckoutScreen() {
   // DEV-TASK-66 item 1: grace users keep the member fee tier (R6-consistent).
   // Canonical grace literal is 'grace_period' (BP-76); keep 'grace' as legacy alias.
   const isSubscriber =
-    status === 'active' ||
-    status === 'trial' ||
-    status === 'grace' ||
-    status === 'grace_period';
+    status === 'active' || status === 'trial' || status === 'grace' || status === 'grace_period';
 
   const {
     setupPaymentSheet,
@@ -351,9 +352,15 @@ export default function CartCheckoutScreen() {
             if (listingData?.category_id) {
               const spConfig = await calculateCategorySP(listingData.category_id, item.price);
               if (spConfig) {
+                // DEV-TASK-76 (T04): use the server-authoritative cap
+                // (fn_item_effective_sp_cap — additionally bounds by an admin-set
+                // sp_redemption_cap) so the "up to N SP" hint matches what the server
+                // accepts at submit. Fall back to the category-percent estimate if the
+                // RPC is unavailable.
+                const serverCap = await getItemEffectiveSpCap(item.listingId);
                 initialState[item.listingId] = {
                   spApplied: 0,
-                  maxAllowed: spConfig.max_spend_sp,
+                  maxAllowed: serverCap ?? spConfig.max_spend_sp,
                   catCap: spConfig.max_spend_sp,
                 };
               }
@@ -380,25 +387,51 @@ export default function CartCheckoutScreen() {
     }
   }, [cart, loadPointsData]);
 
-  // Handle SP amount change for a specific item
-  const handleSpChange = (itemId: string, text: string) => {
-    const cleaned = text.replace(/[^0-9]/g, '');
-    const newVal = cleaned === '' ? 0 : parseInt(cleaned, 10);
+  // Handle SP amount change for a specific item. Memoized so the QA SP-set
+  // fixture effect below (Dev Task 77 item 3) doesn't re-register every render.
+  const handleSpChange = useCallback(
+    (itemId: string, text: string) => {
+      const cleaned = text.replace(/[^0-9]/g, '');
+      const newVal = cleaned === '' ? 0 : parseInt(cleaned, 10);
 
-    setItemSpState((prev) => {
-      const current = prev[itemId];
-      if (!current) return prev;
+      setItemSpState((prev) => {
+        const current = prev[itemId];
+        if (!current) return prev;
 
-      // Available = wallet - what OTHER items are using
-      const otherTotal = Object.entries(prev)
-        .filter(([id]) => id !== itemId)
-        .reduce((sum, [, s]) => sum + (s.spApplied ?? 0), 0);
-      const remaining = Math.max(0, walletBalance - otherTotal);
+        // Available = wallet - what OTHER items are using
+        const otherTotal = Object.entries(prev)
+          .filter(([id]) => id !== itemId)
+          .reduce((sum, [, s]) => sum + (s.spApplied ?? 0), 0);
+        const remaining = Math.max(0, walletBalance - otherTotal);
 
-      const effective = Math.min(newVal, current.maxAllowed, remaining);
-      return { ...prev, [itemId]: { ...current, spApplied: effective } };
+        const effective = Math.min(newVal, current.maxAllowed, remaining);
+        return { ...prev, [itemId]: { ...current, spApplied: effective } };
+      });
+    },
+    [walletBalance]
+  );
+
+  // Dev Task 77 item 3: register the QA SP-set fixture (dev/staging only) so the
+  // p2pkidsmarketplace://qa-set-sp deep link can set an item's SP value in one
+  // call. The setter delegates to the SAME handleSpChange the TextInput uses, so
+  // clamping (maxAllowed + wallet-remaining) is identical — a fixture value can
+  // never exceed what the UI would accept. Inert in production builds.
+  useEffect(() => {
+    const qaSetSpEnabled: boolean =
+      __DEV__ ||
+      process.env.EXPO_PUBLIC_ENVIRONMENT === 'development' ||
+      process.env.EXPO_PUBLIC_ENVIRONMENT === 'staging';
+    if (!qaSetSpEnabled) return;
+
+    const unregister = registerQaSpSetter((listingId: string, amount: number) => {
+      if (!cart?.items.some((i) => i.listingId === listingId)) {
+        return false;
+      }
+      handleSpChange(listingId, String(amount));
+      return true;
     });
-  };
+    return unregister;
+  }, [cart?.items, handleSpChange]);
 
   /** handleAddNewCard — Uses Stripe Payment Sheet (same as PaymentMethodsScreen)
    *  to securely collect card details via Stripe's native UI (PCI-compliant).
@@ -707,7 +740,8 @@ export default function CartCheckoutScreen() {
                         weight="regular"
                         style={{ marginRight: 12 }}
                       />
-                      <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                      <TextInput
+                        inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         style={styles.spInput}
                         value={spState.spApplied === 0 ? '' : spState.spApplied.toString()}
                         onChangeText={(text) => handleSpChange(item.listingId, text)}
@@ -715,6 +749,16 @@ export default function CartCheckoutScreen() {
                         placeholderTextColor="#D97706"
                         keyboardType="decimal-pad"
                         testID={`sp-input-${item.listingId}`}
+                        // Dev Task 77 item 3: expose the per-item SP input to the
+                        // iOS accessibility tree. A TextInput with an empty value
+                        // and no label renders as an empty/unlabeled field that the
+                        // mobile-mcp AX dump drops — forcing QA to coordinate-guess
+                        // taps. A stable accessibilityLabel surfaces it as
+                        // "Points for <title>" (mirrors sp-max-hint's label style).
+                        accessible
+                        accessibilityRole="text"
+                        accessibilityLabel={`Points for ${item.title ?? 'item'}`}
+                        accessibilityHint={`Enter swap points to use, up to ${spLimit.bindingMax}`}
                       />
                       <Text style={styles.spUnit}>SP</Text>
                     </View>

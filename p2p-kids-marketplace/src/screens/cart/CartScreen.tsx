@@ -24,7 +24,7 @@ import {
   SavedCartSummary,
 } from '@/services/cartService';
 import { getMaskedSellerListings } from '@/services/listing';
-import { calculateCategorySP } from '@/services/categoryService';
+import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { captureException } from '@/services/errorReporter';
 import { supabase } from '@/config/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -210,7 +210,11 @@ export default function CartScreen() {
               .single();
             if (!listingData?.category_id) return;
             const spConfig = await calculateCategorySP(listingData.category_id, item.price);
-            if (spConfig) next[item.listingId] = spConfig.max_spend_sp;
+            if (spConfig) {
+              // DEV-TASK-76 (T04): server-authoritative cap (bounds by sp_redemption_cap too)
+              const serverCap = await getItemEffectiveSpCap(item.listingId);
+              next[item.listingId] = serverCap ?? spConfig.max_spend_sp;
+            }
           } catch {
             console.warn(`[CartScreen] Could not load SP cap for listing ${item.listingId}`);
           }
@@ -604,9 +608,9 @@ export default function CartScreen() {
                         <Coins size={14} color="#F59E0B" weight="fill" />
                         <Text style={styles.acceptsSpText}>
                           Accepts Points
-                          {isSubscriber && spMaxByListing[item.listingId] != null ? (
-                            ` · Up to ${spMaxByListing[item.listingId]} SP`
-                          ) : null}
+                          {isSubscriber && spMaxByListing[item.listingId] != null
+                            ? ` · Up to ${spMaxByListing[item.listingId]} SP`
+                            : null}
                         </Text>
                       </View>
                     )}
@@ -756,7 +760,6 @@ export default function CartScreen() {
           onClose={() => setShowSwitchModal(false)}
           showCloseButton={false}
         />
-
       </ScrollView>
 
       {/* SELLER-GROUP-005: Make-offer CTA — fixed above the floating pill nav so

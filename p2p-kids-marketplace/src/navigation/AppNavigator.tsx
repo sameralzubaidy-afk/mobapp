@@ -97,6 +97,14 @@ import GlobalAlertProvider from '@/providers/GlobalAlertProvider';
 // QA-only session-local toggle deep link handler (dev/staging only) — arms/disarms
 // the A03/D02/C04 QA toggles via p2pkidsmarketplace://qa-dev-toggle. See component.
 import QaDevToggleDeepLinkHandler from '@/components/QaDevToggleDeepLinkHandler';
+// Dev Task 77 item 1: QA-only dev-clear-overlays handler — force-dismisses any
+// stuck GlobalAlert/modal via p2pkidsmarketplace://dev-clear-overlays (1 call,
+// no app relaunch). Inert in production builds (see component's security gate).
+import QaClearOverlaysDeepLinkHandler from '@/components/QaClearOverlaysDeepLinkHandler';
+// Dev Task 77 item 3: QA-only qa-set-sp handler — sets an SP value on a cart
+// checkout item via p2pkidsmarketplace://qa-set-sp?listing=<id>&amount=<N> (1
+// call, no type-and-clear). Inert in production builds (see component's gate).
+import QaSetSpDeepLinkHandler from '@/components/QaSetSpDeepLinkHandler';
 // Dev Task 44 item 3: the iOS keyboard-done accessory is rendered ONCE at the app
 // root so every TextInput carrying inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
 // app-wide (including the shared TextInput components) gets the Done bar. Renders
@@ -172,6 +180,15 @@ const linking = {
       ListingDetail: 'listing/:listing_id',
       ListingSafetyReview: 'listing-safety/:listing_id',
       TradeV2ComponentsPreview: 'trade-v2-preview',
+      // Dev Task 77 item 5: wire TradeDetail/TradeTimeline into React Navigation
+      // linking so `p2pkidsmarketplace://trade/<id>` (and the notification
+      // service's `/trade/:id` path) navigates directly to the trade detail
+      // screen instead of dead-ending. This is also a production improvement:
+      // push notifications carrying a `/trade/<id>` deep_link now resolve via
+      // the linking config on cold start, not just via the in-app notification
+      // tap handler.
+      TradeDetail: 'trade/:tradeId',
+      TradeTimeline: 'trade/timeline/:tradeId',
       AdminDashboard: 'admin',
       IDVerificationUpload: 'id-verification-upload',
       ManageKidsClub: 'manage-kids-club',
@@ -1041,6 +1058,14 @@ export default function AppNavigator() {
         {/* QA-only session-local toggle handler (no auth dependency — safe anywhere).
             Inert in production builds (see QaDevToggleDeepLinkHandler gate). */}
         <QaDevToggleDeepLinkHandler />
+        {/* Dev Task 77 item 1: QA-only dev-clear-overlays handler (no auth dependency —
+            safe anywhere). Force-dismisses a stuck GlobalAlert/modal + resets to Home
+            via p2pkidsmarketplace://dev-clear-overlays. Inert in production builds. */}
+        <QaClearOverlaysDeepLinkHandler />
+        {/* Dev Task 77 item 3: QA-only qa-set-sp handler (no auth dependency — safe
+            anywhere). Sets an SP value on a cart-checkout item via
+            p2pkidsmarketplace://qa-set-sp?listing=<id>&amount=<N>. Inert in production. */}
+        <QaSetSpDeepLinkHandler />
         {/* iOS keyboard-done accessory — mounted once at the root for every wired
             TextInput app-wide (Dev Task 44 item 3). Android: renders nothing. */}
         <KeyboardDoneAccessory />

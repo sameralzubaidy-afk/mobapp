@@ -27,12 +27,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { acceptBundleOffers, declineBundleOffers } from '@/services/tradeServiceV2';
-import {
-  Receipt,
-  ArrowsLeftRight,
-  Check,
-  ChatTeardropText,
-} from 'phosphor-react-native';
+import { Receipt, ArrowsLeftRight, Check, ChatTeardropText } from 'phosphor-react-native';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -897,9 +892,7 @@ export default function TradeListScreen({ navigation }: any) {
               <Text style={styles.compactDate}>{formatDate(item.created_at)}</Text>
             </View>
             <View style={styles.compactRight}>
-              <Text style={styles.compactPrice}>
-                ${(item.cash_amount_cents / 100).toFixed(2)}
-              </Text>
+              <Text style={styles.compactPrice}>${(item.cash_amount_cents / 100).toFixed(2)}</Text>
               <View style={[styles.compactTypeBadge, badge.badgeStyle]}>
                 <Text style={[styles.compactTypeBadgeText, badge.textStyle]}>{badge.label}</Text>
               </View>
@@ -1063,9 +1056,18 @@ export default function TradeListScreen({ navigation }: any) {
         </Pressable>
       </View>
 
+      {/* Dev Task 77 item 2: stable container testID for the list. NOTE — the
+          per-row testIDs (trade-history-row-<id>, trade-row-<id>) DO surface in
+          the iOS AX tree (verified — QA Task 15's log quoted the testID-derived
+          trade id). The post-scroll coordinate divergence QA reported is iOS
+          reporting AX frames in scroll-CONTENT coordinates (unscrolled origin),
+          not a missing/invisible testID — a tool-side mapping issue, not an app
+          bug. Tools should key off the row testID identity (never AX coords)
+          after scrolling; this container id lets them anchor the scroll view. */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 100 }}
+        testID="trade-list-scroll"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1165,6 +1167,17 @@ export default function TradeListScreen({ navigation }: any) {
                                   />
                                 </View>
                               )}
+                              {/* DEV-TASK-76 (T10): "Includes points redemption" tag on
+                                  bundle offer cards when ANY item carries SP — the single-
+                                  offer cards gate on offer.sp_amount, but a bundle's SP lives
+                                  per-item, so aggregate with .some(). */}
+                              {bundleOffers.some((o) => (o as any).sp_amount > 0) && (
+                                <View style={styles.pointsRedemptionTag}>
+                                  <Text style={styles.pointsRedemptionTagText}>
+                                    Includes points redemption
+                                  </Text>
+                                </View>
+                              )}
                             </View>
                           </View>
                           <View style={styles.tradeCardDivider} />
@@ -1219,7 +1232,9 @@ export default function TradeListScreen({ navigation }: any) {
                                 {offer.listing?.title || 'Untitled'}
                               </Text>
                               <View style={[styles.statusBadge, styles.statusBadgePending]}>
-                                <Text style={[styles.statusBadgeText, styles.statusBadgeTextPending]}>
+                                <Text
+                                  style={[styles.statusBadgeText, styles.statusBadgeTextPending]}
+                                >
                                   PENDING
                                 </Text>
                               </View>
@@ -1332,6 +1347,16 @@ export default function TradeListScreen({ navigation }: any) {
                                 <Text style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
                                   +{bundleOffers.length - 3} more items
                                 </Text>
+                              )}
+                              {/* DEV-TASK-76 (T10): seller's bundle offer card also carries the
+                                  "Includes points redemption" tag when any item has SP (mirrors
+                                  the single-offer card's offer.sp_amount > 0 gate). */}
+                              {bundleOffers.some((o) => (o as any).sp_amount > 0) && (
+                                <View style={styles.pointsRedemptionTag}>
+                                  <Text style={styles.pointsRedemptionTagText}>
+                                    Includes points redemption
+                                  </Text>
+                                </View>
                               )}
                             </View>
                           </View>
@@ -1737,9 +1762,9 @@ export default function TradeListScreen({ navigation }: any) {
                 consecutive-expiry-streak semantics — fires only after offers
                 expire unanswered; encourages responding or pausing the listing. */}
             <Text style={styles.ignModalBody}>
-              A few offers on "
-              {ignoringModalItem?.title || 'your listing'}" have gone unanswered. Respond to
-              your pending offers — or pause the listing if you're not able to sell right now.
+              A few offers on "{ignoringModalItem?.title || 'your listing'}" have gone unanswered.
+              Respond to your pending offers — or pause the listing if you're not able to sell right
+              now.
             </Text>
             <TouchableOpacity
               style={styles.ignModalBtnPrimary}

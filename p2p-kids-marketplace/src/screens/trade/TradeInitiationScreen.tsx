@@ -39,7 +39,7 @@ import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
-import { calculateCategorySP } from '@/services/categoryService';
+import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
@@ -237,7 +237,9 @@ export default function TradeInitiationScreen() {
       if (itemData.category_id) {
         const spConfig = await calculateCategorySP(itemData.category_id, itemData.price);
         if (spConfig) {
-          setMaxSpAllowed(spConfig.max_spend_sp);
+          // DEV-TASK-76 (T04): server-authoritative cap (bounds by sp_redemption_cap too)
+          const serverCap = await getItemEffectiveSpCap(itemData.id);
+          setMaxSpAllowed(serverCap ?? spConfig.max_spend_sp);
           setMaxSpPercentage(spConfig.spend_percent);
         } else {
           // Fallback to global admin config
@@ -415,7 +417,9 @@ export default function TradeInitiationScreen() {
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
           // Dev Task 41 item 7: name the open offers so the buyer can identify
           // and cancel the right one instead of guessing.
-          const pendingOffers = item ? ((await getBuyerPendingOffersForSeller(item.seller_id)) ?? []) : [];
+          const pendingOffers = item
+            ? ((await getBuyerPendingOffersForSeller(item.seller_id)) ?? [])
+            : [];
           const openList = pendingOffers.length
             ? pendingOffers
                 .map(

@@ -36,9 +36,90 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   'test-admin': { email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
   'qa-deleted': { email: 'qa-deleted@kidsmarketplace.test', password: 'TestDeleted123!' },
   'qa-no-profile': { email: 'qa-no-profile@kidsmarketplace.test', password: 'TestNoProfile123!' },
-  'qa-linked-provider': { email: 'qa-linked-provider@kidsmarketplace.test', password: 'TestLinked123!' },
+  'qa-linked-provider': {
+    email: 'qa-linked-provider@kidsmarketplace.test',
+    password: 'TestLinked123!',
+  },
 };
 
 export function getQaPersona(name: string): QaPersona | null {
   return QA_PERSONAS[name] ?? null;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Dev Task 77 item 4 — which test-seller owns which Accept-SP item.
+//
+// QA Task 15 (2026-08-31) logged a wasted persona round-trip: the agent assumed
+// "Board Game Set" belonged to test-seller when it is owned by test-seller-2
+// (C4 friction, ~5 calls). This map documents seller ownership for the standing
+// seed fixtures (TEST_LISTINGS / SELLER2_LISTINGS / QA_POOL_LISTINGS /
+// DONATION_LISTING / CASH_ONLY_LISTING in scripts/seed-staging-data.ts) so QA
+// can `qa-login-as` the right persona up front instead of guessing.
+//
+// NOTE: this is a STATIC doc map — if you need certainty about a live listing,
+// verify against the DB first (`items.seller_id`), per the QA standing rule
+// (R-NEW-4). Titles here mirror the seed constants exactly (case-sensitive).
+// ────────────────────────────────────────────────────────────────────────────
+export interface QaItemOwnership {
+  title: string;
+  /** Persona short-name that owns this item (see QA_PERSONAS). */
+  seller: string;
+  /** Whether the item is SP-eligible at checkout (accepts_swap_points + real category). */
+  acceptsSp: boolean;
+  note?: string;
+}
+
+export const QA_ACCEPT_SP_ITEM_OWNERSHIP: QaItemOwnership[] = [
+  // TEST_LISTINGS — test-seller (all Accept SP by default)
+  { title: 'Nintendo Switch Games Bundle', seller: 'test-seller', acceptsSp: true },
+  { title: 'LEGO Star Wars Set', seller: 'test-seller', acceptsSp: true },
+  {
+    title: 'Kids Bicycle - 20 inch',
+    seller: 'test-seller',
+    acceptsSp: true,
+    note: 'Sports 75% SP cap (QA Task 15 C1)',
+  },
+  { title: 'Harry Potter Book Set', seller: 'test-seller', acceptsSp: true },
+  { title: 'Basketball', seller: 'test-seller', acceptsSp: true },
+  // DONATION / CASH-ONLY — test-seller (NOT SP-eligible)
+  {
+    title: 'Free Art Supplies',
+    seller: 'test-seller',
+    acceptsSp: false,
+    note: 'Donation (price $0)',
+  },
+  {
+    title: 'Vintage Comic Book Collection',
+    seller: 'test-seller',
+    acceptsSp: false,
+    note: 'Cash only',
+  },
+  // QA_POOL_LISTINGS — test-seller (all Accept SP)
+  { title: 'Remote Control Car', seller: 'test-seller', acceptsSp: true },
+  { title: 'Kids Kindle Tablet', seller: 'test-seller', acceptsSp: true },
+  { title: 'Soccer Ball & Goal Set', seller: 'test-seller', acceptsSp: true },
+  { title: 'Puzzle Set — 4 Pack', seller: 'test-seller', acceptsSp: true },
+  { title: 'Roald Dahl Collection', seller: 'test-seller', acceptsSp: true },
+  { title: 'Skateboard — Youth', seller: 'test-seller', acceptsSp: true },
+  // B08 frozen-chat fixture — test-seller (Accept SP)
+  {
+    title: 'QA Canned Cancelled-Trade Item',
+    seller: 'test-seller',
+    acceptsSp: true,
+    note: 'TRD-TC-B08 fixture',
+  },
+  // SELLER2_LISTINGS — test-seller-2 (all Accept SP by default)
+  { title: 'Science Kit', seller: 'test-seller-2', acceptsSp: true },
+  {
+    title: 'Board Game Set',
+    seller: 'test-seller-2',
+    acceptsSp: true,
+    note: 'Owned by test-seller-2, NOT test-seller',
+  },
+  { title: "Children's Dictionary", seller: 'test-seller-2', acceptsSp: true },
+];
+
+/** Returns the documented owner for an item title (exact, case-sensitive match), or null. */
+export function getQaItemOwner(title: string): QaItemOwnership | null {
+  return QA_ACCEPT_SP_ITEM_OWNERSHIP.find((o) => o.title === title) ?? null;
 }

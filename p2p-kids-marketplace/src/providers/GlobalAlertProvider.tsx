@@ -49,6 +49,43 @@ export function useGlobalAlert(): GlobalAlertContextValue {
   return React.useContext(GlobalAlertContext);
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Dev/QA escape hatch (Dev Task 77 item 1): a module-scoped "force dismiss all"
+// registry so a dev-only deep link (p2pkidsmarketplace://dev-clear-overlays)
+// can clear every queued branded alert in ONE call. QA Task 15 logged a stuck
+// "Offer Declined" GlobalAlert that survived a persona switch and blinded the
+// accessibility tree — the only escape was a full app relaunch (~20 tool calls).
+// This lets the QaClearOverlaysDeepLinkHandler recover in a single call.
+//
+// SECURITY GATE: the exported `forceDismissAllGlobalAlerts()` is only ever
+// invoked from QaClearOverlaysDeepLinkHandler, which is gated to dev/staging
+// builds (`__DEV__` or EXPO_PUBLIC_ENVIRONMENT in development/staging). A
+// production build never registers the listener, so this escape hatch is inert
+// in release builds.
+// ────────────────────────────────────────────────────────────────────────────
+type ForceDismissAll = () => void;
+
+let forceDismissAllFn: ForceDismissAll | null = null;
+
+/** Registers (or clears) the module-scoped force-dismiss callback. Returns an unregister fn. */
+export function registerGlobalAlertForceDismiss(fn: ForceDismissAll | null): () => void {
+  forceDismissAllFn = fn;
+  return () => {
+    if (forceDismissAllFn === fn) {
+      forceDismissAllFn = null;
+    }
+  };
+}
+
+/** Dev/QA-only: clears every queued branded alert (no onPress fires). Returns true if one existed. */
+export function forceDismissAllGlobalAlerts(): boolean {
+  if (!forceDismissAllFn) {
+    return false;
+  }
+  forceDismissAllFn();
+  return true;
+}
+
 type GlobalAlertProviderProps = {
   children: React.ReactNode;
 };
@@ -138,10 +175,15 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
   const buttonCount = current?.buttons.length || 0;
   const useHorizontalActions = buttonCount > 0 && buttonCount <= 2;
 
-  const contextValue = React.useMemo<GlobalAlertContextValue>(
-    () => ({ showAlert }),
-    [showAlert]
-  );
+  // Dev Task 77 item 1: register the module-scoped force-dismiss escape hatch so
+  // a dev-only deep link can clear every queued alert in one call (see
+  // registerGlobalAlertForceDismiss above). setQueue is stable, so this effect
+  // registers once for the provider's lifetime.
+  React.useEffect(() => {
+    return registerGlobalAlertForceDismiss(() => setQueue([]));
+  }, []);
+
+  const contextValue = React.useMemo<GlobalAlertContextValue>(() => ({ showAlert }), [showAlert]);
 
   return (
     <GlobalAlertContext.Provider value={contextValue}>

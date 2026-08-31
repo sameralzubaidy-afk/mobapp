@@ -14,6 +14,7 @@
     "qa:ensure-cards": "node scripts/qa/ensure-valid-cards.mjs",
     "qa:reset-offer-fixtures": "node scripts/qa/reset-offer-fixtures.mjs",
     "qa:create-bundle-fixture": "node scripts/qa/create-bundle-fixture.mjs",
+    "qa:create-in-progress-bundle-fixture": "node scripts/qa/create-in-progress-bundle-fixture.mjs",
     "qa:ef-repro": "node scripts/qa/ef-repro.mjs",
     "qa:admin-config-set": "node scripts/qa/admin-config-set.mjs",
     "qa:set-sp-balance": "node scripts/qa/set-sp-balance.mjs",

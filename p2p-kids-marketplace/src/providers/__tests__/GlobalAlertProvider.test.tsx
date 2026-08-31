@@ -15,6 +15,7 @@ import { Alert, Pressable, Text } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import GlobalAlertProvider, {
   useGlobalAlert,
+  forceDismissAllGlobalAlerts,
   type BrandedAlertButton,
 } from '@/providers/GlobalAlertProvider';
 import { colors } from '@/theme';
@@ -47,7 +48,8 @@ describe('GlobalAlertProvider', () => {
     const { getByTestId, getByText } = renderWithProvider((show) =>
       show({
         title: 'Invalid Referral Code',
-        message: 'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
+        message:
+          'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
         buttons: [
           { text: 'Fix it', style: 'cancel', testID: 'referral-invalid-fix-it-button' },
           {
@@ -75,7 +77,8 @@ describe('GlobalAlertProvider', () => {
     const { getByTestId, getByRole } = renderWithProvider((show) =>
       show({
         title: 'Invalid Referral Code',
-        message: 'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
+        message:
+          'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
         buttons: [
           { text: 'Fix it', style: 'cancel', testID: 'referral-invalid-fix-it-button' },
           {
@@ -153,12 +156,37 @@ describe('GlobalAlertProvider', () => {
     const { getByTestId, getByText } = renderWithProvider(() => undefined);
 
     act(() => {
-      Alert.alert('Legacy Title', 'Legacy message', [
-        { text: 'OK', testID: 'legacy-ok-button' },
-      ]);
+      Alert.alert('Legacy Title', 'Legacy message', [{ text: 'OK', testID: 'legacy-ok-button' }]);
     });
 
     expect(getByText('Legacy Title')).toBeTruthy();
     expect(getByTestId('legacy-ok-button')).toBeTruthy();
+  });
+
+  // Dev Task 77 item 1: the module-scoped escape hatch the QA dev-clear-overlays
+  // deep link calls. A stuck alert (e.g. "Offer Declined") that survives a persona
+  // switch and blinds the AX tree must be clearable in one call, not by relaunch.
+  it('forceDismissAllGlobalAlerts() clears every queued alert without firing onPress', () => {
+    const onPress = jest.fn();
+    const { getByTestId, queryByText } = renderWithProvider((show) =>
+      show({
+        title: 'Offer Declined',
+        message: 'The buyer has been notified that their offer was declined.',
+        buttons: [{ text: 'OK', onPress, testID: 'offer-declined-ok-button' }],
+      })
+    );
+
+    // Queue TWO alerts (the second one sits behind the first in the queue).
+    fireEvent.press(getByTestId('alert-trigger'));
+    fireEvent.press(getByTestId('alert-trigger'));
+    expect(queryByText('Offer Declined')).toBeTruthy();
+
+    act(() => {
+      expect(forceDismissAllGlobalAlerts()).toBe(true);
+    });
+
+    expect(queryByText('Offer Declined')).toBeNull();
+    // No button onPress fired — a silent force-clear, never a "tap".
+    expect(onPress).not.toHaveBeenCalled();
   });
 });
