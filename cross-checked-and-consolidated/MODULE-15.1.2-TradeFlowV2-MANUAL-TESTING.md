@@ -235,7 +235,7 @@
 | | TRD-TC-R06 | Refund settlement breakdown (cash + proportional tax + fee) |
 | **T — Points Redemption (Bundle Checkout)** | TRD-TC-T01 | Points toggle appears only on eligible items; ineligible show "Not eligible" label |
 | | TRD-TC-T02 | Toggle ON applies correct amount (wallet + category cap both sufficient) |
-| | TRD-TC-T03 | Toggle ON applies partial amount with "balance limit" label when wallet insufficient |
+| | TRD-TC-T03 | Toggle ON applies partial amount with "Limited by your SP balance" subtext when wallet insufficient |
 | | TRD-TC-T04 | Category cap limits applied points even when wallet covers more |
 | | TRD-TC-T05 | Toggle OFF restores balance for sequential allocation |
 | | TRD-TC-T06 | Running "Points remaining" counter updates accurately across multiple toggles |
@@ -5487,10 +5487,11 @@ FROM items;
 3. Verify the applied amount and label.
 
 **Expected Result:**
-- 20 pts applied (50% of $40). Label shows "20 pts applied" (no "balance limit" suffix).
+- 20 pts applied (50% of $40).
+- SP-limit hint shows "You can use up to 20 SP" with subtext "Limited by this item's category" (DEV-TASK-72 unified wording; replaced the old "20 pts applied" label).
 - Points remaining counter decreases by 20.
 
-### TRD-TC-T03 · Toggle ON shows "balance limit" when wallet insufficient
+### TRD-TC-T03 · Toggle ON applies partial amount when wallet insufficient
 
 **Ref:** FLOW-11
 **Actors:** test-buyer with 8 SP wallet balance
@@ -5502,7 +5503,7 @@ FROM items;
 
 **Expected Result:**
 - 8 pts applied (limited by wallet, not by 50% cap which would be 20).
-- Label shows "8 of 20 pts applied — balance limit".
+- SP-limit hint shows "You can use up to 8 SP" with subtext "Limited by your SP balance" (DEV-TASK-72 unified wording; was "8 of 20 pts applied — balance limit").
 - Points remaining counter shows 0.
 
 ### TRD-TC-T04 · Category cap limits applied points
@@ -5517,7 +5518,7 @@ FROM items;
 
 **Expected Result:**
 - 10 pts applied (category cap of 10, even though 50% cap = 50 and wallet has 200).
-- Label shows "10 pts applied (category cap: 10)".
+- SP-limit hint shows "You can use up to 10 SP" with subtext "Limited by this item's category" (DEV-TASK-72 unified wording; was "10 pts applied (category cap: 10)").
 
 ### TRD-TC-T05 · Toggle OFF restores balance for sequential allocation
 
@@ -5532,7 +5533,7 @@ FROM items;
 5. Toggle ON Item A again → 20 pts applied (from restored balance).
 
 **Expected Result:**
-- Step 3: Item B shows "10 of 15 pts applied — balance limit".
+- Step 3: Item B shows "You can use up to 10 SP" with subtext "Limited by your SP balance" (DEV-TASK-72 unified wording; was "10 of 15 pts applied — balance limit").
 - Step 4: Remaining counter jumps to 20.
 - Step 5: Item A gets full 20 pts back.
 

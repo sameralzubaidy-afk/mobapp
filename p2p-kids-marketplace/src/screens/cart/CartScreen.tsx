@@ -611,6 +611,21 @@ export default function CartScreen() {
                       </View>
                     )}
                   </View>
+                  {/* DEV-TASK-73: Accept-SP item with no category cap (NULL category) —
+                      checkout renders no SP input for it, so the "Accepts Points" tag
+                      would over-promise. Muted note for subscribers (the only users
+                      who'd expect the input) on an otherwise-eligible item. */}
+                  {isSubscriber &&
+                    item.acceptsSP &&
+                    !isItemUnavailable(item) &&
+                    spMaxByListing[item.listingId] == null && (
+                      <Text
+                        style={styles.pointsUnavailableText}
+                        testID={`cart-item-points-unavailable-${item.id}`}
+                      >
+                        Points unavailable for this item
+                      </Text>
+                    )}
                 </View>
               </TouchableOpacity>
 
@@ -1000,6 +1015,14 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
     fontWeight: '600',
   },
+  // DEV-TASK-73: muted note under the "Accepts Points" tag when an Accept-SP
+  // item has no category cap (NULL category) — checkout renders no SP input.
+  pointsUnavailableText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginTop: theme.spacing.xs,
+  },
   savedCartsSection: {
     marginHorizontal: 24,
     marginTop: theme.spacing.md,
@@ -1201,11 +1224,13 @@ const styles = StyleSheet.create({
     // DEV-TASK-72: neutral secondary palette (gray-50 bg, gray-200 border) —
     // visually distinct from the solid-green bundle CTA pill (#EEF9F4/#5DBB8E),
     // so the banner's "View" link reads as an info row, not a make-offer button.
+    // DEV-TASK-73: marginBottom bumped xs → md so the banner's "View" link sits
+    // further from the bundle CTA below it (QA Task 12 accidental-tap risk).
     backgroundColor: '#F7F7F7',
     borderRadius: 12,
     marginHorizontal: 24,
     marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.md,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     paddingLeft: 12,

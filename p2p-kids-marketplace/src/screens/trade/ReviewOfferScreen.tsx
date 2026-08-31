@@ -679,7 +679,7 @@ export default function ReviewOfferScreen() {
       <TradeConfirmationModal
         visible={showAcceptModal}
         title="Accept Trade"
-        message="Are you sure you want to accept this offer? The buyer will be charged and the trade moves to in progress."
+        message="Are you sure you want to accept this offer? The buyer's payment will be authorized and the trade moves to in progress."
         confirmLabel="Accept"
         variant="accept"
         onConfirm={executeAccept}
@@ -710,7 +710,7 @@ export default function ReviewOfferScreen() {
             : 0;
           return `Accept all ${pendingCount} items?`;
         })()}
-        message="Accepting will capture payment and move all trades in progress."
+        message="Accepting will authorize the buyer's payment and move all trades in progress."
         confirmLabel={`Accept All ${offer ? [offer, ...bundleSiblings].length : 0}`}
         variant="accept"
         onConfirm={executeAcceptBundle}

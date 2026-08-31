@@ -1535,7 +1535,7 @@ export default function TradeTimelineScreen() {
           <View style={styles.sellerCompletedBox} testID="seller-awaiting-payment-notice">
             <Clock size={20} color="#2563EB" weight="regular" style={{ marginRight: 8 }} />
             <Text style={styles.sellerCompletedText}>
-              Buyer paid. Awaiting pickup confirmation.
+              Buyer payment authorized. Awaiting pickup confirmation.
             </Text>
           </View>
         )}
