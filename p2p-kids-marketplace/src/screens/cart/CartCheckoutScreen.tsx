@@ -62,7 +62,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
-import { computeMaxSpForItem } from '@/utils/cartSpMath';
+import { getSpLimitInfo } from '@/utils/cartSpMath';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'CartCheckout'>;
@@ -380,15 +380,6 @@ export default function CartCheckoutScreen() {
     }
   }, [cart, loadPointsData]);
 
-  // DT-63 (QA Task 7, item 2): max SP this item can apply = min(category cap,
-  // wallet balance minus what OTHER items already apply). The old inline math
-  // double-subtracted this item's own applied amount and showed "Max: 0 SP"
-  // even with SP available. Logic lives in utils/cartSpMath (pure, unit-tested).
-  const getMaxSpForItem = useCallback(
-    (itemId: string) => computeMaxSpForItem(itemSpState, walletBalance, itemId),
-    [itemSpState, walletBalance]
-  );
-
   // Handle SP amount change for a specific item
   const handleSpChange = (itemId: string, text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
@@ -667,6 +658,10 @@ export default function CartCheckoutScreen() {
             const eligible = isItemSpEligible(item);
             const spState = itemSpState[item.listingId];
             const itemPrice = item.price ?? 0;
+            // DEV-TASK-72: one binding ceiling (min of category cap & wallet-
+            // remaining) + one source label — replaces the old two-denominator
+            // "Max: N SP" / "X of Y — balance limit" pair.
+            const spLimit = getSpLimitInfo(itemSpState, walletBalance, item.listingId);
 
             return (
               <View
@@ -723,16 +718,14 @@ export default function CartCheckoutScreen() {
                       />
                       <Text style={styles.spUnit}>SP</Text>
                     </View>
-                    <Text style={styles.spHint}>
-                      Max:{' '}
-                      {getMaxSpForItem(item.listingId)}{' '}
-                      SP
+                    <Text style={styles.spHint} testID={`sp-max-hint-${item.listingId}`}>
+                      You can use up to {spLimit.bindingMax} SP
                     </Text>
-                    {spState.spApplied > 0 && spState.spApplied < spState.maxAllowed && (
-                      <Text style={styles.spBalanceNote}>
-                        {spState.spApplied} of {spState.maxAllowed} — balance limit
-                      </Text>
-                    )}
+                    <Text style={styles.spLimitSource}>
+                      {spLimit.source === 'wallet'
+                        ? 'Limited by your SP balance'
+                        : "Limited by this item's category"}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -1095,10 +1088,10 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     marginTop: 8,
   },
-  spBalanceNote: {
+  // DEV-TASK-72: explains which limit is the binding ceiling (wallet vs category cap)
+  spLimitSource: {
     fontSize: 12,
-    color: '#F59E0B',
-    fontWeight: '500',
+    color: '#999999',
     marginTop: 4,
   },
   breakdownRow: {

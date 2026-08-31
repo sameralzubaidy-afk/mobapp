@@ -115,7 +115,7 @@ export default function TradeOfferScreen() {
 
     try {
       setLoading(true);
-      const [itemData, config] = await Promise.all([getItemById(itemId), getAdminConfig()]);
+      const [itemData, config] = await Promise.all([getItemById(itemId), getAdminConfig(true)]);
 
       if (!itemData) {
         Alert.alert('Error', 'Item not found');

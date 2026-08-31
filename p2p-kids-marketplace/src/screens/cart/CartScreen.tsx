@@ -631,7 +631,10 @@ export default function CartScreen() {
         {/* SELLER-GROUP-007: "More from this seller" banner — shown when seller
             has items not yet in basket. DEV-TASK-49: placed right after the item
             list (above the summary + fixed CTA sheet) so it can never render in
-            the CTA/pill zone and look like an overlapping control. */}
+            the CTA/pill zone and look like an overlapping control.
+            DEV-TASK-72: styled as a NEUTRAL secondary info card (distinct from
+            the green primary bundle CTA) so its "View" link can't be mistaken
+            for the make-offer button. */}
         {sellerId && remainingFromSeller > 0 && showMoreFromSellerBanner && (
           <View style={styles.moreFromSellerBanner} testID="cart-more-from-seller-banner">
             <TouchableOpacity
@@ -644,7 +647,7 @@ export default function CartScreen() {
               }}
               activeOpacity={0.7}
             >
-              <SquaresFour size={18} color="#2D6A4F" weight="fill" />
+              <SquaresFour size={18} color="#5DBB8E" weight="fill" />
               <View style={styles.moreFromSellerBannerTextWrap}>
                 <Text style={styles.moreFromSellerBannerTitle}>
                   This seller has {remainingFromSeller} more item
@@ -1195,12 +1198,16 @@ const styles = StyleSheet.create({
   moreFromSellerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEF9F4',
+    // DEV-TASK-72: neutral secondary palette (gray-50 bg, gray-200 border) —
+    // visually distinct from the solid-green bundle CTA pill (#EEF9F4/#5DBB8E),
+    // so the banner's "View" link reads as an info row, not a make-offer button.
+    backgroundColor: '#F7F7F7',
     borderRadius: 12,
     marginHorizontal: 24,
     marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
     borderWidth: 1,
-    borderColor: '#5DBB8E',
+    borderColor: '#E0E0E0',
     paddingLeft: 12,
   },
   moreFromSellerBannerContent: {
@@ -1216,7 +1223,7 @@ const styles = StyleSheet.create({
   moreFromSellerBannerTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2D6A4F',
+    color: '#6B6B6B',
   },
   moreFromSellerBannerLink: {
     fontSize: 13,

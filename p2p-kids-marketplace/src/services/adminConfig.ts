@@ -3,6 +3,7 @@
 
 import { supabase } from '../config/supabase';
 import { getSimulatedConfigFetchFailure } from './devTestingService';
+import { AppState } from 'react-native';
 
 export interface AdminConfig {
   // Subscription
@@ -279,6 +280,23 @@ export function invalidateConfigCache(): void {
   configCache = null;
   cacheTimestamp = 0;
 }
+
+// DT71 (2026-08-31): invalidate the in-memory config cache whenever the app
+// returns to the foreground, so admin-driven config changes (e.g. toggling
+// sales_tax_enabled / min_listing_price / SP caps in the admin portal) apply on
+// the next getAdminConfig() read WITHOUT requiring an app relaunch. Mirrors the
+// CartContext foreground-refresh pattern. Self-registered once on import.
+let foregroundRefreshRegistered = false;
+function registerForegroundRefresh(): void {
+  if (foregroundRefreshRegistered) return;
+  foregroundRefreshRegistered = true;
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      invalidateConfigCache();
+    }
+  });
+}
+registerForegroundRefresh();
 
 /**
  * Convenience functions for common config values

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BulkEditableItem, BulkItemCard } from './BulkItemCard';
 
 interface ItemCardStackProps {
@@ -16,6 +16,9 @@ interface ItemCardStackProps {
   onRetryAI?: (groupId: string) => void;
   /** Minimum listing price threshold for price_below_minimum chip text */
   minListingPrice?: number;
+  /** DT71 (2026-08-31): dev-only price value + per-item setter for QA below-threshold testing */
+  devPriceValue?: string;
+  onDevSetPrice?: (index: number) => void;
 }
 
 /**
@@ -34,25 +37,40 @@ export function ItemCardStack({
   onUpgradePress,
   onRetryAI,
   minListingPrice = 0,
+  devPriceValue = '3',
+  onDevSetPrice,
 }: ItemCardStackProps) {
   return (
     <View style={styles.container} testID="item-card-stack">
       {items.map((item, index) => (
-        <BulkItemCard
-          key={item.groupId}
-          item={item}
-          index={index}
-          expanded={expandedGroupId === item.groupId}
-          onToggleExpanded={() => onExpand(expandedGroupId === item.groupId ? null : item.groupId)}
-          onToggleInclude={(include) => onToggleInclude(item.groupId, include)}
-          onChange={(patch) => onChangeItem(item.groupId, patch)}
-          onOpenCategoryPicker={() => onOpenCategoryPicker(item.groupId)}
-          canAcceptSP={canAcceptSP}
-          checkingSubscription={checkingSubscription}
-          onUpgradePress={onUpgradePress}
-          onRetryAI={onRetryAI ? () => onRetryAI(item.groupId) : undefined}
-          minListingPrice={minListingPrice}
-        />
+        <View key={item.groupId} style={styles.itemWrap}>
+          <BulkItemCard
+            item={item}
+            index={index}
+            expanded={expandedGroupId === item.groupId}
+            onToggleExpanded={() => onExpand(expandedGroupId === item.groupId ? null : item.groupId)}
+            onToggleInclude={(include) => onToggleInclude(item.groupId, include)}
+            onChange={(patch) => onChangeItem(item.groupId, patch)}
+            onOpenCategoryPicker={() => onOpenCategoryPicker(item.groupId)}
+            canAcceptSP={canAcceptSP}
+            checkingSubscription={checkingSubscription}
+            onUpgradePress={onUpgradePress}
+            onRetryAI={onRetryAI ? () => onRetryAI(item.groupId) : undefined}
+            minListingPrice={minListingPrice}
+          />
+          {__DEV__ && onDevSetPrice && (
+            <TouchableOpacity
+              style={styles.devSetPriceButton}
+              onPress={() => onDevSetPrice(index)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Set item ${index + 1} price to ${devPriceValue} (dev only)`}
+              testID={`dev-set-bulk-price-${index}`}
+            >
+              <Text style={styles.devSetPriceText}>Dev: Set Price {devPriceValue}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       ))}
     </View>
   );
@@ -61,5 +79,24 @@ export function ItemCardStack({
 const styles = StyleSheet.create({
   container: {
     marginTop: 8,
+  },
+  itemWrap: {
+    marginBottom: 8,
+  },
+  devSetPriceButton: {
+    marginTop: 4,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#EAF7F0',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  devSetPriceText: {
+    color: '#2E7D5B',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

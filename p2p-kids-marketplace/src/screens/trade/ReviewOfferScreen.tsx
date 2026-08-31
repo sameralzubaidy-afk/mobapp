@@ -256,7 +256,7 @@ export default function ReviewOfferScreen() {
       setShowAcceptBundleModal(false);
       showAlert({
         title: 'Bundle Accepted!',
-        message: 'Payment captured. Trades are now in progress.',
+        message: 'Payment authorized. Trades are now in progress.',
         buttons: [
           { text: 'OK', onPress: () => navigation.navigate('MyListings'), testID: 'bundle-accepted-ok-button' },
         ],
@@ -286,7 +286,7 @@ export default function ReviewOfferScreen() {
       await respondToOffer(offer.id, 'accept');
       showAlert({
         title: 'Offer Accepted!',
-        message: 'Payment captured. Trade is now in progress. The buyer can confirm receipt.',
+        message: 'Payment authorized. Trade is now in progress. The buyer can confirm receipt.',
         buttons: [
           {
             text: 'OK',

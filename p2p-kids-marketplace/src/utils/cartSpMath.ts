@@ -35,3 +35,29 @@ export function computeMaxSpForItem(
   const otherUsed = Math.max(0, used - (state.spApplied ?? 0));
   return Math.min(state.maxAllowed, Math.max(0, walletBalance - otherUsed));
 }
+
+export type SpLimitSource = 'wallet' | 'category';
+
+export interface SpLimitInfo {
+  /** The binding max SP for this item (min of category cap and wallet remaining). */
+  bindingMax: number;
+  /** Which limit binds — 'wallet' when the SP balance is the ceiling, 'category' when the category cap is. */
+  source: SpLimitSource;
+}
+
+/**
+ * DEV-TASK-72: single, unambiguous "you can use up to N SP" ceiling for the bundle
+ * checkout. Returns the binding limit (min of category cap and wallet-remaining)
+ * plus which limit it came from, so the UI can show ONE number and ONE source
+ * subtext instead of two different denominators ("Max: N SP" vs "X of Y — balance limit").
+ */
+export function getSpLimitInfo(
+  itemSpState: Record<string, CartItemSpState>,
+  walletBalance: number,
+  itemId: string
+): SpLimitInfo {
+  const state = itemSpState[itemId];
+  const bindingMax = computeMaxSpForItem(itemSpState, walletBalance, itemId);
+  const source: SpLimitSource = state && bindingMax < state.maxAllowed ? 'wallet' : 'category';
+  return { bindingMax, source };
+}

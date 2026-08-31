@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -489,7 +490,9 @@ export default function BulkListingCreateScreen() {
 
   const loadMinListingPrice = useCallback(async () => {
     try {
-      const value = await getConfigValue('min_listing_price');
+      // DT71 (2026-08-31): force-refresh so a raised/lowered min_listing_price
+      // applies on the next bulk-create session without an app relaunch.
+      const value = await getConfigValue('min_listing_price', true);
       setMinListingPrice(Number(value) || 0);
     } catch {
       setMinListingPrice(0);
@@ -939,6 +942,11 @@ export default function BulkListingCreateScreen() {
     );
   }, [items.length, categories, minListingPrice]);
 
+  // DT71 (2026-08-31): dev-only price value used by `dev-set-bulk-price-<index>`.
+  // Default '3' is below the usual min_listing_price so QA can drive the
+  // mixed-batch below-threshold leg (N05/N13/N14). Local state only.
+  const [devBulkPriceInput, setDevBulkPriceInput] = useState('3');
+
   // DEV-ONLY fixture (sibling of `dev-set-item-categories` and ItemCreate's
   // `dev-fill-item`/`dev-set-price`): fill title/price/condition (+ category when
   // missing) on EVERY bulk item in ONE tap. Unblocks QA driving the per-item bulk
@@ -969,6 +977,28 @@ export default function BulkListingCreateScreen() {
       })
     );
   }, [items.length, categories, minListingPrice]);
+
+  // DEV-ONLY fixture (DT71 item 4): set ONE item's price to the entered
+  // dev-bulk-price-input value (default below-threshold '3') so QA can drive
+  // the mixed-batch below-minimum leg (N05/N13/N14) without reaching the
+  // ScrollView-snapping per-item price inputs. Local state only; publish still
+  // enforces the real min-price threshold via getMissingRequired + submit path.
+  const handleDevSetBulkPrice = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= items.length) return;
+      const parsed = Number(devBulkPriceInput);
+      const priceValue = Number.isFinite(parsed) && parsed > 0 ? String(parsed) : '3';
+      setItems((prev) =>
+        prev.map((item, i) => {
+          if (i !== index) return item;
+          const next: BulkEditableItem = { ...item, price: priceValue };
+          next.missingRequired = getMissingRequired(next, minListingPrice);
+          return next;
+        })
+      );
+    },
+    [items.length, devBulkPriceInput, minListingPrice]
+  );
 
   useEffect(() => {
     console.log(
@@ -1599,6 +1629,17 @@ export default function BulkListingCreateScreen() {
             upload, no DB writes — see handlers above. */}
         {__DEV__ && (
           <View style={styles.devFixtureRow}>
+            <TextInput
+              style={styles.devFixtureInput}
+              value={devBulkPriceInput}
+              onChangeText={setDevBulkPriceInput}
+              keyboardType="decimal-pad"
+              maxLength={6}
+              placeholder="Dev price (below min)"
+              placeholderTextColor="#2E7D5B"
+              accessibilityLabel="Dev price to set on a bulk item (dev only)"
+              testID="dev-bulk-price-input"
+            />
             <TouchableOpacity
               style={[
                 styles.devFixtureButton,
@@ -1789,6 +1830,8 @@ export default function BulkListingCreateScreen() {
               onUpgradePress={() => navigation.navigate('JoinKidsClub')}
               onRetryAI={handleRetryAIForItem}
               minListingPrice={minListingPrice}
+              devPriceValue={devBulkPriceInput}
+              onDevSetPrice={handleDevSetBulkPrice}
             />
           </>
         )}
@@ -2187,6 +2230,17 @@ const styles = StyleSheet.create({
     color: '#2E7D5B',
     fontSize: 13,
     fontWeight: '600',
+  },
+  devFixtureInput: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#5DBB8E',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 150,
+    color: '#2E7D5B',
+    fontSize: 13,
   },
   photoSourceModalOverlay: {
     flex: 1,
