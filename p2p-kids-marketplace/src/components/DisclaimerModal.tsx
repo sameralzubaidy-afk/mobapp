@@ -162,6 +162,7 @@ export default function DisclaimerModal({
         ) : (
           <>
             <ScrollView
+              style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
               testID={`${testID}-scroll-view`}
             >
@@ -302,6 +303,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  scrollView: {
+    // DEV-TASK-69 (Item 4): fill the space between header and footer so the
+    // footer (checkbox + Accept & Continue) is always pinned to the bottom edge
+    // and never requires a scroll on smaller devices.
+    flex: 1,
   },
   scrollContent: {
     padding: 16,

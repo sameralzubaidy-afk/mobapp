@@ -939,6 +939,37 @@ export default function BulkListingCreateScreen() {
     );
   }, [items.length, categories, minListingPrice]);
 
+  // DEV-ONLY fixture (sibling of `dev-set-item-categories` and ItemCreate's
+  // `dev-fill-item`/`dev-set-price`): fill title/price/condition (+ category when
+  // missing) on EVERY bulk item in ONE tap. Unblocks QA driving the per-item bulk
+  // form (QA Task 11 Group N05/N13/N14 BLOCKED) — the ScrollView binary-snaps and
+  // per-row typing is flaky, and publish is gated until all rows complete. Local
+  // state only: publish still enforces the real min-price threshold via
+  // getMissingRequired re-run and the real submit path. Gated by __DEV__ — never
+  // in release builds.
+  const handleDevFillBulkItems = useCallback(() => {
+    if (items.length === 0) return;
+    const fallback: Category = { id: 'dev-fallback', name: 'Toys & Games' };
+    const category =
+      categories.find((c) => c.id !== 'other' && c.name.trim().toLowerCase() !== 'other') ??
+      fallback;
+    setItems((prev) =>
+      prev.map((item, index) => {
+        const next: BulkEditableItem = {
+          ...item,
+          title: item.title?.trim() ? item.title : `QA Dev Fixture Item ${index + 1}`,
+          price: Number(item.price) > 0 ? item.price : '20',
+          condition: item.condition ?? 'new',
+          category_id: item.category_id || category.id,
+          category_name: item.category_name || category.name,
+          requested_category_name: undefined,
+        };
+        next.missingRequired = getMissingRequired(next, minListingPrice);
+        return next;
+      })
+    );
+  }, [items.length, categories, minListingPrice]);
+
   useEffect(() => {
     console.log(
       '[BulkCreate] Photo source effect - modal:',
@@ -1609,6 +1640,20 @@ export default function BulkListingCreateScreen() {
               testID="dev-set-item-categories"
             >
               <Text style={styles.devFixtureButtonText}>Dev: Set Categories</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.devFixtureButton,
+                items.length === 0 && styles.devFixtureButtonDisabled,
+              ]}
+              onPress={handleDevFillBulkItems}
+              disabled={items.length === 0}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Fill title, price and condition on all items (dev only)"
+              testID="dev-fill-bulk-items"
+            >
+              <Text style={styles.devFixtureButtonText}>Dev: Fill All Items</Text>
             </TouchableOpacity>
           </View>
         )}

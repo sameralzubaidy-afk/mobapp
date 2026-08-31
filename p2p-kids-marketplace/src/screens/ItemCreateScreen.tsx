@@ -133,6 +133,11 @@ export default function ItemCreateScreen() {
   // overwritten by AI analysis, even via the per-field "Use" action (spec).
   const prefilledTitle = route.params?.prefilledTitle;
   const titlePrefilledFromComposerRef = useRef(Boolean(prefilledTitle));
+  // Deep-link / dev shortcut — `p2pkidsmarketplace://create-item?price=NN` pre-fills
+  // the price field so QA (and future onboarding flows) land on a pre-priced form
+  // in one hop (QA Task 11 follow-up; complements the dev-set-price button).
+  const deepLinkPrice = route.params?.price;
+  const hasAppliedDeepLinkPriceRef = useRef(false);
   const insets = useSafeAreaInsets();
   const sellerId = session?.user?.id || '';
   const hasTriggeredInitialDraftCreateRef = useRef(false);
@@ -278,6 +283,20 @@ export default function ItemCreateScreen() {
     if (!prefilledTitle) return;
     setTitle(prefilledTitle);
   }, [draftId, prefilledTitle]);
+
+  // Deep-link price prefill (QA Task 11 follow-up): applies once on mount when the
+  // create-item deep link carries ?price=NN. Draft resume wins when a draftId is
+  // present (mirrors the composer pre-fill guard above); the ref guard prevents
+  // later param changes or re-renders from clobbering user edits.
+  useEffect(() => {
+    if (draftId) return; // draft resume wins
+    if (hasAppliedDeepLinkPriceRef.current) return;
+    if (deepLinkPrice == null) return;
+    const parsed = Number(String(deepLinkPrice));
+    if (!Number.isFinite(parsed) || parsed < 0) return;
+    hasAppliedDeepLinkPriceRef.current = true;
+    setPriceInput(String(parsed));
+  }, [draftId, deepLinkPrice]);
 
   // Hydrate form state once when resuming an existing draft.
   useEffect(() => {

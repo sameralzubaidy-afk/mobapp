@@ -599,6 +599,11 @@ serve(async (req) => {
 
   // ── Shared: validate payment method (done once for single & batch) ──
   let stripeCustomerId: string | null = null;
+  // DT-69 (Item 6): capture the buyer's card brand/last4 at offer time so the
+  // seller's Review Offer screen can show "Buyer pays via •••• 4444 (authorized)".
+  // Set only when the PM is retrieved below; stays null for $0-cash (donate) offers.
+  let capturedPmBrand: string | null = null;
+  let capturedPmLast4: string | null = null;
   const needsPmCheck = isBatch
     ? items!.some((it) => it.cash_amount_cents > 0)
     : (cash_amount_cents ?? 0) > 0;
@@ -659,6 +664,9 @@ serve(async (req) => {
     // Verify & attach payment method once (shared by all items in batch/single)
     try {
       const pm = await stripe.paymentMethods.retrieve(payment_method_id!);
+      // DT-69 (Item 6): snapshot brand/last4 for the seller's Review Offer screen.
+      capturedPmBrand = pm.card?.brand ?? null;
+      capturedPmLast4 = pm.card?.last4 ?? null;
       if (pm.customer === null) {
         await stripe.paymentMethods.attach(payment_method_id!, { customer: stripeCustomerId });
       } else if (pm.customer !== stripeCustomerId) {
@@ -767,6 +775,23 @@ serve(async (req) => {
 
     if (sellerNodeId && cashCents > 0) {
       vTaxableAmountCents = Math.round(item.price * 100);
+
+      // DT-68 (2026-08-30): GLOBAL TAX TOGGLE — read sales_tax_enabled. When false, the
+      // whole tax calc is overridden to $0 below (the calc still runs — read-only RPCs —
+      // then is overridden, keeping this a minimal non-reindenting edit). Previously the
+      // EF never read the flag, so disabling tax had NO effect on new offers (QA O03/P04).
+      let vGlobalTaxEnabled = true;
+      try {
+        const { data: globalTaxConfig } = await supabase
+          .from('admin_config')
+          .select('value')
+          .eq('key', 'sales_tax_enabled')
+          .eq('is_active', true)
+          .maybeSingle();
+        vGlobalTaxEnabled = (globalTaxConfig as { value?: string } | null)?.value !== 'false';
+      } catch (taxFlagErr: unknown) {
+        console.warn(`[create-trade-offer] req=${requestId} global tax flag read failed — assuming enabled:`, taxFlagErr);
+      }
 
       try {
         // Fetch include_fee_in_tax_base toggle
@@ -897,6 +922,20 @@ serve(async (req) => {
         }
       } catch (taxErr) {
         console.error(`[create-trade-offer] req=${requestId} tax calc error for ${itemId}:`, taxErr);
+      }
+
+      // DT-68: enforce the global toggle on the write path — tax is $0 when disabled.
+      // vServerCalculatedTax is forced true so DT-58's FAIL-CLOSED guard does not reject
+      // the offer: a $0 when tax is globally disabled is intentional, not a calc error.
+      // vTaxSnapshot is cleared so the persisted tax_snapshot matches the 0 tax columns.
+      if (!vGlobalTaxEnabled) {
+        vTaxAmountCents = 0;
+        vTaxableAmountCents = 0;
+        vTaxRate = 0;
+        vTaxJurisdiction = null;
+        vTaxSnapshot = null;
+        vServerCalculatedTax = true;
+        console.log(`[create-trade-offer] req=${requestId} sales_tax_enabled=false → tax 0 for ${itemId}`);
       }
     }
     console.log(`[perf][${itemId}] taxCalc done t=${Date.now() - tStart}ms`);
@@ -1029,6 +1068,8 @@ serve(async (req) => {
         total_fee_cents: txFeeCents,
         seller_transaction_fee_cents: sellerTransactionFeeCents,
         sp_category_multiplier: categoryMultiplier,
+        stripe_payment_method_brand: capturedPmBrand,
+        stripe_payment_method_last4: capturedPmLast4,
         ...(bundle_id ? { bundle_id } : {}),
       })
       .select()
@@ -1242,6 +1283,20 @@ serve(async (req) => {
     if (sellerNodeId && cashCents > 0) {
       vTaxableAmountCents = Math.round(item.price * 100);
 
+      // DT-68 (2026-08-30): GLOBAL TAX TOGGLE (bundle path — mirrors single-item).
+      let vGlobalTaxEnabled = true;
+      try {
+        const { data: globalTaxConfig } = await supabase
+          .from('admin_config')
+          .select('value')
+          .eq('key', 'sales_tax_enabled')
+          .eq('is_active', true)
+          .maybeSingle();
+        vGlobalTaxEnabled = (globalTaxConfig as { value?: string } | null)?.value !== 'false';
+      } catch (taxFlagErr: unknown) {
+        console.warn(`[create-trade-offer] req=${requestId} (bundle) global tax flag read failed — assuming enabled:`, taxFlagErr);
+      }
+
       try {
         const { data: feeBaseConfig } = await supabase
           .from('admin_config')
@@ -1356,6 +1411,19 @@ serve(async (req) => {
       } catch (taxErr) {
         console.error(`[create-trade-offer] req=${requestId} (bundle) tax calc error for ${itemId}:`, taxErr);
       }
+
+      // DT-68: enforce the global toggle on the write path — tax is $0 when disabled.
+      // vServerCalculatedTax is forced true so DT-58's FAIL-CLOSED guard does not reject
+      // the item; vTaxSnapshot is cleared so the persisted snapshot matches the 0 columns.
+      if (!vGlobalTaxEnabled) {
+        vTaxAmountCents = 0;
+        vTaxableAmountCents = 0;
+        vTaxRate = 0;
+        vTaxJurisdiction = null;
+        vTaxSnapshot = null;
+        vServerCalculatedTax = true;
+        console.log(`[create-trade-offer] req=${requestId} (bundle) sales_tax_enabled=false → tax 0 for ${itemId}`);
+      }
     }
     console.log(`[perf][${itemId}] (bundle) taxCalc done t=${Date.now() - tStart}ms`);
     // DT-58 (2026-08-30): FAIL CLOSED on tax (bundle path — same rule as single-item).
@@ -1413,6 +1481,8 @@ serve(async (req) => {
         total_fee_cents: txFeeCents,
         seller_transaction_fee_cents: sellerTransactionFeeCents,
         sp_category_multiplier: categoryMultiplier,
+        stripe_payment_method_brand: capturedPmBrand,
+        stripe_payment_method_last4: capturedPmLast4,
         ...(bundle_id ? { bundle_id } : {}),
       })
       .select()

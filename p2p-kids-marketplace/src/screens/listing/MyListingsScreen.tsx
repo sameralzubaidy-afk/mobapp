@@ -292,6 +292,10 @@ export default function MyListingsScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.iconActionButton}
               onPress={() => handleEditListing(item)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${item.title}`}
+              testID={`listing-edit-${item.id}`}
             >
               <PencilSimple size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
@@ -299,6 +303,10 @@ export default function MyListingsScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.iconActionButton}
               onPress={() => handleDeleteListing(item)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${item.title}`}
+              testID={`listing-delete-${item.id}`}
             >
               <Trash size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
@@ -306,9 +314,26 @@ export default function MyListingsScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.iconActionButton}
               onPress={() => handleOpenListing(item)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`More options for ${item.title}`}
+              testID={`listing-more-${item.id}`}
             >
               <DotsThree size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* DEV-TASK-69 (Item 5): explain why edit/delete aren't available yet for
+            a PENDING item — previously the card showed no actions and no hint.
+            testID on the Text (not the container View) so it surfaces on the iOS
+            AX tree — a plain View testID is invisible without `accessible` (BP-53). */}
+        {item.status === 'pending' && (
+          <View style={styles.pendingHint}>
+            <Text style={styles.pendingHintText} testID={`listing-pending-hint-${item.id}`}>
+              Awaiting approval — this item is under review and will go live once approved. You'll
+              be notified when it's ready.
+            </Text>
           </View>
         )}
       </View>
@@ -899,6 +924,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F5F5F5',
+  },
+  pendingHint: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+  },
+  pendingHintText: {
+    fontSize: 12,
+    color: '#D97706',
+    lineHeight: 17,
   },
   emptyContainer: {
     flex: 1,

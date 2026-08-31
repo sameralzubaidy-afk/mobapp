@@ -16,7 +16,7 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
+import { ArrowsLeftRight, Coins, CreditCard, ShieldCheck } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -49,6 +49,8 @@ interface OfferData {
   seller_sp_earned?: number; // NEW: total SP to seller (buyer SP + bonus)
   seller_sp_bonus?: number; // NEW: platform-funded bonus
   sp_transferred_at?: string; // NEW: when SP transferred (set at acceptance)
+  stripe_payment_method_brand?: string | null; // DT-69 (Item 6): buyer's card brand, offer-time snapshot
+  stripe_payment_method_last4?: string | null; // DT-69 (Item 6): buyer's card last4, offer-time snapshot
   listing: {
     title: string;
     price: number;
@@ -109,6 +111,8 @@ export default function ReviewOfferScreen() {
           seller_sp_earned,
           seller_sp_bonus,
           sp_transferred_at,
+          stripe_payment_method_brand,
+          stripe_payment_method_last4,
           listing:items(
             title,
             price,
@@ -539,6 +543,21 @@ export default function ReviewOfferScreen() {
           </View>
         )}
 
+        {/* DT-69 (Item 6): show the buyer's payment method so the seller knows how
+            the buyer intends to pay before accepting. A pending offer always has a
+            Stripe auth hold, hence the "(authorized)" suffix. Hidden for expired /
+            declined offers (no active authorization) and for $0-cash (donate) offers
+            where no payment method was used. */}
+        {offer.status === 'pending' && offer.stripe_payment_method_last4 && (
+          <View style={styles.paymentMethodCard} testID="review-buyer-payment-method">
+            <CreditCard size={20} color="#6B6B6B" weight="fill" />
+            <Text style={styles.paymentMethodText}>
+              Buyer pays via {offer.stripe_payment_method_brand?.toUpperCase() ?? 'Card'} ••••{' '}
+              {offer.stripe_payment_method_last4} (authorized)
+            </Text>
+          </View>
+        )}
+
         {/* Payout Breakdown — DEV-TASK-62 (Item 2): shows the cash amount, the
             seller platform fee, and the true NET payout; now shown for ALL
             offers (was gated on sp_amount > 0 and displayed gross cash). */}
@@ -885,6 +904,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#92400E',
+    lineHeight: 20,
+  },
+  paymentMethodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  paymentMethodText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1A1A1A',
     lineHeight: 20,
   },
   disclaimerCard: {

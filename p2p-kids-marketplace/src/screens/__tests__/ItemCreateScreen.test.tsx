@@ -242,6 +242,20 @@ describe('ItemCreateScreen', () => {
       });
     });
 
+    it('pre-fills the price field from the create-item deep link ?price=NN', async () => {
+      const { getByTestId } = renderScreen({
+        params: { showPhotoSourcePrompt: false, price: '4.99' },
+      });
+
+      // Add a photo WITHOUT touching price (dev-add-test-photo only injects a
+      // bundled asset) so the price field renders, then assert the deep-link
+      // value landed in the field with zero typing. Fresh params per test (BP-60).
+      fireEvent.press(getByTestId('dev-add-test-photo'));
+      await waitFor(() => {
+        expect(getByTestId('manual-price-input').props.value).toBe('4.99');
+      });
+    });
+
     it('dev-add-test-photo-uploaded records a mock URL so AI + draft paths fire', async () => {
       const saveMock = jest.fn();
       mockUseItemDraft.mockReturnValue({

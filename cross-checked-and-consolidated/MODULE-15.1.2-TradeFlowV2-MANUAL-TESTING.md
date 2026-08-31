@@ -352,7 +352,7 @@
 - test-buyer (subscriber) has a Swap Points balance of at least 15 SP.
 - test-buyer and test-free have a valid saved payment card.
 - For cart tests: test-seller has at least 3 available items; a second seller (test-seller-2) has at least 1 available item in the same node as test-buyer.
-- For tax tests: the buyer's node has a tax rate configured (e.g., 6.35%) and sales tax is enabled globally, unless a case states otherwise. Admin portal access is available for admin-side cases.
+- For tax tests: the item's tax category has an ACTIVE tax rule (live staging rate for `general_tangible_goods` = **6.99%**) and sales tax is enabled globally, unless a case states otherwise. **Category tax rules override node rates** (see the Group O precedence note) — the node's tax rate is only a fallback when no category rule matches. Admin portal access is available for admin-side cases.
 
 > **Note:** Donate listings (TRD-TC-A04) and the platform-SP reward for cash-only Accept SP trades (TRD-TC-A03) are deferred to post-MVP. See `MODULE-15.1.2-TradeFlowV2-DEFERRED-MANUAL-TESTING.md`.
 
@@ -3183,9 +3183,11 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 **Focus:** Buyer-facing tax display, calculation correctness, SP interaction, refund visibility
 
+> **⚠️ Precedence (2026-08-30, QA Task 11 doc fix):** Category tax **RULES override node rates**. `calculate_tax` resolves the applicable rate via `get_applicable_tax_rule(<category>, NOW(), <price>)`; when an active taxable rule matches, the RULE's rate wins (`COALESCE(rule.tax_rate, node_rate)`), and the node rate is used **only** when no category rule matches (or no `tax_category_id` is supplied). Live staging rate for `general_tangible_goods` is **6.99%** (active rule v3) — so a $30 item shows **$2.10** tax (`FLOOR(3000 * 0.0699 + 0.5) = 210`), **NOT** the legacy 6.35%/$1.91 figures below. Consequence: **node-rate edits (TRD-TC-P01/P08) do NOT propagate to new offers when a category rule exists** — to change the effective rate, edit the category tax RULE, not the node rate.
+
 ### passed TRD-TC-O01 · Sales tax shown in checkout/cart breakdown (0 SP)
 
-**Precondition:** Node has 6.35% tax rate, global tax enabled, item is $30 `general_tangible_goods`.
+**Precondition:** Item's tax category (`general_tangible_goods`) has an ACTIVE tax rule at **6.99%** (live staging rate; overrides the node rate per the precedence note above), global tax enabled, item is $30.
 
 **Steps:**
 1. As **test-buyer**, open an item → tap **Request to Buy** (single-item flow).
@@ -3195,7 +3197,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Expected:**
 - **TradeInitiationScreen:** Shows Item Price → Subtotal → **Sales Tax** (calculated amount) → Platform Fee → Total.
 - **CartCheckoutScreen:** Shows Subtotal → SP Discount (if any) → Platform Fee → **Sales Tax** → Total.
-- Tax amount = `FLOOR((3000 * 0.0635) + 0.5) = 191 cents = $1.91`.
+- Tax amount = `FLOOR((3000 * 0.0699) + 0.5) = 210 cents = $2.10` (live category-rule rate 6.99%).
 - Label reads **"Sales Tax"** (kid-friendly, not jurisdiction name).
 - Total includes the tax.
 
@@ -3213,7 +3215,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Expected:**
 - Tax recalculates within ~300ms as the SP entry changes.
 - **Tax base = full $30 item price** (NOT reduced by SP — BP-37).
-- Tax amount stays at $1.91 (calculated on $30, not on $15 cash).
+- Tax amount stays at **$2.10** (calculated on $30 at the 6.99% category-rule rate, not on $15 cash).
 - Platform fee ($1.49) is still charged in cash.
 - Recalculation applies on both TradeInitiationScreen and TradeOfferScreen.
 
@@ -3253,7 +3255,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Status:** Implemented 2026-08-01 — badge renders on the Item Detail Price Breakdown and all checkout surfaces (offer initiation, offer, cart checkout, trade detail/timeline).
 
 **Precondition:**
-- Global sales tax is **ENABLED** (`sales_tax_enabled = true`) and the buyer's node has a **non-zero** tax rate (6.35%) — so this test proves the badge comes from item exemption, NOT from tax being disabled or a zero node rate.
+- Global sales tax is **ENABLED** (`sales_tax_enabled = true`) and the item's tax category has a **non-zero** active rule (6.99% in staging) — so this test proves the badge comes from item exemption, NOT from tax being disabled or a zero rate.
 - The **Books** product category maps to the **Tax Exempt Goods** tax category (default from `20260727000001_category_tax_mapping.sql`). Verify:
   ```sql
   SELECT c.name AS category, tc.key AS tax_category_key
@@ -3283,7 +3285,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 | Exempt item (Books) — offer initiation / offer screen | Same **"Tax Free"** badge + **$0.00**; Total = item price + platform fee only (no tax). |
 | Exempt item (Books) — SP used (subscriber) | Badge stays; SP reduces cash, but the taxable base is still not taxed (**$0.00**). |
 | Exempt item (Books) — completed trade | Trade Timeline "Payment Details" shows the **"Tax Free"** badge instead of a tax row. |
-| Non-exempt item | **No** badge — a normal **"Sales Tax"** row shows the calculated amount (e.g., $1.91 on $30 @ 6.35%). |
+| Non-exempt item | **No** badge — a normal **"Sales Tax"** row shows the calculated amount (e.g., $2.10 on $30 @ 6.99% live category-rule rate). |
 | Tax $0 because global tax disabled (TRD-TC-O03) | **No** "Tax Free" badge — the tax row is hidden (badge is reserved for item exemption). |
 | Tax $0 because node rate is 0 (TRD-TC-O04) | **No** "Tax Free" badge — same as above. |
 
@@ -3711,7 +3713,7 @@ LIMIT 10;
 
 ### ✅ TRD-TC-O2-C01 · Single taxable item, no SP — offer is quoted/authorized, not collected
 
-**Precondition:** Seller's node has 6.35% tax, item is `general_tangible_goods`, buyer has saved payment method.
+**Precondition:** Item's tax category (`general_tangible_goods`) has an ACTIVE rule (6.99% in staging — overrides node rate), buyer has saved payment method.
 
 **Steps:**
 1. As **test-buyer**, submit an offer on a $30 item with SP = 0.
@@ -4239,7 +4241,7 @@ LIMIT 5;
 **Expected:**
 - Rate changes save successfully and persist.
 - Invalid rates (< 0% or > 100%) are rejected with inline error.
-- New offers from that node use new rate immediately (no deploy needed).
+- ⚠️ **Precedence caveat:** node-rate edits take effect on new offers ONLY when no category tax rule matches the item. For `general_tangible_goods` (which has an ACTIVE rule at 6.99% in staging), a node-rate edit does **NOT** change the rate on new offers — the category rule wins. To change the effective rate, edit the category tax RULE instead.
 
 ---
 
@@ -4332,13 +4334,13 @@ LIMIT 5;
 **Steps:**
 1. As **test-admin**, change test-buyer's node rate from 6.35% to 8.00%.
 2. As **test-buyer**, submit a new offer on a $30 item.
-3. Verify tax = `FLOOR((3000 * 0.08) + 0.5) = 240 cents = $2.40`.
-4. Verify older offers still show 6.35% tax (not retroactively changed).
+3. ⚠️ **Corrected expectation (QA Task 11):** because `general_tangible_goods` has an ACTIVE category tax rule at 6.99%, the new offer still uses the rule rate → tax = `FLOOR((3000 * 0.0699) + 0.5) = 210 cents = $2.10`, NOT $2.40. The node-rate edit has no effect on this item's tax.
+4. Verify older offers still show their stored tax snapshot (not retroactively changed).
 
 **Expected:**
-- New offer: tax calculated at 8.00%.
+- New offer: tax calculated at the category-rule rate (6.99% → $2.10), proving **node-rate edits do not propagate when a category rule exists**.
+- To observe the node rate being used at all, first deactivate the `general_tangible_goods` rule (TRD-TC-O1-C04), then a node-rate edit applies.
 - Old offers: tax unchanged (stored snapshot, not recalculated).
-- No deploy or app restart needed for rate change.
 
 ---
 
