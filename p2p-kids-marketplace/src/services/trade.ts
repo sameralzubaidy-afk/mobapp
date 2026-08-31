@@ -14,6 +14,7 @@ import { getUserReviews } from './review';
 import { getSimulatedCardDeclineMode, getSimulatedConfigFetchFailure } from './devTestingService';
 import { captureException, captureMessage } from './errorReporter';
 import { trackEvent } from './analytics';
+import { generateSubmissionNonce } from '../utils/submissionNonce';
 
 const ACTIVE_OFFER_STATUSES = ['pending', 'payment_failed', 'in_progress'];
 
@@ -751,6 +752,13 @@ export async function createTradeOfferWithHold(
       return { success: false, error: 'User not authenticated', error_code: 'UNAUTHORIZED' };
     }
 
+    // DT-18 (2026-08-28): per-submission nonce for the Stripe PaymentIntent idempotency key.
+    // Generated ONCE per createTradeOfferWithHold call (one submission attempt) and reused
+    // across the auth-refresh retry below (same attempt); a genuine re-offer after a cancelled
+    // trade generates a fresh nonce → new key → no 409 collision with the prior attempt.
+    // Mirrors cartService.checkoutCart (the single-item offer path was the missing half of DT-18).
+    const submissionNonce = generateSubmissionNonce();
+
     const invokeCreateTradeOffer = async (token: string) =>
       supabase.functions.invoke('create-trade-offer', {
         body: {
@@ -761,6 +769,7 @@ export async function createTradeOfferWithHold(
           transaction_fee_cents: input.transaction_fee_cents,
           buyer_subscription_status: input.buyer_subscription_status,
           tax_amount_cents: input.tax_amount_cents ?? 0,
+          submission_nonce: submissionNonce,
         },
         headers: {
           Authorization: `Bearer ${token}`,
