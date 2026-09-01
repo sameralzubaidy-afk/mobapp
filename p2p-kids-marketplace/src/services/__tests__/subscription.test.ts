@@ -528,6 +528,65 @@ describe('Subscription Service - TASK SUB-002', () => {
     });
   });
 
+  describe('getPaymentMethod — cache bypass after adding a new card (DEV-TASK-81 regression)', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // QA forced-card toggle disarmed — production path.
+      mockGetPaymentCardPreference.mockResolvedValue(null);
+      mockGetSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'test-token',
+            // Far-future expiry so the refresh branch is never hit in these tests.
+            expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+          },
+        },
+        error: null,
+      });
+    });
+
+    it('returns the NEW server card via forceRefresh=true even when the cache holds the old card', async () => {
+      // Seed the shared in-memory cache with the OLD card via a forced read.
+      mockInvoke.mockResolvedValueOnce({
+        data: {
+          payment_method: {
+            id: 'pm_old',
+            brand: 'visa',
+            last4: '1111',
+            exp_month: 12,
+            exp_year: 2035,
+          },
+        },
+        error: null,
+      });
+      const seeded = await getPaymentMethod(true);
+      expect(seeded?.id).toBe('pm_old');
+
+      // A non-forced read returns the cached OLD card (no network call) — this is
+      // exactly the stale state the user hit after adding a new card.
+      const stale = await getPaymentMethod();
+      expect(stale?.id).toBe('pm_old');
+
+      // The new card is now persisted server-side (attach-payment-method wrote it).
+      mockInvoke.mockResolvedValueOnce({
+        data: {
+          payment_method: {
+            id: 'pm_new',
+            brand: 'mastercard',
+            last4: '2222',
+            exp_month: 1,
+            exp_year: 2036,
+          },
+        },
+        error: null,
+      });
+
+      // forceRefresh=true MUST bypass the cache and return the newly-added card.
+      const fresh = await getPaymentMethod(true);
+      expect(fresh?.id).toBe('pm_new');
+    });
+  });
+
   describe('getPaymentMethod — QA forced-card pass-through (Dev Task 44)', () => {
     beforeEach(() => {
       jest.clearAllMocks();

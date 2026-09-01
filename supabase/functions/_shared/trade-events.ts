@@ -7,6 +7,7 @@ export type TradeEventType =
   | 'offer_accepted'
   | 'offer_cancelled'
   | 'seller_cancelled'
+  | 'cancel_request_approved'
   | 'trade_completed'
   | 'trade_disputed'
   | 'payment_captured'

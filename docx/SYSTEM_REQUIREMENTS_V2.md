@@ -32,6 +32,7 @@ This version reflects the **FINAL DECISION** to implement Swap Points as an **ex
 5. [Swap Points System (Subscription-Gated)](#swap-points-system-subscription-gated)
 6. [Core Features & Specifications](#core-features--specifications)
 7. [Trade Flow & Seller Payouts](#trade-flow--seller-payouts)
+   - 7.12 [Buyer Cancel Request & Admin Escalation](#712-buyer-cancel-request--admin-escalation)
 8. [Business Rules & Logic](#business-rules--logic)
 8A. [N6 — Node Tagging (Cross-Cutting)](#8a-n6--node-tagging-cross-cutting)
 8B. [N2 — Idempotency & Audit (Cross-Cutting)](#8b-n2--idempotency--audit-cross-cutting)
@@ -1519,6 +1520,32 @@ Prevents duplicate payouts if Edge Function is called multiple times or retried
 
 ---
 
+### 7.12 Buyer Cancel Request & Admin Escalation
+
+**Added:** 2026-09-01 (FIX-CANCEL) · **Full detail:** `docx/BUYER-CANCEL-REQUEST-SPEC.md`
+
+**Overview.** A buyer on an **in-progress** trade may submit a **Request to Cancel**. The seller approves (→ trade cancelled + buyer refunded via the existing cancel engine) or declines (→ request escalates to admin). No response within a configurable window auto-escalates to admin. Admin resolves from the Action Center / trade detail (**Approve Cancel & Refund** / **Keep Trade**). The seller's own instant cancel is unchanged. The dispute/report-a-problem flow is unchanged and stays semantically separate.
+
+**Feature rules (FR-CANCEL):**
+- **FR-CANCEL-1 — Buyer request.** Only the **buyer** of an in-progress trade with **no unresolved dispute** and **no existing pending request** may submit a request. Single-item or whole-bundle (a per-item option is offered for bundle trades).
+- **FR-CANCEL-2 — Seller respond.** Only the **seller** may approve or decline. **Approve** → request `approved`, trade cancelled, buyer refunded (SP release + Stripe refund + tax void via the existing `cancel-trade` engine). **Decline** → request `escalated` (when escalation is enabled; otherwise the request ends with the trade continuing).
+- **FR-CANCEL-3 — Timeout escalation.** No seller response within `cancel_request_response_timeout_hours` auto-escalates to admin (pg_cron, every 10 min) — only when `cancel_request_escalation_enabled = true`.
+- **FR-CANCEL-4 — Withdraw.** The buyer may withdraw a pending request; the trade continues and the seller is notified.
+- **FR-CANCEL-5 — Admin resolve.** Admin may **Approve Cancel & Refund** (→ cancelled + refunded) or **Keep Trade** (→ request closed, trade continues). The acting admin is recorded in the audit trail.
+- **FR-CANCEL-6 — Config not hard-coded.** Escalation toggle + response window are `admin_config` keys (see below).
+- **FR-CANCEL-7 — No seller penalty.** Approving a buyer's request does **not** increment the seller's TFV2-023 cancellation consequences (the seller is not at fault).
+- **FR-CANCEL-8 — Notifications.** In-app + push for `cancel_request_sent` / `withdrawn` / `approved` / `escalated` / `resolved` (channels respect `notification_preferences` category `trades`).
+
+**State machine:** `trades.cancel_request_status` ∈ `requested | approved | escalated | resolved | withdrawn`; `trades.cancel_request_resolution` ∈ `approved_cancel | keep_trade`. Bundle requests cascade to all sibling trades sharing the `bundle_id`.
+
+**Admin-config keys:** `cancel_request_escalation_enabled` (bool, default `true`) · `cancel_request_response_timeout_hours` (number, default `48`).
+
+**Admin portal:** Action Center **Cancel Requests** source; trade detail **Approve Cancel & Refund / Keep Trade**; `POST /api/admin/trades/cancel-request-action`.
+
+**Security:** request/respond RPCs are SECURITY DEFINER with party checks; the `cancel_request_*` columns are not client-writable (column-level REVOKE); money paths reuse the existing `cancel-trade` / `admin-trade-action` engines (no reimplementation).
+
+---
+
 ## 8. Business Rules & Logic
 
 
@@ -2133,6 +2160,10 @@ CREATE TABLE transactions (
 ```
 
 > Note (2026-08-11): The implemented model lives in the `trades` table (`trades.status` TEXT + CHECK) with values `pending | payment_processing | payment_failed | in_progress | completed | cancelled` — see `docs/flow-registry.md` FLOW-08/FLOW-30. This §8.5 `transactions` DDL is the legacy reference model and is retained for history; the Trades tab badge counts any non-terminal status.
+
+> Note (2026-09-01, FIX-CANCEL — Buyer Cancel Request): the `trades` table also carries a nullable overlay for the buyer cancel-request flow (§7.12):
+> `cancel_requested_by UUID` · `cancel_requested_role TEXT` · `cancel_request_reason TEXT` · `cancel_request_status TEXT` (`requested | approved | escalated | resolved | withdrawn`) · `cancel_request_created_at TIMESTAMPTZ` · `cancel_request_expires_at TIMESTAMPTZ` · `cancel_request_resolved_at TIMESTAMPTZ` · `cancel_request_resolved_by UUID` · `cancel_request_resolution TEXT` (`approved_cancel | keep_trade`).
+> These columns are write-only via SECURITY DEFINER RPCs (`fn_request_cancel_trade`, `fn_respond_cancel_request`, `fn_withdraw_cancel_request`, `fn_resolve_cancel_request`, `fn_escalate_expired_cancel_requests`) and are never client-writable. Full spec: `docx/BUYER-CANCEL-REQUEST-SPEC.md`.
 
 ### 8.6 Badge Definitions Table (Admin)
 

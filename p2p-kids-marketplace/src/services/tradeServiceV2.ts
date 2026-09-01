@@ -4,17 +4,17 @@
 import { supabase } from '../config/supabase';
 
 export interface SubmitOfferInput {
-  listingId:        string;
-  buyerId:          string;
-  sellerId:         string;
-  cashAmountCents:  number;
-  spAmount:         number;
-  bundleId?:        string;
+  listingId: string;
+  buyerId: string;
+  sellerId: string;
+  cashAmountCents: number;
+  spAmount: number;
+  bundleId?: string;
 }
 
 export interface SubmitOfferResult {
-  trade:                  any;
-  spReserved:             number;
+  trade: any;
+  spReserved: number;
   authorizationExpiresAt: string;
 }
 
@@ -30,12 +30,12 @@ export interface SubmitOfferResult {
 export async function submitOfferV2(params: SubmitOfferInput): Promise<SubmitOfferResult> {
   const { data, error } = await (supabase.functions.invoke as any)('create-trade-offer', {
     body: {
-      listing_id:        params.listingId,
-      buyer_id:          params.buyerId,
-      seller_id:         params.sellerId,
+      listing_id: params.listingId,
+      buyer_id: params.buyerId,
+      seller_id: params.sellerId,
       cash_amount_cents: params.cashAmountCents,
-      sp_amount:         params.spAmount,
-      bundle_id:         params.bundleId,
+      sp_amount: params.spAmount,
+      bundle_id: params.bundleId,
     },
   });
 
@@ -105,7 +105,7 @@ export async function completeTrade(tradeId: string): Promise<{ success: boolean
  */
 export async function openDispute(
   tradeId: string,
-  reason:  string,
+  reason: string,
   description: string
 ): Promise<{ success: boolean }> {
   const { data, error } = await supabase.functions.invoke('open-dispute', {
@@ -125,9 +125,10 @@ export async function openDispute(
  * Calls `transactions-accept-bundle` Edge Function which processes
  * all trades in parallel internally, avoiding N cold starts.
  */
-export async function acceptBundleOffers(
-  tradeIds: string[]
-): Promise<{ trades: Array<{ trade_id: string; status: string }>; errors?: Array<{ trade_id: string; error: string }> }> {
+export async function acceptBundleOffers(tradeIds: string[]): Promise<{
+  trades: Array<{ trade_id: string; status: string }>;
+  errors?: Array<{ trade_id: string; error: string }>;
+}> {
   const { data, error } = await supabase.functions.invoke('transactions-accept-bundle', {
     body: { trade_ids: tradeIds },
   });
@@ -151,9 +152,10 @@ export async function acceptBundleOffers(
  * Calls `transactions-decline-bundle` Edge Function which processes
  * all trades in parallel internally, avoiding N cold starts.
  */
-export async function declineBundleOffers(
-  tradeIds: string[]
-): Promise<{ trades: Array<{ trade_id: string; status: string }>; errors?: Array<{ trade_id: string; error: string }> }> {
+export async function declineBundleOffers(tradeIds: string[]): Promise<{
+  trades: Array<{ trade_id: string; status: string }>;
+  errors?: Array<{ trade_id: string; error: string }>;
+}> {
   const { data, error } = await supabase.functions.invoke('transactions-decline-bundle', {
     body: { trade_ids: tradeIds },
   });
@@ -252,4 +254,136 @@ export async function respondToExtension(
   }
 
   return data;
+}
+
+// ─── FIX-CANCEL (2026-09-01): Buyer "Request to Cancel" + admin escalation ───
+
+/**
+ * FIX-CANCEL: Buyer requests a cancellation on an in-progress trade (single or
+ * whole bundle). The seller approves (→ cancel-trade EF) or declines (→ escalate
+ * to admin). State + notifications are handled server-side by
+ * `fn_request_cancel_trade` (incl. config-driven response timeout).
+ *
+ * @throws Error with structured message on failure
+ */
+export async function requestCancelTrade(
+  tradeId: string,
+  userId: string,
+  reason?: string,
+  scope: 'all' | 'single' = 'all'
+): Promise<{ success: boolean; data?: Record<string, unknown> }> {
+  const { data, error } = await supabase.rpc('fn_request_cancel_trade', {
+    p_trade_id: tradeId,
+    p_user_id: userId,
+    p_reason: reason ?? null,
+    p_scope: scope,
+  });
+
+  if (error) {
+    console.error('[tradeServiceV2] requestCancelTrade error:', {
+      tradeId,
+      errorCode: error.code,
+      errorMessage: error.message,
+    });
+    throw new Error('Could not request a cancellation. Please try again.');
+  }
+
+  const result = (data ?? {}) as Record<string, unknown>;
+  if (result.success !== true) {
+    throw new Error((result.error as string) || 'Could not request a cancellation.');
+  }
+
+  return { success: true, data: result };
+}
+
+/**
+ * FIX-CANCEL: Seller responds to a buyer's cancellation request.
+ *  - approve: marks the request approved AND cancels the trade + refund via the
+ *    existing `cancel-trade` Edge Function (SP release, Stripe refund, tax void).
+ *    The EF skips the seller-cancellation consequence for request approvals.
+ *  - decline: marks the request escalated (config-driven) — admin reviews.
+ */
+export async function respondToCancelRequest(
+  tradeId: string,
+  userId: string,
+  action: 'approve' | 'decline'
+): Promise<{ success: boolean; data?: Record<string, unknown> }> {
+  if (action === 'approve') {
+    // Approve + cancel atomically via the existing cancel-trade EF.
+    const { data, error } = await supabase.functions.invoke('cancel-trade', {
+      body: {
+        tradeId,
+        reason: 'Buyer requested cancellation — approved by seller',
+        cancel_request_id: tradeId,
+      },
+    });
+
+    if (error) {
+      const ctx = (error as any)?.context || {};
+      const efError = (data as any)?.error || {};
+      console.error('[tradeServiceV2] respondToCancelRequest(approve) error:', {
+        tradeId,
+        errorCode: efError.code || ctx.code,
+        errorMessage: efError.message || ctx.message,
+        statusCode: ctx.status,
+      });
+      throw new Error(efError.message ?? 'Could not approve the cancellation.');
+    }
+
+    if (!data || data.success !== true) {
+      throw new Error((data as any)?.error || 'Could not approve the cancellation.');
+    }
+
+    return { success: true, data };
+  }
+
+  // decline → RPC (state only; server escalates per config).
+  const { data, error } = await supabase.rpc('fn_respond_cancel_request', {
+    p_trade_id: tradeId,
+    p_user_id: userId,
+    p_action: 'decline',
+  });
+
+  if (error) {
+    console.error('[tradeServiceV2] respondToCancelRequest(decline) error:', {
+      tradeId,
+      errorMessage: error.message,
+    });
+    throw new Error('Could not decline the cancellation. Please try again.');
+  }
+
+  const result = (data ?? {}) as Record<string, unknown>;
+  if (result.success !== true) {
+    throw new Error((result.error as string) || 'Could not decline the cancellation.');
+  }
+
+  return { success: true, data: result };
+}
+
+/**
+ * FIX-CANCEL: Buyer withdraws a pending cancellation request.
+ */
+export async function withdrawCancelRequest(
+  tradeId: string,
+  userId: string
+): Promise<{ success: boolean; data?: Record<string, unknown> }> {
+  const { data, error } = await supabase.rpc('fn_withdraw_cancel_request', {
+    p_trade_id: tradeId,
+    p_user_id: userId,
+  });
+
+  if (error) {
+    console.error('[tradeServiceV2] withdrawCancelRequest error:', {
+      tradeId,
+      errorMessage: error.message,
+    });
+    throw new Error('Could not withdraw the cancellation request. Please try again.');
+  }
+
+  const result = (data ?? {}) as Record<string, unknown>;
+  if (result.success !== true) {
+    throw new Error((result.error as string) || 'Could not withdraw the cancellation request.');
+  }
+
+  return { success: true, data: result };
 }

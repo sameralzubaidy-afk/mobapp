@@ -182,7 +182,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const { tradeId, reason, issue_refund = true } = await req.json();
+    const { tradeId, reason, issue_refund = true, cancel_request_id } = await req.json();
 
     if (!tradeId) {
       return new Response(JSON.stringify({ error: 'Missing tradeId' }), {
@@ -190,6 +190,12 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // FIX-CANCEL (2026-09-01): when the seller approves a BUYER's cancellation
+    // request, the trade is cancelled via this same path but the seller is not
+    // at fault — so the seller-cancellation consequence (TFV2-023) must be
+    // skipped and the cancel_request row marked approved afterwards.
+    const isCancelRequestApproval = Boolean(cancel_request_id);
 
     // 2. Load trade to check status and get Stripe info
     const { data: trade, error: tradeError } = await supabaseClient
@@ -390,13 +396,31 @@ serve(async (req: Request) => {
       });
     }
 
+    // FIX-CANCEL (2026-09-01): mark the buyer's cancellation request approved
+    // AFTER a successful cancel (idempotent — NOT_PENDING if already handled).
+    // Non-fatal: the trade is already cancelled.
+    if (isCancelRequestApproval) {
+      try {
+        await supabaseClient.rpc('fn_respond_cancel_request', {
+          p_trade_id: tradeId,
+          p_user_id: user.id,
+          p_action: 'approve',
+        });
+      } catch (approveErr: unknown) {
+        const approveMsg = approveErr instanceof Error ? approveErr.message : 'Unknown error';
+        console.error('[cancel-trade] mark cancel request approved (non-fatal):', approveMsg);
+      }
+    }
+
     // TFV2-019: Log cancellation event
     // TFV2-023: If seller cancels an in_progress trade, apply progressive consequence.
+    // Skipped for cancel-request approvals (seller approving the buyer's request is
+    // not a seller-initiated cancellation).
     let consequenceLevel: number | null = null;
 
     const { sellerId } = getTradePartyIds(trade as Record<string, unknown>);
 
-    if (sellerId && user.id === sellerId && trade.status === 'in_progress') {
+    if (sellerId && user.id === sellerId && trade.status === 'in_progress' && !isCancelRequestApproval) {
       try {
         const { data: consequence, error: conseqError } = await supabaseClient.rpc(
           'fn_handle_seller_cancellation',
@@ -421,10 +445,17 @@ serve(async (req: Request) => {
         seller_cancellation_count: consequenceLevel,
       });
     } else {
-      await logTradeEvent(supabaseClient, tradeId, 'offer_cancelled', user.id, {
-        reason: reason || 'User requested cancellation',
-        sp_refunded: data.sp_refunded,
-      });
+      await logTradeEvent(
+        supabaseClient,
+        tradeId,
+        isCancelRequestApproval ? 'cancel_request_approved' : 'offer_cancelled',
+        user.id,
+        {
+          reason: reason || 'User requested cancellation',
+          sp_refunded: data.sp_refunded,
+          ...(isCancelRequestApproval ? { cancel_request_id } : {}),
+        }
+      );
     }
 
     return new Response(JSON.stringify({ success: true, tradeId: data.trade_id, sp_refunded: data.sp_refunded, consequence_level: consequenceLevel }), {

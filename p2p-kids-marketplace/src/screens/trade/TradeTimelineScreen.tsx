@@ -28,6 +28,11 @@ import { supabase } from '@/config/supabase';
 import { Trade, TradeStatus } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { requestTradeExtension, respondToExtension } from '@/services/tradeServiceV2';
+import {
+  requestCancelTrade,
+  respondToCancelRequest,
+  withdrawCancelRequest,
+} from '@/services/tradeServiceV2';
 import { getPaymentMethod } from '@/services/subscription';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { getSPReleaseDays, getAdminConfig } from '@/services/adminConfig';
@@ -51,6 +56,7 @@ import {
   CancellationReasonModal,
   SELLER_INPROGRESS_REASONS,
   BUYER_OFFER_REASONS,
+  BUYER_INPROGRESS_REASONS,
 } from '@/components/molecules/CancellationReasonModal';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -141,6 +147,16 @@ export default function TradeTimelineScreen() {
     processing?: boolean;
   } | null>(null);
   const [extensionNowMs, setExtensionNowMs] = useState(Date.now());
+
+  // FIX-CANCEL (2026-09-01): buyer Request to Cancel + configurable admin escalation
+  const [cancelRequestSubmitting, setCancelRequestSubmitting] = useState(false);
+  const [cancelRequestScope, setCancelRequestScope] = useState<'all' | 'single'>('all');
+  const [cancelRequestScopePrompt, setCancelRequestScopePrompt] = useState(false);
+  const [cancelRequestConfirm, setCancelRequestConfirm] = useState<{
+    visible: boolean;
+    action: 'approve' | 'decline';
+    processing?: boolean;
+  } | null>(null);
 
   // Navigate seller to TradeSuccessScreen only when trade status *changes* to completed
   const navigateSellerToSuccess = (currentTrade: Trade) => {
@@ -483,11 +499,13 @@ export default function TradeTimelineScreen() {
         // replaced to TradeSuccess immediately so completion feels instant
         // (previously these ran sequentially before navigating, adding seconds
         // of latency after the Edge Function finished).
-        const refreshP = (refreshSession
-          ? refreshSession().catch((e) =>
-              console.warn('[TradeTimeline] refreshSession after complete failed', e)
-            )
-          : Promise.resolve()) as Promise<unknown>;
+        const refreshP = (
+          refreshSession
+            ? refreshSession().catch((e) =>
+                console.warn('[TradeTimeline] refreshSession after complete failed', e)
+              )
+            : Promise.resolve()
+        ) as Promise<unknown>;
         const tradeP = fetchTrade().catch((e) =>
           console.warn('[TradeTimeline] fetchTrade after complete failed', e)
         );
@@ -683,6 +701,104 @@ export default function TradeTimelineScreen() {
     }
   };
 
+  // ─── FIX-CANCEL (2026-09-01): buyer Request to Cancel + admin escalation ───
+
+  // Buyer opens the reason modal to request a cancellation. For a bundle trade,
+  // ask whether to cancel the whole bundle or just this item first.
+  const handleRequestCancel = () => {
+    if ((trade as any)?.bundle_id) {
+      setCancelRequestScopePrompt(true);
+    } else {
+      setCancelRequestScope('single');
+      setShowCancellationModal(true);
+    }
+  };
+
+  // Buyer picks the bundle scope ('all' | 'single'), then picks a reason.
+  const handleCancelScopeChoice = (scope: 'all' | 'single') => {
+    setCancelRequestScope(scope);
+    setCancelRequestScopePrompt(false);
+    setShowCancellationModal(true);
+  };
+
+  // Buyer submits the request (single or whole-bundle per cancelRequestScope).
+  const handleRequestCancelConfirm = async (reason: string) => {
+    setShowCancellationModal(false);
+    setCancelRequestSubmitting(true);
+    try {
+      const config = await getAdminConfig();
+      const hours = config.cancel_request_response_timeout_hours ?? 48;
+      await requestCancelTrade(tradeId, user?.id ?? '', reason, cancelRequestScope);
+      await fetchTrade();
+      showNotif(
+        'Request Sent',
+        `The seller has ${hours} hours to respond. If they decline or don't reply, our team will review it.`,
+        'accept'
+      );
+    } catch (e) {
+      showNotif('Could not request cancellation', (e as Error).message, 'decline');
+    } finally {
+      setCancelRequestSubmitting(false);
+    }
+  };
+
+  // Buyer withdraws a pending request.
+  const handleWithdrawCancelRequest = async () => {
+    setCancelRequestSubmitting(true);
+    try {
+      await withdrawCancelRequest(tradeId, user?.id ?? '');
+      await fetchTrade();
+      showNotif(
+        'Request Withdrawn',
+        'Your cancellation request was withdrawn. The trade continues.',
+        'default'
+      );
+    } catch (e) {
+      showNotif('Could not withdraw request', (e as Error).message, 'decline');
+    } finally {
+      setCancelRequestSubmitting(false);
+    }
+  };
+
+  // Seller approves (→ cancel-trade EF, refunds) or declines (→ escalates) a
+  // buyer's cancellation request.
+  const handleRespondCancelRequest = async (action: 'approve' | 'decline') => {
+    setCancelRequestConfirm((prev) => (prev ? { ...prev, processing: true } : prev));
+    setCancelRequestSubmitting(true);
+    try {
+      await respondToCancelRequest(tradeId, user?.id ?? '', action);
+      setCancelRequestConfirm(null);
+      if (action === 'approve') {
+        if (refreshSession) await refreshSession();
+        showNotif(
+          'Trade Cancelled',
+          'The trade was cancelled and the buyer will be refunded.',
+          'accept',
+          () => {
+            setNotifModal(null);
+            navigation.goBack();
+          }
+        );
+      } else {
+        await fetchTrade();
+        showNotif(
+          'Sent to Our Team',
+          "The buyer's cancellation request was escalated for review.",
+          'default'
+        );
+      }
+    } catch (e) {
+      showNotif(
+        action === 'approve' ? 'Could not approve cancellation' : 'Could not decline request',
+        (e as Error).message,
+        'decline'
+      );
+    } finally {
+      setCancelRequestSubmitting(false);
+      setCancelRequestConfirm(null);
+    }
+  };
+
   // D-30: No manual payment step — Stripe pre-auth is captured on seller accept via transactions-update EF.
   // The buyer goes directly from pending → in_progress and sees [I Got It].
 
@@ -714,6 +830,10 @@ export default function TradeTimelineScreen() {
   const hasUnresolvedDispute =
     !!(trade as any).dispute_status &&
     !['none', 'resolved'].includes((trade as any).dispute_status);
+  // FIX-CANCEL (2026-09-01): buyer cancel-request derived state
+  const cancelRequestStatus = (trade as any)?.cancel_request_status ?? null;
+  const cancelRequestPending =
+    cancelRequestStatus === 'requested' || cancelRequestStatus === 'escalated';
   // DEV-TASK-75 (2026-08-31) — O07: derive refund-display values from the fetched
   // refund rows. Only succeeded/pending refunds count as money actually refunded
   // (failed/canceled rows are excluded). Rows come back DESC by created_at, so
@@ -721,10 +841,7 @@ export default function TradeTimelineScreen() {
   const refundRows = (refunds ?? []).filter(
     (r) => r.status === 'succeeded' || r.status === 'pending'
   );
-  const totalRefundCents = refundRows.reduce(
-    (sum, r) => sum + (r.refund_amount_cents ?? 0),
-    0
-  );
+  const totalRefundCents = refundRows.reduce((sum, r) => sum + (r.refund_amount_cents ?? 0), 0);
   const refundTaxCents = refundRows.reduce((sum, r) => sum + (r.refund_tax_cents ?? 0), 0);
   const hasPendingRefund = refundRows.some((r) => r.status === 'pending');
   const latestRefundDate = refundRows.length > 0 ? refundRows[0].created_at : null;
@@ -962,7 +1079,8 @@ export default function TradeTimelineScreen() {
               </View>
             </View>
             <Text style={styles.disputeCardBody}>
-              Your issue has been reported. Our team will review within 24 hours. Auto-complete is paused.
+              Your issue has been reported. Our team will review within 24 hours. Auto-complete is
+              paused.
             </Text>
             <Text style={styles.disputeCardNote}>
               Keep chatting with the other party — we'll notify you with the outcome.
@@ -1269,6 +1387,152 @@ export default function TradeTimelineScreen() {
             return null;
           })()}
 
+        {/* FIX-CANCEL (2026-09-01): buyer cancel-request status cards + seller action card */}
+        {trade.status === 'in_progress' &&
+          !hasUnresolvedDispute &&
+          cancelRequestStatus &&
+          (() => {
+            const reqCountdown = (trade as any).cancel_request_expires_at
+              ? formatCountdownLabel(
+                  createCountdownModel(
+                    (trade as any).cancel_request_expires_at,
+                    (trade as any).cancel_request_created_at ?? new Date().toISOString(),
+                    extensionNowMs
+                  )
+                )
+              : '';
+
+            // BUYER: request pending → waiting card with withdraw
+            if (isBuyer && cancelRequestStatus === 'requested') {
+              return (
+                <View style={styles.extensionCardPending}>
+                  <View style={styles.extensionCardHeader}>
+                    <Clock size={20} color="#5B8FB9" weight="regular" />
+                    <Text style={styles.extensionCardTitle}>Cancel request sent</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    Waiting for the seller to respond
+                    {reqCountdown ? ` — ${reqCountdown} left` : ''}. If they decline or don't reply,
+                    our team will review it.
+                  </Text>
+                  <Pressable
+                    style={styles.cancelRequestTextButton}
+                    onPress={handleWithdrawCancelRequest}
+                    disabled={cancelRequestSubmitting}
+                    testID="withdraw-cancel-request-button"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Withdraw cancellation request button"
+                  >
+                    <Text style={styles.cancelRequestTextButtonText}>Withdraw request</Text>
+                  </Pressable>
+                </View>
+              );
+            }
+
+            // BUYER: escalated → team-review card
+            if (isBuyer && cancelRequestStatus === 'escalated') {
+              return (
+                <View style={[styles.extensionCardPending, styles.cancelRequestEscalatedCard]}>
+                  <View style={styles.extensionCardHeader}>
+                    <WarningCircle size={20} color="#FFA726" weight="regular" />
+                    <Text style={styles.extensionCardTitle}>Sent to our team</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    The seller didn't respond to your cancellation request. Our team is reviewing it
+                    now.
+                  </Text>
+                </View>
+              );
+            }
+
+            // SELLER: request pending → approve / decline card
+            if (isSeller && cancelRequestStatus === 'requested') {
+              return (
+                <View style={styles.extensionCardPending}>
+                  <View style={styles.extensionCardHeader}>
+                    <WarningCircle size={20} color="#E85D75" weight="regular" />
+                    <Text style={styles.extensionCardTitle}>Cancellation requested</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    The buyer requested to cancel this trade.
+                    {(trade as any).cancel_request_reason
+                      ? ` Reason: "${(trade as any).cancel_request_reason}".`
+                      : ''}{' '}
+                    {reqCountdown
+                      ? `Respond within ${reqCountdown}, or our team reviews it.`
+                      : "If you don't respond, our team reviews it."}
+                  </Text>
+                  <View style={styles.extensionCardActions}>
+                    <Pressable
+                      style={styles.extensionDeclineButton}
+                      onPress={() => setCancelRequestConfirm({ visible: true, action: 'decline' })}
+                      disabled={cancelRequestSubmitting}
+                      testID="decline-cancel-request-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Decline cancellation request button"
+                    >
+                      <Text style={styles.extensionDeclineText}>Decline</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.cancelRequestApproveButton}
+                      onPress={() => setCancelRequestConfirm({ visible: true, action: 'approve' })}
+                      disabled={cancelRequestSubmitting}
+                      testID="approve-cancel-request-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Approve cancellation request button"
+                    >
+                      {cancelRequestSubmitting ? (
+                        <ActivityIndicator color="#E85D75" />
+                      ) : (
+                        <Text style={styles.cancelRequestApproveText}>Approve Cancellation</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }
+
+            // Either party: request reviewed and denied → trade continues
+            if (
+              cancelRequestStatus === 'resolved' &&
+              (trade as any).cancel_request_resolution === 'keep_trade'
+            ) {
+              return (
+                <View style={styles.extensionCardPending}>
+                  <View style={styles.extensionCardHeader}>
+                    <CheckCircle size={20} color="#16A34A" weight="fill" />
+                    <Text style={styles.extensionCardTitle}>Trade continues</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    {isBuyer
+                      ? 'We reviewed your cancellation request — the trade will continue as planned.'
+                      : "The buyer's cancellation request was not approved. The trade continues."}
+                  </Text>
+                </View>
+              );
+            }
+
+            // BUYER: request withdrawn
+            if (cancelRequestStatus === 'withdrawn' && isBuyer) {
+              return (
+                <View style={styles.extensionCardPending}>
+                  <View style={styles.extensionCardHeader}>
+                    <CheckCircle size={20} color="#16A34A" weight="fill" />
+                    <Text style={styles.extensionCardTitle}>Request withdrawn</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    You withdrew your cancellation request. The trade continues.
+                  </Text>
+                </View>
+              );
+            }
+
+            return null;
+          })()}
+
         {/* SP Release Status — seller only, completed trade with SP involved */}
         {isSeller &&
           trade.status === 'completed' &&
@@ -1534,8 +1798,8 @@ export default function TradeTimelineScreen() {
           <View style={styles.sellerRefundBox} testID="timeline-refund-seller-note">
             <WarningCircle size={20} color="#FFA726" weight="regular" style={{ marginRight: 8 }} />
             <Text style={styles.sellerRefundText}>
-              This trade was cancelled and the buyer was refunded. No payout was issued for
-              this sale.
+              This trade was cancelled and the buyer was refunded. No payout was issued for this
+              sale.
             </Text>
           </View>
         )}
@@ -1612,6 +1876,25 @@ export default function TradeTimelineScreen() {
               >
                 <WarningCircle size={20} color="#E85D75" weight="regular" />
                 <Text style={styles.cancelButtonOutlineText}>Report Problem</Text>
+              </Pressable>
+            )}
+
+            {/* FIX-CANCEL (2026-09-01): buyer Request to Cancel (hidden while a request is pending) */}
+            {!hasUnresolvedDispute && !cancelRequestPending && (
+              <Pressable
+                style={[
+                  styles.cancelButtonOutline,
+                  (submitting || cancelRequestSubmitting) && styles.disabledButton,
+                ]}
+                onPress={handleRequestCancel}
+                disabled={submitting || cancelRequestSubmitting}
+                testID="request-cancel-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Request to cancel button"
+              >
+                <XCircle size={20} color="#E85D75" weight="regular" />
+                <Text style={styles.cancelButtonOutlineText}>Request to Cancel</Text>
               </Pressable>
             )}
           </View>
@@ -1754,9 +2037,7 @@ export default function TradeTimelineScreen() {
             // serialize any shared wallet updates. Also check each result
             // (BP-35) and background the session refresh so the success modal
             // is not blocked on it (same pattern as the single-trade path).
-            const results = await Promise.all(
-              data.allIds.map((tid) => completeTradeV2(tid))
-            );
+            const results = await Promise.all(data.allIds.map((tid) => completeTradeV2(tid)));
             const failed = results.filter((r) => !r.success);
             if (refreshSession) {
               void refreshSession().catch(() => {
@@ -1770,15 +2051,10 @@ export default function TradeTimelineScreen() {
                 'decline'
               );
             } else {
-              showNotif(
-                'Done!',
-                `All ${data.total} items marked as completed.`,
-                'accept',
-                () => {
-                  setNotifModal(null);
-                  navigation.goBack();
-                }
-              );
+              showNotif('Done!', `All ${data.total} items marked as completed.`, 'accept', () => {
+                setNotifModal(null);
+                navigation.goBack();
+              });
             }
           } catch {
             showNotif('Error', 'Could not confirm all items. Try confirming each one.', 'decline');
@@ -1870,23 +2146,76 @@ export default function TradeTimelineScreen() {
           onConfirm={() => handleRespondExtension(extensionConfirm.action)}
           onCancel={() => setExtensionConfirm(null)}
           loading={extensionConfirm.processing}
-          confirmTestID={extensionConfirm.action === 'accept' ? 'extension-accept-button' : 'extension-decline-button'}
+          confirmTestID={
+            extensionConfirm.action === 'accept'
+              ? 'extension-accept-button'
+              : 'extension-decline-button'
+          }
           cancelTestID="extension-cancel-button"
+        />
+      )}
+
+      {/* FIX-CANCEL (2026-09-01): seller approve/decline a buyer's cancel request */}
+      {cancelRequestConfirm && (
+        <TradeConfirmationModal
+          visible={cancelRequestConfirm.visible}
+          title={
+            cancelRequestConfirm.action === 'approve' ? 'Cancel this trade?' : 'Send to our team?'
+          }
+          message={
+            cancelRequestConfirm.action === 'approve'
+              ? 'The trade will be cancelled and the buyer will be refunded. This cannot be undone.'
+              : "The buyer's cancellation request will be sent to our team for review. The trade stays in progress until they decide."
+          }
+          confirmLabel={cancelRequestConfirm.action === 'approve' ? 'Cancel Trade' : 'Send to Team'}
+          cancelLabel="Go Back"
+          variant={cancelRequestConfirm.action === 'approve' ? 'decline' : 'default'}
+          onConfirm={() => handleRespondCancelRequest(cancelRequestConfirm.action)}
+          onCancel={() => setCancelRequestConfirm(null)}
+          loading={cancelRequestConfirm.processing}
+          confirmTestID={
+            cancelRequestConfirm.action === 'approve'
+              ? 'approve-cancel-request-confirm-button'
+              : 'decline-cancel-request-confirm-button'
+          }
+          cancelTestID="cancel-request-action-cancel-button"
+        />
+      )}
+
+      {/* FIX-CANCEL (2026-09-01): buyer bundle-scope prompt for a cancel request */}
+      {cancelRequestScopePrompt && (
+        <TradeConfirmationModal
+          visible
+          title="Cancel the whole bundle?"
+          message="This request covers all items in your bundle. Choose to cancel the whole bundle or just this item."
+          confirmLabel="Whole Bundle"
+          cancelLabel="Just This Item"
+          variant="decline"
+          onConfirm={() => handleCancelScopeChoice('all')}
+          onCancel={() => handleCancelScopeChoice('single')}
+          confirmTestID="cancel-request-bundle-all-button"
+          cancelTestID="cancel-request-bundle-single-button"
         />
       )}
 
       <CancellationReasonModal
         visible={showCancellationModal}
         itemTitle={listing?.title || 'Item'}
-        onConfirm={handleCancellationConfirm}
+        onConfirm={
+          isBuyer && trade.status === 'in_progress'
+            ? handleRequestCancelConfirm
+            : handleCancellationConfirm
+        }
         onCancel={() => setShowCancellationModal(false)}
-        isLoading={isCancelling}
+        isLoading={isCancelling || cancelRequestSubmitting}
         reasons={
           isSeller && trade.status === 'in_progress'
             ? SELLER_INPROGRESS_REASONS
             : !isSeller && trade.status === 'pending'
               ? BUYER_OFFER_REASONS
-              : undefined
+              : isBuyer && trade.status === 'in_progress'
+                ? BUYER_INPROGRESS_REASONS
+                : undefined
         }
       />
 
@@ -2843,6 +3172,35 @@ const styles = StyleSheet.create({
   },
   extensionRequestText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // ── FIX-CANCEL (2026-09-01): buyer cancel-request cards ──
+  cancelRequestEscalatedCard: {
+    backgroundColor: '#FFF7ED',
+  },
+  cancelRequestTextButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  cancelRequestTextButtonText: {
+    color: '#5B8FB9',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  cancelRequestApproveButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E85D75',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelRequestApproveText: {
+    color: '#E85D75',
     fontSize: 14,
     fontWeight: '600',
   },

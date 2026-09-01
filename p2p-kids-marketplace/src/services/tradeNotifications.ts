@@ -20,7 +20,13 @@ export type TradeNotificationType =
   | 'trade_accepted'
   | 'trade_rejected'
   | 'trade_completed'
-  | 'trade_cancelled';
+  | 'trade_cancelled'
+  // FIX-CANCEL (2026-09-01): buyer cancel-request lifecycle
+  | 'cancel_request_sent'
+  | 'cancel_request_withdrawn'
+  | 'cancel_request_approved'
+  | 'cancel_request_escalated'
+  | 'cancel_request_resolved';
 
 export interface TradeNotificationData {
   trade_id: string;
@@ -72,6 +78,17 @@ function buildPushTitle(type: TradeNotificationType): string {
       return 'Trade Complete! 🎉';
     case 'trade_cancelled':
       return 'Trade Cancelled';
+    // FIX-CANCEL (2026-09-01): buyer cancel-request lifecycle
+    case 'cancel_request_sent':
+      return 'Cancellation requested';
+    case 'cancel_request_withdrawn':
+      return 'Cancellation withdrawn';
+    case 'cancel_request_approved':
+      return 'Cancellation approved';
+    case 'cancel_request_escalated':
+      return 'Sent to our team';
+    case 'cancel_request_resolved':
+      return 'Trade update';
     default:
       return 'Trade Update';
   }

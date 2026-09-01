@@ -11,7 +11,7 @@
  * - Handles trade initiation
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 // TFV2-012A: replaced initiateTradeV2 + processTradePayment with createTradeOfferWithHold (D-30)
@@ -214,6 +214,39 @@ export default function TradeInitiationScreen() {
       isCancelled = true;
     };
   }, [user?.id, item, loading]);
+
+  // DEV-TASK-81: when the screen regains focus (e.g. returning from the Payment
+  // Methods screen after adding a card), re-fetch the saved payment method
+  // BYPASSING the in-memory cache so the newly-added card is shown/used instead
+  // of the stale cached one. The initial focus is handled by the mount-time load
+  // effect above (hence the skip-first-focus ref).
+  const pmFocusOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!pmFocusOnceRef.current) {
+        pmFocusOnceRef.current = true;
+        return;
+      }
+      let isActive = true;
+      (async () => {
+        setLoadingSavedPaymentMethod(true);
+        const method = await getPaymentMethod(true);
+        if (!isActive) return;
+        setSavedPaymentMethod(method);
+        if (method?.id) {
+          setPaymentInputMode('saved');
+          setCardComplete(true);
+        } else {
+          setPaymentInputMode('new');
+          setCardComplete(false);
+        }
+        setLoadingSavedPaymentMethod(false);
+      })();
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
 
   const fetchData = async () => {
     if (!user?.id) return;

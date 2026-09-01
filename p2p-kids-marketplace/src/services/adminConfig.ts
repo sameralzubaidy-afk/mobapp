@@ -67,6 +67,10 @@ export interface AdminConfig {
   // Offer Limits (admin-configurable, no hardcoded fallback in enforcement)
   max_pending_offers_per_seller: number;
 
+  // FIX-CANCEL (2026-09-01): buyer cancel-request escalation (config-driven)
+  cancel_request_escalation_enabled: boolean;
+  cancel_request_response_timeout_hours: number;
+
   // Listing Price Floor
   min_listing_price: number;
 
@@ -124,11 +128,13 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
   }
 
   try {
-    let configRows: {
-      key: string;
-      value: string | boolean | number;
-      data_type: string;
-    }[] | null = null;
+    let configRows:
+      | {
+          key: string;
+          value: string | boolean | number;
+          data_type: string;
+        }[]
+      | null = null;
 
     const { data: keyValueRows, error: keyValueError } = await supabase
       .from('admin_config')
@@ -217,7 +223,7 @@ function getDefaultConfig(): AdminConfig {
     // ❌ DEPRECATED: Percentage-based buyer fees not used per BRD Section 8.1.1
     // BRD requires flat fees only (set to 0 to mark as deprecated)
     platform_fee_buyer_fixed_cents: 0,
-    platform_fee_buyer_percentage: 0.00,
+    platform_fee_buyer_percentage: 0.0,
     platform_fee_seller_percentage: 5.0,
     platform_fee_seller_discount_percentage_freemium: 0,
     platform_fee_seller_discount_percentage_kids_club_plus: 0,
@@ -256,6 +262,11 @@ function getDefaultConfig(): AdminConfig {
 
     // Offer Limits
     max_pending_offers_per_seller: 3,
+
+    // FIX-CANCEL (2026-09-01): cancel-request escalation defaults (seed migration
+    // 20260901000000_cancel_request_flow.sql is authoritative)
+    cancel_request_escalation_enabled: true,
+    cancel_request_response_timeout_hours: 48,
 
     // Listing Price Floor (0 = disabled / no floor)
     min_listing_price: 0,
@@ -382,9 +393,7 @@ export async function getTransactionFeeNonSubscriberCents(forceRefresh = false):
  * Falls back to the defaults above if Supabase is unreachable.
  */
 export async function getPlatformFeeCents(isSubscriber: boolean): Promise<number> {
-  return isSubscriber
-    ? getTransactionFeeSubscriberCents()
-    : getTransactionFeeNonSubscriberCents();
+  return isSubscriber ? getTransactionFeeSubscriberCents() : getTransactionFeeNonSubscriberCents();
 }
 
 /**
@@ -620,10 +629,7 @@ export async function getSPReleaseDays(_forceRefresh = false): Promise<number> {
       }
     }
   } catch (err) {
-    console.warn(
-      '⚠️ getSPReleaseDays admin_config direct query failed:',
-      (err as Error).message
-    );
+    console.warn('⚠️ getSPReleaseDays admin_config direct query failed:', (err as Error).message);
   }
 
   // Last resort: check sp_config table (may be stale if sync trigger is missing)
@@ -641,10 +647,7 @@ export async function getSPReleaseDays(_forceRefresh = false): Promise<number> {
       }
     }
   } catch (err) {
-    console.warn(
-      '⚠️ getSPReleaseDays sp_config table failed:',
-      (err as Error).message
-    );
+    console.warn('⚠️ getSPReleaseDays sp_config table failed:', (err as Error).message);
   }
 
   return 3;

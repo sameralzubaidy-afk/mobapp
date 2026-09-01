@@ -29,10 +29,10 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
     fetchPaymentMethod();
   }, []);
 
-  const fetchPaymentMethod = async () => {
+  const fetchPaymentMethod = async (forceRefresh = false) => {
     try {
       setLoading(true);
-      const pm = await getPaymentMethod();
+      const pm = await getPaymentMethod(forceRefresh);
       setPaymentMethod(pm);
     } catch (error) {
       console.error('[PaymentMethodSection] Error fetching payment method:', error);
@@ -60,8 +60,10 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
           data: { session },
         } = await supabase.auth.getSession();
 
-        // 3. Refresh payment method details from database
-        await fetchPaymentMethod();
+        // 3. Refresh payment method details from database — forceRefresh bypasses
+        // the in-memory cache so the newly-added card is shown instead of the stale
+        // old one (DEV-TASK-81).
+        await fetchPaymentMethod(true);
 
         // 4. Notify parent if callback provided
         await onPaymentMethodUpdated?.();

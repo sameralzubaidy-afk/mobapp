@@ -27,7 +27,7 @@ import {
   Image,
 } from 'react-native';
 import { Coins } from 'phosphor-react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { Button } from '@/components/ui';
@@ -172,6 +172,33 @@ export default function CartCheckoutScreen() {
       isCancelled = true;
     };
   }, [cart, loading, bundleId]);
+
+  // DEV-TASK-81: when the screen regains focus (e.g. returning from the Payment
+  // Methods screen after adding a card), re-fetch the saved payment method
+  // BYPASSING the in-memory cache so the newly-added card is shown/used instead
+  // of the stale cached one. The initial focus is handled by the mount-time load
+  // effect above (hence the skip-first-focus ref).
+  const pmFocusOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!pmFocusOnceRef.current) {
+        pmFocusOnceRef.current = true;
+        return;
+      }
+      let isActive = true;
+      (async () => {
+        setLoadingSavedPaymentMethod(true);
+        const method = await getPaymentMethod(true);
+        if (!isActive) return;
+        setSavedPaymentMethod(method);
+        setPaymentInputMode(method?.id ? 'saved' : 'new');
+        setLoadingSavedPaymentMethod(false);
+      })();
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
 
   const subtotal = cart?.subtotal ?? 0;
 
@@ -474,8 +501,9 @@ export default function CartCheckoutScreen() {
           return;
         }
 
-        // Refresh payment method from DB
-        const updatedMethod = await getPaymentMethod();
+        // Refresh payment method from DB — forceRefresh bypasses the in-memory
+        // cache so the newly-added card is shown instead of the stale old one (DEV-TASK-81).
+        const updatedMethod = await getPaymentMethod(true);
         setSavedPaymentMethod(updatedMethod);
         setPaymentInputMode('saved');
         Alert.alert('Card Added', 'Your new card has been saved successfully.');

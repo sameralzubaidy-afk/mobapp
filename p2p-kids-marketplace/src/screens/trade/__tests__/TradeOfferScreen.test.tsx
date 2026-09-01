@@ -22,6 +22,17 @@ jest.mock('@/services/categoryService');
 jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn(),
   useNavigation: jest.fn(),
+  // DEV-TASK-81: TradeOfferScreen now uses useFocusEffect to refresh the saved
+  // payment method on refocus. Run the focus callback ONCE (wrapped in a
+  // React.useEffect keyed on the stable callback) to mimic react-navigation's
+  // effect lifecycle without re-invoking it on every render.
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => {
+      const cleanup = cb();
+      return typeof cleanup === 'function' ? cleanup : undefined;
+    }, [cb]);
+  },
 }));
 
 jest.mock('@stripe/stripe-react-native', () => ({
@@ -35,6 +46,34 @@ jest.mock('@stripe/stripe-react-native', () => ({
   presentPaymentSheet: jest.fn(async () => ({ error: null })),
   PaymentSheetError: {},
 }));
+
+// DEV-TASK-81: mock the Payment Sheet + attach edge function so the add-new-card
+// flow can be driven in tests. mockPresentSheet resolves the newly-added card.
+jest.mock('@/hooks/usePaymentSheet', () => ({
+  usePaymentSheet: jest.fn(() => ({
+    setupPaymentSheet: jest.fn().mockResolvedValue(undefined),
+    presentSheet: mockPresentSheet,
+    loading: false,
+    error: null,
+    resetError: jest.fn(),
+  })),
+}));
+
+jest.mock('@/config/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn().mockResolvedValue({
+        data: { session: { user: { id: 'buyer-123' }, access_token: 'test-token' } },
+        error: null,
+      }),
+    },
+    functions: {
+      invoke: jest.fn().mockResolvedValue({ data: { success: true }, error: null }),
+    },
+  },
+}));
+
+const mockPresentSheet = jest.fn().mockResolvedValue({ success: true, paymentMethodId: 'pm_new' });
 
 jest.mock('@/components/organisms/PersistentTabBar', () => ({
   PersistentTabBar: () => null,
@@ -276,5 +315,45 @@ describe('TradeOfferScreen', () => {
         listingType: 'accept_sp',
       });
     });
+  });
+
+  // DEV-TASK-81: after adding a new card from checkout, the displayed/used payment
+  // method must be the newly-added card, NOT the stale old one. Regression: the
+  // post-add read called getPaymentMethod() WITHOUT forceRefresh=true, so the
+  // in-memory cache returned the old card. The post-add read MUST pass forceRefresh.
+  it('shows the newly-added card after the add-new-card flow (DEV-TASK-81)', async () => {
+    // No saved card on mount; the server returns the new card on the post-add read.
+    const forceRefreshArgs: (boolean | undefined)[] = [];
+    mockGetPaymentMethod.mockImplementation((forceRefresh?: boolean) => {
+      forceRefreshArgs.push(forceRefresh);
+      if (forceRefresh === true) {
+        return Promise.resolve({
+          id: 'pm_new',
+          brand: 'visa',
+          last4: '4242',
+          exp_month: 12,
+          exp_year: 2030,
+        });
+      }
+      return Promise.resolve(null); // mount read: no saved card yet
+    });
+
+    const { getByTestId, findByText } = render(<TradeOfferScreen />);
+
+    // No saved card on mount -> "Add New Card" button is shown.
+    await waitFor(() => {
+      expect(getByTestId('add-new-card-button')).toBeTruthy();
+    });
+
+    // Stripe sheet returns the new card; attach EF persists it; screen refreshes.
+    fireEvent.press(getByTestId('add-new-card-button'));
+
+    // The post-add read MUST pass forceRefresh=true (bypass the stale cache).
+    await waitFor(() => {
+      expect(forceRefreshArgs).toContain(true);
+    });
+
+    // …and the newly-added card becomes the displayed/active one.
+    expect(await findByText(/Paying with VISA/)).toBeTruthy();
   });
 });

@@ -36,6 +36,8 @@ import {
   XCircle,
   Hourglass,
   Package,
+  Clock,
+  CheckCircle,
 } from 'phosphor-react-native';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -99,6 +101,27 @@ const TYPE_ICONS: Record<string, NotificationIconConfig> = {
   trade_cancelled: {
     Icon: XCircle,
     ...COLORS.red,
+  },
+  // FIX-CANCEL (2026-09-01): buyer cancel-request lifecycle
+  cancel_request_sent: {
+    Icon: Clock,
+    ...COLORS.amber,
+  },
+  cancel_request_withdrawn: {
+    Icon: XCircle,
+    ...COLORS.grey,
+  },
+  cancel_request_approved: {
+    Icon: CheckCircle,
+    ...COLORS.green,
+  },
+  cancel_request_escalated: {
+    Icon: Warning,
+    ...COLORS.amber,
+  },
+  cancel_request_resolved: {
+    Icon: CheckCircle,
+    ...COLORS.green,
   },
   trade_completed: {
     Icon: Confetti,

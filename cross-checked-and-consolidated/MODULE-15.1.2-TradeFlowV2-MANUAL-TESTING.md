@@ -1,8 +1,8 @@
 # MODULE-15.1.2 TradeFlowV2 — Manual Testing Guide
 
 **Source of truth:** `docx/TRADING-FLOW-V2.md` (v2.1, May 26 2026) · `Prompts/MODULE-15.2-cart-system.md` · `Prompts/MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `docs/flow-registry.md` (FLOW-27)
-**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine · Points Redemption · Bundle Fee Modes (per-item / one-fee) · Admin Partial Refunds · Payments Reconciliation · Navigation Consistency · Top Nav Header Patterns · Copy Rename (Trade Basket) · Admin Bundle Trade Views · Bundle Checkout Skips In-Progress Items (Buyer Notified) · R2 Auth-and-Capture + Pickup Window (7-day guardrail, pickup reminders)
-**Last updated:** 2026-08-01
+**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine · Points Redemption · Bundle Fee Modes (per-item / one-fee) · Admin Partial Refunds · Payments Reconciliation · Navigation Consistency · Top Nav Header Patterns · Copy Rename (Trade Basket) · Admin Bundle Trade Views · Bundle Checkout Skips In-Progress Items (Buyer Notified) · R2 Auth-and-Capture + Pickup Window (7-day guardrail, pickup reminders) · **Group Z — Buyer Cancel Request & Escalation (FIX-CANCEL 2026-09-01)**
+**Last updated:** 2026-09-01
 **Merged:** 2026-08-01 — This is now the **single canonical copy**. The root-level `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` was merged into this file and marked DEPRECATED. All unique cases from both copies are preserved (A03–A04, K04–K10, M16–M20, O1-C17, Navigation Consistency S01–S15 → X01–X15, Flow Registry T01 → X16, U01–U05, V01–V14, W01–W12).
 **TRD-TC-L11 added:** 2026-08-01 — bundle checkout now notifies the buyer (branded OK modal) when one or more items are skipped because they already have an active/in-progress trade; the flow continues for eligible items (PARTIAL-SUCCESS).
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
@@ -71,6 +71,9 @@
 | | TRD-TC-G02 | Auto-complete reminders to buyer |
 | | TRD-TC-G03 | Notification throttle per trade |
 | | TRD-TC-G04 | Push notifications deep-link to correct screen |
+| | TRD-TC-G05 | Buyer cancel-request notification to seller |
+| | TRD-TC-G06 | Cancel-request outcome notifications to buyer |
+| | TRD-TC-G07 | Cancel-request resolution (keep-trade) notifications |
 | **H — Completion CTAs** | TRD-TC-H01 | Free buyer sees subscription CTA |
 | | TRD-TC-H02 | Subscriber buyer used SP — "You saved $X" |
 | | TRD-TC-H03 | Subscriber seller on Accept SP listing — SP pending notice |
@@ -341,6 +344,14 @@
 | | TRD-TC-Y07 | R15 — counterparty Decline |
 | | TRD-TC-Y08 | R15 — granted state |
 | | TRD-TC-Y09 | "What to do next" card + "Got it" toggle |
+| **Z — Buyer Cancel Request & Escalation** | TRD-TC-Z01 | Buyer request → seller approves → cancel + refund |
+| | TRD-TC-Z02 | Seller declines → escalate → admin approve-cancel |
+| | TRD-TC-Z03 | Timeout auto-escalates to admin |
+| | TRD-TC-Z04 | Buyer withdraws a pending request |
+| | TRD-TC-Z05 | Bundle: whole-bundle default + per-item option |
+| | TRD-TC-Z06 | Escalation disabled → decline ends the request |
+| | TRD-TC-Z07 | Gating: no request on pending/completed/disputed/duplicate |
+| | TRD-TC-Z08 | Regression: seller instant cancel unchanged |
 
 ---
 
@@ -1568,6 +1579,58 @@ SELECT public.rpc_process_expired_offers(100);
 
 **Expected Result:**
 - The app opens directly to the correct screen for that exact trade — offer expiry → Review Offer; auto-complete / post-meetup / dispute → trade detail; payout-needs-action → payout setup. It never lands on the home screen or generic trade list.
+
+---
+
+### did not test TRD-TC-G05 · Buyer cancel-request notification sent to seller
+
+**Ref:** FIX-CANCEL spec §5 (cancel_request_sent); SYSTEM_REQUIREMENTS_V2 §7.12
+**Actors:** test-buyer + test-seller
+
+**Objective:** Verify the seller receives a push + in-app notification when a buyer requests a cancellation on an in-progress trade.
+
+**Steps:**
+1. As **Buyer**, open an in-progress trade and tap **Request to Cancel**, pick a reason, submit.
+2. As **Seller**, check push + the Notification Center.
+
+**Expected Result:**
+- Seller push + in-app: title **Cancellation requested**, body `{BuyerName} wants to cancel "{ItemTitle}". Reply in {N}h or our team will review it.` (N = configured `cancel_request_response_timeout_hours`).
+- Deep link opens the trade timeline showing the **Cancellation requested** action card with Approve / Decline.
+
+---
+
+### did not test TRD-TC-G06 · Cancel-request outcome notifications sent to buyer
+
+**Ref:** FIX-CANCEL spec §5 (cancel_request_approved / escalated); SYSTEM_REQUIREMENTS_V2 §7.12
+**Actors:** test-buyer + test-seller
+
+**Objective:** Verify the buyer is notified when their request is approved or escalated.
+
+**Steps:**
+1. Drive a request → seller **Approves** (or **Declines** / times out).
+2. Check the buyer's push + Notification Center.
+
+**Expected Result:**
+- **Approved:** title **Cancellation approved**, body `Your cancellation for "{ItemTitle}" was approved — your refund is on its way.`
+- **Escalated** (decline/timeout): title **Sent to our team**, body `The seller did not respond to your cancellation for "{ItemTitle}". Our team is reviewing it now.`
+- Both deep-link to the trade timeline.
+
+---
+
+### did not test TRD-TC-G07 · Cancel-request resolution notification (keep-trade)
+
+**Ref:** FIX-CANCEL spec §5 (cancel_request_resolved); SYSTEM_REQUIREMENTS_V2 §7.12
+**Actors:** test-buyer + test-seller + admin
+
+**Objective:** Verify both parties are notified when admin keeps the trade.
+
+**Steps:**
+1. Escalate a buyer's cancel request; as **admin**, resolve with **Keep Trade**.
+2. Check both the buyer's and seller's notifications.
+
+**Expected Result:**
+- Buyer: title **Trade continues**, body `We reviewed your cancellation request for "{ItemTitle}" — the trade will continue as planned.`
+- Seller: title **Trade continues**, body `The buyer's cancellation request for "{ItemTitle}" was not approved. The trade continues.`
 
 ---
 
@@ -6621,6 +6684,157 @@ FROM items;
 **Expected Result:**
 - Buyer sees steps 1 `Message the seller` / 2 `Meet up and inspect the item` / 3 `Come back and tap "I Got It"`; seller sees 1 `Message the buyer` / 2 `Hand off the item` / 3 `Wait for buyer confirmation`.
 - **Got it** collapses the card to the **What to do next** toggle; tapping the toggle re-expands it.
+
+---
+
+## Group Z — Buyer Cancel Request & Escalation (FIX-CANCEL, 2026-09-01)
+
+> **Spec:** `docx/BUYER-CANCEL-REQUEST-SPEC.md` · `docx/SYSTEM_REQUIREMENTS_V2.md` §7.12
+> **Precondition (all Group Z cases):** an **in-progress** trade exists (single-item for Z01–Z04/Z06–Z08; bundle for Z05). Use `reset:pending-trades` / `qa:reset-offer-fixtures` if needed. Config defaults: `cancel_request_escalation_enabled=true`, `cancel_request_response_timeout_hours=48`.
+> **Setup note:** to drive these end-to-end the seller must respond via the **Approve/Decline card** on the trade timeline, and the admin resolves via the Action Center / trade detail.
+
+### did not test TRD-TC-Z01 · Buyer requests cancel → seller approves → trade cancelled + refund
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12 FR-CANCEL-1/2; FIX-CANCEL spec §3
+**Actors:** test-buyer + test-seller
+
+**Objective:** Verify a buyer can request a cancellation on an in-progress trade and the seller's approval cancels the trade and refunds the buyer.
+
+**Steps:**
+1. As **Buyer**, open an in-progress trade. Confirm the action set now includes **[Request to Cancel]** (below Report Problem), and that **I Got It / Report Problem / Message Seller** are still present.
+2. Tap **[Request to Cancel]**, select a reason, submit. Confirm the **Cancel request sent** card with a countdown appears.
+3. As **Seller**, open the same trade. Confirm the **Cancellation requested** card with the reason and **[Decline] / [Approve Cancellation]**.
+4. Tap **[Approve Cancellation]**, confirm the modal. 
+
+**Expected Result:**
+- Buyer's request sets `cancel_request_status=requested` with a 48h expiry (from config); seller notified (`cancel_request_sent`).
+- On approve: request → `approved`; trade → `cancelled`; buyer refunded (SP released / Stripe hold refunded); buyer notified `cancel_request_approved`.
+- The seller is **not** hit with a TFV2-023 cancellation consequence (approving the buyer's request is not a seller-initiated cancel).
+
+---
+
+### did not test TRD-TC-Z02 · Seller declines → escalates → admin approves-cancel
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12 FR-CANCEL-2/5; FIX-CANCEL spec §3
+**Actors:** test-buyer + test-seller + admin
+
+**Objective:** Verify a seller decline escalates the request to admin, and admin **Approve Cancel & Refund** completes the cancel + refund.
+
+**Steps:**
+1. Buyer requests a cancellation (as Z01).
+2. As **Seller**, tap **[Decline]**, confirm "Send to our team?".
+3. As **admin**, open the **Action Center → Cancel Requests** (or the trade detail) and confirm the request is listed as escalated.
+4. Open the trade detail and tap **Approve Cancel & Refund**, confirm.
+
+**Expected Result:**
+- Decline → `cancel_request_status=escalated`; buyer notified `cancel_request_escalated`.
+- Admin approve → request `approved`; trade cancelled + refunded (SP/Stripe); buyer notified `cancel_request_approved`; `cancel_request_resolved_by` records the admin.
+
+---
+
+### did not test TRD-TC-Z03 · Timeout auto-escalates to admin
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12 FR-CANCEL-3; FIX-CANCEL spec §3
+**Actors:** test-buyer + test-seller + admin
+
+**Objective:** Verify a request with no seller response auto-escalates after the configured window.
+
+**Steps:**
+1. Buyer requests a cancellation; the seller does nothing.
+2. Advance time past `cancel_request_expires_at` (or trigger `fn_escalate_expired_cancel_requests()`).
+3. As **admin**, check the Action Center → Cancel Requests.
+
+**Expected Result:**
+- Request flips `requested → escalated` (cron `escalate-cancel-requests`, every 10 min); buyer notified `cancel_request_escalated`.
+- The request appears in the admin **Cancel Requests** queue with `status=escalated`.
+- `cancel_request_escalation_runs` gains a row for the run.
+
+---
+
+### did not test TRD-TC-Z04 · Buyer withdraws a pending request
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12 FR-CANCEL-4; FIX-CANCEL spec §3
+**Actors:** test-buyer + test-seller
+
+**Objective:** Verify a buyer can withdraw their own pending request; the trade continues.
+
+**Steps:**
+1. Buyer requests a cancellation.
+2. While it is pending, tap **[Withdraw request]** on the **Cancel request sent** card.
+
+**Expected Result:**
+- Request → `withdrawn`; the cancel-request controls disappear; the trade stays in-progress.
+- Seller notified `cancel_request_withdrawn`.
+
+---
+
+### did not test TRD-TC-Z05 · Bundle: whole-bundle default + per-item option
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12; FIX-CANCEL spec §4 (bundle cascade)
+**Actors:** test-buyer + test-seller (bundle of ≥2 in-progress trades)
+
+**Objective:** Verify a buyer's request on a bundle defaults to the whole bundle with a per-item option, and seller approve/decline cascades.
+
+**Steps:**
+1. As **Buyer**, open an in-progress bundle trade. Tap **[Request to Cancel]** → the bundle-scope prompt appears (**Whole Bundle** / **Just This Item**).
+2. Choose **Whole Bundle**, pick a reason, submit. Repeat once choosing **Just This Item** on a fresh bundle (or use two bundles).
+
+**Expected Result:**
+- **Whole Bundle:** every in-progress sibling trade sharing the `bundle_id` gets `cancel_request_status=requested` with the same expiry; seller sees one action card and responding cascades to all siblings.
+- **Just This Item:** only the tapped trade is flagged; siblings are untouched.
+- Buyer sees a single pending card (deep-linked to the target trade).
+
+---
+
+### did not test TRD-TC-Z06 · Escalation disabled → decline ends the request
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12 FR-CANCEL-6; FIX-CANCEL spec §4
+**Actors:** test-buyer + test-seller + admin
+
+**Objective:** Verify that when `cancel_request_escalation_enabled=false`, a seller decline ends the request with the trade continuing (no admin queue).
+
+**Steps:**
+1. Admin sets `cancel_request_escalation_enabled=false` (Trade Timing settings).
+2. Buyer requests a cancellation; seller declines.
+
+**Expected Result:**
+- Decline → `cancel_request_status=resolved`, `cancel_request_resolution=keep_trade`; no admin queue entry.
+- Buyer notified `cancel_request_resolved` ("Trade continues"); trade stays in-progress.
+- **Restore** the config value to `true` after the case.
+
+---
+
+### did not test TRD-TC-Z07 · Gating: no request on pending/completed/disputed/duplicate
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12 FR-CANCEL-1; FIX-CANCEL spec §3
+**Actors:** test-buyer + test-seller
+
+**Objective:** Verify the request control is correctly gated across states.
+
+**Steps:**
+1. Open a **pending** (unaccepted) offer as buyer → confirm the existing **Cancel Trade** (pending cancel) is shown and **Request to Cancel** is NOT.
+2. Open an **in-progress** trade with an unresolved dispute → confirm **Request to Cancel** is hidden.
+3. On an in-progress trade with an already-pending request, open it again → confirm the request button is hidden and the pending card shows.
+
+**Expected Result:**
+- Buyer cancel surfaces exactly per state: pending → "Cancel Trade"; in-progress (no dispute, no pending request) → "Request to Cancel"; dispute or pending request → no request control.
+- Server-side, `fn_request_cancel_trade` rejects non-buyer, non-in-progress, disputed, and duplicate requests.
+
+---
+
+### did not test TRD-TC-Z08 · Regression: seller instant cancel unchanged
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §7.12; FIX-CANCEL spec §1 (asymmetric)
+**Actors:** test-seller
+
+**Objective:** Verify the seller's own in-progress cancel still works instantly and still applies the TFV2-023 consequence.
+
+**Steps:**
+1. As **Seller**, open an in-progress trade (no pending buyer request) and tap **Cancel Trade** (the seller's own button), pick a reason, confirm.
+
+**Expected Result:**
+- The seller's **Cancel Trade** button still shows for `isSeller && in_progress && !hasUnresolvedDispute`.
+- Cancellation is immediate (status `cancelled`, SP/Stripe handled); the seller's cancellation counter/consequence still increments (TFV2-023).
 
 ---
 

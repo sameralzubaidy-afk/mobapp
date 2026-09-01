@@ -58,6 +58,17 @@ jest.mock('@/hooks/useAuth', () => ({
 jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn().mockReturnValue({ params: { itemId: 'item-001' } }),
   useNavigation: jest.fn().mockReturnValue({ goBack: jest.fn(), replace: jest.fn() }),
+  // DEV-TASK-81: TradeOfferScreen now uses useFocusEffect to refresh the saved
+  // payment method on refocus. Run the focus callback ONCE (wrapped in a
+  // React.useEffect keyed on the stable callback) to mimic react-navigation's
+  // effect lifecycle without re-invoking it on every render.
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => {
+      const cleanup = cb();
+      return typeof cleanup === 'function' ? cleanup : undefined;
+    }, [cb]);
+  },
 }));
 
 jest.mock('@stripe/stripe-react-native', () => ({

@@ -78,6 +78,34 @@ export const BUYER_OFFER_REASONS: CancellationReason[] = [
   },
 ];
 
+/**
+ * BUYER_INPROGRESS_REASONS (FIX-CANCEL 2026-09-01): reasons a buyer can give when
+ * requesting a cancellation on an in-progress trade. The request goes to the
+ * seller for approval; if declined or unanswered it escalates to admin review.
+ */
+export const BUYER_INPROGRESS_REASONS: CancellationReason[] = [
+  {
+    id: 'changed_mind',
+    label: 'Changed my mind',
+    description: 'No longer able to complete this trade',
+  },
+  {
+    id: 'no_longer_need_item',
+    label: 'No longer need the item',
+    description: 'No longer need or want the item',
+  },
+  {
+    id: 'meetup_issue',
+    label: 'Can\u2019t make the meetup',
+    description: 'Unable to arrange the pickup or meetup',
+  },
+  {
+    id: 'other',
+    label: 'Other reason',
+    description: 'Please specify in the text box below',
+  },
+];
+
 interface CancellationReasonModalProps {
   visible: boolean;
   itemTitle?: string;
@@ -194,7 +222,8 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
 
             {selectedReason === 'other' && (
               <View style={styles.customInputContainer}>
-                <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                <TextInput
+                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   style={styles.customInput}
                   placeholder="Please describe why you're cancelling..."
                   placeholderTextColor="#999"

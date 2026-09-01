@@ -27,7 +27,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 import {
@@ -222,6 +222,33 @@ export default function TradeOfferScreen() {
     };
   }, [user?.id, item, loading]);
 
+  // DEV-TASK-81: when the screen regains focus (e.g. returning from the Payment
+  // Methods screen after adding a card), re-fetch the saved payment method
+  // BYPASSING the in-memory cache so the newly-added card is shown/used instead
+  // of the stale cached one. The initial focus is handled by the mount-time load
+  // effect above (hence the skip-first-focus ref).
+  const pmFocusOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!pmFocusOnceRef.current) {
+        pmFocusOnceRef.current = true;
+        return;
+      }
+      let isActive = true;
+      (async () => {
+        setLoadingSavedPaymentMethod(true);
+        const method = await getPaymentMethod(true);
+        if (!isActive) return;
+        setSavedPaymentMethod(method);
+        setPaymentInputMode(method?.id ? 'saved' : 'new');
+        setLoadingSavedPaymentMethod(false);
+      })();
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
   /** handleAddNewCard — Uses Stripe Payment Sheet (same as PaymentMethodsScreen)
    *  to securely collect card details via Stripe's native UI (PCI-compliant).
    *  On success, attaches the PaymentMethod to the customer and refreshes state. */
@@ -263,8 +290,9 @@ export default function TradeOfferScreen() {
           return;
         }
 
-        // Refresh payment method from DB
-        const updatedMethod = await getPaymentMethod();
+        // Refresh payment method from DB — forceRefresh bypasses the in-memory
+        // cache so the newly-added card is shown instead of the stale old one (DEV-TASK-81).
+        const updatedMethod = await getPaymentMethod(true);
         setSavedPaymentMethod(updatedMethod);
         setPaymentInputMode('saved');
         Alert.alert('Card Added', 'Your new card has been saved successfully.');
