@@ -439,7 +439,7 @@
 **Expected Result:**
 - The offer preview shows "$[price] cash, 0 SP" and no SP is reserved from the buyer.
 - The seller is charged the full cash amount.
-- After completion, the seller's completion screen shows the platform SP reward added to their pending wallet ("[platform_sp] SP releasing in [N] days (platform reward)") with a [View Wallet] button; no buyer SP is involved.
+- After completion, the seller's completion screen shows the platform SP reward added to their pending wallet ("[platform_sp] SP releasing in [N] days — added to your pending wallet.") with a [View Wallet] button; no buyer SP is involved.
 
 ---
 

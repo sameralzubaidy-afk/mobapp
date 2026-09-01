@@ -19,7 +19,7 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
-import { getAdminConfig } from '@/services/adminConfig';
+import { getActiveMemberFeeCents } from '@/services/adminConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 
@@ -51,12 +51,15 @@ function buildCompletionCTA(
     if (!isSubscriber) {
       // Permutation 1: Free buyer — upsell Kids Club+. R1: only claim a dollar
       // savings when it actually exists (first-trade free users pay the same flat
-      // fee as members, so their savings is $0).
+      // fee as members, so their savings is $0). Dev Task 78 (H01): the savings
+      // is computed from the buyer's completed trade (fee difference between the
+      // free rate they paid and the flat active-member rate) — the "Trade
+      // complete!" prefix matches the TRD-TC-H01 expected copy.
       const savingsDollars = (feeSavingsCents / 100).toFixed(2);
       const savingsMsg =
         feeSavingsCents > 0
-          ? `Kids Club+ would've saved you $${savingsDollars} on this trade — try it free for 30 days.`
-          : `Kids Club+ gives you a flat fee and bonus Swap Points on every sale — try it free for 30 days.`;
+          ? `Trade complete! Kids Club+ would've saved you $${savingsDollars} on this trade — try it free for 30 days.`
+          : `Trade complete! Kids Club+ gives you a flat fee and bonus Swap Points on every sale — try it free for 30 days.`;
       return {
         message: savingsMsg,
         ctaLabel: 'Try Kids Club+ Free — 30 Days',
@@ -66,8 +69,10 @@ function buildCompletionCTA(
       // Permutation 2: Subscriber buyer, used SP
       // DEV-TASK-31 (UX): "available" (not "left") removes reserved-vs-available
       // ambiguity for parents; owner-approved copy change.
+      // Dev Task 78 (H02): restore the "Got it!" prefix per TRD-TC-H02 expected
+      // copy ("Got it! You saved $8 using SP!").
       return {
-        message: `You saved $${spAmountDollars.toFixed(2)} using SP! You have ${remainingSP} SP available.`,
+        message: `Got it! You saved $${spAmountDollars.toFixed(2)} using SP! You have ${remainingSP} SP available.`,
         ctaLabel: 'Keep Shopping',
         onPress: () => navigation.navigate('Discover'),
       };
@@ -110,8 +115,12 @@ function buildCompletionCTA(
       };
     } else {
       // Permutation 7: Subscriber seller, accept_sp, no SP used
+      // Dev Task 78 (H03): "added to your pending wallet" is the more accurate
+      // description of where the value lands — aligns with Perm 6 and the
+      // TRD-TC-H03 expected copy (guide A03 expected result updated in the same
+      // pass for copy-class consistency).
       return {
-        message: `${totalSpToSeller} SP releasing in ${releaseDays} days (platform reward).`,
+        message: `${totalSpToSeller} SP releasing in ${releaseDays} days — added to your pending wallet.`,
         ctaLabel: 'View Wallet',
         onPress: () => navigation.navigate('SpWallet'),
       };
@@ -148,14 +157,20 @@ export default function TradeSuccessScreen() {
   // Fallback to session available_points if route param not provided (e.g. from TradeDetailScreen completion flow)
   const remainingSP: number = (route.params as any)?.remainingSP ?? session?.available_points ?? 0;
   const spAmountDollars: number = (route.params as any)?.spAmountDollars ?? 0;
+  // Dev Task 78 (H01): optional feeSavingsCents route param — lets the QA
+  // force-trade-success deep link drive the real-figure upsell copy when the
+  // deep link uses a placeholder tradeId (no real trade row to compute from).
+  // Documented in QaForceTradeSuccessDeepLinkHandler (FIX-PARAMS, QA Task 16).
+  const feeSavingsParamCents: number = (route.params as any)?.feeSavingsCents ?? 0;
 
   // ── Dynamic fee savings from admin_config (R1 — Tiered Buyer-Fee Engine) ────
   const [feeSavingsCents, setFeeSavingsCents] = useState(0);
 
-  // R1: the Kids Club+ upsell savings = what this buyer ACTUALLY paid on this
-  // trade (trade.buyer_transaction_fee_cents) minus the flat active-member fee
-  // (buyer_fee_active_member_cents). Both are dynamic — the trade fee was
-  // server-computed at offer time, and the member fee comes from admin_config.
+  // R1 + Dev Task 78 (H01): the Kids Club+ upsell savings = what this buyer
+  // ACTUALLY paid on this trade (trade.buyer_transaction_fee_cents) minus the
+  // flat active-member fee (getActiveMemberFeeCents — the shared canonical
+  // reader for buyer_fee_active_member_cents). Both are dynamic — the trade fee
+  // was server-computed at offer time, and the member fee comes from admin_config.
   useEffect(() => {
     if (!user?.id || !tradeId) {
       return;
@@ -163,8 +178,8 @@ export default function TradeSuccessScreen() {
     let cancelled = false;
     const loadFee = async () => {
       try {
-        const [config, { data: trade }] = await Promise.all([
-          getAdminConfig(),
+        const [activeMemberFlatCents, { data: trade }] = await Promise.all([
+          getActiveMemberFeeCents(),
           supabase
             .from('trades')
             .select('buyer_transaction_fee_cents')
@@ -172,21 +187,26 @@ export default function TradeSuccessScreen() {
             .maybeSingle(),
         ]);
         if (cancelled) return;
-        const activeMemberFlatCents = Number(config.buyer_fee_active_member_cents ?? 149);
         const paidFeeCents = Number(
           (trade as { buyer_transaction_fee_cents?: number } | null)?.buyer_transaction_fee_cents ??
             0
         );
-        setFeeSavingsCents(Math.max(0, paidFeeCents - activeMemberFlatCents));
+        // A real trade always carries a buyer fee (paidFeeCents > 0) → compute
+        // the real savings. A placeholder/QA tradeId resolves to no row (0) →
+        // fall back to the feeSavingsCents route param so H01's real-figure
+        // copy is still verifiable (FIX-PARAMS, QA Task 16).
+        const computed =
+          paidFeeCents > 0 ? Math.max(0, paidFeeCents - activeMemberFlatCents) : 0;
+        setFeeSavingsCents(computed > 0 ? computed : feeSavingsParamCents);
       } catch {
-        setFeeSavingsCents(0);
+        setFeeSavingsCents(feeSavingsParamCents);
       }
     };
     void loadFee();
     return () => {
       cancelled = true;
     };
-  }, [user?.id, tradeId]);
+  }, [user?.id, tradeId, feeSavingsParamCents]);
 
   const handlePrimaryAction = () => {
     if (isSuccess) {

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TradeSuccessScreen from '../TradeSuccessScreen';
 
 jest.mock('@react-navigation/native', () => ({
@@ -22,6 +22,24 @@ jest.mock('@react-navigation/native', () => ({
 const mockUseAuth = jest.fn();
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+// Dev Task 78 (H01): deterministic mocks so the fee-savings effect settles in
+// tests. Default: no trade row (placeholder tradeId) → savings fall back to the
+// feeSavingsCents route param (the QA deep-link path).
+jest.mock('@/config/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+        })),
+      })),
+    })),
+  },
+}));
+jest.mock('@/services/adminConfig', () => ({
+  getActiveMemberFeeCents: jest.fn().mockResolvedValue(149),
 }));
 
 describe('TradeSuccessScreen', () => {
@@ -172,6 +190,51 @@ describe('TradeSuccessScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('PlanComparison');
     });
 
+    // Dev Task 78 (H01): free buyer with a REAL savings figure (feeSavingsCents
+    // route param — the QA deep-link path when a placeholder tradeId has no row).
+    it('H01: free buyer should show the real "would\'ve saved you" figure when savings exist', async () => {
+      mockUseAuth.mockReturnValue({
+        session: { user: { id: 'user-1' }, subscription_status: 'free' },
+      });
+      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
+        params: {
+          success: true,
+          role: 'buyer',
+          subscriptionStatus: 'free',
+          tradeId: 't1',
+          feeSavingsCents: 150,
+        },
+      });
+      const { getByTestId } = render(<TradeSuccessScreen />);
+      // Wait for the async fee-savings effect to settle (falls back to the param).
+      await waitFor(() => {
+        const msg = getByTestId('cta-message').props.children;
+        expect(msg).toContain("Trade complete! Kids Club+ would've saved you $1.50 on this trade");
+        // The generic upsell must NOT appear when a real figure is available.
+        expect(msg).not.toContain('gives you a flat fee');
+      });
+    });
+
+    // Dev Task 78 (H02): restore the "Got it!" prefix on the SP-savings message.
+    it('H02: subscriber buyer with SP should see the "Got it!" prefix', () => {
+      mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
+      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
+        params: {
+          success: true,
+          role: 'buyer',
+          subscriptionStatus: 'subscriber',
+          spUsed: 20,
+          remainingSP: 80,
+          spAmountDollars: 2.5,
+          tradeId: 't2',
+        },
+      });
+      const { getByTestId } = render(<TradeSuccessScreen />);
+      expect(getByTestId('cta-message').props.children).toContain(
+        'Got it! You saved $2.50 using SP! You have 80 SP available.'
+      );
+    });
+
     // Permutation 2: Subscriber buyer, SP used → show savings + Keep Shopping
     it('P2: subscriber buyer with SP used should show savings message and Keep Shopping', () => {
       mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
@@ -265,8 +328,9 @@ describe('TradeSuccessScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('SpWallet');
     });
 
-    // Permutation 7: Subscriber seller, accept_sp, no SP used → platform reward
-    it('P7: subscriber seller with accept_sp and no SP used should show platform reward message', () => {
+    // Permutation 7: Subscriber seller, accept_sp, no SP used → pending wallet
+    // Dev Task 78 (H03): "(platform reward)" → "— added to your pending wallet."
+    it('P7: subscriber seller with accept_sp and no SP used should show pending wallet message', () => {
       mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: {
@@ -282,7 +346,8 @@ describe('TradeSuccessScreen', () => {
       });
       const { getByTestId, getByText } = render(<TradeSuccessScreen />);
       expect(getByText('View Wallet')).toBeTruthy();
-      expect(getByTestId('cta-message').props.children).toContain('platform reward');
+      expect(getByTestId('cta-message').props.children).toContain('10 SP releasing in 3 days');
+      expect(getByTestId('cta-message').props.children).toContain('pending wallet');
       fireEvent.press(getByTestId('cta-primary-button'));
       expect(mockNavigate).toHaveBeenCalledWith('SpWallet');
     });

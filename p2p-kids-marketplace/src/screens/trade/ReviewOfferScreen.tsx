@@ -16,7 +16,7 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { ArrowsLeftRight, Coins, CreditCard, ShieldCheck } from 'phosphor-react-native';
+import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -54,8 +54,6 @@ interface OfferData {
   // fn_release_all_sp_on_complete), not a 1.0 fallback — otherwise the bundle
   // list and the payout card disagree (e.g. +60 vs +61 for Sports 1.10).
   sp_category_multiplier?: number;
-  stripe_payment_method_brand?: string | null; // DT-69 (Item 6): buyer's card brand, offer-time snapshot
-  stripe_payment_method_last4?: string | null; // DT-69 (Item 6): buyer's card last4, offer-time snapshot
   listing: {
     title: string;
     price: number;
@@ -117,8 +115,6 @@ export default function ReviewOfferScreen() {
           seller_sp_bonus,
           sp_transferred_at,
           sp_category_multiplier,
-          stripe_payment_method_brand,
-          stripe_payment_method_last4,
           listing:items(
             title,
             price,
@@ -442,34 +438,49 @@ export default function ReviewOfferScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={o.listing?.title || 'Item'}
                     >
-                      <Text style={styles.bundleItemTitle} numberOfLines={1}>
-                        {o.listing?.title || 'Item'}
-                      </Text>
-                      <View style={styles.bundleItemDetail}>
-                        {o.status !== 'pending' && (
-                          <View
-                            style={
-                              o.status === 'cancelled'
-                                ? styles.statusBadgeCancelled
-                                : styles.statusBadgeAccepted
-                            }
-                          >
-                            <Text
+                      <View style={styles.bundleItemMainRow}>
+                        <Text style={styles.bundleItemTitle} numberOfLines={1}>
+                          {o.listing?.title || 'Item'}
+                        </Text>
+                        <View style={styles.bundleItemDetail}>
+                          {o.status !== 'pending' && (
+                            <View
                               style={
                                 o.status === 'cancelled'
-                                  ? styles.statusTextCancelled
-                                  : styles.statusTextAccepted
+                                  ? styles.statusBadgeCancelled
+                                  : styles.statusBadgeAccepted
                               }
                             >
-                              {o.status === 'cancelled' ? 'Declined' : 'Accepted'}
-                            </Text>
-                          </View>
-                        )}
-                        {sellerSpEarned > 0 && o.status === 'pending' && (
-                          <Text style={styles.bundleItemSp}>+{sellerSpEarned} SP</Text>
-                        )}
-                        <Text style={styles.bundleItemPrice}>${netPayout.toFixed(2)}</Text>
+                              <Text
+                                style={
+                                  o.status === 'cancelled'
+                                    ? styles.statusTextCancelled
+                                    : styles.statusTextAccepted
+                                }
+                              >
+                                {o.status === 'cancelled' ? 'Declined' : 'Accepted'}
+                              </Text>
+                            </View>
+                          )}
+                          {sellerSpEarned > 0 && o.status === 'pending' && (
+                            <Text style={styles.bundleItemSp}>+{sellerSpEarned} SP</Text>
+                          )}
+                          <Text style={styles.bundleItemPrice}>${netPayout.toFixed(2)}</Text>
+                        </View>
                       </View>
+                      {/* Dev Task 78 (Item 4): user-approved override of the D-11
+                          "seller sees only the combined total" rule for the
+                          Review Offer bundle list — show the buyer/platform split
+                          so the seller can see how the SP total is composed
+                          (uses sp_category_multiplier, fetched per DT76 T08). */}
+                      {itemSp > 0 && platformBonus > 0 && o.status === 'pending' && (
+                        <Text
+                          style={styles.bundleItemSpSplit}
+                          testID={`review-bundle-sp-split-${o.id}`}
+                        >
+                          {itemSp} from buyer + {platformBonus} platform bonus
+                        </Text>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -552,21 +563,6 @@ export default function ReviewOfferScreen() {
             <Coins size={20} color="#F59E0B" weight="fill" />
             <Text style={styles.spInfoText}>
               {totalSpToSeller} SP releasing in {releaseDays} days after completion
-            </Text>
-          </View>
-        )}
-
-        {/* DT-69 (Item 6): show the buyer's payment method so the seller knows how
-            the buyer intends to pay before accepting. A pending offer always has a
-            Stripe auth hold, hence the "(authorized)" suffix. Hidden for expired /
-            declined offers (no active authorization) and for $0-cash (donate) offers
-            where no payment method was used. */}
-        {offer.status === 'pending' && offer.stripe_payment_method_last4 && (
-          <View style={styles.paymentMethodCard} testID="review-buyer-payment-method">
-            <CreditCard size={20} color="#6B6B6B" weight="fill" />
-            <Text style={styles.paymentMethodText}>
-              Buyer pays via {offer.stripe_payment_method_brand?.toUpperCase() ?? 'Card'} ••••{' '}
-              {offer.stripe_payment_method_last4} (authorized)
             </Text>
           </View>
         )}
@@ -880,16 +876,27 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bundleItemRow: {
+    // column so the Dev Task 78 SP-split sub-line can sit below the main row
+    flexDirection: 'column',
+    paddingVertical: 2,
+  },
+  bundleItemMainRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 2,
   },
   bundleItemTitle: {
     flex: 1,
     fontSize: 13,
     color: '#1A1A1A',
     marginRight: 8,
+  },
+  bundleItemSpSplit: {
+    fontSize: 11,
+    color: '#5DBB8E',
+    fontWeight: '500',
+    marginTop: 2,
+    textAlign: 'right',
   },
   bundleItemPrice: {
     fontSize: 13,
@@ -917,21 +924,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#92400E',
-    lineHeight: 20,
-  },
-  paymentMethodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  paymentMethodText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1A1A1A',
     lineHeight: 20,
   },
   disclaimerCard: {

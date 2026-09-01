@@ -16,6 +16,15 @@
 //   tradeStatus  initiated|completed   (default: completed)
 //   tradeId      a real trade uuid (optional — the fee-savings fetch fails soft
 //                to $0 for a placeholder, which is fine for CTA verification)
+//   spUsed               SP count used by the buyer (drives the buyer-leg condition)
+//   spAmountDollars      dollar figure for H02 "Got it! You saved $X using SP!"
+//   remainingSP          buyer's remaining SP ("You have N SP available")
+//   totalSpToSeller      SP total shown to the seller (H03 pending-wallet copy)
+//   spPendingReleaseDays release window ("releasing in N days")
+//   feeSavingsCents      free-buyer savings in cents for H01 ("would've saved
+//                        you $X") — set this (or pass a real tradeId) to verify
+//                        the real-figure upsell; otherwise H01 falls back to
+//                        the generic upsell (FIX-PARAMS, QA Task 16)
 //
 // SECURITY GATE: identical to the other QA handlers — registered only in dev /
 // staging builds; a production build never registers the listener. Requires an
@@ -107,6 +116,7 @@ async function forceTradeSuccess(url: string, hasSession: boolean): Promise<void
       spPendingReleaseDays: toNumber(q.spPendingReleaseDays, 3),
       remainingSP: toNumber(q.remainingSP, 0),
       spAmountDollars: toNumber(q.spAmountDollars, 0),
+      feeSavingsCents: toNumber(q.feeSavingsCents, 0),
     } as never
   );
   // eslint-disable-next-line no-console

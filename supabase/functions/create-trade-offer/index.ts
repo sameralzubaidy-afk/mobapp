@@ -599,9 +599,11 @@ serve(async (req) => {
 
   // ── Shared: validate payment method (done once for single & batch) ──
   let stripeCustomerId: string | null = null;
-  // DT-69 (Item 6): capture the buyer's card brand/last4 at offer time so the
-  // seller's Review Offer screen can show "Buyer pays via •••• 4444 (authorized)".
-  // Set only when the PM is retrieved below; stays null for $0-cash (donate) offers.
+  // DT-69 (Item 6) / DEV-TASK-80: capture the buyer's card brand/last4 at offer time.
+  // Stored for admin/support/dispute purposes only — NEVER displayed to the seller
+  // (DEV-TASK-80 removed the Review Offer disclosure as a privacy fix; the columns
+  // and capture-at-completion logic stay). Set only when the PM is retrieved below;
+  // stays null for $0-cash (donate) offers.
   let capturedPmBrand: string | null = null;
   let capturedPmLast4: string | null = null;
   const needsPmCheck = isBatch
@@ -664,7 +666,9 @@ serve(async (req) => {
     // Verify & attach payment method once (shared by all items in batch/single)
     try {
       const pm = await stripe.paymentMethods.retrieve(payment_method_id!);
-      // DT-69 (Item 6): snapshot brand/last4 for the seller's Review Offer screen.
+      // DT-69 (Item 6) / DEV-TASK-80: snapshot brand/last4 for admin/support/dispute
+      // purposes only — never surfaced to the seller (DEV-TASK-80 removed the
+      // Review Offer disclosure).
       capturedPmBrand = pm.card?.brand ?? null;
       capturedPmLast4 = pm.card?.last4 ?? null;
       if (pm.customer === null) {
