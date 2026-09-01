@@ -225,6 +225,15 @@ export default function DisclaimerModal({
                   testID={`${testID}-accept-button`}
                   accessibilityLabel="Accept and continue"
                   accessibilityState={{ disabled: !accepted }}
+                  // DEV-TASK-79 (FIX-DISABLED): accessibilityHint makes the gated state
+                  // self-explanatory from the AX tree — QA can assert the hint as well as
+                  // accessibilityState.disabled (R-16-4). accessibilityState.disabled has
+                  // been present since TASK SAFETY-008 and is unit-tested.
+                  accessibilityHint={
+                    accepted
+                      ? 'Completes your purchase and starts the trade'
+                      : 'Check the "I have read and understand" box to enable Accept'
+                  }
                 >
                   <Text style={[styles.acceptButtonText, !accepted && styles.buttonTextDisabled]}>
                     Accept & Continue

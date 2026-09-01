@@ -1102,7 +1102,6 @@ export default function TradeListScreen({ navigation }: any) {
                             navigation.navigate('TradeDetail', { tradeId: bundleOffers[0].id })
                           }
                           testID={`trade-bundle-${row.bundleId}-view`}
-                          accessible
                           accessibilityRole="button"
                           accessibilityLabel="View bundle offer"
                         >
@@ -1170,10 +1169,19 @@ export default function TradeListScreen({ navigation }: any) {
                               {/* DEV-TASK-76 (T10): "Includes points redemption" tag on
                                   bundle offer cards when ANY item carries SP — the single-
                                   offer cards gate on offer.sp_amount, but a bundle's SP lives
-                                  per-item, so aggregate with .some(). */}
+                                  per-item, so aggregate with .some().
+                                  DEV-TASK-79 (FIX-AX): tag is its own accessible element
+                                  (testID + accessible + accessibilityLabel, BP-53) so QA can
+                                  assert it independently on BOTH the buyer's "Your Offers" and
+                                  the seller's "Needs Action" lists. */}
                               {bundleOffers.some((o) => (o as any).sp_amount > 0) && (
                                 <View style={styles.pointsRedemptionTag}>
-                                  <Text style={styles.pointsRedemptionTagText}>
+                                  <Text
+                                    style={styles.pointsRedemptionTagText}
+                                    testID="includes-points-redemption-tag"
+                                    accessible
+                                    accessibilityLabel="Includes points redemption"
+                                  >
                                     Includes points redemption
                                   </Text>
                                 </View>
@@ -1350,10 +1358,18 @@ export default function TradeListScreen({ navigation }: any) {
                               )}
                               {/* DEV-TASK-76 (T10): seller's bundle offer card also carries the
                                   "Includes points redemption" tag when any item has SP (mirrors
-                                  the single-offer card's offer.sp_amount > 0 gate). */}
+                                  the single-offer card's offer.sp_amount > 0 gate).
+                                  DEV-TASK-79 (FIX-AX): same testID + accessible treatment as the
+                                  buyer's bundle card — independently assertable via
+                                  `includes-points-redemption-tag` (BP-53). */}
                               {bundleOffers.some((o) => (o as any).sp_amount > 0) && (
                                 <View style={styles.pointsRedemptionTag}>
-                                  <Text style={styles.pointsRedemptionTagText}>
+                                  <Text
+                                    style={styles.pointsRedemptionTagText}
+                                    testID="includes-points-redemption-tag"
+                                    accessible
+                                    accessibilityLabel="Includes points redemption"
+                                  >
                                     Includes points redemption
                                   </Text>
                                 </View>
