@@ -81,6 +81,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     fontSize: 12,
-    color: '#6b7280',
+    color: '#999999',
   },
 });

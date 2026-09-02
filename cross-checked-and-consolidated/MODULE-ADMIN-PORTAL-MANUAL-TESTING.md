@@ -61,14 +61,14 @@
 | | ADM-TC-E08 | Waitlist API authorization (401 without admin session) |
 | **F — Global Config & Settings** | ADM-TC-F01 | Global configuration inline edit + permission gate |
 | | ADM-TC-F02 | Cart settings (min value, max carts, expiry) |
-| | ADM-TC-F03 | Trade timing config (timing keys + nested validation) ⚠️ fee-leg BLOCKED-ON-PAGE |
+| | ADM-TC-F03 | Trade timing config (timing keys + nested validation) — incl. consolidated fees |
 | | ADM-TC-F04 | Settings single-source — cross-link + last-updated + audit |
-| | ADM-TC-F05 | ⚠️ BLOCKED-ON-PAGE — N1 pickup/payout keys (not on live page) |
-| | ADM-TC-F06 | ⚠️ BLOCKED-ON-PAGE — R2 guardrail + pickup reminders (not on live page) |
+| | ADM-TC-F05 | N1 configurability — pickup countdown + payout buffer (live) |
+| | ADM-TC-F06 | R2 — 7-day guardrail (hard block) + pickup reminders (live) |
 | | ADM-TC-F07 | Trade Pipeline visualization — see & track trades in all stages |
-| | ADM-TC-F08 | ⚠️ BLOCKED-ON-PAGE — R1 tiered buyer-fee fields (not on live page) |
+| | ADM-TC-F08 | R1 tiered buyer-fee fields (live) |
 | | ADM-TC-F09 | Buyer Fee-Tier Distribution table (moved → /analytics) |
-| | ADM-TC-F10 | ⚠️ BLOCKED-ON-PAGE — Legacy fee keys (not surfaced live) |
+| | ADM-TC-F10 | Legacy fee keys (audit-only, read-only — live) |
 | | ADM-TC-F11 | Reset button |
 | **G — Policy Management** | ADM-TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |
 | | ADM-TC-G02 | Create new policy version (version regex) |
@@ -977,7 +977,7 @@
 
 ## Group F — Global Config & Settings
 
-> ⚠️ **Page-drift note (2026-09-02, guide-currency audit):** the live **`/settings/trade-timing`** page currently renders ONLY these sections: **Offer Expiry** · **Offer Limits** · **Auto-Complete** · **Buyer Cancel Requests** · **Swap Points** · **Transaction Fees (exactly 2 keys:** `transaction_fee_subscriber_cents` "Kids Club+ Member Fee" + `transaction_fee_non_subscriber_cents` "Free-Tier User Fee"**)** + Reset/Save. Sections the guide describes for F03 (seller/buyer platform fees + Charge-One-Fee), F05 (Pickup & Payout), F06 (pickup reminders + 168h guardrail), F08 (R1 Tiered Buyer Fee), F09 (Buyer Fee-Tier Distribution — now on `/analytics`), and F10 (Legacy fee keys) are **NOT rendered on the live page** (page.tsx has drifted behind its own spec/test — the R2 guardrail exists only in `trade-timing-settings.test.ts`). **Cases F01/F02/F04/F07/F11 remain Current.** Do not run F03/F05/F06/F08/F09/F10 as written until the trade-timing page is restored to render those sections (dev task) or the cases are re-scoped.
+> ✅ **Page restored (2026-09-02, Dev Task 91):** `/settings/trade-timing` now renders ALL the sections the guide describes: **Offer Expiry** · **Offer Limits** · **Auto-Complete** · **Pickup & Payout** (pickup window + payout buffer) · **Buyer Cancel Requests** · **Swap Points** · **Transaction Fees** (Kids Club+/Free-Tier member fees, Seller Fee % Free/Kids Club+, Buyer Platform Fee fixed/% + Charge One Fee Per Bundle toggle) · **Tiered Buyer Fee — R1** · **Legacy fee keys (audit-only, read-only)**. The R2 168h guardrail + pickup-reminder validation is restored and shared with `trade-timing-settings.test.ts` (single source). F09 (Buyer Fee-Tier Distribution) remains on `/analytics` only. Cases F01/F02/F03/F04/F05/F06/F07/F08/F10/F11 are Current; no BLOCKED-ON-PAGE remain in Group F.
 
 ### ADM-TC-F01 · Global configuration inline edit + permission gate
 
@@ -1022,7 +1022,7 @@
 
 ### ADM-TC-F03 · Trade timing config (timing keys + nested validation) — incl. consolidated fees
 
-> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** only the **timing keys** (offer/auto-complete/cancel-request/SP-release) and the **two subscriber/free-tier member-fee keys** are live on `/settings/trade-timing`. The guide's "seller fee % per tier / buyer platform fee fixed+% / Charge One Fee toggle in Transaction Fees" steps do **not** match the live page — those fee params are not rendered there. Do not run the fee-leg as written until the page renders them (or re-scope to the two live member-fee keys).
+> ✅ **Restored (2026-09-02, Dev Task 91):** `/settings/trade-timing` → **Transaction Fees** now renders the seller fee % per tier (`platform_fee_seller_percentage`, `platform_fee_seller_discount_percentage_kids_club_plus`), buyer platform fee fixed + % (`platform_fee_buyer_fixed_cents`, `platform_fee_buyer_percentage`), and the **Charge One Fee Per Bundle** toggle (`charge_one_fee_per_bundle`) — in addition to the two member-fee keys. Run as written.
 
 **Ref:** FLOW-08 · FLOW-09 · /settings/trade-timing
 **Actors:** test-admin
@@ -1067,7 +1067,7 @@
 
 ### ADM-TC-F05 · N1 configurability — pickup countdown + payout buffer (new keys)
 
-> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render a **Pickup & Payout** section (`pickup_window_hours`, `payout_buffer_days`) — the audit found those keys exist only in `src/types/config.ts` + the mirror test, not on a live admin page. Do not run until the section is restored (or re-scope). The `/config → TRADE` / `/config → FEES` rows for these keys are also absent from the live page render.
+> ✅ **Restored (2026-09-02, Dev Task 91):** `/settings/trade-timing` → **Pickup & Payout** renders `pickup_window_hours` + `payout_buffer_days` (plus the pickup reminders — see F06). The `/config → TRADE` / `/config → FEES` rows for these keys exist live. Run as written.
 
 **Ref:** FLOW-08 (Trade) · FLOW-09 (Fees) · FLOW-18 (Admin Controls) · N1 Configurability (cross-cutting)
 **Actors:** test-admin
@@ -1093,7 +1093,7 @@
 
 ### ADM-TC-F06 · R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys)
 
-> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render the pickup-reminder fields or expose the combined-168h guardrail in the UI (the R2 guardrail exists only in `trade-timing-settings.test.ts` L106–110). The DB trigger (`fn_validate_trade_timing_config`) may still enforce server-side, but the UI path this case drives is not present. Do not run as written until the UI is restored.
+> ✅ **Restored (2026-09-02, Dev Task 91):** `/settings/trade-timing` → **Pickup & Payout** renders the two pickup-reminder fields (`pickup_notif_1_hours_before`, `pickup_notif_2_hours_before`), and the combined-168h guardrail is enforced in the UI (offer + pickup must total ≤ 167h — shared validator in `src/lib/tradeTimingValidation.ts`, same source as `trade-timing-settings.test.ts`). The DB trigger (`fn_validate_trade_timing_config`) still enforces server-side. Run as written.
 
 **Ref:** FLOW-08 (Trade) · FLOW-18 (Admin Controls) · R2 (2026-08-10)
 **Actors:** test-admin

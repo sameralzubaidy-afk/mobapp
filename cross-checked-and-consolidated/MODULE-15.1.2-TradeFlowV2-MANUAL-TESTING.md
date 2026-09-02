@@ -946,10 +946,10 @@ SELECT public.rpc_process_expired_offers(100);
 
 **Steps:**
 1. As a free user, open the offer screen and locate the upsell card.
-2. Tap **Try Kids Club+ Free**.
+2. Tap **Join Kids Club+**.
 
 **Expected Result:**
-- Card reads `Save up to {maxSpPercentage}% with Swap Points` with body `Kids Club+ members can use Swap Points to save on every trade. Try it free for 30 days.`
+- Card reads `Save up to {maxSpPercentage}% with Swap Points` with body `Kids Club+ members can use Swap Points to save on every trade.` (DEV-TASK-90 / QA Task 21: the "Try it free for 30 days." trial claim was removed from `TradeOfferScreen` — the upsell is trial-agnostic while `admin_config.trial_enabled=false`.)
 - Tapping the button navigates to **JoinKidsClub**.
 
 ### TRD-TC-B12 · SP info tooltip (not wired — flag)
@@ -1119,12 +1119,12 @@ SELECT public.rpc_release_pending_sp(200);
 **Steps:**
 1. Log in as **test-free** and open an **Accept SP** listing.
 2. Tap the locked **[Use SP 🔒]** chip on the item.
-3. Tap **[Try Kids Club+ Free]** in the modal, then go back and tap **[Not Now]**.
+3. Tap **[Join Kids Club+]** in the modal, then go back and tap **[Not Now]**.
 
 **Expected Result:**
 - The [Use SP 🔒] chip shows a lock icon; [Request to Buy] is available without a lock.
-- Tapping [Use SP 🔒] opens an upgrade modal: "Unlock SP discounts with Kids Club+. Save up to 50% on items. 30 days free."
-- [Try Kids Club+ Free] navigates to the subscription signup screen; [Not Now] closes the modal and returns to the item with [Request to Buy] still available.
+- Tapping [Use SP 🔒] opens an upgrade modal titled "Unlock SP Discounts". With `admin_config.trial_enabled=false` (staging) the message reads "Unlock SP discounts with Kids Club+. Save up to 50% on items with a flat membership fee." and the primary CTA is **[Join Kids Club+]** (DEV-TASK-90 removed the "30 days free" / "Try Kids Club+ Free" trial claim; `ItemDetailScreen` branches on `trialEnabled`, so a future trial re-enable flips the copy back — verified live in QA Task 21 Section C1).
+- [Join Kids Club+] navigates to **JoinKidsClub**; [Not Now] closes the modal and returns to the item with [Request to Buy] still available.
 
 ---
 
@@ -1648,7 +1648,7 @@ SELECT public.rpc_process_expired_offers(100);
 1. Log in as **test-free** and complete any trade.
 
 **Expected Result:**
-- The completion screen reads: "Trade complete! Kids Club+ would've saved you $2 on this trade — try it free for 30 days." with a [Try Kids Club+ Free — 30 Days] button.
+- The completion screen reads: "Trade complete! Kids Club+ would've saved you $2 on this trade." with a [Join Kids Club+] button. ($X is the dynamic savings figure; DEV-TASK-90 removed the "— try it free for 30 days" claim and the [Try Kids Club+ Free — 30 Days] label — verified live in QA Task 21 Section C1.)
 
 ---
 

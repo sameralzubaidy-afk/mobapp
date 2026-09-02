@@ -571,19 +571,23 @@ async function resolveTierIdForPrice(
 /**
  * Upsert the subscriptions row from a Stripe subscription object.
  * Status mapping: Stripe 'trialing' → internal 'trial'; 'active' → 'active'.
+ *
+ * Returns the DB subscription id + the prior status so callers can tell a
+ * genuinely NEW row (old_status === null) from a re-bind/update of an existing
+ * row — only a new row warrants writing the initial billing record (DEV-TASK-92).
  */
 async function upsertWebSubscription(
   supabase: any,
   userId: string,
   subscription: Stripe.Subscription,
   tierId: string | null,
-): Promise<void> {
+): Promise<{ subscription_id: string | null; old_status: string | null }> {
   const status = subscription.status === 'trialing' ? 'trial' : 'active';
   const customerId = typeof subscription.customer === 'string'
     ? subscription.customer
     : subscription.customer?.id ?? null;
 
-  const { error } = await supabase.rpc('rpc_upsert_web_subscription', {
+  const { data, error } = await supabase.rpc('rpc_upsert_web_subscription', {
     p_user_id: userId,
     p_stripe_customer_id: customerId,
     p_stripe_subscription_id: subscription.id,
@@ -599,6 +603,12 @@ async function upsertWebSubscription(
   if (error) {
     throw new Error(`upsertWebSubscription RPC failed: ${error.message}`);
   }
+
+  // RPC RETURNS JSONB → a single object (not a RETURNS TABLE array).
+  return {
+    subscription_id: (data as { subscription_id?: string | null } | null)?.subscription_id ?? null,
+    old_status: (data as { old_status?: string | null } | null)?.old_status ?? null,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -654,8 +664,19 @@ async function handleCheckoutSessionCompleted(
   }
 
   const tierId = await resolveTierIdForPrice(supabase, subscription.items?.data?.[0]?.price?.id ?? null);
-  await upsertWebSubscription(supabase, userId, subscription, tierId);
+  const upsert = await upsertWebSubscription(supabase, userId, subscription, tierId);
   await sendSubscriptionWelcomeNotification(userId, subscription.status === 'trialing');
+
+  // DEV-TASK-92 (2026-09-02): a brand-new web subscription's initial charge must
+  // appear in Transaction History. Stripe may deliver the initial
+  // `invoice.payment_succeeded` BEFORE this handler inserts the subscriptions
+  // row (the invoice handler then no-ops on the missing row and webhooks are
+  // never re-delivered after a 200), so record the first paid invoice here — but
+  // ONLY when the upsert just INSERTED a new row (old_status === null), never on
+  // a re-bind/update of an existing subscription (e.g. a test-clock re-bind).
+  if (upsert.subscription_id && upsert.old_status == null) {
+    await recordInitialBillingRow(supabase, upsert.subscription_id, userId, subscription);
+  }
 
   console.log(
     `[stripe-webhook-subscriptions] checkout.session.completed: linked user=${userId} subscription=${stripeSubId} status=${subscription.status} event=${eventId}`,
@@ -706,11 +727,108 @@ async function handleSubscriptionCreated(
   }
 
   const tierId = await resolveTierIdForPrice(supabase, subscription.items?.data?.[0]?.price?.id ?? null);
-  await upsertWebSubscription(supabase, userId, subscription, tierId);
+  const upsert = await upsertWebSubscription(supabase, userId, subscription, tierId);
+
+  // DEV-TASK-92: same initial-billing-row net as checkout.session.completed — the
+  // handler that INSERTs the row first records the first paid invoice; whichever
+  // of the two events wins the race, the sibling then sees the row already exists
+  // and is a no-op (old_status != null).
+  if (upsert.subscription_id && upsert.old_status == null) {
+    await recordInitialBillingRow(supabase, upsert.subscription_id, userId, subscription);
+  }
 
   console.log(
     `[stripe-webhook-subscriptions] customer.subscription.created: linked user=${userId} subscription=${subscription.id} status=${subscription.status} event=${eventId}`,
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: record the very first (initial) paid invoice of a brand-new web
+// subscription as a billing_history row.
+//
+// DEV-TASK-92 (2026-09-02): QA Task 21 found the initial web-purchase charge
+// produced NO billing_history row — only renewals did. Root cause: for a new
+// subscription Stripe can deliver the initial `invoice.payment_succeeded`
+// BEFORE checkout.session.completed / customer.subscription.created create the
+// `subscriptions` row, so handleInvoicePaymentSucceeded no-ops on the missing
+// row and (webhooks are not re-delivered after a 200) the first $5.99 charge is
+// never recorded. Called by the row-creating handlers right after the row is
+// INSERTED (old_status === null → genuinely new subscription), so the initial
+// charge is recorded deterministically regardless of event ordering.
+// Idempotent: pre-checked by stripe_invoice_id + upsert onConflict charge_id,
+// so a later real invoice.payment_succeeded (or the sibling handler) never
+// creates a duplicate.
+// ─────────────────────────────────────────────────────────────────────────────
+async function recordInitialBillingRow(
+  supabase: any,
+  dbSubscriptionId: string,
+  userId: string,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const latestInvoiceId =
+    (typeof subscription.latest_invoice === 'string' && subscription.latest_invoice) ||
+    subscription.latest_invoice?.id ||
+    null;
+
+  if (!latestInvoiceId) {
+    return;
+  }
+
+  let invoice: Stripe.Invoice;
+  try {
+    invoice = await stripe.invoices.retrieve(latestInvoiceId);
+  } catch (err: any) {
+    console.warn(
+      `[stripe-webhook-subscriptions] recordInitialBillingRow: invoice retrieve failed`,
+      { invoice_id: latestInvoiceId, error: err?.message },
+    );
+    return;
+  }
+
+  const amount = invoice.amount_paid ?? invoice.amount_due ?? 0;
+  if (invoice.status !== 'paid' || amount <= 0) {
+    // e.g. a $0 trial invoice — nothing charged yet, nothing to record.
+    return;
+  }
+
+  const { data: existing } = await supabase
+    .from('billing_history')
+    .select('id')
+    .eq('stripe_invoice_id', invoice.id)
+    .maybeSingle();
+  if (existing?.id) {
+    return; // already recorded (helper or invoice.payment_succeeded handler).
+  }
+
+  // Same charge-id fallback as handleInvoicePaymentSucceeded so a subsequent
+  // real invoice.payment_succeeded upsert reconciles onto this row.
+  const chargeId =
+    (typeof invoice.charge === 'string' && invoice.charge) ||
+    (typeof invoice.payment_intent === 'string' && invoice.payment_intent) ||
+    invoice.id;
+
+  const { error: billingError } = await supabase.from('billing_history').upsert(
+    {
+      user_id: userId,
+      subscription_id: dbSubscriptionId,
+      charge_id: chargeId,
+      stripe_invoice_id: invoice.id,
+      amount,
+      status: 'succeeded',
+    },
+    { onConflict: 'charge_id' },
+  );
+
+  if (billingError) {
+    console.warn(
+      `[stripe-webhook-subscriptions] recordInitialBillingRow: billing_history insert failed`,
+      billingError,
+    );
+  } else {
+    console.log(
+      `[stripe-webhook-subscriptions] recordInitialBillingRow: recorded initial charge user=${userId} invoice=${invoice.id} amount=${amount}`,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -127,13 +127,13 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#111827',
+    color: '#1A1A1A',
     marginTop: 8,
   },
   subheadline: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#4b5563',
+    color: '#6B6B6B',
     marginTop: 6,
     marginBottom: 20,
   },
@@ -155,21 +155,21 @@ const styles = StyleSheet.create({
   benefitTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   benefitBody: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#4b5563',
+    color: '#6B6B6B',
     marginTop: 2,
   },
   webCard: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#E8F5F0',
     borderRadius: 14,
     padding: 16,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: '#7FCAA3',
   },
   webCardHeader: {
     flexDirection: 'row',
@@ -179,13 +179,13 @@ const styles = StyleSheet.create({
   webCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#166534',
+    color: '#1A1A1A',
     marginLeft: 8,
   },
   webCardBody: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#166534',
+    color: '#6B6B6B',
     marginBottom: 6,
   },
   ctaWrap: {
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   footnote: {
     marginTop: 14,
     fontSize: 12,
-    color: '#6b7280',
+    color: '#999999',
     textAlign: 'center',
   },
 });

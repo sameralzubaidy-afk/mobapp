@@ -182,7 +182,7 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
       <View style={styles.container}>
         <Text style={styles.sectionTitle}>Payment Method</Text>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#0066CC" />
+          <ActivityIndicator size="small" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </View>
@@ -223,7 +223,7 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
             disabled={updating}
           >
             {updating ? (
-              <ActivityIndicator size="small" color="#0066CC" />
+              <ActivityIndicator size="small" color="#5DBB8E" />
             ) : (
               <Text style={styles.updateButtonText}>Update Payment Method</Text>
             )}
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   loadingContainer: {
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   paymentMethodCard: {
     backgroundColor: '#FFFFFF',
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
   cardBrand: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 2,
   },
   cardLast4: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   expiryRow: {
     flexDirection: 'row',
@@ -322,24 +322,28 @@ const styles = StyleSheet.create({
   },
   expiryLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   expiryValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
   },
+  // Secondary-outline pill (design-system-passitup.md §Primary Button outline
+  // variant): white bg + 2px primary-green border + primary-green text.
   updateButton: {
     marginTop: 12,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#5DBB8E',
     alignItems: 'center',
   },
   updateButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0066CC',
+    color: '#5DBB8E',
   },
   noPaymentMethod: {
     backgroundColor: '#FFFFFF',
@@ -354,14 +358,15 @@ const styles = StyleSheet.create({
   },
   noPaymentMethodText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 16,
   },
+  // Primary-green pill (design-system-passitup.md §Primary Button default).
   addButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    backgroundColor: '#0066CC',
+    backgroundColor: '#5DBB8E',
   },
   addButtonText: {
     fontSize: 14,

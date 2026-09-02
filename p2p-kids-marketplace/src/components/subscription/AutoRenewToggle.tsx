@@ -76,14 +76,18 @@ export function AutoRenewToggle({ initialValue, onToggled }: AutoRenewToggleProp
         </View>
 
         {isUpdating ? (
-          <ActivityIndicator size="small" color="#0066CC" />
+          <ActivityIndicator size="small" color="#5DBB8E" />
         ) : (
           <Switch
             value={isEnabled}
             onValueChange={handleToggle}
-            trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-            thumbColor={isEnabled ? '#0066CC' : '#F3F4F6'}
-            ios_backgroundColor="#D1D5DB"
+            // Branded green ON switch — matches the app-wide convention
+            // (SettingsScreen / NotificationPreferencesScreen): #5DBB8E track +
+            // white thumb (design-system-passitup.md). Replaces the iOS-blue
+            // (#93C5FD track / #0066CC thumb) pairing (QA Task 21 finding 7).
+            trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#E0E0E0"
             disabled={isUpdating}
           />
         )}
@@ -127,12 +131,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   description: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     lineHeight: 20,
   },
   warningBox: {
@@ -150,7 +154,7 @@ const styles = StyleSheet.create({
   warningText: {
     flex: 1,
     fontSize: 13,
-    color: '#D97706',
+    color: '#FFA726',
     lineHeight: 18,
   },
 });

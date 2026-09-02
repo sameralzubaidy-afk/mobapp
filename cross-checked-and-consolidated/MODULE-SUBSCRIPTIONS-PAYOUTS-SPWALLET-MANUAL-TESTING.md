@@ -2,7 +2,7 @@
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-10 SP Wallet Read · FLOW-11 SP Earn/Spend/Cap · FLOW-12 Subscriptions · FLOW-12A Subscription Payment (Stripe) · FLOW-17 Subscription Event Notifications · FLOW-22 Seller Payouts · FLOW-23 Payout Method Verification · FLOW-25 Manual Payout Admin · FLOW-26 Webhook Processing & Verification · FLOW-30 SP Wallet Admin Ops)
 **Tasks covered:** Subscription Lifecycle (plans, comparison, trial, payment, manage, cancel, renew, grace, expiry, billing history) · Seller Payouts & Withdrawals (dashboard, methods, verification, request, earnings) · SP Wallet & Transaction History (balance, earn, expiry, ledger, billing) · Provider webhook reconciliation for subscription and payout state changes
-**Last updated:** 2026-09-02 (guide-currency audit v2: retired the removed in-app subscription-purchase Group B and renewal D02/D04 to the web-first Web Subscription Purchase E2E; rewrote Groups F/G05/H to the live PayoutSettingsScreen; re-homed D06/D07 + flagged E04 fixture-gated; webhook Group L now cross-references QA Task 20 scope-3 server verification)
+**Last updated:** 2026-09-02 (guide-currency audit v3: webhook **Group L refreshed to QA Task 21's live full-lifecycle verification** — L01 renewal + L04 idempotency now **LIVE PASS**, L02/L03 remain PARTIAL with exact fixture needs; v2 retired the removed in-app subscription-purchase Group B and renewal D02/D04 to the web-first Web Subscription Purchase E2E; rewrote Groups F/G05/H to the live PayoutSettingsScreen; re-homed D06/D07 + flagged E04 fixture-gated)
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -94,10 +94,10 @@
 | | SUB-TC-J04 | Pull-to-refresh updates ledger |
 | **K — Transaction / Billing History (Profile)** | SUB-TC-K01 | Transaction History list + status badges |
 | | SUB-TC-K02 | Transaction History empty + error/retry |
-| **L — Webhooks & Reconciliation 🔄** | SUB-TC-L01 | Renewal webhook — server-verified in Web Subscription Purchase E2E (QA Task 20 scope 3) |
-| | SUB-TC-L02 | Payment-failed webhook → retry/grace — server-verified (QA Task 20 scope 3) |
-| | SUB-TC-L03 | Invalid webhook signature rejected — server-verified (QA Task 20 scope 3) |
-| | SUB-TC-L04 | Duplicate webhook delivery idempotent — server-verified (QA Task 20 scope 3) |
+| **L — Webhooks & Reconciliation 🔄** | SUB-TC-L01 | Renewal webhook → billing + member state — **LIVE PASS** (QA Task 21: real test-clock renewal advanced `current_period_end` + wrote `billing_history` row) |
+| | SUB-TC-L02 | Payment-failed webhook → retry/grace — **PARTIAL** (mechanism live-subscribed; no live failing-renewal fixture driven) |
+| | SUB-TC-L03 | Invalid webhook signature rejected — **PARTIAL** (source+deployed parity; negative-signature POST not driven) |
+| | SUB-TC-L04 | Duplicate webhook delivery idempotent — **LIVE PASS** (QA Task 21: 4 webhook events → ONE `subscriptions` + ONE `subscription_events` row) |
 | | SUB-TC-L05 | Payout-status webhook updates seller payout history (payout domain) |
 | **M — Payment Methods (Card on File)** | SUB-TC-M01 | Payment Methods — loading state |
 | | SUB-TC-M02 | Empty state + Add Payment Method (Stripe sheet) |
@@ -238,7 +238,7 @@
 
 ## Group B — Start Trial & Payment — 🔴 RETIRED (web-first)
 
-> 🔴 **Group retired 2026-09-02 — in-app subscription purchase removed; membership is web-first.** The in-app Stripe purchase flow (`SubscriptionPaymentScreen`/`SubscriptionSuccessScreen`) is gone; all join CTAs route to `JoinKidsClubScreen` → **Join on the web** (passitup.com). Each case below is a **RETIRED** stub cross-referencing where its intent now lives: the live join surface (**SUB-TC-N01/N02**) and the **Web Subscription Purchase E2E** (QA Task 20: `e2e-test-results/qa-task20-web-sub-e2e-2026-09-02/report.md`). The full web purchase journey is **not drivable today** (no `subscription_tiers.stripe_price_id` → `CONFIG_UNAVAILABLE`; local web `SUBSCRIPTION_DEV_MODE=true`) — re-run only after QA Task 20's unblock recipe.
+> 🔴 **Group retired 2026-09-02 — in-app subscription purchase removed; membership is web-first.** The in-app Stripe purchase flow (`SubscriptionPaymentScreen`/`SubscriptionSuccessScreen`) is gone; all join CTAs route to `JoinKidsClubScreen` → **Join on the web** (passitup.com). Each case below is a **RETIRED** stub cross-referencing where its intent now lives: the live join surface (**SUB-TC-N01/N02**) and the **Web Subscription Purchase E2E**. **The full web purchase journey is now LIVE-VERIFIED** — QA Task 21 (`e2e-test-results/qa-task21-sub-close-2026-09-02/report.md`, Section A) drove real Stripe Checkout ($5.99/mo, card 4242) → webhook → `subscriptions`/`subscription_events` rows on a disposable user (the QA Task 20 blockers — no linked `stripe_price_id`, `SUBSCRIPTION_DEV_MODE=true` — were resolved by DT-90). Live legs belong in QA Task 21's recipe (disposable user only), not in-app.
 
 ### SUB-TC-B01 · Start free trial from Plans → payment screen — 🔴 RETIRED (web-first)
 
@@ -314,7 +314,7 @@
 
 > 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
 > **What this case described:** declined-card handling on the removed in-app payment sheet.
-> **Coverage now lives in:** **Stripe-hosted Checkout** decline UX (web); the **Web Subscription Purchase E2E** (QA Task 20 — scope 2) lists the declined-card leg as not-yet-reachable (blocked by no `stripe_price_id`). Re-run after QA Task 20's unblock recipe.
+> **Coverage now lives in:** **Stripe-hosted Checkout** decline UX (web) — **live-verified in QA Task 21 Section B** (`e2e-test-results/qa-task21-sub-close-2026-09-02/report.md`): real checkout with card `4000 0000 0000 0002` returned Stripe's "Your card was declined. Please try a different card." error, no `subscriptions` row created, no partial/broken state. (QA Task 20's "not-yet-reachable / blocked by no `stripe_price_id`" note is superseded — DT-90 linked the price.)
 
 ---
 
@@ -1329,63 +1329,64 @@
 
 ## Group L — Webhooks & Reconciliation
 
-> 🔄 **Group rewritten 2026-09-02:** Webhook cases are **server/webhook-domain** (not end-user-executable via the mobile app alone) and the real money leg is blocked upstream (no `subscription_tiers.stripe_price_id` → no real Checkout → no real webhook events on staging; local web is `SUBSCRIPTION_DEV_MODE=true`). The server machinery below was **verified live in QA Task 20 scope 3** (deployed-function + live-DB contract). **Each case below now cross-references that verification rather than standing as an abstract "not runnable" entry.** Re-run as a full webhook exercise only after QA Task 20's unblock recipe.
+> 🔄 **Group refreshed 2026-09-02 (QA Task 21):** Webhook cases are **server/webhook-domain** (not end-user-executable via the mobile app alone), but the real money leg is now **UNBLOCKED and verified live**. QA Task 21 (`e2e-test-results/qa-task21-sub-close-2026-09-02/report.md`, Section A + F) drove a full real lifecycle on a disposable user: real Stripe Checkout ($5.99/mo) → webhook → `subscriptions` + `subscription_events` rows → free→active mobile transition → in-app cancel → **Stripe test-clock renewal that advanced `current_period_end` and wrote a new `billing_history` row**. The prior blockers are resolved: the Kids Club+ tier has a linked real Stripe test price (DT-90) and `stripe-webhook-subscriptions` is now subscribed to the 6 purchase+renewal events — the missing R7 `checkout.session.completed` + `customer.subscription.created` subscriptions were the blocker (QA Task 21 Finding 1, fixed). **L01 (renewal) and L04 (idempotency) PASS live; L02/L03 remain PARTIAL** (mechanism + deployed parity verified; live failing-renewal and negative-signature legs need the fixtures noted per-case). Re-drive live legs on a **disposable user** (never test-buyer — stale-active sub).
 
 ### SUB-TC-L01 · Renewal webhook updates billing history and member state
 
-**Ref:** FLOW-26 · subscription webhook (`stripe-webhook-subscriptions`) — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
-**Actors:** test-buyer (QA Task 20 verified the mechanism; live replay blocked by the §2 blocker chain)
+**Ref:** FLOW-26 · subscription webhook (`stripe-webhook-subscriptions`) — **LIVE PASS in QA Task 21** (2026-09-02, Section A7 + F/L01)
+**Actors:** disposable user (QA Task 21 recipe) — NOT test-buyer (stale-active sub — see note)
 
 **Objective:** Verify a valid renewal webhook reconciles the subscription state and billing history.
 
-**Steps (deferred until unblocked — QA Task 20 §Known Gaps recipe):**
-1. Ensure **test-buyer** has an active renewable subscription.
-2. Trigger the signed renewal webhook event in staging.
+**Steps (as driven in QA Task 21 A7):**
+1. Create a fresh test-clock subscription metadata-bound to the disposable user's `user_id` (a test clock cannot be retro-attached to an existing Checkout subscription — `parameter_unknown`).
+2. Advance the clock past the billing anchor so a genuine renewal invoice is created and paid.
 3. Reopen **My Subscription** and **Billing History**.
 
-**Expected Result:**
-- Server mechanism **verified** in QA Task 20: `rpc_upsert_web_subscription` resolves the row by `user_id` (INSERT if none, UPDATE with COALESCE) and DB UNIQUE constraints (`subscriptions_user_id_key`, `subscriptions_stripe_subscription_id_key`) guarantee one row per user; `billing_history` upserts on unique `charge_id` (a replayed invoice cannot create a second billing row — live proof: test-buyer has exactly one billing row).
-- **Note:** QA Task 20 found test-buyer's real Stripe sub is **stale-active** (`current_period_end` 2026-07-27 — in the past; no renewal since 2026-06-30) — resolve before driving L01 live.
+**Expected Result (achieved in QA Task 21 A7):**
+- Stripe `invoice.payment_succeeded` → DB `subscriptions.current_period_end` **advanced** (2026-10-02 → 2026-11-02, `next_billing_date` synced) and a new **`billing_history` row** was created (`in_1UBMIB4`, amount 599, status `succeeded`) — the DT-88 renewal-advance fix proven on a brand-new subscription.
+- **Note:** test-buyer's real Stripe sub remains **stale-active** (`current_period_end` 2026-07-27; no billing since 2026-06-30) — do not use it for renewal legs; use a disposable user (QA Task 21 recipe).
 
 ### SUB-TC-L02 · Payment-failed webhook moves subscription into retry / grace state
 
-**Ref:** FLOW-26 · payment failure webhook — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
-**Actors:** test-grace
+**Ref:** FLOW-26 · payment failure webhook — **PARTIAL** (mechanism verified; live failing-renewal not driven)
+**Actors:** disposable user with an active subscription and NO saved payment method
 
 **Objective:** Verify a payment-failed webhook updates the user-visible subscription state.
 
-**Steps (deferred until unblocked):**
-1. Trigger a signed `invoice.payment_failed` or equivalent payment-failure webhook for the test subscription.
+**Steps (deferred — needs a no-PM renewal fixture):**
+1. Trigger a genuine failing renewal on an existing subscription (a checkout decline is NOT the same as a renewal-invoice failure).
 2. Reopen the subscription screens for the affected user.
 
 **Expected Result:**
-- Server mechanism **verified** in QA Task 20: `record_payment_attempt` RPC increments `payment_retry_count`, sets `payment_failed_at`, and transitions to grace after 3 failures with SP freeze (`triggerSpFreeze`). Billing History shows the failed charge; grace-state banners follow (live grace UX verified separately as **SUB-TC-I05**).
+- Mechanism verified: the deployed EF has `invoice.payment_failed` subscribed; `record_payment_attempt` increments `payment_retry_count`, sets `payment_failed_at`, and after 3 failures enters grace with SP freeze (`triggerSpFreeze`) + a critical payment-failure notification. Grace-state UX verified separately as **SUB-TC-I05**.
+- Live failing-renewal leg not yet driven (QA Task 21 L02 remains PARTIAL) — needs a no-PM renewal fixture.
 
 ### SUB-TC-L03 · Invalid webhook signature is rejected with no duplicate state change
 
-**Ref:** FLOW-26 · signature verification — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
+**Ref:** FLOW-26 · signature verification — **PARTIAL** (source + deployed parity verified; live negative POST not driven)
 **Actors:** QA
 
 **Objective:** Verify an invalid webhook payload is rejected and does not mutate user-visible state.
 
-**Steps (deferred until unblocked):**
+**Steps (deferred — read-only discipline):**
 1. Send the same webhook type with an invalid signature to the deployed webhook EF.
 
 **Expected Result:**
-- **Server mechanism verified** in QA Task 20: the deployed webhook verifies `stripe.signature` via `constructEventAsync` against `STRIPE_WEBHOOK_SUBSCRIPTIONS_SECRET`; an invalid signature returns **400 `INVALID_SIGNATURE` with no DB mutation** (`verify_jwt=false`, public webhook URL). A live negative-signature probe requires a direct call to the remote EF or Stripe CLI forwarding — exact recipe in QA Task 20 §Known Gaps.
+- Source + deployed parity verified: `constructEventAsync` against `STRIPE_WEBHOOK_SUBSCRIPTIONS_SECRET` returns **400 `INVALID_SIGNATURE` with no DB mutation** (`verify_jwt=false`, public webhook URL). A live negative-signature POST was not run under QA read-only discipline (QA Task 21 L03 remains PARTIAL); direct-call recipe in QA Task 21 §F/L03.
 
 ### SUB-TC-L04 · Duplicate webhook delivery is idempotent
 
-**Ref:** FLOW-26 · idempotent processing — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
+**Ref:** FLOW-26 · idempotent processing — **LIVE PASS in QA Task 21** (2026-09-02, Section A2 + F/L04)
 **Actors:** QA
 
 **Objective:** Verify replaying the same valid webhook does not create duplicate side effects.
 
-**Steps (deferred until unblocked):**
-1. Replay the exact same valid webhook payload after a first delivery.
+**Steps:**
+1. Complete a real web purchase (fresh disposable user); observe the converging webhook events.
 
-**Expected Result:**
-- **Idempotency verified** in QA Task 20: `billing_history` UNIQUE(`charge_id`) + upsert-on-conflict; `subscriptions` UNIQUE(`user_id`) + UNIQUE(`stripe_subscription_id`); `rpc_upsert_web_subscription` is replay-safe regardless of Checkout/webhook ordering. A replay cannot create a second billing row, second payout update, or duplicate notification. Audit trail: the upsert writes a `subscription_events` row (`event_type='web_subscription_upsert'`); **zero such rows exist on staging** — the strongest proof the R7 path has never completed E2E.
+**Expected Result (achieved in QA Task 21 A2):**
+- The purchase produced **4 webhook events converging to ONE `subscriptions` row + ONE `subscription_events` row** (no dupes); `billing_history` UNIQUE(`charge_id`) held; `rpc_upsert_web_subscription` is replay-safe regardless of Checkout/webhook ordering. Audit trail: the upsert writes a `subscription_events` row (`event_type='web_subscription_upsert'`) — QA Task 21 produced the **first-ever live R7 audit row**, closing QA Task 20's "zero rows" gap.
 
 ### SUB-TC-L05 · Payout-status webhook updates seller payout history
 

@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#808080',
+    color: '#6B6B6B',
   },
   headerSection: {
     marginBottom: 24,
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -662,18 +662,20 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
+  // Status badges — Pass It Up semantic palette (design-system-passitup.md):
+  // active→success #5DBB8E, trial→info #5B8FB9, grace→error #E85D75, cancelled→warning #FFA726.
   badge_trial: {
-    backgroundColor: '#29B6F6',
+    backgroundColor: '#5B8FB9',
   },
   badge_active: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#5DBB8E',
   },
   badge_cancelled: {
     backgroundColor: '#FFA726',
@@ -682,7 +684,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFA726',
   },
   badge_grace_period: {
-    backgroundColor: '#E53935',
+    backgroundColor: '#E85D75',
   },
   badge_expired: {
     backgroundColor: '#808080',
@@ -707,7 +709,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
   },
   infoValue: {
     fontSize: 14,
@@ -730,7 +732,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     lineHeight: 20,
   },
   bold: {
@@ -752,7 +754,7 @@ const styles = StyleSheet.create({
   },
   infoBoxText: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     lineHeight: 20,
   },
   benefitsList: {
@@ -760,7 +762,7 @@ const styles = StyleSheet.create({
   },
   benefitItem: {
     fontSize: 14,
-    color: '#4A7C59',
+    color: '#5DBB8E',
     marginBottom: 8,
     lineHeight: 22,
   },
@@ -769,7 +771,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#E53935',
+    backgroundColor: '#E85D75',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -784,7 +786,7 @@ const styles = StyleSheet.create({
   cancelNote: {
     marginTop: 12,
     fontSize: 12,
-    color: '#808080',
+    color: '#999999',
     textAlign: 'center',
     paddingHorizontal: 20,
   },
@@ -793,7 +795,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButton: {
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -811,11 +813,11 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#4A7C59',
+    color: '#5DBB8E',
   },
   noSubText: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -844,7 +846,7 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 20,
@@ -862,8 +864,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   reasonItemSelected: {
-    backgroundColor: '#E8F3EC',
-    borderColor: '#4A7C59',
+    backgroundColor: '#E8F5F0',
+    borderColor: '#5DBB8E',
     borderWidth: 1,
   },
   radioButton: {
@@ -871,7 +873,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#4A7C59',
+    borderColor: '#5DBB8E',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -880,7 +882,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E',
   },
   reasonText: {
     fontSize: 14,
@@ -908,7 +910,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#4A7C59',
+    borderColor: '#5DBB8E',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -916,14 +918,14 @@ const styles = StyleSheet.create({
   modalCancelBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4A7C59',
+    color: '#5DBB8E',
   },
   modalConfirmBtn: {
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 8,
     borderRadius: 12,
-    backgroundColor: '#E53935',
+    backgroundColor: '#E85D75',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -84,17 +84,17 @@ function getNextChange(info: SubscriptionInfo): { label: string; value: string }
 function statusColor(status: string): string {
   switch (status) {
     case 'active':
-      return '#4CAF50'; // Success 500
+      return '#5DBB8E'; // success (passitup)
     case 'trial':
-      return '#29B6F6'; // Info 500
+      return '#5B8FB9'; // info (passitup)
     case 'cancelled':
     case 'canceled':
       return '#FFA726'; // Warning 500
     case 'grace_period':
     case 'grace':
-      return '#E53935'; // Error 500
+      return '#E85D75'; // error (passitup)
     case 'expired':
-      return '#808080'; // Neutral 500
+      return '#808080'; // Neutral
     default:
       return '#808080';
   }
@@ -225,7 +225,7 @@ export default function SubscriptionStatusScreen() {
         {/* ── Payment failure info ──────────────────────────────────────────── */}
         {hasPaymentFailed && (
           <View style={[styles.card, styles.warningCard]}>
-            <Text style={[styles.cardTitle, { color: '#dc2626' }]}>⚠ Payment Failures</Text>
+            <Text style={[styles.cardTitle, { color: '#E85D75' }]}>⚠ Payment Failures</Text>
             <Row label="Retry Count" value={`${info.payment_retry_count} / 3`} highlight />
             <Row label="Last Failed" value={formatDate(info.payment_failed_at)} />
             {info.payment_retry_count >= 3 && (
@@ -239,7 +239,7 @@ export default function SubscriptionStatusScreen() {
         {/* ── Grace period ──────────────────────────────────────────────────── */}
         {isGracePeriod && (
           <View style={[styles.card, styles.graceCard]}>
-            <Text style={[styles.cardTitle, { color: '#b91c1c' }]}>Grace Period Active</Text>
+            <Text style={[styles.cardTitle, { color: '#E85D75' }]}>Grace Period Active</Text>
             <Row label="Started" value={formatDate(info.grace_started_at)} />
             <Row label="Ends" value={formatDate(info.grace_ends_at)} />
             <Row label="Remaining" value={getDaysRemaining(info.grace_ends_at)} highlight />
@@ -308,10 +308,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
   scroll: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { marginTop: 12, color: '#808080', fontSize: 14 },
-  errorText: { color: '#E53935', fontSize: 16, marginBottom: 12, textAlign: 'center' },
+  loadingText: { marginTop: 12, color: '#6B6B6B', fontSize: 14 },
+  errorText: { color: '#E85D75', fontSize: 16, marginBottom: 12, textAlign: 'center' },
   emptyText: { color: '#1A1A1A', fontSize: 16, textAlign: 'center' },
-  subText: { color: '#808080', fontSize: 12, marginTop: 4 },
+  subText: { color: '#999999', fontSize: 12, marginTop: 4 },
   statusCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 12,
-    color: '#808080',
+    color: '#6B6B6B',
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -345,16 +345,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  warningCard: { borderLeftWidth: 4, borderLeftColor: '#E53935' },
-  graceCard: { borderLeftWidth: 4, borderLeftColor: '#E53935' },
+  warningCard: { borderLeftWidth: 4, borderLeftColor: '#E85D75' },
+  graceCard: { borderLeftWidth: 4, borderLeftColor: '#E85D75' },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A1A', marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  rowLabel: { color: '#808080', fontSize: 13, flex: 1 },
-  rowValue: { color: '#4D4D4D', fontSize: 13, flex: 2, textAlign: 'right' },
-  rowValueHighlight: { color: '#4A7C59', fontWeight: '600' },
-  warningText: { color: '#E53935', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
+  rowLabel: { color: '#6B6B6B', fontSize: 13, flex: 1 },
+  rowValue: { color: '#6B6B6B', fontSize: 13, flex: 2, textAlign: 'right' },
+  rowValueHighlight: { color: '#5DBB8E', fontWeight: '600' },
+  warningText: { color: '#E85D75', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   retryButton: {
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -362,5 +362,5 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   retryButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 15 },
-  note: { color: '#808080', fontSize: 11, textAlign: 'center', marginTop: 8 },
+  note: { color: '#999999', fontSize: 11, textAlign: 'center', marginTop: 8 },
 });

@@ -584,8 +584,8 @@ Every payout **must** use `payout_idempotency_key = 'payout_' || trade_id` as th
 | Step | Actor | Screen | What They See | Action | System Event |
 |---|---|---|---|---|---|
 | 1 | 🛒 Free | Item Detail | "Accept SP" listing. [Request to Buy] visible. [Use SP] shows lock icon 🔒. | Taps 🔒 Use SP | — |
-| 2 | 🛒 Free | Upgrade Modal | "Unlock SP discounts with Kids Club+. Save up to 50% on items. 30 days free." | [Try Kids Club+ Free] [Not Now] | — |
-| 3a | 🛒 Free | — | Taps [Try Kids Club+ Free] | — | Navigate to subscription signup |
+| 2 | 🛒 Free | Upgrade Modal | "Unlock SP discounts with Kids Club+. Save up to 50% on items." + (if `admin_config.trial_enabled=true`) "30 days free." | [Join Kids Club+] (trial-on: [Try Kids Club+ Free]) [Not Now] | — |
+| 3a | 🛒 Free | — | Taps [Join Kids Club+] (trial-on: [Try Kids Club+ Free]) | — | Navigate to subscription signup (JoinKidsClub) |
 | 3b | 🛒 Free | Item Detail | Dismisses modal | — | Returns to item detail, [Request to Buy] still available |
 
 ---
@@ -1018,10 +1018,10 @@ Shown immediately after trade reaches `completed` state.
 
 | User | Condition | Primary Message | CTA |
 |---|---|---|---|
-| 🛒 Free buyer | Any completed trade | "Trade complete! Kids Club+ would've saved you $2 on this trade — try it free for 30 days." | [Try Kids Club+ Free — 30 Days] |
+| 🛒 Free buyer | Any completed trade | "Trade complete! Kids Club+ would've saved you $2 on this trade." | [Join Kids Club+] |
 | 🛒 Subscriber buyer | Used SP | "You saved $[sp_amount] using SP! You have [remaining_sp] SP available." | [Keep Shopping] |
 | 🛒 Subscriber buyer | No SP used | "Trade complete! Consider using SP on your next purchase to save more." | [Browse Items] |
-| 🏷️ Free seller | Any completed trade | "Great sale! Subscribe to earn Swap Points on your next sale — set 'Accept SP' when listing." | [Try Kids Club+ Free — 30 Days] |
+| 🏷️ Free seller | Any completed trade | "Great sale! Subscribe to earn Swap Points on your next sale — set 'Accept SP' when listing." | [Join Kids Club+] |
 | 🏷️ Subscriber seller | "Cash Only" listing | "Sold for cash! Try 'Accept SP' on your next listing to also earn SP." | [Create New Listing] |
 | 🏷️ Subscriber seller | "Accept SP" listing, SP used | "[total_sp] SP releasing in [N] days — added to your pending wallet." where N = `sp_pending_release_days` | [View Wallet] |
 | 🏷️ Subscriber seller | "Accept SP" listing, no SP used by buyer | "[platform_sp] SP releasing in [N] days (platform reward)." where N = `sp_pending_release_days` | [View Wallet] |

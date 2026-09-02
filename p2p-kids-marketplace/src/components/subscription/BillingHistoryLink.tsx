@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   linkCard: {
@@ -78,16 +78,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 2,
   },
   description: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   arrow: {
     fontSize: 28,
-    color: '#D1D5DB',
+    color: '#999999',
     marginLeft: 8,
   },
 });
