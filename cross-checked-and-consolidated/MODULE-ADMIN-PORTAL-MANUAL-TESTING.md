@@ -3132,14 +3132,14 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 | Per-node KPIs (N6) | ADM-TC-E07 |
 | Global config inline edit | ADM-TC-F01, ADM-TC-R04 |
 | Cart settings + validation (FLOW-07) | ADM-TC-F02 |
-| Trade timing config (timing keys only; fee-leg ⚠️ BLOCKED-ON-PAGE) | ADM-TC-F03 |
+| Trade timing config (timing + consolidated fees) | ADM-TC-F03 |
 | Settings single-source cross-link + audit | ADM-TC-F04 |
-| ⚠️ BLOCKED-ON-PAGE — N1 pickup/payout keys | ADM-TC-F05 |
-| ⚠️ BLOCKED-ON-PAGE — R2 guardrail + pickup reminders | ADM-TC-F06 |
+| N1 pickup/payout keys (Pickup & Payout) | ADM-TC-F05 |
+| R2 guardrail + pickup reminders | ADM-TC-F06 |
 | Trade Pipeline visualization | ADM-TC-F07 |
-| ⚠️ BLOCKED-ON-PAGE — R1 tiered buyer-fee fields | ADM-TC-F08 |
+| R1 tiered buyer-fee fields | ADM-TC-F08 |
 | Buyer Fee-Tier Distribution (on /analytics) | ADM-TC-F09 |
-| ⚠️ BLOCKED-ON-PAGE — Legacy fee keys | ADM-TC-F10 |
+| Legacy fee keys (audit-only, read-only) | ADM-TC-F10 |
 | Reset button (trade-timing) | ADM-TC-F11 |
 | Policy tabs + versions (FLOW-31/32/33) | ADM-TC-G01 |
 | Create policy version (regex) | ADM-TC-G02 |
