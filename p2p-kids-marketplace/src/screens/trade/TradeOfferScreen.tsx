@@ -590,6 +590,10 @@ export default function TradeOfferScreen() {
               <View style={styles.subscribeUpsellRow}>
                 <Coins size={24} color="#F59E0B" weight="regular" />
                 <View style={styles.subscribeUpsellTextContainer}>
+                  {/* TODO(TRIAL-GATE) DEFERRED (2026-09-02): "Try it free for 30
+                      days" promises a trial while admin_config.trial_enabled=false.
+                      Gate on trial config in a dedicated pass (JoinKidsClub and the
+                      other subscription screens are already gated). */}
                   <Text style={styles.subscribeUpsellTitle}>
                     Save up to {maxSpPercentage}% with Swap Points
                   </Text>

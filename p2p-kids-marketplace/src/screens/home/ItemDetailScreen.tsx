@@ -99,6 +99,9 @@ export default function ItemDetailScreen() {
   // fee (both dynamic from admin_config).
   const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
   const [activeMemberFlatCents, setActiveMemberFlatCents] = useState(149);
+  // Trial is admin-config-gated: the upgrade modal only promises a free trial
+  // when admin_config.trial_enabled=true (QA Task 20 F-3).
+  const [trialEnabled, setTrialEnabled] = useState<boolean>(false);
   const [buyerSubLoading, setBuyerSubLoading] = useState(true);
   const [checkingActiveTrade, setCheckingActiveTrade] = useState(false);
   const [showDuplicateOfferModal, setShowDuplicateOfferModal] = useState(false);
@@ -282,8 +285,10 @@ export default function ItemDetailScreen() {
       try {
         const config = await getAdminConfig();
         setActiveMemberFlatCents(Number(config.buyer_fee_active_member_cents ?? 149));
+        setTrialEnabled(config.trial_enabled === true);
       } catch {
         setActiveMemberFlatCents(149);
+        setTrialEnabled(false);
       }
 
       if (!user?.id) {
@@ -1037,8 +1042,12 @@ export default function ItemDetailScreen() {
           visible={showUpgradeModal}
           type="alert"
           title="Unlock SP Discounts"
-          message="Unlock SP discounts with Kids Club+. Save up to 50% on items. 30 days free."
-          primaryButtonText="Try Kids Club+ Free"
+          message={
+            trialEnabled
+              ? 'Unlock SP discounts with Kids Club+. Save up to 50% on items. 30 days free.'
+              : 'Unlock SP discounts with Kids Club+. Save up to 50% on items with a flat membership fee.'
+          }
+          primaryButtonText={trialEnabled ? 'Try Kids Club+ Free' : 'Join Kids Club+'}
           secondaryButtonText="Not Now"
           primaryButtonTestID="upgrade-modal-try-button"
           secondaryButtonTestID="upgrade-modal-not-now-button"

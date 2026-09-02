@@ -1,6 +1,14 @@
 // File: p2p-kids-marketplace/src/screens/payouts/PayoutDashboardScreen.tsx
 // MODULE-15.1 FLOW-22: Payout Dashboard — UI Redesign (Visual Only)
 // DO NOT CHANGE: data fetch, navigation, payout business logic
+//
+// DEPRECATED (Dev Task 86, 2026-09-02): This screen is DEAD — it is NOT registered
+// in AppNavigator and has NO live navigation callers, so it is unreachable from the
+// app. Its only references are its own unit test and archived/historical docs. The
+// LIVE consolidated payout surface is PayoutSettingsScreen (balance hero + method
+// card + "Withdraw Now" modal). Do NOT add new navigation or callers. Removal
+// candidate: safe to delete this file together with
+// src/__tests__/screens/PayoutDashboardScreen.test.tsx.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {

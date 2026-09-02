@@ -204,7 +204,10 @@ function getDefaultConfig(): AdminConfig {
     subscription_price_monthly: 0,
     subscription_price_yearly: 0,
     trial_period_days: 30,
-    trial_enabled: true,
+    // Canonical staging is trial_enabled=false (D-001). Fallback stays OFF so a
+    // failed config fetch can never re-advertise a trial that isn't offered
+    // (QA Task 20 F-3). Re-enable later = admin_config flip, not this default.
+    trial_enabled: false,
     max_trial_uses: 1,
     grace_period_days: 90,
 
@@ -218,7 +221,10 @@ function getDefaultConfig(): AdminConfig {
     sp_subscriber_only: true,
 
     // Fees
-    transaction_fee_subscriber_cents: 99,
+    // Canonical subscriber flat fee = 149¢ ($1.49 — the R1 active-member fee that
+    // trade checkouts actually charge; buyer_fee_active_member_cents). Fallback
+    // mirrors it so a failed fetch can't show $0.99 (QA Task 20 F-2/F-4).
+    transaction_fee_subscriber_cents: 149,
     transaction_fee_non_subscriber_cents: 299,
     // ❌ DEPRECATED: Percentage-based buyer fees not used per BRD Section 8.1.1
     // BRD requires flat fees only (set to 0 to mark as deprecated)

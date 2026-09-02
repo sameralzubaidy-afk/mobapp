@@ -10,23 +10,21 @@
  * browser (App Store Guideline 3.1.3 compliant).
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Sparkle, Coins, Receipt, ArrowSquareOut } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 import { JoinKidsClubButton } from '@/components/subscription/JoinKidsClubButton';
 import { useAuth } from '@/hooks/useAuth';
+import { getActiveMemberFeeCents } from '@/services/adminConfig';
 
-const BENEFITS = [
+// Static benefit rows (no money literal). The flat-fee row is built at render time
+// from live admin_config so copy can't drift from the charged fee (QA Task 20 F-2).
+const STATIC_BENEFITS = [
   {
     icon: Coins,
     title: 'Earn Swap Points on every sale',
     body: 'Active members earn SP when their items sell — the more you sell, the more you save on future purchases.',
-  },
-  {
-    icon: Receipt,
-    title: 'Pay a flat $1.49 fee instead of a percentage',
-    body: 'Members pay one flat $1.49 safety & platform fee per checkout, instead of the free-user percentage fee.',
   },
   {
     icon: Sparkle,
@@ -37,6 +35,34 @@ const BENEFITS = [
 
 export default function JoinKidsClubScreen() {
   const { user } = useAuth();
+  // Canonical default 149¢ = the seed value of buyer_fee_active_member_cents (BP-13);
+  // replaced by the live config value as soon as it loads.
+  const [flatFeeCents, setFlatFeeCents] = useState<number>(149);
+
+  useEffect(() => {
+    let mounted = true;
+    getActiveMemberFeeCents()
+      .then((cents) => {
+        if (mounted && Number.isFinite(cents) && cents >= 0) setFlatFeeCents(Math.round(cents));
+      })
+      .catch(() => {
+        // Keep the canonical 149 default on a config-fetch failure.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const flatFeeDisplay = `$${(flatFeeCents / 100).toFixed(2)}`;
+  const benefits = [
+    STATIC_BENEFITS[0],
+    {
+      icon: Receipt,
+      title: `Pay a flat ${flatFeeDisplay} fee instead of a percentage`,
+      body: `Members pay one flat ${flatFeeDisplay} safety & platform fee per checkout, instead of the free-user percentage fee.`,
+    },
+    STATIC_BENEFITS[1],
+  ];
 
   return (
     <ScreenLayout variant="detail" title="Kids Club+" showBell={false}>
@@ -51,7 +77,7 @@ export default function JoinKidsClubScreen() {
           Kids Club+ is a membership that rewards the way you buy and sell on Pass It Up.
         </Text>
 
-        {BENEFITS.map((benefit, index) => {
+        {benefits.map((benefit, index) => {
           const Icon = benefit.icon;
           return (
             <View key={index} style={styles.benefitRow}>
@@ -73,8 +99,8 @@ export default function JoinKidsClubScreen() {
             <Text style={styles.webCardTitle}>Membership is managed on the web</Text>
           </View>
           <Text style={styles.webCardBody}>
-            Complete your Kids Club+ membership on our website. It takes about a minute, and you
-            can pay with a card, Apple Pay, or Google Pay.
+            Complete your Kids Club+ membership on our website. It takes about a minute, and you can
+            pay with a card, Apple Pay, or Google Pay.
           </Text>
           <Text style={styles.webCardBody}>
             Your benefits unlock automatically in the app right after you subscribe.
@@ -87,7 +113,8 @@ export default function JoinKidsClubScreen() {
         </View>
 
         <Text style={styles.footnote}>
-          No charge in the app. You'll be taken to passitup.com to complete your membership securely.
+          No charge in the app. You'll be taken to passitup.com to complete your membership
+          securely.
         </Text>
       </ScrollView>
     </ScreenLayout>

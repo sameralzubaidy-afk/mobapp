@@ -23,8 +23,9 @@ import { WarningCircle, X, Check, Heart, ShieldCheck } from 'phosphor-react-nati
 import { cancelSubscription } from '@/services/subscription';
 import { captureException } from '@/services/errorReporter';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useTrialEligibility } from '@/hooks/useTrialEligibility';
 import type { RootStackParamList } from '@/navigation/types';
-import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
+import { MY_SUBSCRIPTION_BENEFITS, TRIAL_MARKETING_BENEFIT } from '@/constants/subscriptionPlans';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -33,6 +34,11 @@ export default function CancelSubscriptionScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { refetch } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
+  // Trial benefit line is shown only when admin_config.trial_enabled=true.
+  const { trialEnabled } = useTrialEligibility();
+  const benefitsLoss = trialEnabled
+    ? [...MY_SUBSCRIPTION_BENEFITS, TRIAL_MARKETING_BENEFIT]
+    : MY_SUBSCRIPTION_BENEFITS;
 
   const handleKeepSubscription = () => {
     navigation.goBack();
@@ -97,7 +103,7 @@ export default function CancelSubscriptionScreen() {
           </View>
 
           <View style={styles.benefitsList}>
-            {MY_SUBSCRIPTION_BENEFITS.map((benefit, index) => (
+            {benefitsLoss.map((benefit, index) => (
               <View key={index} style={styles.benefitRow} testID={`benefit-${index}`}>
                 <View style={styles.xIconContainer}>
                   <X size={14} color="#E85D75" weight="bold" />

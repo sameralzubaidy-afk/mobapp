@@ -693,8 +693,12 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
     if (updatePayload.price <= 0) {
       throw new Error('Price must be greater than $0');
     }
-    // Validate against admin-configurable minimum listing price floor
-    const adminConfig = await getAdminConfig();
+    // Validate against admin-configurable minimum listing price floor.
+    // forceRefresh=true to bypass the 5-min cache — matches the createListing
+    // path, so a price edit re-validates against the CURRENT floor (a floor
+    // raise is forward-only: it never auto-pauses existing listings, but an
+    // active PRICE EDIT must still respect the current minimum — Dev Task 86).
+    const adminConfig = await getAdminConfig(true);
     if (
       adminConfig.min_listing_price > 0 &&
       updatePayload.price < adminConfig.min_listing_price

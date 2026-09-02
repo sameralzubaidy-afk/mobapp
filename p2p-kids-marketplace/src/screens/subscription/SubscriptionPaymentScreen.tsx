@@ -1,5 +1,12 @@
 // File: p2p-kids-marketplace/src/screens/subscription/SubscriptionPaymentScreen.tsx
 // MODULE-11 SUB-015: Full subscription payment flow screen
+//
+// DEPRECATED (Dev Task 86, 2026-09-02): In-app Stripe subscription payment is DEAD —
+// joining is web-first (JoinKidsClubScreen → "Join on the web" → passitup.com). This
+// screen has NO in-app caller; it is reachable ONLY via a legacy deep link
+// ('/subscription/payment') or a legacy push payload. Do NOT add new navigation.
+// Removal requires cleaning the AppNavigator route + navigation/types.ts entry + the
+// deepLink.ts '/subscription/payment' and 'SubscriptionPayment' mappings.
 
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';

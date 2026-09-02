@@ -21,7 +21,8 @@ import {
 } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
-import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
+import { useTrialEligibility } from '@/hooks/useTrialEligibility';
+import { MY_SUBSCRIPTION_BENEFITS, TRIAL_MARKETING_BENEFIT } from '@/constants/subscriptionPlans';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -49,6 +50,9 @@ export default function MySubscriptionScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { subscription, loading } = useSubscription();
   const { user } = useAuth();
+  // Trial benefit line is shown only when admin_config.trial_enabled=true
+  // (QA Task 20 F-3 — no "free trial" claim while trials are disabled).
+  const { trialEnabled } = useTrialEligibility();
 
   if (loading) {
     return (
@@ -70,6 +74,10 @@ export default function MySubscriptionScreen() {
   // not the current billing period start (which resets monthly) and not the
   // subscription row's created_at (which is set at signup for all users anyway).
   const memberSince = formatRenewalDate(user?.created_at);
+
+  const membershipBenefits = trialEnabled
+    ? [...MY_SUBSCRIPTION_BENEFITS, TRIAL_MARKETING_BENEFIT]
+    : MY_SUBSCRIPTION_BENEFITS;
 
   const handleUpgrade = () => {
     navigation.navigate('UpgradePlan');
@@ -211,7 +219,7 @@ export default function MySubscriptionScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.benefitsCard}>
-              {MY_SUBSCRIPTION_BENEFITS.map((benefit, index) => (
+              {membershipBenefits.map((benefit, index) => (
                 <View key={index} style={styles.benefitRow} testID={`benefit-${index}`}>
                   <View style={styles.checkIcon}>
                     <CheckCircle size={18} color="#5DBB8E" weight="fill" />

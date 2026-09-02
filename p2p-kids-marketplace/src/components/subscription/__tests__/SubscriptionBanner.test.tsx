@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SubscriptionBanner } from '../SubscriptionBanner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +12,12 @@ import { useNavigation } from '@react-navigation/native';
 // Mock dependencies
 jest.mock('@/hooks/useSubscription');
 jest.mock('@react-navigation/native');
+// Trial is admin-config-gated (QA Task 20 F-3): default OFF so the free-user CTA
+// is "Join Kids Club+". Flip isTrialEnabled to true to test the trial CTA path.
+jest.mock('@/services/adminConfig', () => ({
+  isTrialEnabled: jest.fn().mockResolvedValue(false),
+  getTrialDays: jest.fn().mockResolvedValue(30),
+}));
 
 const mockUseSubscription = useSubscription as jest.MockedFunction<typeof useSubscription>;
 const mockUseNavigation = useNavigation as jest.MockedFunction<typeof useNavigation>;
@@ -20,6 +26,10 @@ const mockNavigate = jest.fn();
 describe('SubscriptionBanner', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset the trial gate mock to OFF (clearAllMocks keeps implementations).
+    const adminConfigMock = jest.requireMock('@/services/adminConfig');
+    adminConfigMock.isTrialEnabled.mockResolvedValue(false);
+    adminConfigMock.getTrialDays.mockResolvedValue(30);
     mockUseNavigation.mockReturnValue({ navigate: mockNavigate } as any);
   });
 
@@ -61,7 +71,23 @@ describe('SubscriptionBanner', () => {
 
     expect(getByText('Kids Club+')).toBeTruthy();
     expect(getByText(/Unlock Swap Points and lower fees/)).toBeTruthy();
-    expect(getByText('Start Free Trial')).toBeTruthy();
+    expect(getByText('Join Kids Club+')).toBeTruthy();
+  });
+
+  it('should show Start Free Trial CTA when trial_enabled=true (config flip)', async () => {
+    const adminConfigMock = jest.requireMock('@/services/adminConfig');
+    adminConfigMock.isTrialEnabled.mockResolvedValue(true);
+    mockUseSubscription.mockReturnValue({
+      subscription: { status: 'free' } as any,
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    const { getByText } = render(<SubscriptionBanner />);
+
+    // Hook resolves trial_enabled=true asynchronously -> trial CTA returns.
+    await waitFor(() => expect(getByText('Start Free Trial')).toBeTruthy());
   });
 
   it('should render for trial user with correct message', () => {
@@ -116,7 +142,7 @@ describe('SubscriptionBanner', () => {
 
     const { getByText } = render(<SubscriptionBanner />);
 
-    fireEvent.press(getByText('Start Free Trial'));
+    fireEvent.press(getByText('Join Kids Club+'));
 
     expect(mockNavigate).toHaveBeenCalledWith('JoinKidsClub');
   });
@@ -162,6 +188,6 @@ describe('SubscriptionBanner', () => {
     const { getByText } = render(<SubscriptionBanner />);
 
     expect(getByText(/Unlock Swap Points/)).toBeTruthy();
-    expect(getByText('Start Free Trial')).toBeTruthy();
+    expect(getByText('Join Kids Club+')).toBeTruthy();
   });
 });

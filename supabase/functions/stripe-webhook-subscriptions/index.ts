@@ -714,9 +714,56 @@ async function handleSubscriptionCreated(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: compute the DB period-window advance for a successful renewal invoice
+// (DEV-TASK-88, 2026-09-02). Stripe reports NULL current_period_* on the
+// subscription object in this environment, so the renewal invoice line period is
+// the authoritative next window. Returns null (no advance) when the invoice has
+// no line period, or when the renewal end is NOT later than the stored end
+// (forward-only, so replays / out-of-order events never regress the DB).
+// ─────────────────────────────────────────────────────────────────────────────
+function computePeriodAdvance(
+  existingEndIso: string | null,
+  renewalStartSec: number | null | undefined,
+  renewalEndSec: number | null | undefined,
+): Record<string, unknown> | null {
+  if (!renewalEndSec || !Number.isFinite(renewalEndSec) || renewalEndSec <= 0) {
+    return null;
+  }
+
+  const existingEndMs = existingEndIso ? Date.parse(existingEndIso) : NaN;
+  const nextEndMs = renewalEndSec * 1000;
+
+  if (Number.isFinite(existingEndMs) && nextEndMs <= existingEndMs) {
+    return null; // forward-only
+  }
+
+  const payload: Record<string, unknown> = {
+    current_period_end: new Date(nextEndMs).toISOString(),
+    next_billing_date: new Date(nextEndMs).toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (renewalStartSec && Number.isFinite(renewalStartSec) && renewalStartSec > 0) {
+    payload.current_period_start = new Date(renewalStartSec * 1000).toISOString();
+  }
+
+  return payload;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Handler: invoice.payment_succeeded (R7 — renewal success)
-// Resets the payment retry counter, records a billing_history row, and restores
-// status back to 'active' if a prior failure had pushed the account to grace.
+// Resets the payment retry counter, records a billing_history row, restores
+// status back to 'active' if a prior failure had pushed the account to grace,
+// and ADVANCES the subscription's period window (current_period_start/end +
+// next_billing_date) from the renewal invoice's line period.
+//
+// DEV-TASK-88 (2026-09-02): Stripe reports NULL current_period_* on the
+// subscription object for the accounts/subs in this environment (verified
+// systemic: all subs on the Stripe account returned current_period_start/end
+// = null even after paid renewals), so customer.subscription.updated can never
+// advance the DB period window. The renewal invoice line period IS populated,
+// so this handler is the reliable renewal-advance path. It is also the sole
+// writer of renewal billing_history rows.
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleInvoicePaymentSucceeded(
   supabase: any,
@@ -726,12 +773,12 @@ async function handleInvoicePaymentSucceeded(
   const stripeSubId = typeof invoice.subscription === 'string' ? invoice.subscription : null;
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : null;
 
-  let sub: { id: string; user_id: string; status: string } | null = null;
+  let sub: { id: string; user_id: string; status: string; current_period_end: string | null } | null = null;
 
   if (stripeSubId) {
     const primary = await supabase
       .from('subscriptions')
-      .select('id, user_id, status')
+      .select('id, user_id, status, current_period_end')
       .eq('stripe_subscription_id', stripeSubId)
       .maybeSingle();
     sub = primary.data;
@@ -740,7 +787,7 @@ async function handleInvoicePaymentSucceeded(
   if (!sub && stripeCustomerId) {
     const fallback = await supabase
       .from('subscriptions')
-      .select('id, user_id, status')
+      .select('id, user_id, status, current_period_end')
       .eq('stripe_customer_id', stripeCustomerId)
       .maybeSingle();
     if (!fallback.error && fallback.data) {
@@ -787,6 +834,43 @@ async function handleInvoicePaymentSucceeded(
   );
   if (billingError) {
     console.error(`[stripe-webhook-subscriptions] invoice.payment_succeeded: billing_history insert failed`, billingError);
+  }
+
+  // ── DEV-TASK-88: Advance the DB period window from the renewal invoice ──────
+  // Stripe reports NULL current_period_start/current_period_end on the
+  // subscription object for this environment's subs (systemic — verified), so
+  // customer.subscription.updated can never advance the DB. The renewal
+  // invoice's line period IS populated (verified: in_1U92cw line period start
+  // 2026-08-27 / end 2026-09-27) and is the authoritative next period. Advance
+  // current_period_start/end + next_billing_date FORWARD ONLY (never regress),
+  // so replays/out-of-order events are idempotent.
+  const renewalLine = invoice.lines?.data?.[0];
+  const periodAdvance = computePeriodAdvance(
+    sub.current_period_end,
+    renewalLine?.period?.start,
+    renewalLine?.period?.end,
+  );
+
+  if (periodAdvance) {
+    const { error: periodError } = await supabase
+      .from('subscriptions')
+      .update(periodAdvance)
+      .eq('id', sub.id);
+
+    if (periodError) {
+      console.error(
+        `[stripe-webhook-subscriptions] invoice.payment_succeeded: period advance failed`,
+        periodError,
+      );
+    } else {
+      console.log(
+        `[stripe-webhook-subscriptions] invoice.payment_succeeded: advanced period user=${sub.user_id} end=${periodAdvance.current_period_end} event=${eventId}`,
+      );
+    }
+  } else {
+    console.log(
+      `[stripe-webhook-subscriptions] invoice.payment_succeeded: no period advance for invoice=${invoice.id}`,
+    );
   }
 
   // If a previous failure had pushed the account into grace/cancel, a successful
@@ -889,12 +973,41 @@ async function sendSubscriptionWelcomeNotification(userId: string, isTrial: bool
   }
 
   try {
+    // QA Task 20 F-2 (fee copy) / F-3 (trial copy): build the welcome body from
+    // live admin_config so it can't drift from the charged fee again.
+    //   fee:       buyer_fee_active_member_cents (149 default = seed canonical)
+    //   trial days: trial_period_days (only meaningful when a trial is actually
+    //               running — Stripe status 'trialing' reaches this branch).
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    let flatFeeCents = 149;
+    let trialDays = 30;
+    const { data: feeCfg } = await supabase
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'buyer_fee_active_member_cents')
+      .eq('is_active', true)
+      .maybeSingle<{ value: string | null }>();
+    if (feeCfg?.value != null) {
+      const parsedFee = Number(feeCfg.value);
+      if (Number.isFinite(parsedFee) && parsedFee >= 0) flatFeeCents = Math.round(parsedFee);
+    }
+    const { data: trialCfg } = await supabase
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'trial_period_days')
+      .eq('is_active', true)
+      .maybeSingle<{ value: string | null }>();
+    if (trialCfg?.value != null) {
+      const parsedTrial = Number(trialCfg.value);
+      if (Number.isFinite(parsedTrial) && parsedTrial > 0) trialDays = Math.round(parsedTrial);
+    }
+
+    const flatFee = `$${(flatFeeCents / 100).toFixed(2)}`;
     const title = isTrial ? 'Welcome to Kids Club+ 🎉' : 'You\'re a Kids Club+ member 🎉';
     const body = isTrial
-      ? 'Your 30-day free trial has started. Earn Swap Points and enjoy the $1.49 flat fee — no charge until your trial ends.'
-      : 'Your membership is active. Earn Swap Points on sales and pay the $1.49 flat fee instead of the free-user percentage fee.';
+      ? `Your ${trialDays}-day free trial has started. Earn Swap Points and enjoy the ${flatFee} flat fee — no charge until your trial ends.`
+      : `Your membership is active. Earn Swap Points on sales and pay the ${flatFee} flat fee instead of the free-user percentage fee.`;
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { error } = await supabase.from('user_notifications').insert({
       user_id: userId,
       category: 'subscription',

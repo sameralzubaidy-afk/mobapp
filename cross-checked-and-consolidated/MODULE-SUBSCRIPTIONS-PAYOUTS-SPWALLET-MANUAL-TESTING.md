@@ -2,7 +2,7 @@
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-10 SP Wallet Read · FLOW-11 SP Earn/Spend/Cap · FLOW-12 Subscriptions · FLOW-12A Subscription Payment (Stripe) · FLOW-17 Subscription Event Notifications · FLOW-22 Seller Payouts · FLOW-23 Payout Method Verification · FLOW-25 Manual Payout Admin · FLOW-26 Webhook Processing & Verification · FLOW-30 SP Wallet Admin Ops)
 **Tasks covered:** Subscription Lifecycle (plans, comparison, trial, payment, manage, cancel, renew, grace, expiry, billing history) · Seller Payouts & Withdrawals (dashboard, methods, verification, request, earnings) · SP Wallet & Transaction History (balance, earn, expiry, ledger, billing) · Provider webhook reconciliation for subscription and payout state changes
-**Last updated:** 2026-05-30
+**Last updated:** 2026-09-02 (guide-currency audit v2: retired the removed in-app subscription-purchase Group B and renewal D02/D04 to the web-first Web Subscription Purchase E2E; rewrote Groups F/G05/H to the live PayoutSettingsScreen; re-homed D06/D07 + flagged E04 fixture-gated; webhook Group L now cross-references QA Task 20 scope-3 server verification)
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -17,19 +17,19 @@
 | | SUB-TC-A03 | Dynamic pricing & fees pulled from admin config |
 | | SUB-TC-A04 | Current plan reflected (button disabled / "Current Plan") |
 | | SUB-TC-A05 | Kids Club+ Overview screen by subscription status |
-| **B — Start Trial & Payment** | SUB-TC-B01 | Start free trial from Plans → payment screen |
-| | SUB-TC-B02 | Payment screen benefits + pricing + "Due today $0.00" (trial) |
-| | SUB-TC-B03 | Complete Stripe payment → Success screen |
-| | SUB-TC-B04 | Trial already used — blocked with support/subscribe options |
-| | SUB-TC-B05 | Trial disabled globally — Free tier only |
-| | SUB-TC-B06 | Continue Kids Club+ (mid-trial) urgency + benefits |
-| | SUB-TC-B07 | Referred user warned about bonus loss before choosing Free |
-| | SUB-TC-B08 | Admin changes trial-limit config → trial CTA updates |
-| | SUB-TC-B09 | Cancel Stripe payment sheet — no error, retry available |
-| | SUB-TC-B10 | Card declined — clear error + retry |
-| | SUB-TC-B11 | Re-subscribe reuses saved payment method (1-click) |
-| | SUB-TC-B12 | Network error during payment — retry succeeds |
-| | SUB-TC-B13 | Apple Pay / Google Pay payment |
+| **B — Start Trial & Payment 🔴 (retired — web-first)** | SUB-TC-B01 | 🔴 RETIRED — in-app payment removed; web-first → SUB-TC-N01/N02 + Web Subscription Purchase E2E (QA Task 20) |
+| | SUB-TC-B02 | 🔴 RETIRED — in-app payment screen removed; coverage → Web Subscription Purchase E2E (QA Task 20) |
+| | SUB-TC-B03 | 🔴 RETIRED — in-app Success screen removed; coverage → Web Subscription Purchase E2E (QA Task 20) |
+| | SUB-TC-B04 | 🔴 RETIRED — in-app trial-gating removed; server-side trial config → QA Task 20 finding F-3 |
+| | SUB-TC-B05 | 🔴 RETIRED — in-app trial-disabled alert removed; coverage → QA Task 20 finding F-3 |
+| | SUB-TC-B06 | 🔴 RETIRED — ContinueKidsClub is deep-link-only; see SUB-TC-N03–N06 |
+| | SUB-TC-B07 | 🔴 RETIRED — referral bonus-loss warning on removed Subscription Choice; see SUB-TC-N03 |
+| | SUB-TC-B08 | 🔴 RETIRED — in-app trial-limit CTA removed; config reflection → SUB-TC-R05 |
+| | SUB-TC-B09 | 🔴 RETIRED — in-app Stripe sheet removed; checkout UX → QA Task 20 scope 2 |
+| | SUB-TC-B10 | 🔴 RETIRED — in-app decline handling removed; checkout decline → QA Task 20 scope 2 |
+| | SUB-TC-B11 | 🔴 RETIRED — in-app saved-card resub removed; cards on file → Group M |
+| | SUB-TC-B12 | 🔴 RETIRED — in-app payment network-error path removed; → QA Task 20 scope 2 |
+| | SUB-TC-B13 | 🔴 RETIRED — in-app Apple/Google Pay removed; web wallet-pay → QA Task 20 scope 2 |
 | **C — Manage & Cancel** | SUB-TC-C01 | My Subscription screen — paid member view |
 | | SUB-TC-C02 | My Subscription quick menu (Billing / Payment / Help) |
 | | SUB-TC-C03 | Manage Kids Club+ — status, next billing, days remaining |
@@ -43,41 +43,41 @@
 | | SUB-TC-C11 | My Subscription "Learn More" link |
 | | SUB-TC-C12 | My Subscription "Member Since" value (latent bug) |
 | **D — Renewal, Grace & Expiry** | SUB-TC-D01 | Grace period banner + SP wallet frozen warning |
-| | SUB-TC-D02 | Re-subscribe from grace period |
+| | SUB-TC-D02 | 🔴 RETIRED — in-app re-subscribe payment removed; web-first → SUB-TC-N01/N02 + Web E2E |
 | | SUB-TC-D03 | Subscription Expired screen — benefits lost + Renew |
-| | SUB-TC-D04 | Renew (isRenewal) — payment screen "Due today" = full price |
+| | SUB-TC-D04 | 🔴 RETIRED — in-app renewal payment removed; web-first → SUB-TC-N01/N02 + Web E2E |
 | | SUB-TC-D05 | Reactivate from cancelled state |
-| | SUB-TC-D06 | Subscription event notifications (trial reminders, renewal, failure) |
-| | SUB-TC-D07 | Grace reminder notifications follow configured thresholds |
+| | SUB-TC-D06 | 📦 moved to Fixture-Gated Backlog (clock/push fixture) |
+| | SUB-TC-D07 | 📦 moved to Fixture-Gated Backlog (clock/push fixture) |
 | **E — Billing History & Status** | SUB-TC-E01 | Billing History list — records, status badges, amounts |
 | | SUB-TC-E02 | Billing History empty state |
 | | SUB-TC-E03 | Failed charge shows error message |
-| | SUB-TC-E04 | Subscription Status screen — Stripe IDs + period + retries |
-| **F — Payout Dashboard & Earnings** | SUB-TC-F01 | Payout Dashboard hero (SP balance + AUD equivalent) |
-| | SUB-TC-F02 | Payout method section (add vs existing) |
-| | SUB-TC-F03 | Payout history list (completed / pending) |
-| | SUB-TC-F04 | Seller Earnings screen — totals, pending, payout breakdown |
-| | SUB-TC-F05 | Seller Earnings empty state |
-| | SUB-TC-F06 | Pending earnings release follows admin-configured delay |
-| | SUB-TC-F07 | Seller Earnings error state + Retry |
-| | SUB-TC-F08 | Seller Earnings Load More pagination |
+| | SUB-TC-E04 | ⏸ FIXTURE-GATED (push-payload) — Subscription Status screen diagnostics |
+| **F — Payout Settings (live surface) 🔄** | SUB-TC-F01 | Payout Settings hero — Available / Pending / Lifetime Earned (live) |
+| | SUB-TC-F02 | Payout method section (add vs existing) — live |
+| | SUB-TC-F03 | Payout history list (completed / pending) — live |
+| | SUB-TC-F04 | Earnings figures (Available/Pending/Lifetime) + history net/fee — live |
+| | SUB-TC-F05 | Payout history empty state — live |
+| | SUB-TC-F06 | Pending earnings figure follows admin release timing — live |
+| | SUB-TC-F07 | Payout load error + recovery — live |
+| | SUB-TC-F08 | Payout history Load More pagination (+5) — live |
 | **G — Payout Methods & Verification** | SUB-TC-G01 | Add Stripe Connect payout method (onboarding) |
-| | SUB-TC-G02 | Add PayPal / Venmo payout method |
-| | SUB-TC-G03 | Add Bank ACH payout method |
+| | SUB-TC-G02 | 🚫 N/A — PayPal/Venmo unconfigured provider (UI lists, not drivable) |
+| | SUB-TC-G03 | 🚫 N/A — Bank ACH unconfigured / no UI option |
 | | SUB-TC-G04 | Set primary method / delete method (confirmation) |
-| | SUB-TC-G05 | Unverified method blocks payout |
+| | SUB-TC-G05 | Unverified method blocks payout (live: cannot set primary / withdraw) |
 | | SUB-TC-G06 | requires_action payout → "Set Up Payout Method" |
 | | SUB-TC-G07 | Payout Settings — "Edit Details" sheet |
 | | SUB-TC-G08 | "Cannot Delete Primary/Only Method" guard |
 | | SUB-TC-G09 | "Cannot Set as Primary" (unverified) guard |
 | | SUB-TC-G10 | Payout history Load More |
 | | SUB-TC-G11 | NoMethodModal flow |
-| **H — Request & Withdraw** | SUB-TC-H01 | Request Payout — amount validation vs available |
-| | SUB-TC-H02 | Fee + net summary by method type |
-| | SUB-TC-H03 | Confirm Payout success |
-| | SUB-TC-H04 | Request blocked when no method / unverified |
-| | SUB-TC-H05 | Withdraw Now from Payout Settings hero |
-| | SUB-TC-H06 | Admin minimum withdrawal blocks smaller payouts |
+| **H — Request & Withdraw 🔄 (live)** | SUB-TC-H01 | Withdraw Now — no-balance guard (amount entry removed) |
+| | SUB-TC-H02 | WithdrawModal summary — Available / Payout Fee / You'll Receive |
+| | SUB-TC-H03 | Confirm Withdrawal success |
+| | SUB-TC-H04 | Withdraw blocked when no verified primary method |
+| | SUB-TC-H05 | Withdraw Now from Payout Settings hero (verified template) |
+| | SUB-TC-H06 | Admin minimum withdrawal blocks full-balance requests below the floor |
 | | SUB-TC-H07 | Minimum withdrawal disabled when config = 0 |
 | **I — SP Wallet Balance & Earn** | SUB-TC-I01 | SP Wallet hero balance + lifetime stats |
 | | SUB-TC-I02 | Quick actions (Shop / Sell / History) |
@@ -94,11 +94,11 @@
 | | SUB-TC-J04 | Pull-to-refresh updates ledger |
 | **K — Transaction / Billing History (Profile)** | SUB-TC-K01 | Transaction History list + status badges |
 | | SUB-TC-K02 | Transaction History empty + error/retry |
-| **L — Webhooks & Reconciliation** | SUB-TC-L01 | Renewal webhook updates billing history and member state |
-| | SUB-TC-L02 | Payment-failed webhook moves subscription into retry / grace state |
-| | SUB-TC-L03 | Invalid webhook signature is rejected with no duplicate state change |
-| | SUB-TC-L04 | Duplicate webhook delivery is idempotent |
-| | SUB-TC-L05 | Payout-status webhook updates seller payout history |
+| **L — Webhooks & Reconciliation 🔄** | SUB-TC-L01 | Renewal webhook — server-verified in Web Subscription Purchase E2E (QA Task 20 scope 3) |
+| | SUB-TC-L02 | Payment-failed webhook → retry/grace — server-verified (QA Task 20 scope 3) |
+| | SUB-TC-L03 | Invalid webhook signature rejected — server-verified (QA Task 20 scope 3) |
+| | SUB-TC-L04 | Duplicate webhook delivery idempotent — server-verified (QA Task 20 scope 3) |
+| | SUB-TC-L05 | Payout-status webhook updates seller payout history (payout domain) |
 | **M — Payment Methods (Card on File)** | SUB-TC-M01 | Payment Methods — loading state |
 | | SUB-TC-M02 | Empty state + Add Payment Method (Stripe sheet) |
 | | SUB-TC-M03 | Saved-card display + security banner |
@@ -236,224 +236,109 @@
 
 ---
 
-## Group B — Start Trial & Payment
+## Group B — Start Trial & Payment — 🔴 RETIRED (web-first)
 
-### SUB-TC-B01 · Start free trial from Plans → payment screen
+> 🔴 **Group retired 2026-09-02 — in-app subscription purchase removed; membership is web-first.** The in-app Stripe purchase flow (`SubscriptionPaymentScreen`/`SubscriptionSuccessScreen`) is gone; all join CTAs route to `JoinKidsClubScreen` → **Join on the web** (passitup.com). Each case below is a **RETIRED** stub cross-referencing where its intent now lives: the live join surface (**SUB-TC-N01/N02**) and the **Web Subscription Purchase E2E** (QA Task 20: `e2e-test-results/qa-task20-web-sub-e2e-2026-09-02/report.md`). The full web purchase journey is **not drivable today** (no `subscription_tiers.stripe_price_id` → `CONFIG_UNAVAILABLE`; local web `SUBSCRIPTION_DEV_MODE=true`) — re-run only after QA Task 20's unblock recipe.
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen
-**Actors:** test-free (trial available)
+### SUB-TC-B01 · Start free trial from Plans → payment screen — 🔴 RETIRED (web-first)
 
-**Objective:** Verify tapping Start Trial routes to the payment screen with trial context.
-
-**Steps:**
-1. As **test-free**, open Plans and tap **[Start {N}-day Trial]** on Kids Club+.
-
-**Expected Result:**
-- Navigates to the **Payment** screen with title "Join Kids Club+".
-- Sub-title "Unlock Swap Points and reduced fees".
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** tapping Start Trial → an in-app **Payment** screen (`SubscriptionPaymentScreen`), which no longer exists.
+> **Coverage now lives in:** **SUB-TC-N01/N02** (live join surface — `JoinKidsClubScreen` → "Join on the web") and the **Web Subscription Purchase E2E** (QA Task 20: `e2e-test-results/qa-task20-web-sub-e2e-2026-09-02/report.md` — scope 1 mobile-entry PASS, scope 2 web checkout). Re-run after QA Task 20's unblock recipe (Stripe Price link + non-DEV web target).
 
 ---
 
-### SUB-TC-B02 · Payment screen benefits + pricing + "Due today $0.00" (trial)
+### SUB-TC-B02 · Payment screen benefits + pricing + "Due today $0.00" (trial) — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen
-**Actors:** test-free
-
-**Objective:** Verify the payment screen content for a new trial.
-
-**Steps:**
-1. On the Payment screen (from SUB-TC-B01), review the benefits, pricing card, and totals.
-
-**Expected Result:**
-- "What you get:" lists four benefits: Earn & Spend Swap Points; Lower Transaction Fees (showing subscriber vs non-subscriber fee); Priority Matching; Early Access.
-- Pricing card: "Kids Club+ monthly membership" + monthly price, "First charge after trial ends", and a "{N}-day free trial" badge.
-- Payment method row shows "Secure checkout with Stripe".
-- **Due today** = **$0.00** (because it's a trial).
-- Terms text states automatic monthly billing, cancel anytime, no refunds for partial months.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** in-app payment-screen benefit/pricing/trial copy, which no longer exists.
+> **Coverage now lives in:** **SUB-TC-N01/N02** (live value-prop/benefit rows) and the **Web Subscription Purchase E2E** (QA Task 20 — scope 2 web checkout UI shell; note trial copy now conflicts with `trial_enabled=false`, and "$1.49 flat fee" benefit copy conflicts with live $1.00 config). Re-run after QA Task 20's unblock recipe.
 
 ---
 
-### SUB-TC-B03 · Complete Stripe payment → Success screen
+### SUB-TC-B03 · Complete Stripe payment → Success screen — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionSuccessScreen
-**Actors:** test-free
-
-**Objective:** Verify successful payment lands on the success screen and activates membership.
-
-**Steps:**
-1. On the Payment screen tap **[Subscribe to Kids Club+]** and complete the Stripe test sheet.
-
-**Expected Result:**
-- Success screen animates in: "You're now a Kids Club+ member!" with sub-title "Your subscription is now active. Let's get started!".
-- Three benefit chips: "Earn and spend PIPs", "Low Fees", "Save Together".
-- **[Start Exploring]** resets navigation to Discover.
-- Re-opening My Subscription shows status Trial/Active.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** completing an in-app Stripe sheet → an in-app Success screen, which no longer exists (`SubscriptionSuccessScreen` has no caller).
+> **Coverage now lives in:** the **Web Subscription Purchase E2E** (QA Task 20 — web success page "🎉 You're all set!" + deep link `p2pkidsmarketplace://my-subscription`) and **SUB-TC-N01/N02** (live join + return-to-app). Re-run after QA Task 20's unblock recipe.
 
 ---
 
-### SUB-TC-B04 · Trial already used — blocked with support/subscribe options
+### SUB-TC-B04 · Trial already used — blocked with support/subscribe options — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12 · trial limit
-**Actors:** test-free-2 (`can_start_trial = false`)
-
-**Objective:** Verify a user who already used their trial cannot start another.
-
-**Steps:**
-1. As **test-free-2**, attempt to start a trial from Plans / Continue Kids Club+ / Subscription Choice.
-
-**Expected Result:**
-- An alert "You've already used your free trial" appears with options to contact support or subscribe directly (no second free trial granted).
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** an in-app trial-eligibility block alert, tied to the removed Plans/Subscription Choice surfaces.
+> **Coverage now lives in:** trial handling is server-side config (`admin_config.trial_enabled=false`); the **Web Subscription Purchase E2E** finding F-3 (trial terms inconsistency) documents that the checkout EF derives trial days from the tier without consulting `trial_enabled`. No live in-app trial-gating screen to test. Re-run after QA Task 20's unblock recipe.
 
 ---
 
-### SUB-TC-B05 · Trial disabled globally — Free tier only
+### SUB-TC-B05 · Trial disabled globally — Free tier only — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12 · admin `isTrialEnabled`
-**Actors:** test-admin + test-free
-
-**Objective:** Verify disabling trials hides/blocks the trial path.
-
-**Steps:**
-1. As **test-admin**, disable trial subscriptions in config.
-2. As **test-free**, open Subscription Choice / Continue Kids Club+.
-
-**Expected Result:**
-- An alert states "Trial subscription is not currently available. Please choose Free Tier." (or the trial CTA is hidden), and only the Free path proceeds.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** an in-app "trial disabled" alert on the removed Subscription Choice / Continue Kids Club+ surfaces.
+> **Coverage now lives in:** `trial_enabled` is server-side config; the **Web Subscription Purchase E2E** finding F-3 documents that the checkout EF does not honor `trial_enabled`. No live in-app path to test. Re-run after QA Task 20's unblock recipe.
 
 ---
 
-### SUB-TC-B06 · Continue Kids Club+ (mid-trial) urgency + benefits
+### SUB-TC-B06 · Continue Kids Club+ (mid-trial) urgency + benefits — 🔴 RETIRED (web-first)
 
-> ⚠️ **Needs re-verification (2026-08-12):** The exact phrase "{N} days left in trial" was not found in the source — verify the actual days-remaining badge wording.
-
-**Ref:** FLOW-12 · ContinueKidsClubScreen
-**Actors:** test-trial (mid-trial)
-
-**Objective:** Verify the Continue screen shows trial countdown and premium benefits.
-
-**Steps:**
-1. As **test-trial**, open **Continue Kids Club+**.
-
-**Expected Result:**
-- Title "Continue Kids Club+" with the 🚀 emoji.
-- A days-remaining badge ("{N} days left in trial", orange) when the trial is ending soon.
-- Five benefit rows (Earn & spend Swap Points; Priority listing visibility; Donation option; Advanced trading insights; Exclusive badges).
-- Pricing card with monthly price + "Cancel anytime".
-- Fine print explains the first charge happens when the trial ends, cancel anytime to avoid charges.
-- **[Maybe later]** returns without subscribing.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** the ContinueKidsClubScreen mid-trial urgency view. `ContinueKidsClubScreen` still exists but is **deep-link-only** (its `navigate()` callers live in the unregistered `SubscriptionChoiceScreen`); see **SUB-TC-N03/N04/N05/N06** for route-alias reachability notes.
+> **Coverage now lives in:** **SUB-TC-N01/N02** (live join surface) + the **Web Subscription Purchase E2E** (QA Task 20).
 
 ---
 
-### SUB-TC-B07 · Referred user warned about bonus loss before choosing Free
+### SUB-TC-B07 · Referred user warned about bonus loss before choosing Free — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-13 referrals × FLOW-12
-**Actors:** A referred new user during onboarding (SubscriptionChoiceScreen)
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** a referred-user bonus-loss warning on the removed Subscription Choice surface (which is unregistered; see **SUB-TC-N03**).
+> **Coverage now lives in:** the **Web Subscription Purchase E2E** (QA Task 20) — the referral→Free downgrade path is not part of the web-first join journey; no live in-app Subscription Choice to test.
 
-**Objective:** Verify a referred user is warned before downgrading to Free.
+### SUB-TC-B08 · Admin changes trial-limit config and the trial CTA updates — 🔴 RETIRED (web-first)
 
-**Steps:**
-1. Sign up via a referral code, reach **Subscription Choice** in onboarding, and tap the Free tier option.
-
-**Expected Result:**
-- A "Wait! Potential Bonus Loss" alert warns about losing the sign-up bonus before the Free choice is confirmed.
-- Confirming proceeds to Free (profile_completed = true); cancelling keeps the trial choice available.
-
-### SUB-TC-B08 · Admin changes trial-limit config and the trial CTA updates
-
-**Ref:** FLOW-12 · `max_trial_uses`
-**Actors:** test-admin + test-free-2
-
-**Objective:** Verify changing the trial-limit config updates eligibility without an app rebuild.
-
-**Steps:**
-1. As **test-admin**, open **/config**, set `max_trial_uses` to `0`, and save.
-2. As **test-free-2** (the exhausted-trial user from SUB-TC-B04), reopen **Subscription Choice** / **Plans**.
-3. Set `max_trial_uses` back to `1` and reload the same screens.
-
-**Expected Result:**
-- With `max_trial_uses = 0`, the previously blocked user sees the trial CTA enabled again because the limit is now unlimited.
-- Restoring the limit removes the CTA again for the exhausted user on next load.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** an in-app trial CTA reacting to an admin trial-limit config — tied to the removed Plans/Subscription Choice surfaces.
+> **Coverage now lives in:** trial/eligibility is server-side (`admin_config.trial_enabled`); **SUB-TC-R05** still covers config-change reflection on live surfaces. Re-run after QA Task 20's unblock recipe.
 
 ---
 
-### SUB-TC-B09 · Cancel Stripe payment sheet — no error, retry available
+### SUB-TC-B09 · Cancel Stripe payment sheet — no error, retry available — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen
-**Actors:** test-free
-
-**Objective:** Verify cancelling the Stripe sheet is a non-error path.
-
-**Steps:**
-1. Open the payment screen and tap **[Subscribe]**.
-2. Tap ✕ / Cancel in the Payment Sheet header.
-
-**Expected Result:**
-- Sheet closes; no error alert shown; user stays on the payment screen and the Subscribe button is immediately tappable again.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** cancelling an in-app Stripe Payment Sheet on the removed SubscriptionPaymentScreen.
+> **Coverage now lives in:** hosted **Stripe Checkout** (web) owns payment-sheet UX; the **Web Subscription Purchase E2E** (QA Task 20 — scope 2) covers the checkout surface when unblocked. No live in-app sheet to cancel.
 
 ---
 
-### SUB-TC-B10 · Card declined — clear error + retry
+### SUB-TC-B10 · Card declined — clear error + retry — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen
-**Actors:** test-free (declining test card `4000 0000 0000 0002`)
-
-**Objective:** Verify decline detection and a clear error.
-
-**Steps:**
-1. Enter the declining card and attempt to subscribe.
-2. Close the sheet and review the alert.
-
-**Expected Result:**
-- The sheet surfaces "Your card was declined"; an app alert "Payment Error — Unable to process payment" appears; the user remains on the payment screen and can retry with a valid card.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** declined-card handling on the removed in-app payment sheet.
+> **Coverage now lives in:** **Stripe-hosted Checkout** decline UX (web); the **Web Subscription Purchase E2E** (QA Task 20 — scope 2) lists the declined-card leg as not-yet-reachable (blocked by no `stripe_price_id`). Re-run after QA Task 20's unblock recipe.
 
 ---
 
-### SUB-TC-B11 · Re-subscribe reuses saved payment method (1-click)
+### SUB-TC-B11 · Re-subscribe reuses saved payment method (1-click) — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen (isRenewal)
-**Actors:** test-grace (with a saved method)
-
-**Objective:** Verify saved-card pre-selection for re-subscribe.
-
-**Steps:**
-1. From grace, tap **[Re-subscribe Now]**.
-2. Review the Payment Sheet.
-3. Tap **[Subscribe]** without re-entering card details.
-
-**Expected Result:**
-- The sheet pre-selects the saved method (e.g., "Visa •••• 4242"); no re-entry required; success restores Active.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** saved-card reuse on the removed in-app re-subscribe payment screen.
+> **Coverage now lives in:** saved payment methods live in **Group M / SUB-TC-C05** (card on file) and Stripe Checkout (web) handles method reuse; the **Web Subscription Purchase E2E** (QA Task 20 — scope 2) covers checkout. No live in-app re-subscribe sheet.
 
 ---
 
-### SUB-TC-B12 · Network error during payment — retry succeeds
+### SUB-TC-B12 · Network error during payment — retry succeeds — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen
-**Actors:** test-free
-
-**Objective:** Verify graceful network failure and recovery.
-
-**Steps:**
-1. Enable airplane mode and tap **[Subscribe]**; wait for timeout.
-2. Re-enable network and tap **[Subscribe]** again.
-
-**Expected Result:**
-- Error alert "Unable to process payment. Please check your connection."; after restoring connectivity the retry succeeds.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** network-failure handling on the removed in-app payment screen.
+> **Coverage now lives in:** the **Web Subscription Purchase E2E** (QA Task 20 — scope 2) owns checkout retry/robustness when the Stripe leg is unblocked. No live in-app payment screen.
 
 ---
 
-### SUB-TC-B13 · Apple Pay / Google Pay payment
+### SUB-TC-B13 · Apple Pay / Google Pay payment — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen
-**Actors:** test-free
-
-**Objective:** Verify wallet-pay entry points.
-
-**Steps:**
-1. Open the Payment Sheet and confirm Apple Pay (iOS) / Google Pay (Android) is visible.
-2. Complete wallet authentication.
-
-**Expected Result:**
-- The wallet option is visible; payment completes with the same success flow as card entry.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** Apple/Google Pay on the removed in-app payment sheet.
+> **Coverage now lives in:** the **Web Subscription Purchase E2E** (QA Task 20) — web checkout advertises "pay with a card, Apple Pay, or Google Pay"; wallet-pay leg is reachable only once the Stripe Checkout leg is unblocked. No live in-app sheet.
 
 ---
 
@@ -689,19 +574,11 @@
 
 ---
 
-### SUB-TC-D02 · Re-subscribe from grace period
+### SUB-TC-D02 · Re-subscribe from grace period — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen (isRenewal)
-**Actors:** test-grace
-
-**Objective:** Verify re-subscribing from grace restores the subscription and unlocks SP.
-
-**Steps:**
-1. As **test-grace**, tap **[Re-subscribe]** / **[Re-subscribe and Unlock SP]** and complete payment.
-
-**Expected Result:**
-- Payment screen title reads "Re-subscribe to Kids Club+" with **Due today** = the full monthly price (no trial badge).
-- After success, status returns to Active and the SP wallet warning banner clears (wallet usable again).
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** re-subscribing from grace via the removed in-app payment screen.
+> **Coverage now lives in:** **SUB-TC-N01/N02** (live join surface) + the **Web Subscription Purchase E2E** (QA Task 20). Grace-state messaging on the live app is covered by **SUB-TC-I05** (SP wallet grace banner). Re-run after QA Task 20's unblock recipe.
 
 ---
 
@@ -724,19 +601,11 @@
 
 ---
 
-### SUB-TC-D04 · Renew (isRenewal) — payment screen "Due today" = full price
+### SUB-TC-D04 · Renew (isRenewal) — payment screen "Due today" = full price — 🔴 RETIRED (web-first)
 
-**Ref:** FLOW-12A · SubscriptionPaymentScreen
-**Actors:** Expired/cancelled user renewing
-
-**Objective:** Verify renewal payment charges immediately (no trial).
-
-**Steps:**
-1. From Expired/Manage, tap **[Renew Plan]** and review the payment screen.
-
-**Expected Result:**
-- Title "Re-subscribe to Kids Club+", no "{N}-day free trial" badge, and **Due today** equals the full monthly price.
-- Success routes to the Success screen with the "Welcome back! Your subscription is active." copy.
+> 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
+> **What this case described:** renewal payment via the removed in-app payment screen.
+> **Coverage now lives in:** **SUB-TC-N01/N02** (live join surface) + the **Web Subscription Purchase E2E** (QA Task 20). The expired/grace entry state is covered by **SUB-TC-D03** (Subscription Expired screen) / **SUB-TC-D05** (reactivate from cancelled) as reachable. Re-run after QA Task 20's unblock recipe.
 
 ---
 
@@ -753,41 +622,7 @@
 **Expected Result:**
 - The subscription returns to Active without a new charge if still within the paid period; messaging confirms reactivation.
 
----
-
-### SUB-TC-D06 · Subscription event notifications (trial reminders, renewal, failure)
-
-**Ref:** FLOW-17 subscription event notifications
-**Actors:** test-trial, test-buyer
-
-**Objective:** Verify subscription lifecycle notifications fire at the right moments.
-
-**Steps:**
-1. Fast-forward the trial clock to 7/3/1 days before trial end (test-trial).
-2. Fast-forward to a successful renewal charge (test-buyer).
-3. Simulate a failed renewal charge.
-
-**Expected Result:**
-- Trial reminder notifications are delivered at 7-day, 3-day, and 1-day marks.
-- A renewal-success notification is delivered on successful charge.
-- A payment-failure notification is delivered (and is treated as critical — bypasses quiet hours) prompting payment-method update.
-- A cancellation produces a cancellation-confirmation notification.
-
-### SUB-TC-D07 · Grace reminder notifications follow configured thresholds
-
-**Ref:** FLOW-17 × admin `grace_reminder_thresholds`
-**Actors:** test-admin + test-grace
-
-**Objective:** Verify grace reminder timing uses the admin-configured threshold array.
-
-**Steps:**
-1. As **test-admin**, set `grace_reminder_thresholds` to a distinct set such as `[30, 7, 1]` and save.
-2. Fast-forward a grace-period user to just above, then exactly at, each configured threshold.
-3. Check both push delivery and the in-app notification center after each threshold.
-
-**Expected Result:**
-- Reminder notifications are delivered at 30, 7, and 1 days remaining, with the correct days-left copy.
-- Thresholds removed from the config no longer fire after the change.
+> 📦 **SUB-TC-D06 · Subscription event notifications** and **SUB-TC-D07 · Grace reminder notifications** were **moved (2026-09-02) to the Fixture-Gated Backlog** at the end of this guide (clock/push-fixture dependent — not runnable on the live app without fast-forward tooling). Their full case bodies live there; see that section.
 
 ---
 
@@ -839,15 +674,17 @@
 
 ---
 
-### SUB-TC-E04 · Subscription Status screen — Stripe IDs + period + retries
+### SUB-TC-E04 · Subscription Status screen — Stripe IDs + period + retries — ⏸ FIXTURE-GATED (push-payload)
 
-**Ref:** FLOW-12 · SubscriptionStatusScreen
-**Actors:** test-admin / QA
+> ⏸ **FIXTURE-GATED (2026-09-02):** The **Subscription Status** screen (`SubscriptionStatusScreen`) is only reachable via a push-payload deep link — there is no in-app navigation entry. Executing this case requires a QA-driven push payload / fixture to land on the screen. Case body retained as written below; do not attempt via normal app navigation.
+
+**Ref:** FLOW-12 · SubscriptionStatusScreen (push-payload only)
+**Actors:** test-admin / QA (requires push-payload fixture)
 
 **Objective:** Verify the diagnostic status screen surfaces billing internals.
 
 **Steps:**
-1. Open the **Subscription Status** screen for a subscriber.
+1. Drive a push payload / deep link to the **Subscription Status** screen for a subscriber (fixture-gated entry).
 
 **Expected Result:**
 - Shows a status badge, Stripe customer & subscription IDs, billing period start/end + days remaining, next billing date, auto-renew flag, payment-failure retry count (max 3 before grace), grace-period info (if any) with the SP-freeze warning, trial end date, and last-updated timestamp.
@@ -855,131 +692,142 @@
 
 ---
 
-## Group F — Payout Dashboard & Earnings
+## Group F — Payout Settings (live surface)
 
-### SUB-TC-F01 · Payout Dashboard hero (SP balance + AUD equivalent)
+> 🔄 **Group rewritten 2026-09-02** to the **live** payout surface, `PayoutSettingsScreen` (route `PayoutSettings` — Dashboard **Payouts** tile). The former targets (`PayoutDashboardScreen`/`SellerEarningsScreen`) are **dead/unreachable**: `PayoutDashboard` is unregistered, and `SellerEarnings`' only caller was the dead dashboard. The live screen shows a balance hero (Available/Pending/Lifetime in **$**, not SP/AUD), a PAYOUT METHOD section, a PAYOUT HISTORY section with `Load More` (+5), and a **Withdraw Now** modal flow. Verified live in QA Task 19 (F02-adapted/H05 PASS).
 
-**Ref:** FLOW-22 · PayoutDashboardScreen
+### SUB-TC-F01 · Payout Settings hero — Available Balance, Pending, Lifetime Earned
+
+**Ref:** FLOW-22 · PayoutSettingsScreen (route `PayoutSettings`, Dashboard → **Payouts** tile)
 **Actors:** test-seller
 
-**Objective:** Verify the dashboard hero shows balance and currency equivalent.
+**Objective:** Verify the live balance hero shows the three seller-balance figures and the Withdraw Now CTA.
 
 **Steps:**
-1. As **test-seller**, open **Payouts**.
+1. As **test-seller**, open **Payout Settings** (Dashboard → Payouts).
 
 **Expected Result:**
-- Header "Payouts"; hero card shows a Coins icon, "SP Balance", "{spCount} SP", and an "≈ ${AUD} AUD" equivalent.
-- Hero CTA **[Request Payout]** is present.
+- Header reads "Payout Settings".
+- Hero card (`balance-hero-card`) shows "Available Balance" with the amount (`balance-amount`, **$** USD — not SP and no AUD equivalent), plus **Pending** (`balance-pending`) and **Lifetime Earned** (`balance-lifetime`) stats.
+- Hero CTA **[Withdraw Now]** (`request-payout-btn`) is present.
 
 ---
 
 ### SUB-TC-F02 · Payout method section (add vs existing)
 
-**Ref:** FLOW-22 / FLOW-23 · PayoutDashboardScreen
-**Actors:** test-seller (with method) + a seller without a method
+**Ref:** FLOW-22 / FLOW-23 · PayoutSettingsScreen
+**Actors:** test-seller (with a method) + a seller without a method
 
-**Objective:** Verify the method section reflects whether a method exists.
+**Objective:** Verify the PAYOUT METHOD section reflects whether a method exists.
 
 **Steps:**
-1. Open Payouts as a seller **with** a saved method, then as a seller **without** one.
+1. Open Payout Settings as a seller **with** a saved method.
+2. Open Payout Settings as a seller **without** one.
 
 **Expected Result:**
-- With method: shows a bank icon + method name + masked account (e.g., "Bank ••••1234"); tapping opens Payout Settings.
-- Without method: shows a "+ Add Bank Account" row; tapping opens the add flow.
+- With method: a method card (`method-card-{id}`) shows the provider name + account identifier + status badge; an "Add Another Method" row (`add-another-method-row`) follows.
+- Without method: an "Add Bank Account" row (`add-bank-row`) is shown; tapping it opens the Add Payout Method modal.
+- Tapping a method card opens the method bottom sheet (Set as Primary / Edit Details / Delete Method / Cancel).
 
 ---
 
 ### SUB-TC-F03 · Payout history list (completed / pending)
 
-**Ref:** FLOW-22 · PayoutDashboardScreen
+**Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller
 
-**Objective:** Verify the payout history rows render with status.
+**Objective:** Verify the PAYOUT HISTORY rows render with status.
 
 **Steps:**
-1. On Payouts, review the "PAYOUT HISTORY" section.
+1. On Payout Settings, review the "PAYOUT HISTORY" section.
 
 **Expected Result:**
-- Empty: "No payouts yet".
-- Populated: rows with a status icon (CheckCircle green / Clock orange), amount, date, and status text ("COMPLETED" / "PENDING").
-- Pull-to-refresh reloads.
+- Empty: "No payouts yet" (`empty-history`).
+- Populated: rows (`history-row-{id}`) with a status icon (green check for completed / orange clock for pending, processing, or requires_action), the net amount (`history-amount-{id}`), a formatted date, and a status label (`history-status-{id}`).
+- Rows with a payout fee show "Fee: {amount}"; rows with a failure reason show "⚠️ {reason}".
+- A **Load More** control appears when there are more rows than the initial page (starts at 5) and pulls the next 5.
+- Pull-to-refresh reloads and resets the list to the first 5.
 
 ---
 
-### SUB-TC-F04 · Seller Earnings screen — totals, pending, payout breakdown
+### SUB-TC-F04 · Earnings figures — Available / Pending / Lifetime (was Seller Earnings)
 
-**Ref:** FLOW-22 · SellerEarningsScreen
+**Ref:** FLOW-22 · PayoutSettingsScreen — replaces the unreachable `SellerEarningsScreen`
 **Actors:** test-seller
 
-**Objective:** Verify the earnings screen totals and per-payout breakdown.
+**Objective:** Verify the earnings totals and the per-payout net/fee figures on the live surface.
 
 **Steps:**
-1. As **test-seller**, open **My Earnings**.
+1. As **test-seller**, open Payout Settings and read the hero stats.
+2. Cross-check a completed payout row in PAYOUT HISTORY.
 
 **Expected Result:**
-- Two summary cards: "Total Earnings" and "Pending" (pending in orange).
-- Each payout card shows date, method, net amount, a status badge (ACTION REQUIRED / PENDING / PROCESSING / COMPLETED / FAILED with the documented colors), and a breakdown: Gross, Payout Fee (red), Platform Fee (if > 0).
-- Failed payouts show a "⚠️ {reason}" line; requires_action payouts show a **[Set Up Payout Method]** button.
+- Hero shows the three earnings figures: **Available Balance**, **Pending**, and **Lifetime Earned** (all $ USD).
+- Each payout row shows the **net amount** and, when applicable, "Fee: {amount}" — the payout breakdown (gross/platform fee cards from the old Seller Earnings screen) does not exist on the live surface.
+- A failed payout shows the failure reason line; a completed payout shows the completed state.
+- **Note:** the legacy per-payout status-color legend (ACTION REQUIRED / PENDING / PROCESSING / COMPLETED / FAILED) is now rendered as status *labels* on the history rows; verify against `formatPayoutStatus` colors.
 
 ---
 
-### SUB-TC-F05 · Seller Earnings empty state
+### SUB-TC-F05 · Payout history empty state (was Seller Earnings empty)
 
-**Ref:** FLOW-22 · SellerEarningsScreen
+**Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** A seller with no payouts
 
-**Objective:** Verify the earnings empty state.
+**Objective:** Verify the history empty state on the live surface.
 
 **Steps:**
-1. Open My Earnings as a seller with no completed payouts.
+1. Open Payout Settings as a seller with no payouts.
 
 **Expected Result:**
-- "No Earnings Yet" + "Complete trades to start earning and receiving payouts".
+- The PAYOUT HISTORY section shows "No payouts yet" (`empty-history`); there is no separate earnings empty state on the live surface.
 
-### SUB-TC-F06 · Pending earnings release follows admin-configured delay
+### SUB-TC-F06 · Pending earnings figure follows admin-configured release timing
 
-**Ref:** FLOW-22 × admin `pending_sp_release_days`
+**Ref:** FLOW-22 × admin `pending_sp_release_days` · PayoutSettingsScreen hero Pending stat
 **Actors:** test-admin + test-seller
 
-**Objective:** Verify the pending-release delay controls when completed trade earnings move from Pending to Available.
+**Objective:** Verify the hero **Pending** figure reflects the release delay before earnings move to Available.
 
 **Steps:**
 1. As **test-admin**, open **/settings/trade-timing**, set `pending_sp_release_days` to a distinct value (for example `1`), and save.
-2. As **test-seller**, complete a trade that creates pending seller earnings / pending SP.
-3. Open **My Earnings** immediately after completion, then again after QA fast-forwards past the configured release window.
+2. As **test-seller**, complete a trade that creates pending seller earnings.
+3. Open Payout Settings immediately after completion, then again after QA fast-forwards past the configured release window.
 
 **Expected Result:**
-- Immediately after completion, the amount appears in **Pending**, not **Available**.
-- After the configured release delay passes, the same amount moves into the available balance.
+- Immediately after completion, the amount appears under **Pending** (`balance-pending`), not in Available Balance (`balance-amount`).
+- After the configured release delay passes, the figure moves into the available balance on reload.
 - New trades follow the updated delay without requiring an app rebuild.
+- Cross-check the figures against the seller-balance DB read-back (R11/R24).
 
-### SUB-TC-F07 · Seller Earnings error state + Retry
+### SUB-TC-F07 · Payout load error + recovery (was Seller Earnings error + Retry)
 
-**Ref:** FLOW-22 · SellerEarningsScreen
+**Ref:** FLOW-22 · PayoutSettingsScreen (Alert + pull-to-refresh recovery)
 **Actors:** test-seller
 
-**Objective:** Verify the error state and the Retry re-load.
+**Objective:** Verify a payout-data load failure surfaces an error and can be recovered.
 
 **Steps:**
-1. Open **My Earnings** while the earnings fetch fails (e.g., network error).
-2. Tap **Retry**.
+1. Open Payout Settings while the payout-data fetch fails (e.g., network error / forced offline).
+2. Restore connectivity and pull-to-refresh (or reopen the screen).
 
 **Expected Result:**
-- Shows **Failed to Load Earnings** with the error message and a **Retry** button.
-- Retry re-runs the load and shows the earnings once it succeeds.
+- A load failure surfaces an error alert **Failed to load payout data. Please try again.** (there is no inline error screen/Retry button on the live surface).
+- Pull-to-refresh re-runs the load and the hero/history render once the fetch succeeds.
+- **Note:** the old "Failed to Load Earnings + Retry" screen does not exist on the live surface.
 
-### SUB-TC-F08 · Seller Earnings Load More pagination
+### SUB-TC-F08 · Payout history Load More pagination (was Seller Earnings Load More)
 
-**Ref:** FLOW-22 · SellerEarningsScreen
+**Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller
 
-**Objective:** Verify payout-list pagination.
+**Objective:** Verify payout-history pagination on the live surface.
 
 **Steps:**
-1. As **test-seller** with more than 20 payouts, open **My Earnings** and tap **Load More**.
+1. As **test-seller** with more than 5 payouts, open Payout Settings and tap **Load More** in PAYOUT HISTORY.
 
 **Expected Result:**
-- The list grows by 20 per tap; **Load More** disappears when no more payouts remain; refreshing resets the list to the first 20.
+- The list grows by **5** per tap (initial page = 5); **Load More** disappears when no more payouts remain; pull-to-refresh resets the list to the first 5.
 
 ---
 
@@ -1001,33 +849,15 @@
 
 ---
 
-### SUB-TC-G02 · Add PayPal / Venmo payout method
+### SUB-TC-G02 · Add PayPal / Venmo payout method — 🚫 N/A (unconfigured providers)
 
-**Ref:** FLOW-23 · PayoutSettingsScreen
-**Actors:** test-seller
-
-**Objective:** Verify PayPal/Venmo method creation.
-
-**Steps:**
-1. On Payout Settings → Add Payout Method → choose **PayPal** (enter email) and separately **Venmo** (enter handle + phone).
-
-**Expected Result:**
-- PayPal saves with the masked email; Venmo saves with handle/phone; each appears in the method list with the correct display name and verification state.
+> 🚫 **N/A (2026-09-02) — unconfigured providers.** Only **Stripe Connect** is a configured/verifiable payout provider. The live `AddPayoutMethodModal` does list **PayPal** and **Venmo** type buttons, but their provider integration is not configured/drivable (QA Task 19: "PayPal/Venmo/ACH method-type onboarding is not drivable — Stripe Connect is the only configured provider"). Do not execute as a live E2E case; revisit only after a PayPal/Venmo provider is configured.
 
 ---
 
-### SUB-TC-G03 · Add Bank ACH payout method
+### SUB-TC-G03 · Add Bank ACH payout method — 🚫 N/A (unconfigured / no UI option)
 
-**Ref:** FLOW-23 · PayoutSettingsScreen
-**Actors:** test-seller
-
-**Objective:** Verify Bank ACH method creation + verification.
-
-**Steps:**
-1. On Payout Settings → Add Payout Method → choose **Bank ACH** (routing + account) and complete verification.
-
-**Expected Result:**
-- The method saves showing "Bank ••••{last4}" and a verification status; it is only usable once verified.
+> 🚫 **N/A (2026-09-02) — unconfigured provider / no UI entry.** There is **no Bank ACH option** in the live `AddPayoutMethodModal` (only Stripe Connect, PayPal, Venmo are listed), and no bank_ach provider is configured. Do not execute as a live E2E case; revisit only if Bank ACH onboarding is added.
 
 ---
 
@@ -1048,18 +878,21 @@
 
 ---
 
-### SUB-TC-G05 · Unverified method blocks payout
+### SUB-TC-G05 · Unverified method blocks payout (live: cannot set primary / withdraw)
 
-**Ref:** FLOW-23 · RequestPayoutScreen
+**Ref:** FLOW-23 · PayoutSettingsScreen (radio + Withdraw Now guard) — replaces the unreachable `RequestPayoutScreen` variant
 **Actors:** test-seller (unverified method only)
 
-**Objective:** Verify an unverified method cannot be used to withdraw.
+**Objective:** Verify an unverified method cannot be made primary and therefore cannot be the withdrawal method.
 
 **Steps:**
-1. With only an unverified method, attempt **Request Payout**.
+1. With only an unverified method (status Verification required / Verification pending / Onboarding required), open Payout Settings.
+2. Tap the method's radio (`radio-btn-{id}`) and, separately, open the method sheet and try **Set as Primary**.
+3. Tap **Withdraw Now** (`request-payout-btn`).
 
 **Expected Result:**
-- A "Verification Required" alert states the payout method must be verified before withdrawing; the payout is not submitted.
+- Setting primary: the radio shows alert **Cannot Set as Primary** — "This method has status \"{status}\". Please wait until it is verified before setting it as primary." The sheet's **Set as Primary** option is disabled with subtext "Verification required before setting as primary".
+- Withdrawing: since there is no verified primary method, **Withdraw Now** opens the **Payment Method Required** modal (not a payout form) — the payout is not submitted.
 
 ---
 
@@ -1146,69 +979,73 @@
 
 ---
 
-## Group H — Request & Withdraw
+## Group H — Withdraw (Payout Settings — live surface)
 
-### SUB-TC-H01 · Request Payout — amount validation vs available
+> 🔄 **Group rewritten 2026-09-02** to the **live** full-balance Withdraw flow on `PayoutSettingsScreen` (**Withdraw Now** → **WithdrawModal**). The former `RequestPayoutScreen` amount-entry flow is dead (its only caller was the unregistered `PayoutDashboard`). Withdrawals are **full-available-balance only** — there is no manual amount field. Verified live in QA Task 19 (H05 PASS; WithdrawModal Cancel → clean dismiss, zero residue).
 
-**Ref:** FLOW-22 · RequestPayoutScreen
+### SUB-TC-H01 · Withdraw Now — no-balance guard (amount entry removed)
+
+**Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal) — replaces the unreachable `RequestPayoutScreen` amount-entry flow
 **Actors:** test-seller
 
-**Objective:** Verify amount validation against the available balance.
+**Objective:** Verify the Withdraw path guards against a zero balance. (The live surface withdraws the **full available balance** — there is no manual amount-entry field, so old "over-balance amount" validation does not exist.)
 
 **Steps:**
-1. As **test-seller**, open **Request Payout**.
-2. Enter an amount greater than available, then a valid amount.
+1. As **test-seller** with no available balance (or $0.00), open **Payout Settings** and tap **[Withdraw Now]**.
 
 **Expected Result:**
-- "Available: {N} SP" is shown.
-- An over-balance amount shows a red border and "Amount exceeds available balance ({availableCents} SP)" and disables Confirm.
-- A valid amount shows the "≈ {AUD}" equivalent and enables Confirm.
+- Alert **No Balance** — "You have no available balance to withdraw".
+- No WithdrawModal opens and no withdrawal is created.
 
 ---
 
-### SUB-TC-H02 · Fee + net summary by method type
+### SUB-TC-H02 · WithdrawModal summary — Available / Payout Fee / You'll Receive
 
-**Ref:** FLOW-22 · RequestPayoutScreen
-**Actors:** test-seller
+**Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal, `calculatePayoutFee`)
+**Actors:** test-seller (verified method + balance > 0)
 
-**Objective:** Verify the fee and net calculation per method type.
+**Objective:** Verify the fee and net calculation shown for the full-balance withdrawal.
 
 **Steps:**
-1. With a valid amount entered, review the sticky fee note and the summary card for Stripe, PayPal/Venmo, and Bank ACH methods.
+1. As **test-seller** with a verified primary method and balance > 0, open Payout Settings and tap **[Withdraw Now]**.
 
 **Expected Result:**
-- Fee note matches the method: Stripe "$0.25 + 0.25%"; PayPal/Venmo "2% (max $20.00)"; Bank ACH "$0.25".
-- Summary card shows Amount ({SP} / {AUD}), Transfer fee ({AUD} or "Free"), and a highlighted "You receive" net = amount − fee.
+- **WithdrawModal** ("Withdraw Funds") shows: **Available Balance:** {available}, **Payout Fee:** -{fee}, **You'll Receive:** {available − fee}, and **Payout Method:** {primary method label}.
+- Fee matches `calculatePayoutFee(primaryMethod.method_type, available)` for the primary method (Stripe: $0.25 + 0.25%; PayPal/Venmo: 2% capped at $20.00).
+- There is no amount-entry field — the withdrawal is for the full available balance.
 
 ---
 
-### SUB-TC-H03 · Confirm Payout success
+### SUB-TC-H03 · Confirm Withdrawal success
 
-**Ref:** FLOW-22 · RequestPayoutScreen
+**Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal → `requestFullWithdrawal`) · `request_seller_payout` RPC
 **Actors:** test-seller (verified method)
 
-**Objective:** Verify a successful payout request.
+**Objective:** Verify a successful full-balance withdrawal request.
 
 **Steps:**
-1. Enter a valid amount, select a verified method, tap **[Confirm Payout]**.
+1. With a verified method and balance > 0, open the WithdrawModal and tap **[Confirm Withdrawal]**.
 
 **Expected Result:**
-- A "Payout Requested" alert confirms "Your payout of {amount} AUD is being processed."; tapping Done returns to the dashboard, and the payout appears as PENDING in history.
+- Alert **Withdrawal Requested** — "Your withdrawal of {amount} has been initiated. After fees, you will receive {net}."
+- The modal closes, the balance refreshes, and the payout appears as PENDING in PAYOUT HISTORY.
+- DB read-back confirms the `seller_payouts` row (R11/R24) — **zero residue only if this is the intended withdrawal fixture**.
 
 ---
 
-### SUB-TC-H04 · Request blocked when no method / unverified
+### SUB-TC-H04 · Withdraw blocked when no verified primary method
 
-**Ref:** FLOW-22 / FLOW-23 · RequestPayoutScreen
-**Actors:** test-seller (no method)
+**Ref:** FLOW-22 / FLOW-23 · PayoutSettingsScreen (handleWithdrawClick → NoMethodModal)
+**Actors:** test-seller (no primary method)
 
-**Objective:** Verify guard rails when a method is missing.
+**Objective:** Verify the no-method guard on Withdraw Now.
 
 **Steps:**
-1. With no payout method, tap **[Request Payout]** / **[Confirm Payout]**.
+1. As **test-seller** with balance > 0 but **no primary (verified) method**, open Payout Settings and tap **[Withdraw Now]**.
 
 **Expected Result:**
-- A "No Payout Method" / "Payout Method Required" alert appears with an **[Add Method]** action routing to Payout Settings; no payout is created.
+- NoMethodModal **Payment Method Required** opens — "To withdraw your earnings, you need to add and verify a payout method first."
+- **Add Payout Method** opens the add flow; **Cancel** dismisses; no payout is created.
 
 ---
 
@@ -1226,36 +1063,35 @@
 - With a balance and a verified method, the withdrawal flow proceeds and shows a "Withdrawal Requested" confirmation (amount + net + status).
 - With no balance: "No Balance" alert. With no method: "Please add a verified payout method first."
 
-### SUB-TC-H06 · Admin minimum withdrawal amount blocks smaller payouts
+### SUB-TC-H06 · Admin minimum withdrawal blocks full-balance withdrawals below the floor
 
-**Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents`
+**Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents` · PayoutSettingsScreen WithdrawModal → `request_seller_payout`
 **Actors:** test-admin + test-seller
 
-**Objective:** Verify the configured minimum withdrawal amount is enforced in the payout flow.
+**Objective:** Verify the configured minimum withdrawal amount is enforced on the full-balance withdrawal request.
 
 **Steps:**
 1. As **test-admin**, set `minimum_withdrawal_amount_cents` to `1000` and save.
-2. As **test-seller** with an available balance above $10, open **Request Payout** and enter an amount below the configured minimum (for example $7.00).
-3. Enter an amount at or above the configured minimum.
+2. As **test-seller** whose available balance is below the configured minimum (e.g., $7.00 < $10.00), open Payout Settings, tap **[Withdraw Now]**, and tap **[Confirm Withdrawal]** in the WithdrawModal.
 
 **Expected Result:**
-- Amounts below the configured minimum show a clear minimum-withdrawal validation and disable **Confirm**.
-- Amounts at or above the configured minimum proceed normally.
+- The full-balance request is rejected — alert **Withdrawal Failed** with "Minimum withdrawal amount is $10.00" (client + RPC `request_seller_payout` enforce the configured floor).
+- No payout row is created; the available balance is unchanged.
 
 ### SUB-TC-H07 · Minimum withdrawal disabled when config = 0
 
-**Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents`
+**Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents` · PayoutSettingsScreen WithdrawModal
 **Actors:** test-admin + test-seller
 
-**Objective:** Verify a zero minimum disables the payout floor entirely.
+**Objective:** Verify a zero minimum disables the withdrawal floor entirely.
 
 **Steps:**
 1. As **test-admin**, set `minimum_withdrawal_amount_cents` to `0` and save.
-2. As **test-seller** with a small available balance, open **Request Payout** and enter a small amount that is otherwise valid.
+2. As **test-seller** with a small available balance, open Payout Settings and confirm a full-balance withdrawal in the WithdrawModal.
 
 **Expected Result:**
-- No minimum-withdrawal warning appears.
-- Only balance availability, payout-method, and provider-fee validations remain.
+- No minimum-withdrawal rejection occurs; the full-balance withdrawal proceeds (subject only to balance availability, a verified primary method, and provider fees).
+- DB read-back confirms the payout row for the small amount (R11/R24); clean up the withdrawal fixture after.
 
 ---
 
@@ -1493,76 +1329,67 @@
 
 ## Group L — Webhooks & Reconciliation
 
+> 🔄 **Group rewritten 2026-09-02:** Webhook cases are **server/webhook-domain** (not end-user-executable via the mobile app alone) and the real money leg is blocked upstream (no `subscription_tiers.stripe_price_id` → no real Checkout → no real webhook events on staging; local web is `SUBSCRIPTION_DEV_MODE=true`). The server machinery below was **verified live in QA Task 20 scope 3** (deployed-function + live-DB contract). **Each case below now cross-references that verification rather than standing as an abstract "not runnable" entry.** Re-run as a full webhook exercise only after QA Task 20's unblock recipe.
+
 ### SUB-TC-L01 · Renewal webhook updates billing history and member state
 
-**Ref:** FLOW-26 · subscription renewal webhook
-**Actors:** test-buyer
+**Ref:** FLOW-26 · subscription webhook (`stripe-webhook-subscriptions`) — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
+**Actors:** test-buyer (QA Task 20 verified the mechanism; live replay blocked by the §2 blocker chain)
 
 **Objective:** Verify a valid renewal webhook reconciles the subscription state and billing history.
 
-**Steps:**
+**Steps (deferred until unblocked — QA Task 20 §Known Gaps recipe):**
 1. Ensure **test-buyer** has an active renewable subscription.
 2. Trigger the signed renewal webhook event in staging.
 3. Reopen **My Subscription** and **Billing History**.
 
 **Expected Result:**
-- The subscription remains active with the next billing period advanced as expected.
-- Billing History shows a single new successful renewal record.
-- The user receives the expected renewal notification if that channel is enabled.
+- Server mechanism **verified** in QA Task 20: `rpc_upsert_web_subscription` resolves the row by `user_id` (INSERT if none, UPDATE with COALESCE) and DB UNIQUE constraints (`subscriptions_user_id_key`, `subscriptions_stripe_subscription_id_key`) guarantee one row per user; `billing_history` upserts on unique `charge_id` (a replayed invoice cannot create a second billing row — live proof: test-buyer has exactly one billing row).
+- **Note:** QA Task 20 found test-buyer's real Stripe sub is **stale-active** (`current_period_end` 2026-07-27 — in the past; no renewal since 2026-06-30) — resolve before driving L01 live.
 
 ### SUB-TC-L02 · Payment-failed webhook moves subscription into retry / grace state
 
-**Ref:** FLOW-26 · payment failure webhook
+**Ref:** FLOW-26 · payment failure webhook — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
 **Actors:** test-grace
 
 **Objective:** Verify a payment-failed webhook updates the user-visible subscription state.
 
-**Steps:**
+**Steps (deferred until unblocked):**
 1. Trigger a signed `invoice.payment_failed` or equivalent payment-failure webhook for the test subscription.
 2. Reopen the subscription screens for the affected user.
 
 **Expected Result:**
-- The billing history shows a failed charge record.
-- The subscription status screen reflects the retry or grace-period state.
-- User-facing banners and renewal reminders align with the failed-payment state.
+- Server mechanism **verified** in QA Task 20: `record_payment_attempt` RPC increments `payment_retry_count`, sets `payment_failed_at`, and transitions to grace after 3 failures with SP freeze (`triggerSpFreeze`). Billing History shows the failed charge; grace-state banners follow (live grace UX verified separately as **SUB-TC-I05**).
 
 ### SUB-TC-L03 · Invalid webhook signature is rejected with no duplicate state change
 
-**Ref:** FLOW-26 · signature verification
+**Ref:** FLOW-26 · signature verification — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
 **Actors:** QA
 
 **Objective:** Verify an invalid webhook payload is rejected and does not mutate user-visible state.
 
-**Steps:**
-1. Record the current subscription or payout state for a test account.
-2. Send the same webhook type with an invalid signature.
-3. Reload the affected app screens.
+**Steps (deferred until unblocked):**
+1. Send the same webhook type with an invalid signature to the deployed webhook EF.
 
 **Expected Result:**
-- No new billing-history row or payout-state change appears.
-- No duplicate notification is sent.
-- Existing subscription or payout data remains unchanged.
+- **Server mechanism verified** in QA Task 20: the deployed webhook verifies `stripe.signature` via `constructEventAsync` against `STRIPE_WEBHOOK_SUBSCRIPTIONS_SECRET`; an invalid signature returns **400 `INVALID_SIGNATURE` with no DB mutation** (`verify_jwt=false`, public webhook URL). A live negative-signature probe requires a direct call to the remote EF or Stripe CLI forwarding — exact recipe in QA Task 20 §Known Gaps.
 
 ### SUB-TC-L04 · Duplicate webhook delivery is idempotent
 
-**Ref:** FLOW-26 · idempotent processing
+**Ref:** FLOW-26 · idempotent processing — **server-verified in the Web Subscription Purchase E2E (QA Task 20, scope 3)**
 **Actors:** QA
 
 **Objective:** Verify replaying the same valid webhook does not create duplicate side effects.
 
-**Steps:**
-1. Send a valid signed webhook once and confirm the expected state change.
-2. Replay the exact same webhook payload.
-3. Reload the relevant app screens.
+**Steps (deferred until unblocked):**
+1. Replay the exact same valid webhook payload after a first delivery.
 
 **Expected Result:**
-- The original state change remains correct after the first delivery.
-- Replaying the same event does not create a second billing row, second payout update, or duplicate notification.
-- The user-visible state is unchanged by the duplicate delivery.
+- **Idempotency verified** in QA Task 20: `billing_history` UNIQUE(`charge_id`) + upsert-on-conflict; `subscriptions` UNIQUE(`user_id`) + UNIQUE(`stripe_subscription_id`); `rpc_upsert_web_subscription` is replay-safe regardless of Checkout/webhook ordering. A replay cannot create a second billing row, second payout update, or duplicate notification. Audit trail: the upsert writes a `subscription_events` row (`event_type='web_subscription_upsert'`); **zero such rows exist on staging** — the strongest proof the R7 path has never completed E2E.
 
 ### SUB-TC-L05 · Payout-status webhook updates seller payout history
 
-**Ref:** FLOW-26 · payout provider webhooks
+**Ref:** FLOW-26 · payout provider webhooks (`stripe-webhook`/payout EFs, not `stripe-webhook-subscriptions`)
 **Actors:** test-seller
 
 **Objective:** Verify provider payout webhooks reconcile seller payout status in the app.
@@ -1570,12 +1397,12 @@
 **Steps:**
 1. Ensure **test-seller** has a payout in `pending` or `processing` state.
 2. Trigger a signed payout-completed or payout-failed webhook for that payout.
-3. Open the Payout Dashboard and Seller Earnings screens.
+3. Open **Payout Settings** → PAYOUT HISTORY (the live surface — the legacy Payout Dashboard/Seller Earnings screens are dead).
 
 **Expected Result:**
-- The payout row changes to the provider-reported status.
-- Completed payouts show the completion state/date; failed payouts show the failure state and reason if available.
-- No second payout row is created for the same provider event.
+- The payout row changes to the provider-reported status; completed payouts show the completion state/date; failed payouts show the failure state and reason (⚠️ line) if available.
+- No second payout row is created for the same provider event (idempotent reconciliation).
+- **Classification note (QA Task 20):** L05 belongs to the **payout domain** (unchanged from prior classification) — its source is `stripe-webhook`/payout EFs, not the subscription webhook.
 
 ---
 
@@ -1818,6 +1645,48 @@
 
 ---
 
+## Fixture-Gated Backlog
+
+> 📦 **Fixture-Gated Backlog (created 2026-09-02):** Cases moved out of their original groups because they require clock fast-forward and/or push-payload fixtures that are not drivable on the live staging app without dedicated tooling (real push delivery, scheduled-job triggers, or Stripe test clocks). They remain valid test cases for a fixture-equipped session; do not attempt during standard on-device runs.
+>
+> **Moved from Group D:** SUB-TC-D06, SUB-TC-D07.
+
+### SUB-TC-D06 · Subscription event notifications (trial reminders, renewal, failure) — 📦 FIXTURE-GATED
+
+**Ref:** FLOW-17 subscription event notifications
+**Actors:** test-trial, test-buyer
+
+**Objective:** Verify subscription lifecycle notifications fire at the right moments.
+
+**Steps (require clock fast-forward + real push fixture):**
+1. Fast-forward the trial clock to 7/3/1 days before trial end (test-trial).
+2. Fast-forward to a successful renewal charge (test-buyer).
+3. Simulate a failed renewal charge.
+
+**Expected Result:**
+- Trial reminder notifications are delivered at 7-day, 3-day, and 1-day marks.
+- A renewal-success notification is delivered on successful charge.
+- A payment-failure notification is delivered (and is treated as critical — bypasses quiet hours) prompting payment-method update.
+- A cancellation produces a cancellation-confirmation notification.
+
+### SUB-TC-D07 · Grace reminder notifications follow configured thresholds — 📦 FIXTURE-GATED
+
+**Ref:** FLOW-17 × admin `grace_reminder_thresholds`
+**Actors:** test-admin + test-grace
+
+**Objective:** Verify grace reminder timing uses the admin-configured threshold array.
+
+**Steps (require clock fast-forward + real push fixture):**
+1. As **test-admin**, set `grace_reminder_thresholds` to a distinct set such as `[30, 7, 1]` and save.
+2. Fast-forward a grace-period user to just above, then exactly at, each configured threshold.
+3. Check both push delivery and the in-app notification center after each threshold.
+
+**Expected Result:**
+- Reminder notifications are delivered at 30, 7, and 1 days remaining, with the correct days-left copy.
+- Thresholds removed from the config no longer fire after the change.
+
+---
+
 ## Regression
 
 ### SUB-TC-R01 · Subscriber fee applied in trade checkout
@@ -1856,14 +1725,14 @@
 | Dynamic pricing/fees from admin config | SUB-TC-A03, SUB-TC-R05 |
 | Current plan marked / disabled | SUB-TC-A04 |
 | Kids Club+ Overview by status | SUB-TC-A05 |
-| Start trial → payment screen | SUB-TC-B01 |
-| Payment benefits + Due today $0.00 (trial) | SUB-TC-B02 |
-| Stripe payment → Success screen (FLOW-12A) | SUB-TC-B03 |
-| Trial already used blocked | SUB-TC-B04 |
-| Trial disabled globally | SUB-TC-B05 |
-| Trial limit config updates eligibility | SUB-TC-B04, SUB-TC-B08 |
-| Continue Kids Club+ urgency + benefits | SUB-TC-B06 |
-| Referred user bonus-loss warning | SUB-TC-B07 |
+| 🔴 RETIRED — in-app start-trial → payment (web-first; coverage → Web Subscription Purchase E2E) | SUB-TC-B01 |
+| 🔴 RETIRED — in-app payment benefits/"Due today" (coverage → QA Task 20 scope 2) | SUB-TC-B02 |
+| 🔴 RETIRED — in-app Stripe payment → Success (coverage → QA Task 20) | SUB-TC-B03 |
+| 🔴 RETIRED — trial-already-used blocked (server-side trial config → QA Task 20 F-3) | SUB-TC-B04 |
+| 🔴 RETIRED — trial disabled globally (coverage → QA Task 20 F-3) | SUB-TC-B05 |
+| 🔴 RETIRED — Continue Kids Club+ urgency (deep-link only → see N03–N06) | SUB-TC-B06 |
+| 🔴 RETIRED — referred-user bonus-loss warning (removed surface → see N03) | SUB-TC-B07 |
+| Config change reflects without app rebuild (trial-limit leg) | SUB-TC-R05 (retired B08 leg removed) |
 | My Subscription paid view | SUB-TC-C01 |
 | My Subscription quick menu routes | SUB-TC-C02 |
 | Manage Kids Club+ status + billing | SUB-TC-C03 |
@@ -1872,34 +1741,36 @@
 | Cancelled active until period end | SUB-TC-C06, SUB-TC-R04 |
 | Auto-renew toggle / update payment | SUB-TC-C07 |
 | Grace period banner + SP freeze warning (FLOW-10/12) | SUB-TC-D01 |
-| Re-subscribe from grace unlocks SP | SUB-TC-D02 |
+| 🔴 RETIRED — in-app re-subscribe from grace (web-first; → N01/N02 + Web E2E) | SUB-TC-D02 |
 | Subscription Expired screen | SUB-TC-D03 |
-| Renewal payment full charge | SUB-TC-D04 |
+| 🔴 RETIRED — in-app renewal payment (web-first; → N01/N02 + Web E2E) | SUB-TC-D04 |
 | Reactivate from cancelled | SUB-TC-D05 |
-| Subscription event notifications (FLOW-17) | SUB-TC-D06 |
-| Grace reminder thresholds from admin config | SUB-TC-D07 |
+| 📦 Subscription event notifications (FLOW-17) — fixture-gated backlog | SUB-TC-D06 |
+| 📦 Grace reminder thresholds — fixture-gated backlog | SUB-TC-D07 |
 | Billing history list + badges | SUB-TC-E01 |
 | Billing history empty | SUB-TC-E02 |
 | Failed charge error message | SUB-TC-E03 |
-| Subscription Status diagnostics | SUB-TC-E04 |
-| Payout dashboard hero balance/AUD (FLOW-22) | SUB-TC-F01 |
-| Payout method section add/existing | SUB-TC-F02 |
-| Payout history list | SUB-TC-F03 |
-| Seller Earnings totals + breakdown | SUB-TC-F04, SUB-TC-R03 |
-| Seller Earnings empty | SUB-TC-F05 |
-| Pending earnings release delay from admin config | SUB-TC-F06 |
+| ⏸ Subscription Status diagnostics (push-payload fixture-gated) | SUB-TC-E04 |
+| Payout Settings hero Available/Pending/Lifetime (FLOW-22, live) | SUB-TC-F01 |
+| Payout method section add/existing (live) | SUB-TC-F02 |
+| Payout history list (live) | SUB-TC-F03 |
+| Earnings figures + history net/fee (live; replaces Seller Earnings) | SUB-TC-F04, SUB-TC-R03 |
+| Payout history empty state (live) | SUB-TC-F05 |
+| Pending earnings figure follows admin release timing | SUB-TC-F06 |
+| Payout load error + recovery (live) | SUB-TC-F07 |
+| Payout history Load More +5 (live) | SUB-TC-F08 |
 | Add Stripe Connect method (FLOW-23) | SUB-TC-G01 |
-| Add PayPal / Venmo method | SUB-TC-G02 |
-| Add Bank ACH method | SUB-TC-G03 |
+| 🚫 N/A — Add PayPal / Venmo (unconfigured) | SUB-TC-G02 |
+| 🚫 N/A — Add Bank ACH (unconfigured / no UI) | SUB-TC-G03 |
 | Set primary / delete method | SUB-TC-G04 |
-| Unverified method blocks payout | SUB-TC-G05 |
+| Unverified method blocks payout (live guard) | SUB-TC-G05 |
 | requires_action → setup CTA | SUB-TC-G06 |
-| Request payout amount validation | SUB-TC-H01 |
-| Fee + net summary by method | SUB-TC-H02 |
-| Confirm payout success | SUB-TC-H03 |
-| Request blocked no/unverified method | SUB-TC-H04 |
-| Withdraw Now hero path | SUB-TC-H05 |
-| Minimum withdrawal config | SUB-TC-H06, SUB-TC-H07 |
+| Withdraw no-balance guard (live; amount entry removed) | SUB-TC-H01 |
+| WithdrawModal fee + net summary (live) | SUB-TC-H02 |
+| Confirm Withdrawal success (live) | SUB-TC-H03 |
+| Withdraw blocked when no verified method (live) | SUB-TC-H04 |
+| Withdraw Now hero path (live, verified template) | SUB-TC-H05 |
+| Minimum withdrawal config (full-balance, live) | SUB-TC-H06, SUB-TC-H07 |
 | SP wallet hero + lifetime stats (FLOW-10) | SUB-TC-I01, SUB-TC-R02 |
 | SP wallet quick actions | SUB-TC-I02 |
 | How to Earn SP + Learn More (FLOW-11) | SUB-TC-I03 |

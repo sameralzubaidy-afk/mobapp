@@ -5,6 +5,13 @@
  * TASK: Redesign SubscriptionSuccessScreen — VISUAL ONLY
  * DO NOT CHANGE: plan name from navigation params, navigation on CTA
  * ONLY CHANGE: StyleSheet, icons → Phosphor
+ *
+ * DEPRECATED (Dev Task 86, 2026-09-02): This screen has NO caller and NO deep link —
+ * it is unreachable from the app. The web-first success page (passitup.com
+ * /account/subscription) returns to the app via the p2pkidsmarketplace://my-subscription
+ * deep link (→ My Subscription / Manage Kids Club+), not this screen. Do NOT add new
+ * navigation. Removal requires cleaning the AppNavigator route + navigation/types.ts
+ * entry.
  */
 
 import React, { useEffect, useRef } from 'react';

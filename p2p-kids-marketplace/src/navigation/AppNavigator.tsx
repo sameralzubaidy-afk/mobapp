@@ -710,12 +710,15 @@ export function RootNavigator() {
               component={PayoutSettingsScreen}
               options={{ headerShown: false }}
             />
+            {/* DEPRECATED (Dev Task 86, 2026-09-02): SellerEarnings/RequestPayout have
+                no live callers (their only caller was the dead PayoutDashboardScreen).
+                Kept registered for safety; removal is tracked in each screen file. */}
             <Stack.Screen
               name="SellerEarnings"
               component={SellerEarningsScreen}
               options={{ headerShown: false }}
             />
-            {/* MODULE-15.1 FLOW-22: Request Payout (redesigned) */}
+            {/* MODULE-15.1 FLOW-22: Request Payout (redesigned) — DEPRECATED, see above */}
             <Stack.Screen
               name="RequestPayout"
               component={RequestPayoutScreen}
@@ -741,6 +744,9 @@ export function RootNavigator() {
               component={ContinueKidsClubScreen}
               options={{ headerShown: false }}
             />
+            {/* DEPRECATED (Dev Task 86, 2026-09-02): SubscriptionPayment (in-app Stripe
+                payment) and SubscriptionSuccess are dead — joining is web-first. Kept
+                registered for legacy push/deep-link safety; removal tracked in each file. */}
             <Stack.Screen
               name="SubscriptionPayment"
               component={SubscriptionPaymentScreen}

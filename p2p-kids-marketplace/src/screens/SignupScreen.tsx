@@ -6,6 +6,11 @@
 // AppNavigator wires @/screens/auth/SignupScreen (18+ DOB gate) instead.
 // Kept in-repo but aligned to the N4 18+ hard gate so it never accepts under-18.
 // Do NOT wire this route without re-confirming it matches the canonical flow.
+//
+// TODO(TRIAL-GATE) DEFERRED (2026-09-02): the inline \"Your 30-day free trial has
+// started\" success copy (L186) promises a trial while admin_config.trial_enabled=false.
+// This file is dead/non-routed; gate or remove the copy in a dedicated pass if it
+// is ever resurrected (the live auth path already honors is_trial_enabled).
 
 import React, { useState, useRef } from 'react';
 import {
@@ -251,7 +256,8 @@ export const SignupScreen: React.FC = () => {
           {/* Email */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
-            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            <TextInput
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               ref={emailInputRef}
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
@@ -269,7 +275,8 @@ export const SignupScreen: React.FC = () => {
           {/* Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            <TextInput
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="At least 8 characters"
               testID="signup-password-input"
@@ -286,7 +293,8 @@ export const SignupScreen: React.FC = () => {
           {/* Confirm Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirm Password</Text>
-            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            <TextInput
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.confirmPassword && styles.inputError]}
               placeholder="Re-enter password"
               testID="signup-confirm-password-input"
@@ -305,7 +313,8 @@ export const SignupScreen: React.FC = () => {
           {/* Display Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Display Name</Text>
-            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            <TextInput
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.displayName && styles.inputError]}
               placeholder="How should we call you?"
               testID="signup-display-name-input"
@@ -321,7 +330,8 @@ export const SignupScreen: React.FC = () => {
           {/* Age */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Age (5-17)</Text>
-            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            <TextInput
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.age && styles.inputError]}
               placeholder="Your age"
               testID="signup-age-input"
@@ -337,7 +347,8 @@ export const SignupScreen: React.FC = () => {
           {/* ZIP Code */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>ZIP Code</Text>
-            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            <TextInput
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={[styles.input, errors.zipCode && styles.inputError]}
               placeholder="12345"
               testID="signup-zip-input"
@@ -356,7 +367,8 @@ export const SignupScreen: React.FC = () => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Parent/Guardian Email</Text>
               <Text style={styles.helperText}>Required for users under 13 (COPPA compliance)</Text>
-              <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              <TextInput
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 style={[styles.input, errors.parentalEmail && styles.inputError]}
                 placeholder="parent@example.com"
                 testID="signup-parent-email-input"

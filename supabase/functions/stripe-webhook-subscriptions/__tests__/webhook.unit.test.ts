@@ -214,3 +214,81 @@ Deno.test('all Stripe subscription statuses are handled without throwing', () =>
     assertExists(result, `Status ${s} produced no result`);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test suite: computePeriodAdvance (DEV-TASK-88 — renewal period window advance)
+// Mirror of the helper in index.ts. Stripe reports NULL current_period_* on the
+// subscription object in this environment, so a successful renewal invoice's
+// line period is the authoritative next window. Advance is FORWARD-ONLY.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function computePeriodAdvance(
+  existingEndIso: string | null,
+  renewalStartSec: number | null | undefined,
+  renewalEndSec: number | null | undefined,
+): Record<string, unknown> | null {
+  if (!renewalEndSec || !Number.isFinite(renewalEndSec) || renewalEndSec <= 0) {
+    return null;
+  }
+
+  const existingEndMs = existingEndIso ? Date.parse(existingEndIso) : NaN;
+  const nextEndMs = renewalEndSec * 1000;
+
+  if (Number.isFinite(existingEndMs) && nextEndMs <= existingEndMs) {
+    return null; // forward-only
+  }
+
+  const payload: Record<string, unknown> = {
+    current_period_end: new Date(nextEndMs).toISOString(),
+    next_billing_date: new Date(nextEndMs).toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (renewalStartSec && Number.isFinite(renewalStartSec) && renewalStartSec > 0) {
+    payload.current_period_start = new Date(renewalStartSec * 1000).toISOString();
+  }
+
+  return payload;
+}
+
+Deno.test('period advance: no renewal line period → returns null', () => {
+  const result = computePeriodAdvance('2026-07-27T00:00:00Z', null, null);
+  assertEquals(result, null);
+});
+
+Deno.test('period advance: existing end is null (legacy row) → advances', () => {
+  const startSec = Math.floor(Date.parse('2026-08-27T12:41:17Z') / 1000);
+  const endSec = Math.floor(Date.parse('2026-09-27T12:41:17Z') / 1000);
+  const result = computePeriodAdvance(null, startSec, endSec);
+  assertExists(result);
+  assertEquals(result.current_period_end, '2026-09-27T12:41:17.000Z');
+  assertEquals(result.next_billing_date, '2026-09-27T12:41:17.000Z');
+  assertEquals(result.current_period_start, '2026-08-27T12:41:17.000Z');
+});
+
+Deno.test('period advance: renewal end later than stored → advances', () => {
+  const endSec = Math.floor(Date.parse('2026-09-27T12:41:17Z') / 1000);
+  const result = computePeriodAdvance('2026-07-27T12:41:17Z', null, endSec);
+  assertExists(result);
+  assertEquals(result.current_period_end, '2026-09-27T12:41:17.000Z');
+});
+
+Deno.test('period advance: renewal end NOT later than stored → no regress (idempotent replay)', () => {
+  const endSec = Math.floor(Date.parse('2026-07-27T12:41:17Z') / 1000);
+  const result = computePeriodAdvance('2026-09-27T12:41:17Z', null, endSec);
+  assertEquals(result, null);
+});
+
+Deno.test('period advance: equal end → no advance (out-of-order safe)', () => {
+  const endSec = Math.floor(Date.parse('2026-09-27T12:41:17Z') / 1000);
+  const result = computePeriodAdvance('2026-09-27T12:41:17Z', null, endSec);
+  assertEquals(result, null);
+});
+
+Deno.test('period advance: missing start → advances end/next_billing only', () => {
+  const endSec = Math.floor(Date.parse('2026-09-27T12:41:17Z') / 1000);
+  const result = computePeriodAdvance('2026-07-27T12:41:17Z', null, endSec);
+  assertExists(result);
+  assertEquals(result.current_period_start, undefined);
+  assertEquals(result.current_period_end, '2026-09-27T12:41:17.000Z');
+});

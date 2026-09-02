@@ -54,6 +54,9 @@ const DEEP_LINK_ROUTES: Record<string, keyof RootStackParamList> = {
   // Subscription
   '/subscription': 'ManageKidsClub',
   '/profile/subscription': 'ManageKidsClub',
+  // DEPRECATED (Dev Task 86, 2026-09-02): SubscriptionPaymentScreen is deprecated
+  // (web-first join); this legacy mapping is kept only so old push payloads/deep
+  // links still resolve instead of 404ing.
   '/subscription/payment': 'SubscriptionPayment',
   '/subscription/status': 'SubscriptionStatus',
   '/subscription/overview': 'KidsClubOverview',

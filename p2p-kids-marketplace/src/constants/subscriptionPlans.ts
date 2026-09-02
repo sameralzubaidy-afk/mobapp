@@ -49,5 +49,10 @@ export const TIER_COMPARISON_ROWS: TierFeatureComparisonRow[] = [
 export const MY_SUBSCRIPTION_BENEFITS: string[] = [
   'Trade with PIPs — help buyers save and sellers move inventory faster',
   'Reduced transaction fees — save on every purchase',
-  '30-day free trial to explore all benefits',
 ];
+
+// Free-trial marketing line. NOT included in MY_SUBSCRIPTION_BENEFITS above:
+// trials are admin-config-gated (admin_config.trial_enabled). Consumers append
+// this line only when useTrialEligibility().trialEnabled is true, so a disabled
+// trial never shows a "free trial" benefit claim (QA Task 20 F-3).
+export const TRIAL_MARKETING_BENEFIT = '30-day free trial to explore all benefits';

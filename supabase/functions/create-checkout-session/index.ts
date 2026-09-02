@@ -174,6 +174,36 @@ serve(async (req: Request): Promise<Response> => {
       trialDays = defaultTier.trial_days ?? null;
     }
 
+    // ── Trial gating: honor admin_config.trial_enabled (QA Task 20 F-3).
+    //    When the admin switch is OFF, no trial is granted regardless of the
+    //    resolved tier's trial_days (D-001: staging trial_enabled=false). When
+    //    it is ON, the tier's trial_days governs (server-derived only).
+    //    Fail-open only on a config-read error? NO — fail closed to "no trial"
+    //    is the safe default for a trial currently disabled at the config level,
+    //    but a genuine config outage must not silently change billing either.
+    //    We treat a missing/disabled key as "no trial" and log the decision.
+    {
+      let trialEnabled = false;
+      const { data: trialCfg, error: trialCfgErr } = await supabase
+        .from('admin_config')
+        .select('value')
+        .eq('key', 'trial_enabled')
+        .eq('is_active', true)
+        .maybeSingle<{ value: string | null }>();
+      if (!trialCfgErr && trialCfg?.value != null) {
+        trialEnabled = trialCfg.value === 'true';
+      } else {
+        console.warn(
+          '[create-checkout-session] trial_enabled config read failed; defaulting to no trial.',
+          trialCfgErr?.message,
+        );
+      }
+      if (!trialEnabled) {
+        trialDays = null; // config says trials are off — ignore tier trial_days.
+        console.log('[create-checkout-session] trial_enabled=false → no trial granted.');
+      }
+    }
+
     // ── Trial eligibility (one-time; skip if the account already used trial) ─
     let useTrial = true;
     if (resolvedUserId) {

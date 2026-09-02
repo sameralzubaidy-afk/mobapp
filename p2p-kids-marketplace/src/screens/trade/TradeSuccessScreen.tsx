@@ -49,6 +49,11 @@ function buildCompletionCTA(
 ): CompletionCTA {
   if (isBuyer) {
     if (!isSubscriber) {
+      // TODO(TRIAL-GATE) DEFERRED (2026-09-02): this free-buyer upsell still
+      // promises a "free 30 days" while admin_config.trial_enabled=false. Gating
+      // here needs trial config threaded into getCompletionCTA + re-verification
+      // of the DT-78 owner-approved copy — deferred to a dedicated pass; JoinKidsClub
+      // / PlanComparison / SubscriptionBanner / ItemDetail are already gated.
       // Permutation 1: Free buyer — upsell Kids Club+. R1: only claim a dollar
       // savings when it actually exists (first-trade free users pay the same flat
       // fee as members, so their savings is $0). Dev Task 78 (H01): the savings
@@ -204,8 +209,7 @@ export default function TradeSuccessScreen() {
         // the real savings. A placeholder/QA tradeId resolves to no row (0) →
         // fall back to the feeSavingsCents route param so H01's real-figure
         // copy is still verifiable (FIX-PARAMS, QA Task 16).
-        const computed =
-          paidFeeCents > 0 ? Math.max(0, paidFeeCents - activeMemberFlatCents) : 0;
+        const computed = paidFeeCents > 0 ? Math.max(0, paidFeeCents - activeMemberFlatCents) : 0;
         setFeeSavingsCents(computed > 0 ? computed : feeSavingsParamCents);
       } catch {
         setFeeSavingsCents(feeSavingsParamCents);

@@ -6,6 +6,14 @@
  * Task: PAY-008 (Minimal Admin + Seller Earnings Views)
  *
  * Displays seller's payout history with status, net amount, and method
+ *
+ * DEPRECATED (Dev Task 86, 2026-09-02): This screen is effectively DEAD — it is
+ * still registered (AppNavigator route "SellerEarnings") but its ONLY caller is the
+ * dead, unregistered PayoutDashboardScreen, so no live flow navigates here. The LIVE
+ * payout surface is PayoutSettingsScreen (hero + method card + "Withdraw Now"
+ * modal); earnings history is shown there, not on this screen. Do NOT add new
+ * navigation or callers. Removal requires cleaning the AppNavigator route +
+ * navigation/types.ts entry + src/__tests__/screens/SellerEarningsScreen.test.tsx.
  */
 
 import React, { useState, useEffect } from 'react';

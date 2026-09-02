@@ -11,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Crown, CrownSimple, CheckCircle } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
-import { getSubscriptionPrice, getTrialDays } from '@/services/adminConfig';
+import { getSubscriptionPrice, getTrialDays, isTrialEnabled } from '@/services/adminConfig';
 import { captureException } from '@/services/errorReporter';
 import {
   TIER_COMPARISON_ROWS,
@@ -43,14 +43,22 @@ export default function UpgradePlanScreen() {
   const { subscription, loading } = useSubscription();
   const [monthlyPrice, setMonthlyPrice] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(30);
+  // Trial availability is an admin_config switch; the "free trial" messaging and
+  // CTA only appear when it is ON (QA Task 20 F-3).
+  const [trialEnabled, setTrialEnabled] = useState<boolean>(false);
   const [configLoading, setConfigLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const [price, trial] = await Promise.all([getSubscriptionPrice(true), getTrialDays(true)]);
+        const [price, trial, enabled] = await Promise.all([
+          getSubscriptionPrice(true),
+          getTrialDays(true),
+          isTrialEnabled(),
+        ]);
         setMonthlyPrice(price || 0);
         setTrialDays(trial || 30);
+        setTrialEnabled(enabled === true);
       } catch (error) {
         captureException(error, {
           tags: { screen: 'UpgradePlanScreen', action: 'load_config' },
@@ -94,7 +102,7 @@ export default function UpgradePlanScreen() {
       name: 'Kids Club+',
       price: monthlyPrice,
       billingPeriod: '/month',
-      trialText: `${trialDays}-day free trial`,
+      trialText: trialEnabled ? `${trialDays}-day free trial` : undefined,
       features: kidsClubPlusFeatures,
     },
   ];
@@ -217,7 +225,9 @@ export default function UpgradePlanScreen() {
                     ? 'Current Plan'
                     : isDowngrade
                       ? 'Downgrade'
-                      : `Start ${trialDays}-day Trial`}
+                      : trialEnabled
+                        ? `Start ${trialDays}-day Trial`
+                        : 'Join Kids Club+'}
                 </Text>
               </TouchableOpacity>
             </View>

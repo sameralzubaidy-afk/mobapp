@@ -8,6 +8,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useTrialEligibility } from '@/hooks/useTrialEligibility';
 
 /**
  * Banner shown in key screens (home, SP wallet, listing flow) for non-active users
@@ -16,6 +17,9 @@ import { useSubscription } from '@/hooks/useSubscription';
 export function SubscriptionBanner() {
   const navigation = useNavigation();
   const { subscription } = useSubscription();
+  // Trial is admin-config-gated: the free-user CTA only promises a trial when
+  // admin_config.trial_enabled=true, otherwise it's a plain "Join Kids Club+".
+  const { trialEnabled } = useTrialEligibility();
 
   const status = subscription?.status || 'free';
 
@@ -47,7 +51,7 @@ export function SubscriptionBanner() {
   const ctaLabel = (() => {
     if (isTrial) return 'Continue Kids Club+';
     if (isGrace || isExpired) return 'Re-subscribe';
-    return 'Start Free Trial';
+    return trialEnabled ? 'Start Free Trial' : 'Join Kids Club+';
   })();
 
   // Handle navigation

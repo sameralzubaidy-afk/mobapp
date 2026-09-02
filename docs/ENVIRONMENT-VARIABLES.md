@@ -46,6 +46,9 @@ clients, and what it does.
 | `STRIPE_SECRET_KEY` | Edge Functions | Stripe REST calls. |
 | `STRIPE_WEBHOOK_SECRET` | Edge Function `subscriptions-webhook` | Stripe webhook signature verification. |
 | `STRIPE_WEBHOOK_SUBSCRIPTIONS_SECRET` | Edge Function | Stripe subscription webhooks signature. |
+| `SUBSCRIPTION_WEB_SECRET` | Edge Function `create-checkout-session` + `p2p-kids-web` | Shared secret between the web app and the checkout EF (`x-web-secret` header). MUST match on both sides. |
+| `SUBSCRIPTION_BIND_TOKEN_SECRET` | Edge Function `create-checkout-session`/`link-subscription-account` | HMAC one-time bind token over email (R7 pre-account linking). |
+| `SUBSCRIPTION_WEB_URL` | Edge Function `create-checkout-session` | Base for Stripe success/cancel URLs; default `https://passitup.com`. Set to the deployed web origin for the target env. |
 | `SENDGRID_API_KEY` | Edge Function `send-email/` | SendGrid REST API key. **NEVER prefix with EXPO_PUBLIC_** (PROD-012 fix). |
 | `SENDGRID_TEMPLATE_*` | Edge Function `send-email/` | Dynamic template IDs (not secret, but server-only by convention). |
 | `TWILIO_ACCOUNT_SID` | Edge Function `sms-send/` | Twilio account SID. |

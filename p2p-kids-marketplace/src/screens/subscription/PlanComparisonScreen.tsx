@@ -16,6 +16,7 @@ import {
   getSubscriptionPrice,
   getTrialDays,
   getActiveMemberFeeCents,
+  isTrialEnabled,
 } from '@/services/adminConfig';
 import { TIER_COMPARISON_ROWS } from '@/constants/subscriptionPlans';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
@@ -30,6 +31,9 @@ export default function PlanComparisonScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [monthlyPrice, setMonthlyPrice] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(30);
+  // Trial availability is an admin_config switch; free-trial rows/CTA only show
+  // when it is ON (QA Task 20 F-3).
+  const [trialEnabled, setTrialEnabled] = useState<boolean>(false);
   // R1 — Tiered Buyer-Fee Engine: flat active-member fee (dynamic from admin_config).
   const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
   const [loading, setLoading] = useState<boolean>(true);
@@ -37,15 +41,17 @@ export default function PlanComparisonScreen() {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const [price, trial, memberFeeCents] = await Promise.all([
+        const [price, trial, memberFeeCents, enabled] = await Promise.all([
           getSubscriptionPrice(true),
           getTrialDays(true),
           getActiveMemberFeeCents(true),
+          isTrialEnabled(),
         ]);
 
         setMonthlyPrice(price || 0);
         setTrialDays(trial || 30);
         setActiveMemberFlatCents(memberFeeCents);
+        setTrialEnabled(enabled === true);
       } catch (err) {
         captureException(err, {
           tags: { screen: 'PlanComparisonScreen', action: 'load_config' },
@@ -67,7 +73,7 @@ export default function PlanComparisonScreen() {
     if (row.key === 'trial_period') {
       return {
         ...row,
-        kidsClubPlus: `${trialDays} days`,
+        kidsClubPlus: trialEnabled ? `${trialDays} days` : 'No',
       };
     }
     if (row.key === 'transaction_fee') {
@@ -201,13 +207,15 @@ export default function PlanComparisonScreen() {
                 <Text style={styles.benefitBold}>Lower fees</Text> — keep more of what you earn
               </Text>
             </View>
-            <View style={styles.benefitItem}>
-              <CheckCircle size={20} color="#5DBB8E" weight="fill" />
-              <Text style={styles.benefitItemText}>
-                <Text style={styles.benefitBold}>{trialDays}-day free trial</Text> — try risk-free,
-                cancel anytime
-              </Text>
-            </View>
+            {trialEnabled && (
+              <View style={styles.benefitItem}>
+                <CheckCircle size={20} color="#5DBB8E" weight="fill" />
+                <Text style={styles.benefitItemText}>
+                  <Text style={styles.benefitBold}>{trialDays}-day free trial</Text> — try
+                  risk-free, cancel anytime
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -238,7 +246,7 @@ export default function PlanComparisonScreen() {
               accessibilityLabel="Choose kids club plus"
             >
               <Text style={styles.ctaButtonText} numberOfLines={1} adjustsFontSizeToFit>
-                Start {trialDays}-day Trial
+                {trialEnabled ? `Start ${trialDays}-day Trial` : 'Join Kids Club+'}
               </Text>
             </TouchableOpacity>
           </View>
