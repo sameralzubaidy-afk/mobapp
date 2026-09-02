@@ -9,7 +9,7 @@
  * - Compact trade rows with 56×56px thumbnails
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import {
   View,
@@ -27,11 +27,23 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { acceptBundleOffers, declineBundleOffers } from '@/services/tradeServiceV2';
+import { registerQaScreenRefresh } from '@/services/qaRefreshRegistry';
 import { Receipt, ArrowsLeftRight, Check, ChatTeardropText } from 'phosphor-react-native';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TabType = 'active' | 'history';
+
+// DEV-TASK-84 (2026-09-01): QA `qa:refresh` deep link support — registers this
+// screen's full refetch so `p2pkidsmarketplace://qa-refresh` can force it in ONE
+// call. QA Task 17 F-3: after server-side fixture writes the Needs Action list
+// stayed stale until a nav-away-and-back remount (~6-10 calls per occurrence).
+// The deep link invokes the registered refetch (same fetchers as focus/pull-to-
+// refresh). Dev/staging builds only — inert in production.
+const QA_TOOLING_ENABLED: boolean =
+  __DEV__ ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'development' ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'staging';
 
 // History tab loads this many trades per page, then appends more on scroll.
 const HISTORY_PAGE_SIZE = 10;
@@ -87,6 +99,10 @@ export default function TradeListScreen({ navigation }: any) {
     pendingOffers: 0,
     completed: 0,
   });
+  // DEV-TASK-84: latest full-refetch closure (the fetchers below are plain
+  // closures, not useCallback — this ref lets the qa-refresh registration stay
+  // mounted once while always invoking the newest closure).
+  const refreshRef = useRef<() => void>(() => {});
   const [selectedFilter, setSelectedFilter] = useState<
     'all' | 'your_offers' | 'needs_action' | 'in_progress' | 'completed'
   >('all');
@@ -121,8 +137,28 @@ export default function TradeListScreen({ navigation }: any) {
       void fetchSellerIgnoringStats();
       // Reset paginated history to the newest page on focus/tab change.
       void fetchHistoryPage(true);
+      // DEV-TASK-84: keep the qa-refresh closure pointing at the newest fetchers.
+      refreshRef.current = () => {
+        fetchTrades();
+        void fetchAllOffers();
+        void fetchSellerIgnoringStats();
+        void fetchHistoryPage(true);
+      };
     }, [userId, activeTab])
   );
+
+  // DEV-TASK-84: register this screen's full refetch for the `qa:refresh` deep
+  // link (p2pkidsmarketplace://qa-refresh) — QA Task 17 F-3 stale-list fix.
+  // Registered once for the screen lifetime; always invokes the newest closure
+  // via refreshRef. Dev/staging builds only (QA_TOOLING_ENABLED gate).
+  useEffect(() => {
+    if (!QA_TOOLING_ENABLED) return;
+    const unregister = registerQaScreenRefresh(() => {
+      refreshRef.current();
+    });
+    return unregister;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // TFV2-015: Handle notification-triggered ignore prompt modal
   useEffect(() => {
@@ -1714,17 +1750,38 @@ export default function TradeListScreen({ navigation }: any) {
       </ScrollView>
 
       {/* Bundle Accept/Decline Confirmation Modal */}
+      {/* DEV-TASK-84 (2026-09-01): QA Task 17 F-4 — the AX tree went blank on
+          every single-item/bundle accept because this RN Modal, unlike the
+          app's GlobalAlertProvider modal (which surfaces reliably), had no
+          `accessibilityViewIsModal` and no explicit `accessibilityLabel` on its
+          primary button. Aligned with the GlobalAlertProvider pattern so the
+          accept/decline buttons (btn-accept-all-confirm / btn-decline-all-confirm)
+          are reliably AX-exposed (QA Task 17 F-4: ~4-6 OCR/guess calls -> ~2 AX
+          calls per accept). */}
       <Modal
         visible={bundleConfirmModal.visible}
         transparent
         animationType="slide"
+        accessibilityViewIsModal
         onRequestClose={() => setBundleConfirmModal((prev) => ({ ...prev, visible: false }))}
       >
+        {/* DEV-TASK-84 (2026-09-01): the overlay/sheet are Pressables, which
+            default to accessible={true} and GROUP their children in the iOS AX
+            tree — hiding the Accept/Decline/Cancel buttons even though they
+            carry testIDs + accessibility props. GlobalAlertProvider's modal
+            uses plain <View> containers (non-grouping) and surfaces reliably.
+            accessible={false} on these two containers lets the buttons surface
+            individually (verified on-device 2026-09-01). */}
         <Pressable
+          accessible={false}
           style={styles.ignModalOverlay}
           onPress={() => setBundleConfirmModal((prev) => ({ ...prev, visible: false }))}
         >
-          <Pressable style={styles.ignModalSheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            accessible={false}
+            style={styles.ignModalSheet}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Text style={styles.ignModalTitle}>
               {bundleConfirmModal.action === 'accept'
                 ? 'Accept All Offers?'
@@ -1738,6 +1795,9 @@ export default function TradeListScreen({ navigation }: any) {
             <TouchableOpacity
               accessible
               accessibilityRole="button"
+              accessibilityLabel={
+                bundleConfirmModal.action === 'accept' ? 'Accept All' : 'Decline All'
+              }
               style={styles.ignModalBtnPrimary}
               onPress={executeBundleAction}
               testID={
@@ -1756,7 +1816,7 @@ export default function TradeListScreen({ navigation }: any) {
               testID="btn-bundle-modal-cancel"
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Btn bundle modal cancel"
+              accessibilityLabel="Cancel"
             >
               <Text style={styles.ignModalBtnDismissText}>Cancel</Text>
             </TouchableOpacity>

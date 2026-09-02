@@ -105,6 +105,15 @@ import QaClearOverlaysDeepLinkHandler from '@/components/QaClearOverlaysDeepLink
 // checkout item via p2pkidsmarketplace://qa-set-sp?listing=<id>&amount=<N> (1
 // call, no type-and-clear). Inert in production builds (see component's gate).
 import QaSetSpDeepLinkHandler from '@/components/QaSetSpDeepLinkHandler';
+// Dev Task 84 item 2: QA-only qa-refresh handler — force-refetches the currently
+// open screen via p2pkidsmarketplace://qa-refresh (1 call, no nav-away-and-back
+// remount). Inert in production builds (see component's security gate).
+import QaRefreshDeepLinkHandler from '@/components/QaRefreshDeepLinkHandler';
+// Dev Task 84 item 3: QA-only qa-scroll-to handler — scrolls a target testID
+// into view on the open screen via p2pkidsmarketplace://qa-scroll-to?testID=<id>
+// and logs fresh viewport coords (1 call, no swipe/relist/OCR cycle). Inert in
+// production builds (see component's security gate).
+import QaScrollToDeepLinkHandler from '@/components/QaScrollToDeepLinkHandler';
 // Dev Task 44 item 3: the iOS keyboard-done accessory is rendered ONCE at the app
 // root so every TextInput carrying inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
 // app-wide (including the shared TextInput components) gets the Done bar. Renders
@@ -1066,6 +1075,14 @@ export default function AppNavigator() {
             anywhere). Sets an SP value on a cart-checkout item via
             p2pkidsmarketplace://qa-set-sp?listing=<id>&amount=<N>. Inert in production. */}
         <QaSetSpDeepLinkHandler />
+        {/* Dev Task 84 item 2: QA-only qa-refresh handler (no auth dependency — safe
+            anywhere). Force-refetches the currently-open screen via
+            p2pkidsmarketplace://qa-refresh. Inert in production builds. */}
+        <QaRefreshDeepLinkHandler />
+        {/* Dev Task 84 item 3: QA-only qa-scroll-to handler (no auth dependency — safe
+            anywhere). Scrolls a target into view via
+            p2pkidsmarketplace://qa-scroll-to?testID=<id>. Inert in production builds. */}
+        <QaScrollToDeepLinkHandler />
         {/* iOS keyboard-done accessory — mounted once at the root for every wired
             TextInput app-wide (Dev Task 44 item 3). Android: renders nothing. */}
         <KeyboardDoneAccessory />

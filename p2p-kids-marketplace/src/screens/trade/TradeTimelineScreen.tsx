@@ -62,8 +62,21 @@ import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import { registerQaScrollToHandler, scrollChildIntoView } from '@/services/qaScrollRegistry';
 
 type TradeTimelineRouteProp = RouteProp<RootStackParamList, 'TradeTimeline'>;
+
+// DEV-TASK-84 (2026-09-01): QA `qa:scroll-to` deep link support — registers
+// this screen's scroll-to-testID implementation so
+// `p2pkidsmarketplace://qa-scroll-to?testID=<id>` can scroll the target action
+// button into view and report fresh viewport coords in ONE call.
+// QA Task 17 F-Z04: the timeline ScrollView snaps to only ~2 positions, so the
+// mid-section approve/decline/withdraw band required a flingy swipe-then-relist
+// cycle (~15-20 calls the first time, amortized after). Dev/staging only.
+const QA_TOOLING_ENABLED: boolean =
+  __DEV__ ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'development' ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'staging';
 
 export default function TradeTimelineScreen() {
   const route = useRoute<TradeTimelineRouteProp>();
@@ -114,6 +127,44 @@ export default function TradeTimelineScreen() {
     allIds: string[];
     reason: string;
   } | null>(null);
+  // DEV-TASK-84 (2026-09-01): qa-scroll-to deep link support — refs for the
+  // timeline's action buttons so `qa-scroll-to?testID=<id>` can scroll them
+  // into view and report fresh viewport coords (QA Task 17 F-Z04 flingy-scroll
+  // friction). Dev/staging builds only.
+  const timelineScrollRef = useRef<ScrollView>(null);
+  const withdrawCancelRequestRef = useRef<View>(null);
+  const declineCancelRequestRef = useRef<View>(null);
+  const approveCancelRequestRef = useRef<View>(null);
+  const confirmTradeRef = useRef<View>(null);
+  const requestCancelRef = useRef<View>(null);
+  const sellerCancelInprogressRef = useRef<View>(null);
+
+  // Register the qa-scroll-to handler for this screen. Registered once for the
+  // screen lifetime; the refs are stable, so the testID→ref mapping is built
+  // inline. `scrollChildIntoView` measures the target relative to the timeline
+  // ScrollView, scrolls it into the visible band (with header breathing room),
+  // then reports fresh window coords for the QA agent to tap.
+  useEffect(() => {
+    if (!QA_TOOLING_ENABLED) return;
+
+    const targets: Record<string, React.RefObject<View | null> | null> = {
+      'withdraw-cancel-request-button': withdrawCancelRequestRef,
+      'decline-cancel-request-button': declineCancelRequestRef,
+      'approve-cancel-request-button': approveCancelRequestRef,
+      'confirm-trade-button': confirmTradeRef,
+      'request-cancel-button': requestCancelRef,
+      'seller-cancel-inprogress-button': sellerCancelInprogressRef,
+    };
+
+    return registerQaScrollToHandler(async (testID) => {
+      const target = targets[testID];
+      if (!target || !target.current) {
+        return null;
+      }
+      return scrollChildIntoView(timelineScrollRef, target);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // TFV2-011: Issue report modal
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [nextStepsDismissed, setNextStepsDismissed] = useState(false);
@@ -157,6 +208,23 @@ export default function TradeTimelineScreen() {
     action: 'approve' | 'decline';
     processing?: boolean;
   } | null>(null);
+
+  // DEV-TASK-83 (Z06): gate cancel-request copy on whether admin escalation is
+  // enabled. Defaults true (keeps today's copy); updated when config loads.
+  const [escalationEnabled, setEscalationEnabled] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    getAdminConfig()
+      .then((c) => {
+        if (!cancelled) setEscalationEnabled(!!c.cancel_request_escalation_enabled);
+      })
+      .catch(() => {
+        // fail-soft: default true preserves current behavior
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Navigate seller to TradeSuccessScreen only when trade status *changes* to completed
   const navigateSellerToSuccess = (currentTrade: Trade) => {
@@ -732,7 +800,9 @@ export default function TradeTimelineScreen() {
       await fetchTrade();
       showNotif(
         'Request Sent',
-        `The seller has ${hours} hours to respond. If they decline or don't reply, our team will review it.`,
+        config.cancel_request_escalation_enabled
+          ? `The seller has ${hours} hours to respond. If they decline or don't reply, our team will review it.`
+          : `The seller has ${hours} hours to respond. If they decline, the trade will continue as planned.`,
         'accept'
       );
     } catch (e) {
@@ -782,8 +852,10 @@ export default function TradeTimelineScreen() {
       } else {
         await fetchTrade();
         showNotif(
-          'Sent to Our Team',
-          "The buyer's cancellation request was escalated for review.",
+          escalationEnabled ? 'Sent to Our Team' : 'Request Closed',
+          escalationEnabled
+            ? "The buyer's cancellation request was escalated for review."
+            : "The buyer's cancellation request was declined — the trade will continue as planned.",
           'default'
         );
       }
@@ -874,6 +946,7 @@ export default function TradeTimelineScreen() {
   return (
     <ScreenLayout variant="detail" title="Trade Timeline">
       <ScrollView
+        ref={timelineScrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         refreshControl={
@@ -1412,10 +1485,13 @@ export default function TradeTimelineScreen() {
                   </View>
                   <Text style={styles.extensionCardDesc}>
                     Waiting for the seller to respond
-                    {reqCountdown ? ` — ${reqCountdown} left` : ''}. If they decline or don't reply,
-                    our team will review it.
+                    {reqCountdown ? ` — ${reqCountdown} left` : ''}.{' '}
+                    {escalationEnabled
+                      ? "If they decline or don't reply, our team will review it."
+                      : 'If they decline, the trade will continue as planned.'}
                   </Text>
                   <Pressable
+                    ref={withdrawCancelRequestRef}
                     style={styles.cancelRequestTextButton}
                     onPress={handleWithdrawCancelRequest}
                     disabled={cancelRequestSubmitting}
@@ -1459,12 +1535,17 @@ export default function TradeTimelineScreen() {
                     {(trade as any).cancel_request_reason
                       ? ` Reason: "${(trade as any).cancel_request_reason}".`
                       : ''}{' '}
-                    {reqCountdown
-                      ? `Respond within ${reqCountdown}, or our team reviews it.`
-                      : "If you don't respond, our team reviews it."}
+                    {escalationEnabled
+                      ? reqCountdown
+                        ? `Respond within ${reqCountdown}, or our team reviews it.`
+                        : "If you don't respond, our team reviews it."
+                      : reqCountdown
+                        ? `Respond within ${reqCountdown}, or the request is closed and the trade continues.`
+                        : "If you don't respond, the request is closed and the trade continues."}
                   </Text>
                   <View style={styles.extensionCardActions}>
                     <Pressable
+                      ref={declineCancelRequestRef}
                       style={styles.extensionDeclineButton}
                       onPress={() => setCancelRequestConfirm({ visible: true, action: 'decline' })}
                       disabled={cancelRequestSubmitting}
@@ -1476,6 +1557,7 @@ export default function TradeTimelineScreen() {
                       <Text style={styles.extensionDeclineText}>Decline</Text>
                     </Pressable>
                     <Pressable
+                      ref={approveCancelRequestRef}
                       style={styles.cancelRequestApproveButton}
                       onPress={() => setCancelRequestConfirm({ visible: true, action: 'approve' })}
                       disabled={cancelRequestSubmitting}
@@ -1838,6 +1920,7 @@ export default function TradeTimelineScreen() {
         {isBuyer && trade.status === 'in_progress' && trade.auto_complete_at && (
           <View style={styles.actions}>
             <Pressable
+              ref={confirmTradeRef}
               style={[
                 styles.confirmButton,
                 (submitting || hasUnresolvedDispute) && styles.disabledButton,
@@ -1882,6 +1965,7 @@ export default function TradeTimelineScreen() {
             {/* FIX-CANCEL (2026-09-01): buyer Request to Cancel (hidden while a request is pending) */}
             {!hasUnresolvedDispute && !cancelRequestPending && (
               <Pressable
+                ref={requestCancelRef}
                 style={[
                   styles.cancelButtonOutline,
                   (submitting || cancelRequestSubmitting) && styles.disabledButton,
@@ -1922,6 +2006,7 @@ export default function TradeTimelineScreen() {
         {isSeller && trade.status === 'in_progress' && !hasUnresolvedDispute && (
           <View style={styles.actions}>
             <Pressable
+              ref={sellerCancelInprogressRef}
               style={[
                 styles.cancelButtonOutline,
                 (submitting || isCancelling) && styles.disabledButton,
@@ -2160,14 +2245,26 @@ export default function TradeTimelineScreen() {
         <TradeConfirmationModal
           visible={cancelRequestConfirm.visible}
           title={
-            cancelRequestConfirm.action === 'approve' ? 'Cancel this trade?' : 'Send to our team?'
+            cancelRequestConfirm.action === 'approve'
+              ? 'Cancel this trade?'
+              : escalationEnabled
+                ? 'Send to our team?'
+                : 'Decline cancellation?'
           }
           message={
             cancelRequestConfirm.action === 'approve'
               ? 'The trade will be cancelled and the buyer will be refunded. This cannot be undone.'
-              : "The buyer's cancellation request will be sent to our team for review. The trade stays in progress until they decide."
+              : escalationEnabled
+                ? "The buyer's cancellation request will be sent to our team for review. The trade stays in progress until they decide."
+                : "The buyer's cancellation request will be closed and the trade will continue as planned."
           }
-          confirmLabel={cancelRequestConfirm.action === 'approve' ? 'Cancel Trade' : 'Send to Team'}
+          confirmLabel={
+            cancelRequestConfirm.action === 'approve'
+              ? 'Cancel Trade'
+              : escalationEnabled
+                ? 'Send to Team'
+                : 'Close Request'
+          }
           cancelLabel="Go Back"
           variant={cancelRequestConfirm.action === 'approve' ? 'decline' : 'default'}
           onConfirm={() => handleRespondCancelRequest(cancelRequestConfirm.action)}

@@ -163,8 +163,12 @@ export default function TradeSuccessScreen() {
   // Documented in QaForceTradeSuccessDeepLinkHandler (FIX-PARAMS, QA Task 16).
   const feeSavingsParamCents: number = (route.params as any)?.feeSavingsCents ?? 0;
 
-  // ── Dynamic fee savings from admin_config (R1 — Tiered Buyer-Fee Engine) ────
+  // ── Dynamic values derived from the REAL completed trade (H01 fee savings +
+  //    H02 SP savings) — Dev Task 78 + DEV-TASK-83 ─────────────────────────
   const [feeSavingsCents, setFeeSavingsCents] = useState(0);
+  // sp_amount from the real trade (1 SP = $1). null = no real trade row → fall
+  // back to the route params (e.g. the qa-trade-success deep link).
+  const [tradeSpUsed, setTradeSpUsed] = useState<number | null>(null);
 
   // R1 + Dev Task 78 (H01): the Kids Club+ upsell savings = what this buyer
   // ACTUALLY paid on this trade (trade.buyer_transaction_fee_cents) minus the
@@ -182,7 +186,7 @@ export default function TradeSuccessScreen() {
           getActiveMemberFeeCents(),
           supabase
             .from('trades')
-            .select('buyer_transaction_fee_cents')
+            .select('buyer_transaction_fee_cents, sp_amount')
             .eq('id', tradeId)
             .maybeSingle(),
         ]);
@@ -191,6 +195,11 @@ export default function TradeSuccessScreen() {
           (trade as { buyer_transaction_fee_cents?: number } | null)?.buyer_transaction_fee_cents ??
             0
         );
+        // DEV-TASK-83 (H02): derive the SP-savings figure from the real trade's
+        // sp_amount (1 SP = $1) instead of relying on a route param that can be
+        // stale or missing (e.g. cart/bundle completions pass only tradeId).
+        const tradeSp = Number((trade as { sp_amount?: number } | null)?.sp_amount ?? 0);
+        if (!cancelled) setTradeSpUsed(tradeSp > 0 ? tradeSp : null);
         // A real trade always carries a buyer fee (paidFeeCents > 0) → compute
         // the real savings. A placeholder/QA tradeId resolves to no row (0) →
         // fall back to the feeSavingsCents route param so H01's real-figure
@@ -273,16 +282,20 @@ export default function TradeSuccessScreen() {
             const isBuyer = role === 'buyer';
             const isSeller = role === 'seller';
             const isSubscriber = subscriptionStatus === 'subscriber';
+            // DEV-TASK-83 (H02): prefer the SP derived from the real completed
+            // trade over route params (which cart/bundle completions may omit).
+            const effectiveSpUsed = tradeSpUsed ?? spUsed;
+            const effectiveSpAmountDollars = tradeSpUsed != null ? tradeSpUsed : spAmountDollars;
             const cta = buildCompletionCTA(
               isBuyer,
               isSeller,
               isSubscriber,
-              spUsed,
+              effectiveSpUsed,
               listingType,
               totalSpToSeller,
               spPendingReleaseDays,
               remainingSP,
-              spAmountDollars,
+              effectiveSpAmountDollars,
               navigation,
               feeSavingsCents,
               tradeStatus

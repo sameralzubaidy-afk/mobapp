@@ -18,6 +18,15 @@ jest.mock('@/config/supabase');
 jest.mock('@/hooks/useAuth');
 jest.mock('@/services/trade');
 jest.mock('@/services/subscription');
+// DEV-TASK-83 (Z06): the screen now reads cancel_request_escalation_enabled on
+// mount to gate cancel-request copy. Default true keeps today's copy.
+jest.mock('@/services/adminConfig', () => ({
+  getAdminConfig: jest.fn().mockResolvedValue({
+    cancel_request_escalation_enabled: true,
+    cancel_request_response_timeout_hours: 48,
+  }),
+  getSPReleaseDays: jest.fn().mockResolvedValue(3),
+}));
 jest.mock('@/components/organisms/PersistentTabBar', () => ({
   PersistentTabBar: () => null,
 }));

@@ -7,7 +7,14 @@
  * run:
  *
  *   npm run qa:ef-repro -- --persona test-buyer --ef create-trade-offer \
- *       --items <listing_id>[,<listing_id>...] [--fee-mode cash_only] [--pm pm_...] [--body '{"...":...}']
+ *       --items <listing_id>[,<listing_id>...] [--fee-mode cash_only] [--pm pm_...] [--body '{"...":...}'] [--notify]
+ *
+ *   --notify (DEV-TASK-84, 2026-09-01): after a successful create, verify the
+ *       offer's seller received the `trade_request` in-app notification (created
+ *       by the trade_request_notification DB trigger on INSERT) and backfill it
+ *       via create_trade_notification if the trigger/prefs suppressed it. Pair
+ *       with the `qa:refresh` deep link to refresh the seller's open Needs
+ *       Action list (it has no Realtime subscription).
  *
  * What it does:
  *   1. Resolves the persona (email/password registry, fixed UUIDs from
@@ -55,6 +62,14 @@ const ITEMS = (argValue('items') || '')
 const FEE_MODE = argValue('fee-mode') || 'cash_only';
 const PM_OVERRIDE = argValue('pm');
 const BODY_OVERRIDE = argValue('body');
+// DEV-TASK-84 (2026-09-01): `--notify` — after a successful create, verify the
+// offer's seller received the `trade_request` in-app notification (created by
+// the trade_request_notification DB trigger on INSERT), and backfill it via the
+// sanctioned create_trade_notification RPC if the trigger/prefs suppressed it.
+// This gives QA a one-call "seller was notified" confirmation when building
+// fixtures. The seller's Needs Action list refresh is handled separately by the
+// qa:refresh deep link (p2pkidsmarketplace://qa-refresh).
+const NOTIFY = process.argv.includes('--notify');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -113,6 +128,88 @@ async function exchangeJwt(email, password) {
     throw new Error(`GoTrue password grant -> ${res.status} ${JSON.stringify(json)}`);
   }
   return json.access_token;
+}
+
+/**
+ * DEV-TASK-84 `--notify` (2026-09-01): after a successful EF create, confirm the
+ * offer's seller received a `trade_request` in-app notification for each newly
+ * created trade. The real flow's `trade_request_notification` DB trigger already
+ * inserts one on trades INSERT — this VERIFIES it landed (BP-47: never assume the
+ * trigger fired) and BACKFILLS via the sanctioned create_trade_notification RPC
+ * if it's missing (e.g. trigger drift, or notification_preferences suppressing
+ * the 'trades' category — reported honestly as `suppressed-by-prefs`).
+ *
+ * Note: this does NOT refresh the seller's Needs Action list (that screen has no
+ * Realtime subscription) — QA refreshes it with the `qa:refresh` deep link.
+ *
+ * @param {string} buyerUserId  the persona's user id (trades are queried by it)
+ * @param {object} itemDetails  { [itemId]: { title, price, seller_id, ... } }
+ */
+async function verifySellerNotifications(buyerUserId, itemDetails) {
+  const recent = await admin
+    .from('trades')
+    .select('id, listing_id, seller_id, created_at')
+    .eq('buyer_id', buyerUserId)
+    .in('listing_id', Object.keys(itemDetails))
+    .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+    .order('created_at', { ascending: false })
+    .limit(25);
+
+  const trades = recent?.data ?? [];
+  if (trades.length === 0) {
+    log('⚠️ --notify: no trades found for this persona in the last 5 min — nothing to verify.');
+    return;
+  }
+  log(`📣 --notify: verifying seller notifications for ${trades.length} trade(s)...`);
+
+  for (const trade of trades) {
+    const listing = itemDetails[trade.listing_id];
+    const itemTitle = listing?.title ?? 'item';
+    const sellerId = trade.seller_id;
+
+    const { data: existing } = await admin
+      .from('user_notifications')
+      .select('id, channels')
+      .eq('user_id', sellerId)
+      .eq('type', 'trade_request')
+      .eq('data->>trade_id', trade.id)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      log(`✅ NOTIFY trade ${trade.id} seller ${String(sellerId).slice(0, 8)}: trade_request present (channels ${(existing[0].channels ?? []).join('+') || 'n/a'})`);
+      continue;
+    }
+
+    // Backfill via the same RPC the real flow uses (respects notification_preferences).
+    let backfilled = false;
+    try {
+      const { data: notifId, error } = await admin.rpc('create_trade_notification', {
+        p_user_id: sellerId,
+        p_notification_type: 'trade_request',
+        p_title: 'New Trade Request! 💬',
+        p_body: `Someone wants to trade for your "${itemTitle}"`,
+        p_data: {
+          trade_id: trade.id,
+          item_id: trade.listing_id,
+          item_title: itemTitle,
+          buyer_id: buyerUserId,
+          buyer_name: 'Someone',
+          deep_link: `/trades/${trade.id}`,
+          type: 'trade_request',
+        },
+      });
+      if (error) throw error;
+      backfilled = Boolean(notifId);
+    } catch (err) {
+      log(`⚠️ NOTIFY trade ${trade.id}: backfill RPC failed: ${err?.message ?? err}`);
+    }
+
+    if (backfilled) {
+      log(`🔁 NOTIFY trade ${trade.id} seller ${String(sellerId).slice(0, 8)}: trade_request BACKFILLED`);
+    } else {
+      log(`⚠️ NOTIFY trade ${trade.id} seller ${String(sellerId).slice(0, 8)}: no row — suppressed-by-prefs (seller disabled 'trades' notifications) or RPC returned null`);
+    }
+  }
 }
 
 async function main() {
@@ -222,6 +319,15 @@ async function main() {
   log(`HTTP ${res.status}`);
   log(parsed ? JSON.stringify(parsed, null, 2) : text);
   log('=====================================');
+
+  // DEV-TASK-84 (2026-09-01): `--notify` — verify/backfill the seller's
+  // trade_request in-app notification (only meaningful for offer-creating EFs
+  // like create-trade-offer; other EFs will simply report "no trades found").
+  if (NOTIFY && ITEMS.length > 0) {
+    await verifySellerNotifications(userId, itemDetails);
+  } else if (NOTIFY) {
+    log('⚠️ --notify requires --items <id[,id...]> to locate the created trades (skipping).');
+  }
 }
 
 main().catch((err) => {

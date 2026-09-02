@@ -5,7 +5,7 @@ applyTo: "supabase/migrations/**/*.sql"
 
 # Supabase SQL / Migration Hardening Protocol
 
-Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78, BP-81. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -43,6 +43,7 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-76 Enum-like status/reason literals — DB writers must emit the canonical snake value (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column (silently breaks surfacing/counters, TRD re-verify 2026-08-28).
 - BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, and audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30).
 - BP-79 Default-privilege hardening is ineffective for NEW functions on Supabase PG 17.6 — `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` cannot stop them being client-executable (built-in PUBLIC baseline always applies AND the default-ACL row directly grants anon/authenticated); enforce fail-closed defaults via the `dt61_guard_revoke_fn_public` EVENT TRIGGER (auto-REVOKE PUBLIC, anon, authenticated on every new public-schema function/procedure) + explicit-grant discipline (DT-61, 2026-08-30).
+- BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but does NOT write a `schema_migrations` tracking row; verify the migration actually landed by invoking the changed object (function/trigger/table) live, never by the migration list (DEV-TASK-83, 2026-09-02).
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -482,3 +483,15 @@ Rules (standing playbook — Dev Task 61 §5):
 - The grant-discipline audit that justified the trigger: 429 public functions, 370 PUBLIC-executable, but **0 rely on built-in PUBLIC without an explicit anon/authenticated grant** — every client function is already explicitly granted, so the trigger is safe for existing functions (no retroactive effect) and consistent with existing practice.
 
 Detection checklist: any NEW migration that creates a public-schema function/procedure WITHOUT an explicit `GRANT EXECUTE` is a Tier-0 finding (it will be owner-only at runtime). Any attempt to "fix" the new-function default with `ALTER DEFAULT PRIVILEGES ... REVOKE ... FROM PUBLIC` should be rejected as ineffective (see above) — use the event trigger + explicit grants. Cross-ref BP-78 (existing-function grants — per-function REVOKE works there), BP-75 (live-vs-grep audits).
+
+## BP-81: MCP-Applied Migrations Don't Appear in `list_migrations` — Verify Liveness by Real Invocation
+
+Problem (DEV-TASK-83, 2026-09-02): after applying migration `20260902000000_fix_escalate_expired_cancel_requests_notify.sql` via `mcp_supabase_apply_migration`, `mcp_supabase_list_migrations` did NOT list it. The MCP `apply_migration` tool executes the DDL but does not insert a row into `supabase_migrations.schema_migrations`, so the migration-tracking list is neither proof that the DDL ran nor grounds to conclude it didn't. Treating `list_migrations` as the verification oracle can false-assert an apply — or, worse, trigger a re-apply of an already-live function.
+
+Rules:
+- `list_migrations` reflects only repo-tracked migrations (the `schema_migrations` table the CLI / `supabase db reset` maintains) — NOT what the MCP apply tool ran. An MCP-applied migration can be absent from it even though the DDL executed successfully.
+- To verify an MCP-applied migration actually landed, exercise the CHANGED OBJECT live: for a function, `SELECT public.<fn>(...);` (or run the RPC and assert the intended behavior/side effect); for a table/column, query `information_schema`/`pg_attribute`; for a trigger, check `information_schema.triggers`. A real invocation returning the expected result is the authoritative evidence (same spirit as BP-66/BP-71 — a clean "success"/exit message is never sufficient).
+- The migration FILE must still be committed under `supabase/migrations/` so a fresh `supabase db reset` / CLI replay re-applies it idempotently (SQL-0 Mode B) — the file is the durable record; the tracking table is not.
+- Cross-ref BP-80 (two-phase provisioning — state "written, NOT applied" vs applied, and verify the DB state directly), BP-47 (verify the attached/deployed body, not the file).
+
+Detection checklist: after any `mcp_supabase_apply_migration`, do NOT use `list_migrations` as the pass/fail signal — invoke the changed function/object and assert the new behavior; if the function is missing/broken, re-check the applied body (BP-47) before blaming the migration file.

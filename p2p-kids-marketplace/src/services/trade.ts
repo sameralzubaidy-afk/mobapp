@@ -226,7 +226,7 @@ function extractMessageFromPayload(payload: unknown): string | null {
   return null;
 }
 
-async function extractEdgeInvokeErrorMessage(
+export async function extractEdgeInvokeErrorMessage(
   invokeError: unknown,
   invokeData: unknown,
   fallbackMessage: string

@@ -26,6 +26,17 @@
 //                        the real-figure upsell; otherwise H01 falls back to
 //                        the generic upsell (FIX-PARAMS, QA Task 16)
 //
+// GATE NOTES (QA Task 17 / F-9):
+//   * H02 "Got it! You saved $X using SP!" requires spUsed > 0 — without it the
+//     generic Perm-3 ("Consider using SP…") shows. Pass both spUsed > 0 AND
+//     spAmountDollars to drive the SP-savings permutation.
+//   * For REAL (non-QA) completions, TradeSuccess now auto-derives the savings
+//     figures from the actual trade row (fee from buyer_transaction_fee_cents,
+//     SP from sp_amount — DEV-TASK-83 H01/H02), so the deep link is only needed
+//     for placeholder/QA trades.
+//   * A queued native alert (e.g. "Trade Cancelled") can displace the deep-link
+//     render — dismiss any pending alert, then re-fire the link.
+//
 // SECURITY GATE: identical to the other QA handlers — registered only in dev /
 // staging builds; a production build never registers the listener. Requires an
 // authenticated session (log in first via `qa-login-as?persona=<name>`).

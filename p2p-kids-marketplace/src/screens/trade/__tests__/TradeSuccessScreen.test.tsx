@@ -6,6 +6,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TradeSuccessScreen from '../TradeSuccessScreen';
+import { supabase } from '@/config/supabase';
 
 jest.mock('@react-navigation/native', () => ({
   useRoute: () => ({
@@ -41,6 +42,8 @@ jest.mock('@/config/supabase', () => ({
 jest.mock('@/services/adminConfig', () => ({
   getActiveMemberFeeCents: jest.fn().mockResolvedValue(149),
 }));
+
+const mockSupabaseFrom = supabase.from as jest.Mock;
 
 describe('TradeSuccessScreen', () => {
   beforeEach(() => {
@@ -233,6 +236,34 @@ describe('TradeSuccessScreen', () => {
       expect(getByTestId('cta-message').props.children).toContain(
         'Got it! You saved $2.50 using SP! You have 80 SP available.'
       );
+    });
+
+    // DEV-TASK-83 (H02): auto-derive the SP-savings figure from the REAL trade
+    // (sp_amount = 5 → $5) even when NO SP route params are passed — the cart /
+    // bundle completion path passes only tradeId.
+    it('H02 auto-derive: subscriber buyer gets SP savings from the real trade when params omit it', async () => {
+      mockUseAuth.mockReturnValue({
+        session: { user: { id: 'user-1' }, subscription_status: 'active' },
+      });
+      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
+        params: { success: true, role: 'buyer', tradeStatus: 'completed', tradeId: 'real-trade-1' },
+      });
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue({
+              data: { sp_amount: 5, buyer_transaction_fee_cents: 100 },
+              error: null,
+            }),
+          })),
+        })),
+      });
+      const { getByTestId } = render(<TradeSuccessScreen />);
+      await waitFor(() => {
+        expect(getByTestId('cta-message').props.children).toContain(
+          'Got it! You saved $5.00 using SP!'
+        );
+      });
     });
 
     // Permutation 2: Subscriber buyer, SP used → show savings + Keep Shopping

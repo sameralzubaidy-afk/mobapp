@@ -779,6 +779,11 @@ Issue: "A screen renders a visible junk line like `accessible accessibilityRole=
 ✅ Check: Every `<Text>` carrying `accessible`/`accessibilityRole`/`accessibilityLabel` has them as attributes on the opening tag, never as rendered children — grep `accessible accessibilityRole` when touching or reviewing `<Text>` components (BP-61)
 See also: BP-61 (accessibility props must be attributes, not literal `<Text>` children — recurred on `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`)
 
+Issue: "A modal's buttons don't show up in the iOS AX tree even though they carry `testID` + `accessible` + `accessibilityLabel`"
+
+✅ Check: The modal's backdrop/sheet containers are `Pressable`s (they default to `accessible={true}` and GROUP their children) — set `accessible={false}` on the overlay AND sheet so the buttons surface individually; `accessibilityViewIsModal` on the `<Modal>` alone is not sufficient (BP-53)
+See also: BP-53 (QA testIDs must be real iOS accessibility elements; Modal/Pressable containers group children — verified on-device 2026-09-01 on the bundle accept modal)
+
 Issue: "A mutation appears to succeed in the UI but the database wasn't actually changed"
 
 ✅ Check: The caller checked the `{success}` result of the service call instead of ignoring it (BP-35)
@@ -838,6 +843,7 @@ Issue: "The next session / QA pass can't find the trade/column/row the previous 
 ✅ Check: The prior handoff explicitly said which provisioning steps were "written, NOT applied/run" and which regression tiers were marked DEFERRED (BP-80)
 ✅ Check: The migration was actually applied (`list_migrations`) / the fixture script actually run — never assume from the code being committed or a clean script exit; verify the DB state directly (BP-80)
 See also: BP-80 (two-phase provisioning deliverables — code + Tier 0 vs. approval-gated execution against staging)
+See also: BP-81 (MCP-applied migrations don't appear in `list_migrations` — verify the migration landed by live invocation, not the migration list)
 
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
@@ -1377,6 +1383,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-77 Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path for large self-contained single-file functions too (no `_shared` deps, e.g. the 82KB/1,840-line `create-trade-offer`) — no per-deploy approval needed, per the DEV-TASK-36 resolution that retired the MCP-deploy mandate; MCP is a documented last-resort fallback only; post-deploy verification (version bump + real invocation, BP-66/BP-71) is mandatory on any path (DEV-TASK-33, 2026-08-28; DEV-TASK-36, 2026-08-28) — full text: `.github/instructions/edge-functions.instructions.md`.
 - BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps, and PostgREST maps `42501` to HTTP 401 — treat a 401 from a revoked caller as the expected rejection (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-80 Two-phase provisioning deliverables — fixture/migration work is delivered as (1) code/scripts/migration file written + Tier 0 green and (2) executed against staging (REQUIRES Samer's explicit approval per the MCP Usage Protocol); in the Session Handoff state "written, NOT applied/run" and mark the regression tier DEFERRED, never implying provisioning happened (DEV-TASK-77, 2026-08-31).
+- BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but doesn't write a `schema_migrations` row; verify the migration landed by invoking the changed object live, never by the migration list (DEV-TASK-83, 2026-09-02) — full text: `.github/instructions/supabase-sql.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1481,7 +1488,7 @@ Rules:
 
 Detection checklist: any admin-page fetch failing with 401 / "No valid authentication provided" / "Fetch failed" → confirm the request carries `x-admin-secret` (or an explicit Bearer JWT). If it carries neither, the fix is in the CLIENT (add the header), not the endpoint.
 
-BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements — full text moved to `.github/instructions/mobile-client.instructions.md`.
+BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements (incl. Modal/Pressable-container grouping — set `accessible={false}` on overlay/sheet so buttons surface) — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-55: Root-Level UI Gated on Mount-Effect-Only State Must Be Flipped by an Explicit Child→Parent Callback — full text moved to `.github/instructions/navigation.instructions.md`.
 

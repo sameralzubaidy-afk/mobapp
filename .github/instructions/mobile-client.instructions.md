@@ -19,7 +19,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-36 Realtime subscriptions — confirm the table is in the `supabase_realtime` publication; watch for RLS-filtered events.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
-- BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`.
+- BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`. Modal containers that are `Pressable`s group their children and hide them from the AX tree — set `accessible={false}` on the overlay/sheet so the buttons surface.
 - BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
@@ -198,8 +198,35 @@ Rules:
 <TouchableOpacity testID="age-gate-dialog-ok-button" onPress={...} />
 ```
 4. Detection checklist: after a modal/alert/button change, run the element-listing tool on the simulator and confirm each intended `testID` appears; if the identifier is missing but the element renders, it's an exposure bug (add `accessible`/`accessibilityRole`), not a tooling limitation.
-5. **Some `accessibilityRole` VALUES never register on iOS, even with `accessible` set.** On RN 0.81 (Fabric), `accessibilityRole="tab"` (and `"tablist"` on a container) does NOT surface in the iOS accessibility tree — confirmed on-device 2026-08-20 (the bulk `bulk-step-*` step indicator on `BulkListingCreateScreen` was invisible until the role was changed to `"button"`; removing the container's `tablist` role and disabled-node flattening were both ruled out by controlled on-device experiments). For tappable steps/tabs, use `accessibilityRole="button"` and carry current state via `accessibilityState` + the label (e.g. `"Step 2: Group, current"`). Do NOT use `tab`/`tablist` on iOS.
-6. Pattern (tab-like tappable step that actually surfaces):
+   - If a modal's buttons carry `testID` + `accessible` + `accessibilityRole` + `accessibilityLabel` yet STILL don't surface, inspect the modal's CONTAINERS: any `Pressable`/`Touchable*` backdrop or sheet will group its children into one accessibility element. Set `accessible={false}` on those containers (the overlay AND the sheet) — `accessibilityViewIsModal` on the `<Modal>` alone is NOT sufficient.
+5. **RN `<Modal>` containers that are `Pressable`s GROUP their children and hide them from the AX tree** (2026-09-01, DT84 / QA Task 17 F-4): a branded modal whose backdrop/sheet are `Pressable`s defaults to `accessible={true}` and collapses the whole overlay into one accessibility element — the modal's buttons vanish even when each carries `testID` + `accessible` + `accessibilityRole` + `accessibilityLabel`. `GlobalAlertProvider` never hit this because its backdrop is a plain `<View>` (non-grouping). Pattern:
+```tsx
+// ✅ CORRECT — buttons surface individually (accessible={false} on the Pressable containers)
+<Modal visible transparent animationType="slide" accessibilityViewIsModal onRequestClose={close}>
+  <Pressable accessible={false} style={overlay} onPress={close}>
+    <Pressable accessible={false} style={sheet} onPress={(e) => e.stopPropagation()}>
+      <TouchableOpacity
+        testID="btn-accept-all-confirm"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Accept All"
+        onPress={...}
+      />
+    </Pressable>
+  </Pressable>
+</Modal>
+
+// ❌ WRONG — the Pressable backdrop/sheet group their children; buttons are invisible to the AX tree
+<Modal visible transparent animationType="slide" accessibilityViewIsModal onRequestClose={close}>
+  <Pressable style={overlay} onPress={close}>
+    <Pressable style={sheet} onPress={(e) => e.stopPropagation()}>
+      <TouchableOpacity testID="btn-accept-all-confirm" accessible accessibilityRole="button" accessibilityLabel="Accept All" ... />
+    </Pressable>
+  </Pressable>
+</Modal>
+```
+6. **Some `accessibilityRole` VALUES never register on iOS, even with `accessible` set.** On RN 0.81 (Fabric), `accessibilityRole="tab"` (and `"tablist"` on a container) does NOT surface in the iOS accessibility tree — confirmed on-device 2026-08-20 (the bulk `bulk-step-*` step indicator on `BulkListingCreateScreen` was invisible until the role was changed to `"button"`; removing the container's `tablist` role and disabled-node flattening were both ruled out by controlled on-device experiments). For tappable steps/tabs, use `accessibilityRole="button"` and carry current state via `accessibilityState` + the label (e.g. `"Step 2: Group, current"`). Do NOT use `tab`/`tablist` on iOS.
+Pattern (tab-like tappable step that actually surfaces):
 ```tsx
 // ✅ CORRECT — registers on the iOS tree; current step carried in label + state
 <TouchableOpacity

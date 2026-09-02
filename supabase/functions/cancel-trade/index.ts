@@ -137,6 +137,213 @@ async function fallbackCancelTrade(
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DEV-TASK-83 (Z05): cancel ONE trade's money state. Extracted from the original
+// inline handler so a whole-bundle cancel-request approval can cancel every
+// sibling BEFORE the request is marked approved. Idempotency is per-trade, so
+// looping is safe: Stripe refund key `refund_<tradeId>` (BP-65), the
+// `trades.stripe_refund_id` guard, `cancel_trade_v2`'s SP refund
+// (sp_refund_<tradeId> idempotency) + the `fn_release_sp_on_cancel` trigger
+// (`sp_released_at` re-entry guard).
+// ─────────────────────────────────────────────────────────────────────────────
+type CancelOneTradeContext = {
+  supabaseClient: ReturnType<typeof createClient<any, 'public', any>>;
+  reason: string;
+  issueRefund: boolean;
+  actorUserId: string;
+};
+
+async function cancelOneTrade(
+  ctx: CancelOneTradeContext,
+  trade: Record<string, unknown>
+): Promise<{ success: true; data: any } | { success: false; error: string }> {
+  const { supabaseClient, reason, issueRefund, actorUserId } = ctx;
+  const tradeId = typeof trade.id === 'string' ? trade.id : String(trade.id);
+  const status = typeof trade.status === 'string' ? trade.status : '';
+  const stripePaymentIntentId =
+    typeof trade.stripe_payment_intent_id === 'string' ? trade.stripe_payment_intent_id : null;
+
+  // TAX-STATUS-LIFECYCLE (2026-07-23): Cancel the Stripe PaymentIntent for pending offers
+  // with an authorization hold. Previously, only in_progress trades had their PI refunded.
+  // Now pending trades must explicitly cancel their authorization hold so the buyer's card
+  // is not left with a lingering hold when they actively cancel.
+  if (status === 'pending' && stripePaymentIntentId) {
+    console.log('[cancel-trade] Cancelling PI for pending trade:', tradeId, 'PI:', stripePaymentIntentId);
+    try {
+      const pi = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
+      if (['requires_capture', 'requires_confirmation', 'requires_action', 'requires_payment_method'].includes(pi.status)) {
+        await stripe.paymentIntents.cancel(stripePaymentIntentId);
+        console.log('[cancel-trade] PI cancelled successfully for pending trade:', tradeId);
+      } else {
+        console.log('[cancel-trade] PI status is', pi.status, '- no cancel needed for trade:', tradeId);
+      }
+    } catch (stripeError: unknown) {
+      console.error('[cancel-trade] PI cancel failed for pending trade (non-fatal):', stripeError);
+      // Non-fatal — the trade cancellation proceeds regardless. The authorization
+      // will expire naturally within 7 days if we can't cancel it now.
+    }
+  }
+
+  // 3. Handle Stripe refund if trade was paid and refund requested.
+  // TAX-STATUS-LIFECYCLE (2026-07-23): In the current tax flow, an in_progress
+  // trade's PaymentIntent is still an UNCAPTURED authorization hold (capture happens
+  // only at buyer completion). Stripe does NOT allow refunds on uncaptured PIs — they
+  // must be CANCELLED. Previously this branch unconditionally called refunds.create(),
+  // which failed on uncaptured PIs and left the Stripe transaction stuck as
+  // "uncaptured" even though the trade was cancelled (TC-R05 / TC-O3-C07).
+  if (issueRefund && status === 'in_progress' && stripePaymentIntentId) {
+    console.log('[cancel-trade] Checking existing refund for trade:', tradeId, 'stripe_refund_id:', trade.stripe_refund_id);
+
+    // Idempotency: don't create a new refund if one already exists
+    if (!trade.stripe_refund_id) {
+      console.log('[cancel-trade] Issuing Stripe refund/cancel for PI:', stripePaymentIntentId);
+      try {
+        const pi = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
+
+        if (pi.status === 'requires_capture' || pi.status === 'processing') {
+          // Uncaptured authorization hold — cancel it (can't be refunded).
+          const cancelled = await stripe.paymentIntents.cancel(stripePaymentIntentId, {
+            cancellation_reason: 'requested_by_customer',
+          });
+          console.log('[cancel-trade] PI cancelled (uncaptured) for trade:', tradeId, 'PI:', cancelled.id);
+          // Store id (service role) to prevent duplicate refund/cancel on retry
+          await supabaseClient.from('trades').update({ stripe_refund_id: `cancelled_${cancelled.id}` }).eq('id', tradeId);
+        } else if (pi.status === 'succeeded') {
+          // Captured payment — issue a refund
+          // DEV-TASK-6 (2026-08-27): idempotency key (options arg, BP-65) so a
+          // timeout-retry of the same cancel can never issue a duplicate Stripe
+          // refund. Close the check-then-act gap: if the charge was ALREADY
+          // refunded (refund made but DB update never landed on a prior attempt),
+          // reconcile the existing refund id from Stripe instead of silently
+          // dropping it — otherwise trades.stripe_refund_id stays null and the
+          // reconciliation/tax-reversal gap persists.
+          let refundId: string;
+          try {
+            const refund = await stripe.refunds.create(
+              {
+                payment_intent: stripePaymentIntentId,
+                reason: 'requested_by_customer',
+                metadata: { supabase_trade_id: tradeId },
+              },
+              { idempotencyKey: `refund_${tradeId}` },
+            );
+            refundId = refund.id;
+          } catch (refundErr: unknown) {
+            const err = refundErr as { code?: string; message?: string };
+            const alreadyRefunded =
+              err?.code === 'charge_already_refunded' ||
+              /already been refunded/i.test(err?.message ?? '');
+            if (!alreadyRefunded) throw refundErr;
+            const existing = await stripe.refunds.list({
+              payment_intent: stripePaymentIntentId,
+              limit: 5,
+            });
+            const prior = existing?.data?.[0];
+            if (!prior?.id) throw refundErr;
+            refundId = prior.id;
+            console.log(
+              `[cancel-trade] Charge already refunded — reconciled existing refund ${refundId} for trade ${tradeId}`,
+            );
+          }
+          console.log('[cancel-trade] Stripe refund issued:', refundId);
+          // Store refund id (service role) to prevent duplicate refunds
+          await supabaseClient.from('trades').update({ stripe_refund_id: refundId }).eq('id', tradeId);
+        } else {
+          // canceled / requires_payment_method / etc — nothing to refund or cancel
+          console.log('[cancel-trade] PI status is', pi.status, '- no refund/cancel needed for trade:', tradeId);
+        }
+      } catch (stripeError: unknown) {
+        console.error('[cancel-trade] Stripe refund/cancel failed:', stripeError);
+        // We continue to cancel the trade in DB even if Stripe fails (might be already refunded)
+      }
+    } else {
+      console.log('[cancel-trade] Refund already recorded, skipping Stripe refund creation.');
+    }
+  }
+
+  // TAX-STATUS-LIFECYCLE (2026-07-23): Void the tax record before the RPC cancels the trade.
+  // This must happen BEFORE cancel_trade_v2 so the tax_records lock is acquired first
+  // (avoiding deadlock with the fn_release_sp_on_cancel trigger which locks sp_wallets).
+  try {
+    await supabaseClient.rpc('rpc_void_tax_for_trade', {
+      p_trade_id: tradeId,
+      p_reason: reason || 'trade_cancelled',
+    });
+  } catch (voidTaxErr: unknown) {
+    const msg = voidTaxErr instanceof Error ? voidTaxErr.message : 'Unknown error';
+    console.error('[cancel-trade] Tax void error (non-fatal):', msg);
+    // Non-fatal — the trade cancellation proceeds regardless. Tax records for
+    // zero-tax trades will get a noop, and capture_failed records still get voided.
+  }
+
+  // 4. Call the RPC to cancel the trade in DB and refund SP
+  let { data, error: rpcError } = await supabaseClient.rpc('cancel_trade_v2', {
+    p_trade_id: tradeId,
+    p_user_id: actorUserId,
+    p_reason: reason || 'User requested cancellation'
+  });
+
+  const rpcDataFailure =
+    data != null &&
+    typeof data === 'object' &&
+    'success' in (data as Record<string, unknown>) &&
+    (data as Record<string, unknown>).success === false;
+
+  const rpcDataError =
+    rpcDataFailure && typeof (data as Record<string, unknown>).error === 'string'
+      ? (data as Record<string, unknown>).error as string
+      : '';
+
+  if (rpcError || rpcDataFailure) {
+    // Enhanced logging to diagnose both transport-level and JSON-level RPC failures.
+    console.error('[cancel-trade] RPC failure details:', {
+      transport_message: rpcError?.message,
+      transport_hint: rpcError?.hint,
+      transport_details: rpcError?.details,
+      transport_code: rpcError?.code,
+      transport_full_error: rpcError ? JSON.stringify(rpcError) : null,
+      json_error: rpcDataError,
+      json_data: data,
+    });
+
+    // Check all possible error message locations.
+    const errorText =
+      rpcError?.message ||
+      rpcError?.hint ||
+      rpcError?.details ||
+      rpcDataError ||
+      (rpcError ? JSON.stringify(rpcError) : 'Unknown cancel_trade_v2 failure');
+
+    if (isMissingSellerColumnError(errorText)) {
+      console.warn('[cancel-trade] ✓ Detected schema drift, using fallback path');
+      const fallback = await fallbackCancelTrade(
+        supabaseClient,
+        trade,
+        tradeId,
+        actorUserId,
+        reason || 'User requested cancellation'
+      );
+
+      if (!fallback.success) {
+        console.error('[cancel-trade] ✗ Fallback failed:', fallback.error);
+        return { success: false, error: fallback.error || 'Failed to cancel trade' };
+      }
+
+      console.log('[cancel-trade] ✓ Fallback succeeded');
+      return { success: true, data: fallback };
+    }
+
+    console.error('[cancel-trade] ✗ RPC error not matched for fallback');
+    return { success: false, error: errorText };
+  }
+
+  if (!data.success) {
+    return { success: false, error: data.error };
+  }
+
+  return { success: true, data };
+}
+
 serve(async (req: Request) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -208,197 +415,86 @@ serve(async (req: Request) => {
       throw new Error('Trade not found');
     }
 
-    // TAX-STATUS-LIFECYCLE (2026-07-23): Cancel the Stripe PaymentIntent for pending offers
-    // with an authorization hold. Previously, only in_progress trades had their PI refunded.
-    // Now pending trades must explicitly cancel their authorization hold so the buyer's card
-    // is not left with a lingering hold when they actively cancel.
-    if (trade.status === 'pending' && trade.stripe_payment_intent_id) {
-      console.log('[cancel-trade] Cancelling PI for pending trade:', tradeId, 'PI:', trade.stripe_payment_intent_id);
-      try {
-        const pi = await stripe.paymentIntents.retrieve(trade.stripe_payment_intent_id);
-        if (['requires_capture', 'requires_confirmation', 'requires_action', 'requires_payment_method'].includes(pi.status)) {
-          await stripe.paymentIntents.cancel(trade.stripe_payment_intent_id);
-          console.log('[cancel-trade] PI cancelled successfully for pending trade:', tradeId);
-        } else {
-          console.log('[cancel-trade] PI status is', pi.status, '- no cancel needed for trade:', tradeId);
-        }
-      } catch (stripeError: unknown) {
-        console.error('[cancel-trade] PI cancel failed for pending trade (non-fatal):', stripeError);
-        // Non-fatal — the trade cancellation proceeds regardless. The authorization
-        // will expire naturally within 7 days if we can't cancel it now.
-      }
-    }
-
-    // 3. Handle Stripe refund if trade was paid and refund requested.
-    // TAX-STATUS-LIFECYCLE (2026-07-23): In the current tax flow, an in_progress
-    // trade's PaymentIntent is still an UNCAPTURED authorization hold (capture happens
-    // only at buyer completion). Stripe does NOT allow refunds on uncaptured PIs — they
-    // must be CANCELLED. Previously this branch unconditionally called refunds.create(),
-    // which failed on uncaptured PIs and left the Stripe transaction stuck as
-    // "uncaptured" even though the trade was cancelled (TC-R05 / TC-O3-C07).
-    if (issue_refund && trade.status === 'in_progress' && trade.stripe_payment_intent_id) {
-      console.log('[cancel-trade] Checking existing refund for trade:', tradeId, 'stripe_refund_id:', trade.stripe_refund_id);
-
-      // Idempotency: don't create a new refund if one already exists
-      if (!trade.stripe_refund_id) {
-        console.log('[cancel-trade] Issuing Stripe refund/cancel for PI:', trade.stripe_payment_intent_id);
-        try {
-          const pi = await stripe.paymentIntents.retrieve(trade.stripe_payment_intent_id);
-
-          if (pi.status === 'requires_capture' || pi.status === 'processing') {
-            // Uncaptured authorization hold — cancel it (can't be refunded).
-            const cancelled = await stripe.paymentIntents.cancel(trade.stripe_payment_intent_id, {
-              cancellation_reason: 'requested_by_customer',
-            });
-            console.log('[cancel-trade] PI cancelled (uncaptured) for trade:', tradeId, 'PI:', cancelled.id);
-            // Store id (service role) to prevent duplicate refund/cancel on retry
-            await supabaseClient.from('trades').update({ stripe_refund_id: `cancelled_${cancelled.id}` }).eq('id', tradeId);
-          } else if (pi.status === 'succeeded') {
-            // Captured payment — issue a refund
-            // DEV-TASK-6 (2026-08-27): idempotency key (options arg, BP-65) so a
-            // timeout-retry of the same cancel can never issue a duplicate Stripe
-            // refund. Close the check-then-act gap: if the charge was ALREADY
-            // refunded (refund made but DB update never landed on a prior attempt),
-            // reconcile the existing refund id from Stripe instead of silently
-            // dropping it — otherwise trades.stripe_refund_id stays null and the
-            // reconciliation/tax-reversal gap persists.
-            let refundId: string;
-            try {
-              const refund = await stripe.refunds.create(
-                {
-                  payment_intent: trade.stripe_payment_intent_id,
-                  reason: 'requested_by_customer',
-                  metadata: { supabase_trade_id: tradeId },
-                },
-                { idempotencyKey: `refund_${tradeId}` },
-              );
-              refundId = refund.id;
-            } catch (refundErr: unknown) {
-              const err = refundErr as { code?: string; message?: string };
-              const alreadyRefunded =
-                err?.code === 'charge_already_refunded' ||
-                /already been refunded/i.test(err?.message ?? '');
-              if (!alreadyRefunded) throw refundErr;
-              const existing = await stripe.refunds.list({
-                payment_intent: trade.stripe_payment_intent_id,
-                limit: 5,
-              });
-              const prior = existing?.data?.[0];
-              if (!prior?.id) throw refundErr;
-              refundId = prior.id;
-              console.log(
-                `[cancel-trade] Charge already refunded — reconciled existing refund ${refundId} for trade ${tradeId}`,
-              );
-            }
-            console.log('[cancel-trade] Stripe refund issued:', refundId);
-            // Store refund id (service role) to prevent duplicate refunds
-            await supabaseClient.from('trades').update({ stripe_refund_id: refundId }).eq('id', tradeId);
-          } else {
-            // canceled / requires_payment_method / etc — nothing to refund or cancel
-            console.log('[cancel-trade] PI status is', pi.status, '- no refund/cancel needed for trade:', tradeId);
-          }
-        } catch (stripeError: unknown) {
-          console.error('[cancel-trade] Stripe refund/cancel failed:', stripeError);
-          // We continue to cancel the trade in DB even if Stripe fails (might be already refunded)
-        }
-      } else {
-        console.log('[cancel-trade] Refund already recorded, skipping Stripe refund creation.');
-      }
-    }
-
-    // TAX-STATUS-LIFECYCLE (2026-07-23): Void the tax record before the RPC cancels the trade.
-    // This must happen BEFORE cancel_trade_v2 so the tax_records lock is acquired first
-    // (avoiding deadlock with the fn_release_sp_on_cancel trigger which locks sp_wallets).
-    try {
-      await supabaseClient.rpc('rpc_void_tax_for_trade', {
-        p_trade_id: tradeId,
-        p_reason: reason || 'trade_cancelled',
-      });
-    } catch (voidTaxErr: unknown) {
-      const msg = voidTaxErr instanceof Error ? voidTaxErr.message : 'Unknown error';
-      console.error('[cancel-trade] Tax void error (non-fatal):', msg);
-      // Non-fatal — the trade cancellation proceeds regardless. Tax records for
-      // zero-tax trades will get a noop, and capture_failed records still get voided.
-    }
-
-    // 4. Call the RPC to cancel the trade in DB and refund SP
-    let { data, error: rpcError } = await supabaseClient.rpc('cancel_trade_v2', {
-      p_trade_id: tradeId,
-      p_user_id: user.id,
-      p_reason: reason || 'User requested cancellation'
-    });
-
-    const rpcDataFailure =
-      data != null &&
-      typeof data === 'object' &&
-      'success' in (data as Record<string, unknown>) &&
-      (data as Record<string, unknown>).success === false;
-
-    const rpcDataError =
-      rpcDataFailure && typeof (data as Record<string, unknown>).error === 'string'
-        ? (data as Record<string, unknown>).error as string
-        : '';
-
-    if (rpcError || rpcDataFailure) {
-      // Enhanced logging to diagnose both transport-level and JSON-level RPC failures.
-      console.error('[cancel-trade] RPC failure details:', {
-        transport_message: rpcError?.message,
-        transport_hint: rpcError?.hint,
-        transport_details: rpcError?.details,
-        transport_code: rpcError?.code,
-        transport_full_error: rpcError ? JSON.stringify(rpcError) : null,
-        json_error: rpcDataError,
-        json_data: data,
-      });
-
-      // Check all possible error message locations.
-      const errorText =
-        rpcError?.message ||
-        rpcError?.hint ||
-        rpcError?.details ||
-        rpcDataError ||
-        (rpcError ? JSON.stringify(rpcError) : 'Unknown cancel_trade_v2 failure');
-
-      if (isMissingSellerColumnError(errorText)) {
-        console.warn('[cancel-trade] ✓ Detected schema drift, using fallback path');
-        const fallback = await fallbackCancelTrade(
-          supabaseClient,
-          trade,
-          tradeId,
-          user.id,
-          reason || 'User requested cancellation'
-        );
-
-        if (!fallback.success) {
-          console.error('[cancel-trade] ✗ Fallback failed:', fallback.error);
-          return new Response(JSON.stringify({ error: fallback.error || 'Failed to cancel trade' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        console.log('[cancel-trade] ✓ Fallback succeeded, returning success');
-        data = fallback;
-        rpcError = null;
-      } else {
-        console.error('[cancel-trade] ✗ RPC error not matched for fallback, returning error to client');
-        return new Response(JSON.stringify({ error: errorText }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    }
-
-    if (!data.success) {
-      return new Response(JSON.stringify({ error: data.error }), {
+    // DEV-TASK-83 (Z05): Cancel the tapped trade's money state via the shared
+    // per-trade helper (Stripe hold cancel/refund → tax void → cancel_trade_v2).
+    const actorUserId = user.id;
+    const primaryResult = await cancelOneTrade(
+      { supabaseClient, reason: reason || '', issueRefund: Boolean(issue_refund), actorUserId },
+      trade as Record<string, unknown>
+    );
+    if (!primaryResult.success) {
+      return new Response(JSON.stringify({ error: primaryResult.error }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const data = primaryResult.data;
 
-    // FIX-CANCEL (2026-09-01): mark the buyer's cancellation request approved
-    // AFTER a successful cancel (idempotent — NOT_PENDING if already handled).
-    // Non-fatal: the trade is already cancelled.
+    // FIX-CANCEL / DEV-TASK-83 (Z05): when the seller approves a WHOLE-BUNDLE
+    // cancellation request, cancel EVERY sibling that is part of the same pending
+    // request too. Previously only the tapped trade was cancelled while
+    // fn_respond_cancel_request cascade-marked siblings 'approved' — leaving their
+    // Stripe holds live (`requires_capture`) and their reserved SP unreleased.
+    const cancelledTradeIds: string[] = [tradeId];
+    const spRefundedByTrade: Record<string, number | undefined> = {
+      [tradeId]: data.sp_refunded,
+    };
+    const bundleSiblingFailures: string[] = [];
+
+    if (isCancelRequestApproval && trade.bundle_id) {
+      const { data: siblings, error: siblingsError } = await supabaseClient
+        .from('trades')
+        .select('*')
+        .eq('bundle_id', trade.bundle_id)
+        .eq('cancel_request_status', 'requested')
+        .eq('status', 'in_progress')
+        .neq('id', tradeId);
+
+      if (siblingsError) {
+        console.error('[cancel-trade] bundle sibling query error:', siblingsError);
+      } else if (Array.isArray(siblings) && siblings.length > 0) {
+        console.log(
+          `[cancel-trade] Approving bundle cancel — cancelling ${siblings.length} sibling trade(s) for bundle ${trade.bundle_id}`
+        );
+        for (const sibling of siblings) {
+          const sibResult = await cancelOneTrade(
+            { supabaseClient, reason: reason || '', issueRefund: Boolean(issue_refund), actorUserId },
+            sibling as Record<string, unknown>
+          );
+          if (sibResult.success) {
+            const sibId = String(sibling.id);
+            cancelledTradeIds.push(sibId);
+            spRefundedByTrade[sibId] = sibResult.data.sp_refunded;
+          } else {
+            bundleSiblingFailures.push(`${sibling.id}: ${sibResult.error}`);
+          }
+        }
+      }
+    }
+
+    // Fail closed: never mark the request approved while any sibling still holds
+    // money. The request stays 'requested' so the buyer can escalate / retry, and
+    // no trade is falsely reported as approved-cancelled.
+    if (bundleSiblingFailures.length > 0) {
+      console.error('[cancel-trade] bundle sibling cancel failures — NOT marking approved:', bundleSiblingFailures);
+      return new Response(
+        JSON.stringify({
+          error:
+            `We couldn't cancel every item in this bundle. ${bundleSiblingFailures.length} item(s) failed: ` +
+            bundleSiblingFailures.join('; '),
+          cancelledTrades: cancelledTradeIds,
+          failures: bundleSiblingFailures,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // FIX-CANCEL (2026-09-01) / DEV-TASK-83 (Z05): mark the buyer's cancellation
+    // request approved AFTER the tapped trade AND all bundle siblings are cancelled
+    // (idempotent — NOT_PENDING if already handled). The RPC cascade marks every
+    // requested sibling 'approved'; because each one was just cancelled above, the
+    // approved marker now reflects real state (no live holds). Non-fatal: the
+    // trades are already cancelled.
     if (isCancelRequestApproval) {
       try {
         await supabaseClient.rpc('fn_respond_cancel_request', {
@@ -445,23 +541,33 @@ serve(async (req: Request) => {
         seller_cancellation_count: consequenceLevel,
       });
     } else {
-      await logTradeEvent(
-        supabaseClient,
-        tradeId,
-        isCancelRequestApproval ? 'cancel_request_approved' : 'offer_cancelled',
-        user.id,
-        {
-          reason: reason || 'User requested cancellation',
-          sp_refunded: data.sp_refunded,
-          ...(isCancelRequestApproval ? { cancel_request_id } : {}),
-        }
-      );
+      // DEV-TASK-83 (Z05): log one cancellation event per cancelled trade (tapped
+      // trade + every bundle sibling), each carrying its own SP refund amount.
+      for (const cancelledId of cancelledTradeIds) {
+        await logTradeEvent(
+          supabaseClient,
+          cancelledId,
+          isCancelRequestApproval ? 'cancel_request_approved' : 'offer_cancelled',
+          user.id,
+          {
+            reason: reason || 'User requested cancellation',
+            sp_refunded: spRefundedByTrade[cancelledId],
+            ...(isCancelRequestApproval ? { cancel_request_id } : {}),
+          }
+        );
+      }
     }
 
-    return new Response(JSON.stringify({ success: true, tradeId: data.trade_id, sp_refunded: data.sp_refunded, consequence_level: consequenceLevel }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        tradeId: data.trade_id,
+        cancelledTrades: cancelledTradeIds,
+        sp_refunded: data.sp_refunded,
+        consequence_level: consequenceLevel,
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error: unknown) {
     console.error('[cancel-trade] error:', error);
     const message = error instanceof Error ? error.message : 'Failed to cancel trade';

@@ -12,9 +12,64 @@ import { getPaymentMethod, PaymentMethodInfo } from '@/services/subscription';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { retryFailedPayment } from '@/services/paymentRetry';
 import { supabase } from '@/config/supabase';
+import { extractEdgeInvokeErrorMessage } from '@/services/trade';
+import { captureException } from '@/services/errorReporter';
 
 interface PaymentMethodSectionProps {
   onPaymentMethodUpdated?: () => void | Promise<void>;
+}
+
+// DEV-TASK-83 (D2): mirror PaymentMethodsScreen's working persistence path —
+// invoke the attach-payment-method EF so the new card is actually saved to
+// Stripe (default_payment_method) + DB (subscriptions / user_subscriptions
+// stripe_payment_method_id) before any success alert.
+async function attachPaymentMethodToCustomer(
+  paymentMethodId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.user?.id) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const { data, error } = await supabase.functions.invoke('attach-payment-method', {
+      body: {
+        payment_method_id: paymentMethodId,
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (error) {
+      // BP-39: FunctionsHttpError.message is hardcoded — parse the real body
+      // from .context so the user sees the actual EF error, not the wrapper.
+      const msg = await extractEdgeInvokeErrorMessage(error, data, 'Failed to save payment method');
+      captureException(error, {
+        tags: { screen: 'PaymentMethodSection', action: 'attach_error' },
+      });
+      return { success: false, error: msg };
+    }
+
+    if (!data?.success) {
+      const errMsg = (data as any)?.error || 'Failed to save payment method';
+      captureException(errMsg, {
+        tags: { screen: 'PaymentMethodSection', action: 'attach_failed' },
+      });
+      return { success: false, error: errMsg };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    captureException(err, {
+      tags: { screen: 'PaymentMethodSection', action: 'attach_exception' },
+      extra: { message: err?.message },
+    });
+    return { success: false, error: err.message || 'Failed to save payment method' };
+  }
 }
 
 export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSectionProps) {
@@ -54,7 +109,20 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
       // 2. Present the sheet
       const result = await presentSheet();
 
-      if (result.success) {
+      if (result.success && result.paymentMethodId) {
+        // DEV-TASK-83 (D2): persist the new card via attach-payment-method BEFORE
+        // showing success. Previously this handler never attached — the old card
+        // stayed active in Stripe + DB and the success alert was misleading.
+        const attachResult = await attachPaymentMethodToCustomer(result.paymentMethodId);
+
+        if (!attachResult.success) {
+          Alert.alert(
+            'Error',
+            attachResult.error || 'Failed to save payment method. Please try again.'
+          );
+          return;
+        }
+
         // Resolve current user for optional retry flow
         const {
           data: { session },
