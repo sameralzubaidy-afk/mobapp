@@ -77,7 +77,7 @@ serve(async (req) => {
   // Load trade
   const { data: trade, error: tradeErr } = await svcClient
     .from('trades')
-    .select('id, status, dispute_status, buyer_id, seller_id, stripe_payment_intent_id, sp_amount')
+    .select('id, status, dispute_status, buyer_id, seller_id, stripe_payment_intent_id, sp_amount, cash_amount_cents, stripe_refund_id')
     .eq('id', trade_id)
     .single();
 
@@ -122,6 +122,93 @@ serve(async (req) => {
 
   // NOTE: dispute_resolution CHECK constraint only allows: NULL, 'open', 'resolved_buyer', 'resolved_seller', 'rejected'
   const resolution = action === 'resolve_complete' ? 'resolved_seller' : 'resolved_buyer';
+
+  // DEV-TASK-85 (QA Task 18 R10 money-flow gap — HIGH): complete_trade_v2 is a
+  // DB-only RPC — it assumes the CALLER already captured the buyer's Stripe
+  // authorization hold (the normal completion EFs capture FIRST, then call the
+  // complete RPC). resolve_complete previously skipped the capture leg: it
+  // completed the trade + created the seller_payouts row + scheduled a Connect
+  // transfer against an UNCAPTURED hold (buyer never charged; auth auto-expires
+  // after ~7d). Capture here, BEFORE any dispute/completion mutation, so a
+  // payout can never be scheduled against an uncaptured hold. Mirror the
+  // resolve_refund branch's status-aware Stripe handling below.
+  const piForComplete = (trade as { stripe_payment_intent_id?: string | null }).stripe_payment_intent_id ?? null;
+  const cashForComplete = Number((trade as { cash_amount_cents?: number }).cash_amount_cents ?? 0);
+  const refundIdForComplete = (trade as { stripe_refund_id?: string | null }).stripe_refund_id ?? null;
+  const tradeStatusForComplete = (trade as { status?: string }).status ?? '';
+
+  if (
+    action === 'resolve_complete' &&
+    piForComplete &&
+    cashForComplete > 0 &&
+    !refundIdForComplete &&
+    tradeStatusForComplete !== 'completed'
+  ) {
+    const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
+    if (stripeKey && stripeKey.startsWith('sk_')) {
+      const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+      try {
+        const pi = await stripe.paymentIntents.retrieve(piForComplete);
+        if (pi.status === 'requires_capture') {
+          // Uncaptured authorization hold → capture it (actually charge the buyer).
+          const captured = await stripe.paymentIntents.capture(piForComplete);
+          if (captured.status !== 'succeeded') {
+            console.error(`[resolve-dispute] PI capture returned status ${captured.status} for trade ${trade_id}`);
+            return errResp(502, 'CAPTURE_FAILED', 'We could not charge the buyer for this trade, so it was not completed. No payout was created.');
+          }
+          const chargeId = captured.latest_charge ?? null;
+          console.log(`[resolve-dispute] PI ${piForComplete} captured (charge ${chargeId}) for dispute-complete trade ${trade_id}`);
+
+          // Mark tax as collected (idempotent — mirrors the complete-trade EF).
+          try {
+            await svcClient.rpc('rpc_mark_tax_collected', {
+              p_trade_id: trade_id,
+              p_stripe_capture_id: chargeId,
+            });
+          } catch (taxErr: unknown) {
+            const msg = taxErr instanceof Error ? taxErr.message : 'Unknown error';
+            console.error(`[resolve-dispute] rpc_mark_tax_collected error (non-fatal): ${msg}`);
+          }
+
+          // N2 — Idempotency & Audit: record payment_captured (parity with the
+          // complete-trade EF; idempotency key dedupes retries).
+          try {
+            await svcClient.rpc('fn_log_financial_audit', {
+              p_mutation_type: 'payment_captured',
+              p_entity_type: 'trade',
+              p_entity_id: trade_id,
+              p_actor_id: user.id,
+              p_before_state: { stripe_payment_intent_id: piForComplete },
+              p_after_state: { stripe_payment_intent_id: piForComplete, stripe_charge_id: chargeId, source: 'dispute_resolve_complete' },
+              p_amount_cents: cashForComplete,
+              p_idempotency_key: `capture_${trade_id}`,
+              p_node_id: null,
+            });
+          } catch (auditErr: unknown) {
+            const msg = auditErr instanceof Error ? auditErr.message : 'Unknown error';
+            console.error(`[resolve-dispute] payment_captured audit error (non-fatal): ${msg}`);
+          }
+        } else if (pi.status === 'succeeded') {
+          // Already captured (e.g. a completed-then-disputed edge) — nothing to do.
+          console.log(`[resolve-dispute] PI ${piForComplete} already captured — skipping capture for trade ${trade_id}`);
+        } else {
+          // canceled / requires_payment_method / etc — money can never be collected.
+          return errResp(
+            409,
+            'PI_NOT_CAPTURABLE',
+            `The buyer's payment (${pi.status}) can't be captured, so this trade was not completed. No payout was created — resolve with a refund instead.`,
+          );
+        }
+      } catch (captureErr: unknown) {
+        const msg = captureErr instanceof Error ? captureErr.message : 'Stripe capture error';
+        console.error(`[resolve-dispute] Stripe capture error for trade ${trade_id}: ${msg}`);
+        return errResp(502, 'STRIPE_CAPTURE_ERROR', `We couldn't capture the buyer's payment. No payout was created.`);
+      }
+    } else {
+      console.error('[resolve-dispute] STRIPE_SECRET_KEY not configured — refusing to complete against an uncaptured hold');
+      return errResp(500, 'STRIPE_CONFIG_ERROR', 'Payment system not configured — cannot capture the buyer hold before completing.');
+    }
+  }
 
   const { error: resolveErr } = await svcClient
     .from('trades')

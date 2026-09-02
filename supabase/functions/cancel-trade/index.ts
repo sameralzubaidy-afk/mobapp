@@ -137,6 +137,24 @@ async function fallbackCancelTrade(
   };
 }
 
+// DEV-TASK-85 (QA Task 18 item 3 — audit metadata): the ACTUAL SP released on
+// cancel is performed by the fn_release_sp_on_cancel trigger, which releases the
+// trade's `sp_amount` whenever the trade had SP reserved (sp_amount > 0 AND
+// sp_reserved_at set, and not already released). cancel_trade_v2's returned
+// sp_refunded derives from trades.sp_debit_ledger_entry_id, which the current
+// reserve flow (fn_reserve_sp_on_offer) never populates — so it returns 0 even
+// when SP was genuinely refunded (observed on the Z05 whole-bundle approve: an
+// 11-SP trade logged sp_refunded: 0 on its cancel_request_approved trade event
+// while 11 SP was actually released to the buyer's wallet). Compute the true
+// per-trade refunded amount for event metadata. Actual release is unchanged.
+function actualSpRefunded(trade: Record<string, unknown>, rpcSpRefunded: number | undefined): number {
+  const spAmount = Number(trade.sp_amount) || 0;
+  if (spAmount > 0 && trade.sp_reserved_at != null && trade.sp_released_at == null) {
+    return spAmount;
+  }
+  return rpcSpRefunded && rpcSpRefunded > 0 ? rpcSpRefunded : 0;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV-TASK-83 (Z05): cancel ONE trade's money state. Extracted from the original
 // inline handler so a whole-bundle cancel-request approval can cancel every
@@ -436,8 +454,11 @@ serve(async (req: Request) => {
     // fn_respond_cancel_request cascade-marked siblings 'approved' — leaving their
     // Stripe holds live (`requires_capture`) and their reserved SP unreleased.
     const cancelledTradeIds: string[] = [tradeId];
-    const spRefundedByTrade: Record<string, number | undefined> = {
-      [tradeId]: data.sp_refunded,
+    // DEV-TASK-85 (item 3): record the ACTUAL refunded amount per trade (the
+    // fn_release_sp_on_cancel trigger releases sp_amount) — not cancel_trade_v2's
+    // return, which is 0 when sp_debit_ledger_entry_id is unset (current flow).
+    const spRefundedByTrade: Record<string, number> = {
+      [tradeId]: actualSpRefunded(trade as Record<string, unknown>, data.sp_refunded),
     };
     const bundleSiblingFailures: string[] = [];
 
@@ -464,7 +485,7 @@ serve(async (req: Request) => {
           if (sibResult.success) {
             const sibId = String(sibling.id);
             cancelledTradeIds.push(sibId);
-            spRefundedByTrade[sibId] = sibResult.data.sp_refunded;
+            spRefundedByTrade[sibId] = actualSpRefunded(sibling as Record<string, unknown>, sibResult.data.sp_refunded);
           } else {
             bundleSiblingFailures.push(`${sibling.id}: ${sibResult.error}`);
           }
@@ -536,7 +557,7 @@ serve(async (req: Request) => {
       // Log seller-specific event with consequence metadata.
       await logTradeEvent(supabaseClient, tradeId, 'seller_cancelled', user.id, {
         reason: reason || 'Seller requested cancellation',
-        sp_refunded: data.sp_refunded,
+        sp_refunded: actualSpRefunded(trade as Record<string, unknown>, data.sp_refunded),
         level: consequenceLevel,
         seller_cancellation_count: consequenceLevel,
       });

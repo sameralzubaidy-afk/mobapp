@@ -1485,7 +1485,10 @@ export default function TradeTimelineScreen() {
                   </View>
                   <Text style={styles.extensionCardDesc}>
                     Waiting for the seller to respond
-                    {reqCountdown ? ` — ${reqCountdown} left` : ''}.{' '}
+                    {/* DEV-TASK-85 (item 2): formatCountdownLabel already ends in
+                        "left" (e.g. "47h 57m left") — do NOT append "left" again
+                        or the card reads "…left left." */}
+                    {reqCountdown ? ` — ${reqCountdown}` : ''}.{' '}
                     {escalationEnabled
                       ? "If they decline or don't reply, our team will review it."
                       : 'If they decline, the trade will continue as planned.'}
