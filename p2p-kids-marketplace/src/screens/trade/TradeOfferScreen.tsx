@@ -590,16 +590,15 @@ export default function TradeOfferScreen() {
               <View style={styles.subscribeUpsellRow}>
                 <Coins size={24} color="#F59E0B" weight="regular" />
                 <View style={styles.subscribeUpsellTextContainer}>
-                  {/* TODO(TRIAL-GATE) DEFERRED (2026-09-02): "Try it free for 30
-                      days" promises a trial while admin_config.trial_enabled=false.
-                      Gate on trial config in a dedicated pass (JoinKidsClub and the
-                      other subscription screens are already gated). */}
+                  {/* DEV-TASK-90 (2026-09-02): trial claim removed — admin_config
+                      trial_enabled=false. Upsell is trial-agnostic with the "Join Kids
+                      Club+" CTA (same non-trial pattern as JoinKidsClub / PlanComparison /
+                      ItemDetail). Re-offering a trial later is a config flip. */}
                   <Text style={styles.subscribeUpsellTitle}>
                     Save up to {maxSpPercentage}% with Swap Points
                   </Text>
                   <Text style={styles.subscribeUpsellBody}>
-                    Kids Club+ members can use Swap Points to save on every trade. Try it free for
-                    30 days.
+                    Kids Club+ members can use Swap Points to save on every trade.
                   </Text>
                 </View>
               </View>
@@ -611,7 +610,7 @@ export default function TradeOfferScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Subscribe upsell button"
               >
-                <Text style={styles.subscribeUpsellButtonText}>Try Kids Club+ Free</Text>
+                <Text style={styles.subscribeUpsellButtonText}>Join Kids Club+</Text>
               </Pressable>
             </View>
           )}

@@ -49,11 +49,11 @@ function buildCompletionCTA(
 ): CompletionCTA {
   if (isBuyer) {
     if (!isSubscriber) {
-      // TODO(TRIAL-GATE) DEFERRED (2026-09-02): this free-buyer upsell still
-      // promises a "free 30 days" while admin_config.trial_enabled=false. Gating
-      // here needs trial config threaded into getCompletionCTA + re-verification
-      // of the DT-78 owner-approved copy — deferred to a dedicated pass; JoinKidsClub
-      // / PlanComparison / SubscriptionBanner / ItemDetail are already gated.
+      // DEV-TASK-90 (2026-09-02): trial upsell claim removed — admin_config
+      // trial_enabled=false, so the completion upsell no longer promises "free 30
+      // days". The CTA is now the trial-agnostic "Join Kids Club+" label (same
+      // non-trial pattern as JoinKidsClub / PlanComparison / SubscriptionBanner /
+      // ItemDetail). Re-offering a trial later is a config flip, not a code edit.
       // Permutation 1: Free buyer — upsell Kids Club+. R1: only claim a dollar
       // savings when it actually exists (first-trade free users pay the same flat
       // fee as members, so their savings is $0). Dev Task 78 (H01): the savings
@@ -63,11 +63,11 @@ function buildCompletionCTA(
       const savingsDollars = (feeSavingsCents / 100).toFixed(2);
       const savingsMsg =
         feeSavingsCents > 0
-          ? `Trade complete! Kids Club+ would've saved you $${savingsDollars} on this trade — try it free for 30 days.`
-          : `Trade complete! Kids Club+ gives you a flat fee and bonus Swap Points on every sale — try it free for 30 days.`;
+          ? `Trade complete! Kids Club+ would've saved you $${savingsDollars} on this trade.`
+          : `Trade complete! Kids Club+ gives you a flat fee and bonus Swap Points on every sale.`;
       return {
         message: savingsMsg,
-        ctaLabel: 'Try Kids Club+ Free — 30 Days',
+        ctaLabel: 'Join Kids Club+',
         onPress: () => navigation.navigate('PlanComparison'),
       };
     } else if (spUsedByBuyer > 0) {
@@ -98,10 +98,11 @@ function buildCompletionCTA(
 
   if (isSeller) {
     if (!isSubscriber) {
-      // Permutation 4: Free seller — upsell Kids Club+
+      // Permutation 4: Free seller — upsell Kids Club+ (DEV-TASK-90: trial-agnostic
+      // CTA — "Join Kids Club+", matching the non-trial pattern on the other screens)
       return {
         message: 'Subscribe to earn Swap Points on your next sale — set "Accept SP" when listing.',
-        ctaLabel: 'Try Kids Club+ Free — 30 Days',
+        ctaLabel: 'Join Kids Club+',
         onPress: () => navigation.navigate('PlanComparison'),
       };
     } else if (listingType === 'cash_only') {

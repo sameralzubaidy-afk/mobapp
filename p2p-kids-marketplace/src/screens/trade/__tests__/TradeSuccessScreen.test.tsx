@@ -187,7 +187,7 @@ describe('TradeSuccessScreen', () => {
         params: { success: true, role: 'buyer', subscriptionStatus: 'free', tradeId: 't1' },
       });
       const { getByTestId, getByText } = render(<TradeSuccessScreen />);
-      expect(getByText("Try Kids Club+ Free \u2014 30 Days")).toBeTruthy();
+      expect(getByText('Join Kids Club+')).toBeTruthy();
       expect(getByTestId('cta-message').props.children).toContain('Kids Club+');
       fireEvent.press(getByTestId('cta-primary-button'));
       expect(mockNavigate).toHaveBeenCalledWith('PlanComparison');
@@ -312,7 +312,7 @@ describe('TradeSuccessScreen', () => {
         params: { success: true, role: 'seller', subscriptionStatus: 'free', tradeId: 't4' },
       });
       const { getByTestId, getByText } = render(<TradeSuccessScreen />);
-      expect(getByText("Try Kids Club+ Free \u2014 30 Days")).toBeTruthy();
+      expect(getByText('Join Kids Club+')).toBeTruthy();
       expect(getByTestId('cta-message').props.children).toContain('Swap Points');
       fireEvent.press(getByTestId('cta-primary-button'));
       expect(mockNavigate).toHaveBeenCalledWith('PlanComparison');
