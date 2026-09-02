@@ -5,7 +5,7 @@ applyTo: "supabase/functions/**"
 
 # Edge Function Hardening Protocol
 
-Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP-27, BP-28, BP-40, BP-41, plus the Backward Compatibility section. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-20 check-existing-triggers and BP-39 `FunctionsHttpError.context` live in the main agent file / `mobile-client.instructions.md` respectively.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all BP rules (BP-1 – BP-77).
+Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP-27, BP-28, BP-40, BP-41, BP-83 (Stripe test-clock renewal verification), plus the Backward Compatibility section. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-20 check-existing-triggers and BP-39 `FunctionsHttpError.context` live in the main agent file / `mobile-client.instructions.md` respectively.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all BP rules (BP-1 – BP-77).
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -36,6 +36,7 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-72 QA side-effect verification — a QA case exercising a UI action with a backend/DB/third-party (Stripe/PayPal) side effect MUST verify the side effect directly (read the DB row(s) + actual Stripe/PayPal object state), never just the UI response or a guard-path smoke; real-activation verification is REQUIRED for money/financial-state functions; this class of READ-ONLY DB/Stripe verification is PRE-APPROVED (no per-instance owner sign-off) — mutating test actions still use the safe-fixture/disposable-user discipline (DT-12, 2026-08-27).
 - BP-77 Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path even for large self-contained single-file functions (no `_shared` deps, e.g. the 82KB/1,840-line `create-trade-offer`) — no per-deploy approval needed (DEV-TASK-36 retired the MCP-deploy mandate); MCP is a documented last-resort fallback only; post-deploy verification (version bump + real invocation, BP-66/BP-71) is mandatory on any path (DEV-TASK-33, 2026-08-28; DEV-TASK-36, 2026-08-28).
 - Backward compatibility — API response shapes are additive-only; new request params need defaults for old clients; deploy order is migration-first; version the contract if a break is unavoidable.
+- BP-83 Stripe test-clock renewal verification — a test clock CANNOT be retro-attached to an existing Checkout subscription (`POST /subscriptions/{id}` with `test_clock` → `400 parameter_unknown`); to verify a real renewal on a given user, create a fresh clock-bound customer + subscription metadata-bound to the same `user_id` so the webhook re-binds the single `subscriptions` row, then advance the clock and assert on the DB.
 
 ## HP-3: Supabase auth/RLS rule (be explicit)
 
@@ -353,3 +354,16 @@ Rules:
 3. **Post-deploy validation is non-negotiable on any path (BP-66 / BP-41 rule 5 / BP-71):** confirm the version incremented (`supabase functions list --project-ref <ref>`), then run a real invocation that returns the function's own structured response (not just a clean exit code). For money functions, use a disposable-user real-activation check (BP-71).
 4. **Reconcile `verify_jwt` immediately before the deploy command (BP-41 rule 2)** — the CLI sets `verify_jwt` from `supabase/config.toml` (default true when a function is unlisted there).
 5. **Log the deploy:** record the function name, size, and deploy path (CLI, or MCP as last-resort) in the Session Handoff so every deploy is auditable.
+
+## BP-83: Stripe Test Clocks Cannot Be Retro-Attached to an Existing Checkout Subscription — Verify Renewal With a Fresh Clock-Bound Subscription
+
+Problem: Stripe rejects adding a `test_clock` to an already-created Checkout subscription via the update API (`POST /v1/subscriptions/{id}` with `{ test_clock: ... }` → `400 parameter_unknown: Received unknown parameter: test_clock`). Test clocks can only be set at subscription-creation time (the customer must already be on the clock). Confirmed 2026-09-02 (QA Task 21) while verifying a real renewal on a brand-new subscription: the existing web-first Checkout subscription could not be fast-forwarded, so the renewal had to be produced on a fresh clock-bound subscription.
+
+Rules:
+1. To verify a REAL renewal (DB `current_period_end` advance + a new `billing_history` row) through the deployed `stripe-webhook-subscriptions` function for a given app user, do NOT try to attach a test clock to an existing subscription — it 400s. Instead create a fresh test-clock customer + subscription (`items[0][price]` = the real linked price) metadata-bound to the same `user_id` (`metadata.supabase_user_id`). The webhook's `rpc_upsert_web_subscription` matches by `user_id` and re-binds the single `subscriptions` row, so the renewal exercises the real DB row for that user.
+2. Make the clock subscription ACTIVE at creation (set the customer's `invoice_settings[default_payment_method]` first). Do NOT pass `payment_behavior=default_incomplete` — if the sub is created `incomplete`, `customer.subscription.created` fires with a non-active status and the handler early-returns before the row binds. If it still comes back incomplete, pay the initial invoice (`POST /invoices/{id}/pay`) and re-create cleanly if the row did not bind.
+3. Advance the clock (`POST /test_helpers/test_clocks/{id}/advance`, `frozen_time = now + ~35d`) and confirm: the renewal invoice is PAID on Stripe, `subscriptions.current_period_end` advanced forward, and a `billing_history` row exists (DT-88 `computePeriodAdvance` + billing upsert). Stripe reports NULL `current_period_*` on this account's subscription objects — the DB advance is derived from the invoice line period, so assert on the DB, not on the Stripe subscription object's period fields.
+4. Remember this environment's invoices carry no charge/payment_intent/subscription IDs — `handleInvoicePaymentSucceeded` resolves by `stripe_subscription_id` from the `subscriptions` row, so the row must be bound to the clock subscription BEFORE the renewal invoice fires (an early `invoice.payment_succeeded` races the row binding and no-ops).
+5. Clean up (BP-70): cancel/delete the clock customer + subscriptions, delete the test clock, and delete the disposable user/rows.
+
+See also: BP-71 (drive the real charge/pay path), BP-72 (verify DB + Stripe state), BP-70 (disposable-user cleanup).

@@ -2,7 +2,7 @@
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-02 Profiles/Onboarding · FLOW-16 Home Dashboard · FLOW-19 Trading Education / Help & Support / SP Calculator · FLOW-21 Error Recovery & Crash Reporting · FLOW-24 MFA / Multi-Factor Enrollment & Assurance Level · FLOW-EDU-001 Education Analytics · FLOW-31 TOS · FLOW-32 Privacy Policy · FLOW-33 Liability Disclaimer · COPPA account deletion)
 **Tasks covered:** Account Management (settings, edit profile, linked accounts, notification preferences, delete account, suspended, unsubscribe, offline, MFA / privacy & security) · Home Dashboard · Help / Education / SP Calculator (FAQ, contact support, education sections, calculator) · Legal screens (TOS, Privacy, Liability) · App-wide error recovery fallback behavior
-**Last updated:** 2026-05-30
+**Last updated:** 2026-09-02 (guide-currency audit v2: F01 suspended-screen two-action reality; F02 deep-link-token wording; G02 banner structure; G04 ID-CTA none/rejected-only; H01 entry = Profile; J08 Retry only on Liability; Group K marked NOT IMPLEMENTED — no MFA code)
 **Scope:** End-user manual testing via app screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator
 
@@ -38,14 +38,14 @@
 | **E — Delete Account (COPPA)** | ACC-TC-E01 | Delete account consequences + password gate |
 | | ACC-TC-E02 | Wrong password blocked |
 | | ACC-TC-E03 | Two-step confirmation → deletion + logout |
-| **F — Suspended / Unsubscribe / Offline** | ACC-TC-F01 | Suspended account screen (logout only) |
-| | ACC-TC-F02 | Unsubscribe via email token (success/error) |
+| **F — Suspended / Unsubscribe / Offline** | ACC-TC-F01 | Suspended account screen (Contact Support + Log Out, no email) |
+| | ACC-TC-F02 | Unsubscribe via deep-link token (success/error) |
 | | ACC-TC-F03 | Offline screen + Try Again |
 | | ACC-TC-F04 | Suspended account — Log Out tap |
 | **G — Home Dashboard** | ACC-TC-G01 | Greeting + subscription badge + SP balance |
-| | ACC-TC-G02 | Priority banners (grace > payment fail > trial > draft) |
+| | ACC-TC-G02 | Dashboard banners (independent top banners + Action Items list) |
 | | ACC-TC-G03 | Quick action tiles route correctly |
-| | ACC-TC-G04 | ID verification CTA banner (dismissible) |
+| | ACC-TC-G04 | ID verification CTA banner (none / rejected only) |
 | | ACC-TC-G05 | Recommendations + recent trade card |
 | | ACC-TC-G06 | Pull-to-refresh reloads dashboard |
 | | ACC-TC-G07 | "Show more actions" toggle |
@@ -55,11 +55,13 @@
 | | ACC-TC-G11 | "View Timeline" nav |
 | | ACC-TC-G12 | "See All" → Discover nav |
 | | ACC-TC-G13 | Subscription-card Upgrade button |
-| **H — Help & Support Menu** | ACC-TC-H01 | Help & Support menu (3 cards) routes |
+| **H — Help & Support Menu** | ACC-TC-H01 | Help & Support menu (3 cards) routes (entered from Profile) |
 | | ACC-TC-H02 | FAQ list — search + category filter |
 | | ACC-TC-H03 | FAQ fallback when offline |
 | | ACC-TC-H04 | FAQ detail — helpful vote (Yes/No) |
-| | ACC-TC-H05 | Contact Support form (auth gate + validation) |
+| | ACC-TC-H05 | Contact Support form (unified flow — logged-in AND logged-out) |
+| | ACC-TC-H06 | No raw support-email surfaces (cross-screen sweep) |
+| | ACC-TC-H07 | Contact Support reachable logged-out (Login + Signup entry) |
 | **I — Education & SP Calculator** | ACC-TC-I01 | Education Help screen sections (accordion + deep link) |
 | | ACC-TC-I02 | SP Calculator (free mode) sell/buy outputs |
 | | ACC-TC-I03 | SP Calculator bonus category badge |
@@ -72,15 +74,15 @@
 | | ACC-TC-J05 | Policy versioning — re-acceptance on new version |
 | | ACC-TC-J06 | Signup implies TOS + Privacy agreement (no mandatory dialog) |
 | | ACC-TC-J07 | Legal screen unavailable state (no published policy) |
-| | ACC-TC-J08 | Legal screen load failure — error + Retry |
+| | ACC-TC-J08 | Legal screen load failure — inline error (Retry only on Liability) |
 | | ACC-TC-J09 | Very long policy content renders + scrolls smoothly |
 | | ACC-TC-J10 | Legal screens render consistently on iOS and Android |
 | | ACC-TC-J11 | Legal screen loads < 2s and scrolls without lag |
 | | ACC-TC-J12 | Liability Disclaimer unavailable state |
-| **K — Privacy & Security / MFA** | ACC-TC-K01 | MFA factors list + enrollment entry points |
-| | ACC-TC-K02 | Enroll and verify an authenticator factor |
-| | ACC-TC-K03 | Protected action prompts MFA challenge + invalid code handling |
-| | ACC-TC-K04 | Recovery path and remove verified factor |
+| **K — Privacy & Security / MFA 🚫** | ACC-TC-K01 | 🚫 NOT IMPLEMENTED — MFA factors list + enrollment (no UI exists) |
+| | ACC-TC-K02 | 🚫 NOT IMPLEMENTED — enroll/verify authenticator factor (no UI) |
+| | ACC-TC-K03 | 🚫 NOT IMPLEMENTED — MFA challenge on protected action (no UI) |
+| | ACC-TC-K04 | 🚫 NOT IMPLEMENTED — recovery / remove factor (no UI) |
 | **L — Error Recovery & Crash Reporting** | ACC-TC-L01 | Render-time error shows fallback instead of red/white screen |
 | | ACC-TC-L02 | Try Again recovers after transient error |
 | | ACC-TC-L03 | Persistent error stays contained to fallback |
@@ -662,7 +664,9 @@
 
 ## Group F — Suspended / Unsubscribe / Offline
 
-### ACC-TC-F01 · Suspended account screen (logout only)
+### ACC-TC-F01 · Suspended account screen (Contact Support + Log Out)
+
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** Verified against `SuspendedAccountScreen.tsx:34-57` — the screen shows 🚫 "Account Suspended" with **TWO actions**: an in-app **Contact Support** button (`suspended-contact-support-button`, routes to the ContactSupport form) and **Log Out** (`logout-button`). There is **no support-email text** on the screen (consistent with the app-wide no-raw-email rule, ACC-TC-H06). The previous guide text ("support email + single Log Out") was stale.
 
 **Ref:** FLOW-34 / FLOW-02 · SuspendedAccountScreen
 **Actors:** test-suspended
@@ -673,18 +677,19 @@
 1. Log in as **test-suspended**.
 
 **Expected Result:**
-- A 🚫 "Account Suspended" screen with the support email and a single **[Log Out]** action; the rest of the app is inaccessible.
+- A 🚫 "Account Suspended" screen with **two actions**: **Contact Support** (opens the in-app Contact Support form, not an email address) and **Log Out**; the rest of the app is inaccessible.
+- No raw support-email address or mailto is shown on the screen.
 
 ---
 
-### ACC-TC-F02 · Unsubscribe via email token (success/error)
+### ACC-TC-F02 · Unsubscribe via deep-link token (success/error)
 
-> ⚠️ **Needs re-verification (2026-08-12):** The unsubscribe flow uses a deep-link token as a route param rather than "email token" terminology — verify the description wording.
+> ✅ **Wording confirmed 2026-09-02 (guide-currency audit):** the unsubscribe flow is reached by a **deep-link `token` route param** (route `Unsubscribe`, linking config `unsubscribe`) — it is a deep-link token, not an "email token" terminology. No in-app caller exists (deep-link-only by design).
 
-**Ref:** FLOW-17 · UnsubscribeScreen
-**Actors:** test-buyer (via email link)
+**Ref:** FLOW-17 · UnsubscribeScreen (deep-link `token`)
+**Actors:** test-buyer (via unsubscribe link)
 
-**Objective:** Verify the email-unsubscribe deep link.
+**Objective:** Verify the unsubscribe deep link.
 
 **Steps:**
 1. Open the app via a valid unsubscribe deep link (token).
@@ -743,19 +748,23 @@
 
 ---
 
-### ACC-TC-G02 · Priority banners (grace > payment fail > trial > draft)
+### ACC-TC-G02 · Dashboard banners (independent top banners + Action Items list)
+
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** verified against `UserDashboardScreen.tsx:436-497`. There is **no single grace>payment-fail>trial>draft priority cascade**. `TrialReminderBanner` and `PaymentFailureBanner` render as **independent banners above** the content, while the grace, draft, and ID-verification CTAs render inside a collapsible **"Action Items"** list (max 2 visible, `action-items-show-all`/`…-less`). Draft-banner buttons are **"Continue" / "Maybe later"** (`ResumeDraftBanner.tsx`), not "Continue listing"/"Dismiss".
 
 **Ref:** FLOW-16 · UserDashboardScreen
 **Actors:** test-grace, test-trial, a user with a payment failure, a user with a draft
 
-**Objective:** Verify banner priority and content.
+**Objective:** Verify dashboard banner/content structure and the collapsible Action Items list.
 
 **Steps:**
-1. Open the dashboard in each state.
+1. Open the dashboard in each state (trial, payment failure, grace, draft, ID-verification-pending).
 
 **Expected Result:**
-- Grace period banner ("expires on {date} … keep your Swap Points") outranks payment-failure, which outranks trial-reminder, which outranks resume-draft.
-- The resume-draft banner shows the first draft with "Continue listing" / "Dismiss".
+- The **trial reminder** and **payment-failure** banners render as independent top banners (each present in its own state; no stacking order between them).
+- The **grace**, **draft**, and **ID-verification** CTAs appear in the collapsible **Action Items** list (max 2 visible until "Show {n} more action(s)").
+- The resume-draft action shows **"Continue"** / **"Maybe later"** (not "Continue listing"/"Dismiss").
+- Grace copy ("…keep your Swap Points", `GracePeriodBanner`/`useGracePeriodStatus`) is unchanged and accurate.
 
 ---
 
@@ -789,18 +798,23 @@
 
 ---
 
-### ACC-TC-G04 · ID verification CTA banner (dismissible)
+### ACC-TC-G04 · ID verification CTA banner (none / rejected only)
 
-**Ref:** FLOW-16 / FLOW-21 · UserDashboardScreen
-**Actors:** test-free (verification = none)
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** `IDVerificationCTABanner` renders only for verification status `none` or `rejected` (`UserDashboardScreen.tsx:404`). A `pending` or `approved` state **never** shows the banner — the previous guide text describing a pending/approved handling was stale.
+
+**Ref:** FLOW-16 / FLOW-21 · UserDashboardScreen · `IDVerificationCTABanner`
+**Actors:** test-free (verification = none), a user with a rejected ID request
 
 **Objective:** Verify the ID verification CTA banner states.
 
 **Steps:**
-1. Open the dashboard with verification status none/pending/approved/rejected.
+1. Open the dashboard with verification status `none`, then with `rejected`.
+2. Confirm no banner renders for `pending` or `approved` states.
 
 **Expected Result:**
-- none → "Verify your identity…" CTA (dismissible); pending → "Pending…"; approved → hidden; rejected → "Rejected".
+- `none` → "Verify Your Identity" / "Verify Now" CTA (dismissible with "Maybe later"); tapping routes to ID verification.
+- `rejected` → "ID Verification Not Approved" / "Resubmit ID" CTA.
+- `pending` and `approved` → no ID CTA banner is shown.
 
 ---
 
@@ -935,16 +949,18 @@
 
 ### ACC-TC-H01 · Help & Support menu (3 cards) routes
 
-**Ref:** FLOW-19 · HelpSupportMenuScreen
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** the Help & Support entry is on the **Profile** screen ("Help & Support" row, `ProfileScreen.tsx:639`), NOT Settings (Settings has no Help row — confirmed). Menu cards: FAQ → `Support` (FAQ list), How to Earn SP → `Help` (education), Contact Us → `ContactSupport`.
+
+**Ref:** FLOW-19 · HelpSupportMenuScreen (route `HelpSupport`, entered from Profile)
 **Actors:** test-buyer
 
 **Objective:** Verify the help menu cards.
 
 **Steps:**
-1. Open **Help & Support** (from Settings).
+1. From **Profile**, tap the **Help & Support** row to open the menu.
 
 **Expected Result:**
-- Three cards: FAQ (→ FAQ list), How to Earn SP (→ Education Help), Contact Us (→ Contact Support), each with the documented subtitle.
+- Three cards: FAQ (→ FAQ list `Support`), How to Earn SP (→ Education Help `Help`), Contact Us (→ Contact Support `ContactSupport`), each with the documented subtitle.
 
 ---
 
@@ -1251,19 +1267,22 @@
 
 ---
 
-### ACC-TC-J08 · Legal screen load failure — error + Retry
+### ACC-TC-J08 · Legal screen load failure — inline error (Retry only on Liability)
 
-**Ref:** FLOW-31/32 · TermsOfServiceScreen / PrivacyPolicyScreen
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** verified against source — TOS/Privacy load-failure shows an **inline "…not available" message with NO Retry button** (`TermsOfServiceScreen.tsx:124`, `PrivacyPolicyScreen.tsx:125`); the only legal screen with a **Retry** control is `LiabilityDisclaimerScreen.tsx:96`. Recovery from a TOS/Privacy fetch error happens by leaving/re-entering the screen, not via an on-screen Retry.
+
+**Ref:** FLOW-31/32 · TermsOfServiceScreen / PrivacyPolicyScreen (inline, no Retry) · FLOW-33 · LiabilityDisclaimerScreen (Retry)
 **Actors:** test-buyer
 
-**Objective:** Verify a fetch failure shows an error with a retry path.
+**Objective:** Verify each legal screen's graceful load-failure behavior.
 
 **Steps:**
 1. Simulate a load failure and open Settings → Terms of Service (repeat for Privacy Policy).
-2. Tap **[Retry]**.
+2. Open Settings → Liability Disclaimer under the same failure.
 
 **Expected Result:**
-- A warning/error message with a Retry action renders; retry reloads once connectivity/state is restored; no crash or blank screen.
+- **TOS / Privacy:** an inline "Terms of Service not available" / "Privacy Policy not available" message renders (no crash, no blank screen); there is **no Retry button** on these two screens — reload by leaving and re-entering.
+- **Liability Disclaimer:** an error state with a **[Retry]** control (`LiabilityDisclaimerScreen`) reloads on tap.
 
 ---
 
@@ -1328,74 +1347,43 @@
 
 ---
 
-## Group K — Privacy & Security / MFA
+## Group K — Privacy & Security / MFA — 🚫 NOT IMPLEMENTED (dead surface)
 
-### ACC-TC-K01 · MFA factors list + enrollment entry points
+> 🚫 **Group NOT IMPLEMENTED (2026-09-02, guide-currency audit).** There is **no MFA / Privacy & Security screen, route, or code** in `p2p-kids-marketplace/src` — a regex sweep for `MFA|multi-factor|authenticator|factor` returns 0 matches. The only "Privacy & Security" artifact is a Settings row whose `onPress` is an **empty TODO stub** (`SettingsScreen.tsx:158-164`). The four cases below therefore **cannot be executed from the app UI** and are retained only as a record of the intended feature. **Do not run them in a QA round.** Revisit only after a product decision to implement MFA (then re-write these cases against the new UI). FLOW-24 remains listed in the header as the intended spec for that future work.
 
-**Ref:** FLOW-24 · Settings → Privacy & Security
-**Actors:** test-buyer
+### ACC-TC-K01 · MFA factors list + enrollment entry points — 🚫 NOT IMPLEMENTED
 
-**Objective:** Verify the Privacy & Security area exposes factor-management entry points and current MFA state.
+**Ref:** FLOW-24 · (intended) Settings → Privacy & Security — **no UI exists**
+**Actors:** n/a (feature absent)
 
-**Steps:**
-1. Open **Settings → Privacy & Security**.
-2. Review the MFA section before any factor is enrolled.
+**Status:** 🚫 **NOT IMPLEMENTED — no screen, no route, no code.** The "Privacy & Security" Settings row is an inert stub (`SettingsScreen.tsx:158-164`). Do not execute. Re-scope when MFA ships.
 
-**Expected Result:**
-- The screen shows MFA status, existing factors (if any), and available actions to add a factor.
-- Unsupported factor types are hidden or clearly marked unavailable on the current device.
-- If no factor is enrolled, the account is shown as not fully MFA-protected.
+---
 
-### ACC-TC-K02 · Enroll and verify an authenticator factor
+### ACC-TC-K02 · Enroll and verify an authenticator factor — 🚫 NOT IMPLEMENTED
 
-**Ref:** FLOW-24 · MFA enrollment
-**Actors:** test-buyer
+**Ref:** FLOW-24 · (intended) MFA enrollment — **no UI exists**
+**Actors:** n/a (feature absent)
 
-**Objective:** Verify a user can enroll and verify a new MFA factor.
+**Status:** 🚫 **NOT IMPLEMENTED — no enrollment UI, no QR/manual-key flow, no factor verification.** Do not execute. Re-scope when MFA ships.
 
-**Steps:**
-1. In **Privacy & Security**, start MFA setup.
-2. Scan the QR code or enter the setup key into the authenticator app.
-3. Enter the generated verification code and submit.
+---
 
-**Expected Result:**
-- Setup instructions render with a QR code or manual key.
-- A valid code completes enrollment and marks the factor as **Verified**.
-- The screen updates to show MFA is enabled for the account.
+### ACC-TC-K03 · Protected action prompts MFA challenge + invalid code handling — 🚫 NOT IMPLEMENTED
 
-### ACC-TC-K03 · Protected action prompts MFA challenge + invalid code handling
+**Ref:** FLOW-24 · (intended) MFA assurance level — **no UI exists**
+**Actors:** n/a (feature absent)
 
-**Ref:** FLOW-24 · MFA assurance level
-**Actors:** test-buyer
+**Status:** 🚫 **NOT IMPLEMENTED — no MFA challenge, no factor gate on any action.** Do not execute. Re-scope when MFA ships.
 
-**Objective:** Verify a sensitive account action requires the second factor once MFA is enabled.
+---
 
-**Steps:**
-1. Ensure **test-buyer** has a verified MFA factor.
-2. Start a sensitive action such as changing account security details, deleting the account, or another gated security action in the build.
-3. Enter an invalid MFA code, then retry with a valid code.
+### ACC-TC-K04 · Recovery path and remove verified factor — 🚫 NOT IMPLEMENTED
 
-**Expected Result:**
-- The sensitive action prompts for the enrolled MFA factor.
-- An invalid code is rejected with a clear error and does not complete the action.
-- A valid code completes the challenge and allows the protected action to proceed.
+**Ref:** FLOW-24 · (intended) recovery / factor removal — **no UI exists**
+**Actors:** n/a (feature absent)
 
-### ACC-TC-K04 · Recovery path and remove verified factor
-
-**Ref:** FLOW-24 · recovery and factor removal
-**Actors:** test-buyer
-
-**Objective:** Verify the user can recover access and remove an enrolled factor without leaving the account in a broken state.
-
-**Steps:**
-1. Start the MFA challenge but use the recovery option instead of the live authenticator code.
-2. Complete the recovery step with a valid recovery code or backup flow supported by the environment.
-3. Return to **Privacy & Security** and remove the verified factor.
-
-**Expected Result:**
-- The recovery path is clearly available when a factor challenge cannot be completed normally.
-- A valid recovery step restores access without forcing logout loops.
-- Removing the factor requires confirmation and updates the screen so the account no longer shows that factor as active.
+**Status:** 🚫 **NOT IMPLEMENTED — no recovery path, no factor-removal UI.** Do not execute. Re-scope when MFA ships.
 
 ## Group L — Error Recovery & Crash Reporting
 
@@ -1518,20 +1506,22 @@
 | Delete account consequences + password (COPPA) | ACC-TC-E01 |
 | Delete wrong password blocked | ACC-TC-E02 |
 | Delete two-step confirm + logout | ACC-TC-E03 |
-| Suspended account gate (FLOW-34) | ACC-TC-F01 |
-| Unsubscribe email token success/error (FLOW-17) | ACC-TC-F02 |
+| Suspended account gate (Contact Support + Log Out, no email) (FLOW-34) | ACC-TC-F01 |
+| Unsubscribe deep-link token success/error (FLOW-17) | ACC-TC-F02 |
 | Offline screen + retry | ACC-TC-F03 |
 | Dashboard greeting + badge + SP (FLOW-16) | ACC-TC-G01, ACC-TC-R05 |
-| Dashboard banner priority | ACC-TC-G02 |
+| Dashboard banners (independent top banners + Action Items list) | ACC-TC-G02 |
 | Dashboard quick-action routing | ACC-TC-G03 |
-| Dashboard ID verification CTA | ACC-TC-G04 |
+| Dashboard ID verification CTA (none / rejected only) | ACC-TC-G04 |
 | Dashboard recommendations + recent trade | ACC-TC-G05 |
 | Dashboard pull-to-refresh | ACC-TC-G06 |
-| Help & Support menu routing (FLOW-19) | ACC-TC-H01 |
+| Help & Support menu routing (entered from Profile) (FLOW-19) | ACC-TC-H01 |
 | FAQ search + category filter | ACC-TC-H02 |
 | FAQ offline fallback | ACC-TC-H03 |
 | FAQ detail helpful vote | ACC-TC-H04 |
 | Contact Support form + validation | ACC-TC-H05 |
+| No raw support-email surfaces (cross-screen sweep) | ACC-TC-H06 |
+| Contact Support reachable logged-out | ACC-TC-H07 |
 | Education sections accordion + deep link | ACC-TC-I01 |
 | SP Calculator sell/buy outputs | ACC-TC-I02 |
 | SP Calculator bonus badge | ACC-TC-I03 |
@@ -1542,3 +1532,5 @@
 | Privacy Policy view + acceptance (FLOW-32) | ACC-TC-J03 |
 | Liability Disclaimer read-only + retry (FLOW-33) | ACC-TC-J04 |
 | Policy versioning re-acceptance | ACC-TC-J05 |
+| Legal screen load failure — inline error (Retry only on Liability) | ACC-TC-J08 |
+| 🚫 NOT IMPLEMENTED — MFA / Privacy & Security (no UI) | ACC-TC-K01, ACC-TC-K02, ACC-TC-K03, ACC-TC-K04 |

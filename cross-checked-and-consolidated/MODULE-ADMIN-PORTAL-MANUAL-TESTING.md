@@ -2,7 +2,7 @@
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-18 Admin Controls / CPSC Recall Imports / ID Badge Verification · FLOW-20 Audit/Logging · FLOW-21 Category Management / Education CMS · FLOW-22 Sales Tax · FLOW-25 Manual Payout Admin · FLOW-28 Cron & Background Jobs · FLOW-30 SP Wallet Admin Ops · FLOW-34 Admin Auth Middleware)
 **Tasks covered:** Admin Auth & Dashboard (health strip, Action Center, KPI cards, no duplicate nav cards) · Users · Listings/Items/Flagged · Categories · Nodes/Node Settings/Waitlist + **per-node KPIs (N6 node tagging)** · Global Config (cart, trade-timing, N1 configurability — pickup/payout) · Policies · Trades · Disputes · Tax · Payouts (config + earnings) · SP Economy/Analytics/Wallet · Subscriptions · Referrals · ID Badges/Badges · Review Moderation · Education/FAQ CMS · Support · Revenue/Notification Analytics · Audit Logs · Monitoring/Cron · Sidebar Navigation (grouped & collapsible)
-**Last updated:** 2026-08-09
+**Last updated:** 2026-09-02 (guide-currency audit v2: Group F page-drift flags on F03/F05/F06/F08/F10 + F09 moved to /analytics; J01 no bare /tax; L06 dashboard card removed; Q02/Q03 review-confirm copy corrected; W01 OVERVIEW = Action Center + Dashboard)
 **Scope:** Admin portal manual testing in a **web browser** (this is a web-based admin tool, not a mobile app). No SQL / no DB access required — **exception:** the N6 node-tagging data-layer checks (ADM-TC-E06, and the SQL reconcile step in ADM-TC-E07) run **read-only** queries in the Supabase SQL Editor on staging.
 **Devices:** Desktop browser (Chrome/Safari/Firefox). Admin login required.
 
@@ -61,14 +61,14 @@
 | | ADM-TC-E08 | Waitlist API authorization (401 without admin session) |
 | **F — Global Config & Settings** | ADM-TC-F01 | Global configuration inline edit + permission gate |
 | | ADM-TC-F02 | Cart settings (min value, max carts, expiry) |
-| | ADM-TC-F03 | Trade timing config (timing keys + nested validation) |
+| | ADM-TC-F03 | Trade timing config (timing keys + nested validation) ⚠️ fee-leg BLOCKED-ON-PAGE |
 | | ADM-TC-F04 | Settings single-source — cross-link + last-updated + audit |
-| | ADM-TC-F05 | N1 configurability — pickup countdown + payout buffer (new keys) |
-| | ADM-TC-F06 | R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys) |
+| | ADM-TC-F05 | ⚠️ BLOCKED-ON-PAGE — N1 pickup/payout keys (not on live page) |
+| | ADM-TC-F06 | ⚠️ BLOCKED-ON-PAGE — R2 guardrail + pickup reminders (not on live page) |
 | | ADM-TC-F07 | Trade Pipeline visualization — see & track trades in all stages |
-| | ADM-TC-F08 | R1 tiered buyer-fee fields |
-| | ADM-TC-F09 | Buyer Fee-Tier Distribution table |
-| | ADM-TC-F10 | Legacy fee keys |
+| | ADM-TC-F08 | ⚠️ BLOCKED-ON-PAGE — R1 tiered buyer-fee fields (not on live page) |
+| | ADM-TC-F09 | Buyer Fee-Tier Distribution table (moved → /analytics) |
+| | ADM-TC-F10 | ⚠️ BLOCKED-ON-PAGE — Legacy fee keys (not surfaced live) |
 | | ADM-TC-F11 | Reset button |
 | **G — Policy Management** | ADM-TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |
 | | ADM-TC-G02 | Create new policy version (version regex) |
@@ -85,7 +85,7 @@
 | | ADM-TC-I03 | Resolve dispute — Complete |
 | | ADM-TC-I04 | Resolve dispute — Refund |
 | | ADM-TC-I05 | Filter-tab click behavior (All/Reported/Under Review) |
-| **J — Tax Admin** | ADM-TC-J01 | Tax admin entry points (cross-ref TradeFlow Group P) |
+| **J — Tax Admin** | ADM-TC-J01 | Tax admin entry points (no bare /tax — use sub-pages) |
 | **K — Payouts** | ADM-TC-K01 | Payout fee configuration + test breakdown |
 | | ADM-TC-K02 | Payouts management list, stats, filters |
 | | ADM-TC-K03 | Retry failed payout (confirmation) |
@@ -94,7 +94,7 @@
 | | ADM-TC-L03 | SP Wallet admin — economy metrics + search |
 | | ADM-TC-L04 | SP adjustment (credit/deduct) with reason |
 | | ADM-TC-L05 | Freeze / unfreeze / suspend wallet |
-| | ADM-TC-L06 | SP Wallet entry points — home card, summary metrics, sidebar link |
+| | ADM-TC-L06 | SP Economy summary metrics — dashboard + /sp-wallet entry (no home card) |
 | | ADM-TC-L07 | SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state |
 | | ADM-TC-L08 | SP Wallet warning banners (mobile) — frozen/suspended/grace |
 | **M — Subscriptions Admin** | ADM-TC-M01 | Grace period config (days + reminders) |
@@ -117,8 +117,8 @@
 | | ADM-TC-P03 | Manual award badge |
 | | ADM-TC-P04 | Badge sandbox event simulation |
 | **Q — Review Moderation** | ADM-TC-Q01 | Reported reviews list + reason filter |
-| | ADM-TC-Q02 | Hide review (confirmation) |
-| | ADM-TC-Q03 | Approve review (unhide + delete reports) |
+| | ADM-TC-Q02 | Hide review (confirmation — copy corrected) |
+| | ADM-TC-Q03 | Approve review (unhide + delete reports — copy corrected) |
 | | ADM-TC-Q04 | Status filter dropdown |
 | | ADM-TC-Q05 | Sort-by dropdown |
 | | ADM-TC-Q06 | Search input |
@@ -977,6 +977,8 @@
 
 ## Group F — Global Config & Settings
 
+> ⚠️ **Page-drift note (2026-09-02, guide-currency audit):** the live **`/settings/trade-timing`** page currently renders ONLY these sections: **Offer Expiry** · **Offer Limits** · **Auto-Complete** · **Buyer Cancel Requests** · **Swap Points** · **Transaction Fees (exactly 2 keys:** `transaction_fee_subscriber_cents` "Kids Club+ Member Fee" + `transaction_fee_non_subscriber_cents` "Free-Tier User Fee"**)** + Reset/Save. Sections the guide describes for F03 (seller/buyer platform fees + Charge-One-Fee), F05 (Pickup & Payout), F06 (pickup reminders + 168h guardrail), F08 (R1 Tiered Buyer Fee), F09 (Buyer Fee-Tier Distribution — now on `/analytics`), and F10 (Legacy fee keys) are **NOT rendered on the live page** (page.tsx has drifted behind its own spec/test — the R2 guardrail exists only in `trade-timing-settings.test.ts`). **Cases F01/F02/F04/F07/F11 remain Current.** Do not run F03/F05/F06/F08/F09/F10 as written until the trade-timing page is restored to render those sections (dev task) or the cases are re-scoped.
+
 ### ADM-TC-F01 · Global configuration inline edit + permission gate
 
 **Ref:** FLOW-18 · /config
@@ -1019,6 +1021,8 @@
 ---
 
 ### ADM-TC-F03 · Trade timing config (timing keys + nested validation) — incl. consolidated fees
+
+> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** only the **timing keys** (offer/auto-complete/cancel-request/SP-release) and the **two subscriber/free-tier member-fee keys** are live on `/settings/trade-timing`. The guide's "seller fee % per tier / buyer platform fee fixed+% / Charge One Fee toggle in Transaction Fees" steps do **not** match the live page — those fee params are not rendered there. Do not run the fee-leg as written until the page renders them (or re-scope to the two live member-fee keys).
 
 **Ref:** FLOW-08 · FLOW-09 · /settings/trade-timing
 **Actors:** test-admin
@@ -1063,6 +1067,8 @@
 
 ### ADM-TC-F05 · N1 configurability — pickup countdown + payout buffer (new keys)
 
+> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render a **Pickup & Payout** section (`pickup_window_hours`, `payout_buffer_days`) — the audit found those keys exist only in `src/types/config.ts` + the mirror test, not on a live admin page. Do not run until the section is restored (or re-scope). The `/config → TRADE` / `/config → FEES` rows for these keys are also absent from the live page render.
+
 **Ref:** FLOW-08 (Trade) · FLOW-09 (Fees) · FLOW-18 (Admin Controls) · N1 Configurability (cross-cutting)
 **Actors:** test-admin
 
@@ -1086,6 +1092,8 @@
 ---
 
 ### ADM-TC-F06 · R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys)
+
+> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render the pickup-reminder fields or expose the combined-168h guardrail in the UI (the R2 guardrail exists only in `trade-timing-settings.test.ts` L106–110). The DB trigger (`fn_validate_trade_timing_config`) may still enforce server-side, but the UI path this case drives is not present. Do not run as written until the UI is restored.
 
 **Ref:** FLOW-08 (Trade) · FLOW-18 (Admin Controls) · R2 (2026-08-10)
 **Actors:** test-admin
@@ -1138,6 +1146,8 @@
 
 ### ADM-TC-F08 · R1 tiered buyer-fee fields
 
+> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render a **Tiered Buyer Fee — R1** section. Do not run as written until the page renders these fields (or re-scope).
+
 **Ref:** /settings/trade-timing · RPC `fn_get_admin_config_values` / `upsert_admin_config_setting`
 **Actors:** test-admin
 **Surfaces:** admin, mobile
@@ -1154,19 +1164,23 @@
 
 ### ADM-TC-F09 · Buyer Fee-Tier Distribution table
 
-**Ref:** /settings/trade-timing · GET `/api/admin/fee-tier-stats`
+> 🔄 **Moved (2026-09-02, guide-currency audit):** the **Buyer Fee-Tier Distribution** card now renders on **`/analytics`** (`src/components/analytics/FeeTierDistributionCard.tsx`, rendered in `src/app/analytics/page.tsx` L187) — it is **not** on `/settings/trade-timing`. Update step 1 to open `/analytics` instead.
+
+**Ref:** /analytics · GET `/api/admin/fee-tier-stats`
 **Actors:** test-admin
 
 **Objective:** Verify the Buyer Fee-Tier Distribution table.
 
 **Steps:**
-1. On **/settings/trade-timing**, review the **Buyer Fee-Tier Distribution** section.
+1. On **/analytics**, review the **Buyer Fee-Tier Distribution** section.
 
 **Expected Result:**
 - Table columns `Tier`, `Fee State`, `Users`; tier badges `Flat fee` / `Percentage fee`.
 - Shows `Loading…` then data, or `No fee-tier data yet.` when empty.
 
 ### ADM-TC-F10 · Legacy fee keys
+
+> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render a **Legacy fee keys (audit only)** section — and the live fee keys are named `transaction_fee_subscriber_cents` / `transaction_fee_non_subscriber_cents` (the guide's `transaction_fee_member_cents`/`_non_member_cents` legacy keys are not surfaced). Do not run as written until reconciled to the live page.
 
 **Ref:** /settings/trade-timing · `Legacy fee keys (audit only)`
 **Actors:** test-admin
@@ -1424,19 +1438,21 @@
 
 ### ADM-TC-J01 · Tax admin entry points (cross-ref TradeFlow Group P)
 
-**Ref:** FLOW-22 · /tax, /tax/nodes, /tax/reports, /tax/settings
+> 🔄 **Fixed 2026-09-02 (guide-currency audit):** the bare **`/tax`** URL has **no page** (`p2p-kids-admin/src/app/tax/` contains only subfolders `nodes/ reports/ rules/ settings/ category-mapping/` — no `page.tsx`), so do **not** navigate to `/tax` directly. Use the sub-pages listed below (all in the sidebar under PLATFORM CONFIG).
+
+**Ref:** FLOW-22 · /tax/nodes · /tax/reports · /tax/settings · /tax/rules
 **Actors:** test-admin
 
 **Objective:** Verify the tax admin sections load, cross-link to /config, and show last-updated metadata; detailed cases live in TradeFlow Group P.
 
 **Steps:**
-1. Open **/tax**, **/tax/nodes**, **/tax/settings**, **/tax/reports**.
+1. Open **/tax/settings**, **/tax/nodes**, **/tax/reports** (and **/tax/rules**). **Do not use the bare `/tax` URL — it 404s.**
 2. On **/tax/settings**, confirm the Info-blue banner "Related settings also live in Config → Tax" opens **/config?tab=tax**, and every field shows a "LAST UPDATED · <ts> · by <email>" label.
 3. On **/tax/nodes**, confirm the banner links to **/config?tab=tax** and each node row shows a **Last Updated** column (timestamp + editor) sourced from the shared audit trail.
 4. On **/tax/rules**, confirm the banner links to **/config?tab=tax** and each rule (and the version-history table) shows a **Last Updated** column with the editor email.
 
 **Expected Result:**
-- Node tax rate config (view/edit, validation), bulk update, rate change history/audit, global settings toggle + warning banner, reporting dashboard (summary, date presets, jurisdiction breakdown, 7 report types), and CSV export are reachable.
+- Node tax rate config (view/edit, validation), bulk update, rate change history/audit, global settings toggle + warning banner, reporting dashboard (summary, date presets, jurisdiction breakdown, 7 report types), and CSV export are reachable from the tax sub-pages (never the bare `/tax` URL).
 - Global settings on /tax/settings and /config→TAX edit the same `admin_config` rows; per-node / per-category data on /tax/nodes and /tax/rules stays distinct (not merged into /config) but cross-links make the relationship explicit.
 - Execute the detailed checks in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` **TRD-TC-P01 through TRD-TC-P08**.
 
@@ -1581,20 +1597,23 @@
 
 ---
 
-### ADM-TC-L06 · SP Wallet entry points — home card, summary metrics, sidebar link
+### ADM-TC-L06 · SP Economy summary metrics — dashboard + sidebar entry
 
-**Ref:** FLOW-30 · /sp-wallet
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** the legacy dashboard **"SP Economy" navigation card (`data-testid="card-sp-wallet"`)** no longer exists — the old duplicate card grid was removed (`src/app/page.tsx`); grep finds zero `card-sp-wallet` in `src/`. The dashboard now shows only the **`sp-economy-summary`** 4-tile section (total earned / total spent / in circulation / active wallets).
+
+**Ref:** FLOW-30 · dashboard `sp-economy-summary` · `/sp-wallet` (via SP Economy hub Wallets tab)
 **Actors:** test-admin
 
-**Objective:** Verify the SP economy/wallet entry points across the portal.
+**Objective:** Verify the SP economy summary metrics and the SP-wallet entry points that actually exist.
 
 **Steps:**
-1. Open the admin home page and scroll past the existing cards.
-2. Open any page and check the sidebar for the SP Wallet link.
+1. Open the admin home page and locate the **SP Economy summary** section (4 metric tiles: total earned, total spent, in circulation, active wallets).
+2. Open the **SP Economy** hub (`/sp-economy`) → **Wallets** tab, and follow its **/sp-wallet** link; also reach `/sp-wallet` directly.
 
 **Expected Result:**
-- Home page shows an "SP Economy" navigation card (data-testid="card-sp-wallet") routing to /sp-wallet, and an "SP Economy" summary section with 4 metric tiles (total earned, total spent, in circulation, active wallets); the section renders nothing if the metrics RPC fails.
-- Sidebar shows an "SP Wallet" link that routes to /sp-wallet.
+- The dashboard shows the **SP Economy summary** 4-tile section (`sp-economy-summary`); it renders nothing if the metrics RPC fails.
+- There is **no standalone "SP Economy" dashboard navigation card** (`card-sp-wallet` is gone).
+- `/sp-wallet` is reachable via the SP Economy hub (Wallets tab) and by direct URL (the sidebar links to `/sp-economy`, not `/sp-wallet` directly).
 
 ---
 
@@ -2011,7 +2030,9 @@
 
 ### ADM-TC-Q02 · Hide review (confirmation)
 
-**Ref:** FLOW-08 reviews · /reviews
+> 🔄 **Copy corrected 2026-09-02 (guide-currency audit):** verified against `src/app/reviews/page.tsx` L88 — the Hide confirmation is `This will remove the review and notify everyone who reported it. Continue?` (not the previously documented sentence).
+
+**Ref:** FLOW-08 reviews · /reviews (`/api/reviews/*`)
 **Actors:** test-admin
 
 **Objective:** Verify hiding a review.
@@ -2020,13 +2041,15 @@
 1. On a reported review, click **Hide** and confirm.
 
 **Expected Result:**
-- Confirmation "Are you sure you want to hide this review?"; on confirm the review is hidden from profiles. (Mirrors TradeFlow ADM-TC-Q20 deletion vs hide.)
+- Confirmation **"This will remove the review and notify everyone who reported it. Continue?"**; on confirm the review is hidden from profiles. (Mirrors TradeFlow ADM-TC-Q20 deletion vs hide.)
 
 ---
 
 ### ADM-TC-Q03 · Approve review (unhide + delete reports)
 
-**Ref:** FLOW-08 reviews · /reviews
+> 🔄 **Copy corrected 2026-09-02 (guide-currency audit):** verified against `src/app/reviews/page.tsx` ~L113 — the Approve/unhide confirmation is `This will keep the review visible, reject all reports, and notify everyone who reported it. Continue?` (not the previously documented sentence).
+
+**Ref:** FLOW-08 reviews · /reviews (`/api/reviews/*`)
 **Actors:** test-admin
 
 **Objective:** Verify approving (unhiding) a reported review.
@@ -2035,7 +2058,7 @@
 1. On a hidden/reported review, click **Approve** and confirm.
 
 **Expected Result:**
-- Confirmation "This will unhide the review and delete all associated reports. Continue?"; on confirm the review is visible again and its reports are cleared. (Mirrors TradeFlow ADM-TC-Q19.)
+- Confirmation **"This will keep the review visible, reject all reports, and notify everyone who reported it. Continue?"**; on confirm the review is visible again and its reports are cleared. (Mirrors TradeFlow ADM-TC-Q19.)
 
 ### ADM-TC-Q04 · Status filter dropdown
 
@@ -2325,7 +2348,7 @@
 **Expected Result:**
 - The sidebar shows exactly 7 uppercase section labels: **OVERVIEW**, **TRADE OPERATIONS**, **USERS & TRUST**, **MONETIZATION**, **CATALOG**, **PLATFORM CONFIG**, **ANALYTICS**.
 - Each section contains its expected items (e.g., TRADE OPERATIONS = Trades, Disputes, Flagged Items, Cancel Insights, Reviews; PLATFORM CONFIG = Config, Tax Rules, Tax Reports, Tax Settings, Tax Nodes, Cart Settings, Trade Timing, Policies, Support, Nodes).
-- Dashboard sits alone under OVERVIEW; Analytics sits alone under ANALYTICS.
+- **OVERVIEW contains the pinned Action Center + Dashboard together** (it is not Dashboard-alone); Analytics sits alone under ANALYTICS. (This matches ADM-TC-X09's pinned Action Center.)
 
 ---
 
@@ -3109,7 +3132,15 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 | Per-node KPIs (N6) | ADM-TC-E07 |
 | Global config inline edit | ADM-TC-F01, ADM-TC-R04 |
 | Cart settings + validation (FLOW-07) | ADM-TC-F02 |
-| Trade timing config (FLOW-08) | ADM-TC-F03, ADM-TC-R03 |
+| Trade timing config (timing keys only; fee-leg ⚠️ BLOCKED-ON-PAGE) | ADM-TC-F03 |
+| Settings single-source cross-link + audit | ADM-TC-F04 |
+| ⚠️ BLOCKED-ON-PAGE — N1 pickup/payout keys | ADM-TC-F05 |
+| ⚠️ BLOCKED-ON-PAGE — R2 guardrail + pickup reminders | ADM-TC-F06 |
+| Trade Pipeline visualization | ADM-TC-F07 |
+| ⚠️ BLOCKED-ON-PAGE — R1 tiered buyer-fee fields | ADM-TC-F08 |
+| Buyer Fee-Tier Distribution (on /analytics) | ADM-TC-F09 |
+| ⚠️ BLOCKED-ON-PAGE — Legacy fee keys | ADM-TC-F10 |
+| Reset button (trade-timing) | ADM-TC-F11 |
 | Policy tabs + versions (FLOW-31/32/33) | ADM-TC-G01 |
 | Create policy version (regex) | ADM-TC-G02 |
 | Edit draft policy | ADM-TC-G03 |
@@ -3121,7 +3152,7 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 | Mark under review | ADM-TC-I02 |
 | Resolve dispute Complete | ADM-TC-I03 |
 | Resolve dispute Refund (FLOW-27) | ADM-TC-I04, ADM-TC-R02 |
-| Tax admin entry points (FLOW-22) | ADM-TC-J01 |
+| Tax admin entry points (no bare /tax — use sub-pages) (FLOW-22) | ADM-TC-J01 |
 | Payout fee config (FLOW-25) | ADM-TC-K01 |
 | Payouts list/stats/filters | ADM-TC-K02 |
 | Retry failed payout | ADM-TC-K03, ADM-TC-R02 |
@@ -3130,6 +3161,7 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 | SP wallet admin metrics + search | ADM-TC-L03 |
 | SP adjustment with reason | ADM-TC-L04, ADM-TC-R02 |
 | Freeze/unfreeze/suspend wallet | ADM-TC-L05 |
+| SP Economy summary metrics + /sp-wallet entry (no home card) | ADM-TC-L06 |
 | Grace period config (FLOW-12) | ADM-TC-M01 |
 | Subscriptions list/filters/metrics | ADM-TC-M02 |
 | Extend/cancel/reminder | ADM-TC-M03 |
@@ -3145,8 +3177,8 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 | Manual award badge | ADM-TC-P03 |
 | Badge sandbox simulation | ADM-TC-P04 |
 | Reported reviews + reason filter | ADM-TC-Q01 |
-| Hide review | ADM-TC-Q02 |
-| Approve (unhide) review | ADM-TC-Q03 |
+| Hide review (copy: remove + notify reporters) | ADM-TC-Q02 |
+| Approve (unhide) review (copy: keep visible + reject reports) | ADM-TC-Q03 |
 | Education CMS (FLOW-21/EDU-001) | ADM-TC-R01 |
 | FAQ management | ADM-TC-R02 |
 | Publish content reflects in app | ADM-TC-R03 |

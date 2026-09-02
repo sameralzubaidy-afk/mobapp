@@ -584,6 +584,19 @@ The admin-portal browser driver (`run_playwright_code`) returns a **`deferredRes
 
 *Evidence: QA Task 15 F3 (~40+ calls for 12 admin cases, mostly per-action 2-call deferred executions + snapshot greps) and QA Task 16 F5 (admin `run_playwright_code` deferred 2-call tax, ~6 calls/run).*
 
+### 5.50 Standing rule — Driving Stripe hosted Checkout in browser legs (QA Task 21, 2026-09-02) — expected friction, not app defects
+
+When a case requires completing or declining a real **Stripe hosted Checkout** (web-first subscription purchase / decline-card path), the Stripe page has documented, repeatable behaviors that are NOT app defects — drive them directly:
+
+- **Link interstitials:** Stripe interjects a "Confirm it's you" / Link fast-checkout step (it remembers a returning email). Click **"Pay without Link"** (`button:has-text("Pay without Link")`) to reach the raw card form. If a 6-digit "code sent to (•••) ••• ••34" step appears in test mode, the page itself states "You are currently testing and no code will be sent. Enter 000000 to continue."
+- **Required phone field:** hosted Checkout collects a phone number (placeholder "(201) 555-0123") before Subscribe is accepted — fill a valid test number (`input[placeholder="(201) 555-0123"]`).
+- **Card fields live in the MAIN checkout frame** after selecting the **Card** radio (`#payment-method-accordion-item-title-card`); the card-number field uses placeholder "1234 1234 1234 1234". Fill via `input[placeholder=...]` in Playwright (scan main frame + subframes; the fields appear in the main frame).
+- **`page.screenshot` on Stripe pages can time out waiting for fonts** even with `animations: 'disabled'` — prefer DOM-text evidence (the red `FieldError` element, `inputValue()` read-backs) + the embedded screenshot OCR for decline/error assertions.
+- **Decline test card 4000 0000 0000 0002** → red `FieldError` "Your card was declined. Please try a different card."; assert no subscription/billing row was created and no partial state was left (an abandoned Checkout creates an empty customer — a cleanup candidate).
+- **No-profile emails:** the web `/api/checkout` → `create-checkout-session` EF issues a bind token for emails with no app profile; if `SUBSCRIPTION_BIND_TOKEN_SECRET` is unset on staging it returns 500 "Key length is zero" — for decline/success Checkout legs prefer a profile-backed email (e.g. test-free) so the session resolves by `client_reference_id`.
+
+*Evidence: QA Task 21 Sections A/B — every real Checkout needed 1–3 extra round-trips for Link + phone before the decline/success assertion could run.*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

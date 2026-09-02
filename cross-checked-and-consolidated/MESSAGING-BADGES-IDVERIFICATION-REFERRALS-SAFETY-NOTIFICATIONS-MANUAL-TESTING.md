@@ -2,7 +2,7 @@
 
 **Source of truth:** `Prompts/Done/MODULE-07-MESSAGING.md` · `Prompts/Done/MODULE-08-BADGES-V2.md` · `Prompts/Done/MODULE-08-Badges & Achievements VERIFICATION-V2.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `Prompts/Done/MODULE-10-ID-BADGE-VERIFICATION-V2.md` · `Prompts/Done/MODULE-11-REFERRALS-V2.md` · `Prompts/Done/MODULE-13-SAFETY-COMPLIANCE.md` · `Prompts/Done/MODULE-14-NOTIFICATIONS-V2.md` · `docs/flow-registry.md`
 **Flows covered:** FLOW-13 (Referrals) · FLOW-14 (Messaging/Realtime) · FLOW-15 (Safety & Moderation) · FLOW-16 (CPSC Recall Check) · FLOW-17 (Notifications) · FLOW-29 (ID Badge Submission & Decision Notifications) · Badges/Achievements & ID Verification (trust/reputation)
-**Last updated:** 2026-05-30
+**Last updated:** 2026-09-02 (guide-currency audit v2: B05 Leaderboard = no in-app entry (deep-link/notification); C01 re-verify resolved; C05/C06 review copy corrected + Report Other added; Group J re-pointed to live NotificationPreferencesScreen; J05 marked NOT SUPPORTED)
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -26,7 +26,7 @@
 | | MSG-TC-B02 | Badge detail modal |
 | | MSG-TC-B03 | Badge showcase on profile |
 | | MSG-TC-B04 | Badge celebration modal on unlock |
-| | MSG-TC-B05 | Leaderboard ranking |
+| | MSG-TC-B05 | Leaderboard ranking (no in-app entry — deep-link/notification only) |
 | **C — Reviews & Ratings** | MSG-TC-C01 | Submit a post-trade review (stars + comment) |
 | | MSG-TC-C02 | Rating required validation |
 | | MSG-TC-C03 | Anonymous review |
@@ -79,11 +79,11 @@
 | | MSG-TC-I05 | Mark all as read |
 | | MSG-TC-I06 | Pagination + pull to refresh |
 | | MSG-TC-I07 | Real-time arrival |
-| **J — Notification Preferences** | MSG-TC-J01 | Category × channel toggles |
-| | MSG-TC-J02 | Default preferences |
-| | MSG-TC-J03 | Safety alerts always-on note |
+| **J — Notification Preferences** | MSG-TC-J01 | Category × channel toggles (live screen — 5 categories, no Safety) |
+| | MSG-TC-J02 | Default preferences (DB-driven, no hardcoded defaults) |
+| | MSG-TC-J03 | Always-on note (live footer copy) |
 | | MSG-TC-J04 | Quiet hours (subscriber) + validation |
-| | MSG-TC-J05 | ID verification preference controls decision delivery |
+| | MSG-TC-J05 | 🚫 NOT SUPPORTED — ID verification preference category (none exists) |
 
 ---
 
@@ -304,17 +304,21 @@
 **Expected Result:**
 - A celebration modal appears: "🎉 New Badge Earned! 🎉" with the badge icon, name, description, confetti animation, and an **Awesome!** button to close.
 
-### MSG-TC-B05 · Leaderboard ranking
+### MSG-TC-B05 · Leaderboard ranking — 🔎 no in-app entry (deep-link/notification only)
+
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** the `LeaderboardScreen` exists and is registered (route `Leaderboard`), but there is **no `navigate('Leaderboard')` caller anywhere in `src`** — there is no static in-app menu/tap entry. The only ways to reach it are tapping a `leaderboard_rank_up` notification or the `/leaderboard` deep link (`src/services/deepLink.ts`). The previous guide step ("Open the Leaderboard screen") implied a static entry that does not exist.
 
 **Actors:** test-buyer
 
-**Objective:** Verify the leaderboard.
+**Objective:** Verify the leaderboard (reached via its notification/deep-link entry).
 
 **Steps:**
-1. Open the **Leaderboard** screen and pull to refresh.
+1. Reach the **Leaderboard** screen by tapping a `leaderboard_rank_up` notification or opening the `/leaderboard` deep link (there is no other in-app entry).
+2. Pull to refresh.
 
 **Expected Result:**
 - The screen titled "Leaderboard" lists top traders by badge count with medals (🥇/🥈/🥉) and rank/name/badge count; an empty data set shows "No Badges Yet".
+- **Reachability flag:** because there is no static in-app entry, this case is effectively **deep-link/notification-gated** — if no `leaderboard_rank_up` notification is available, drive it via the `/leaderboard` deep link.
 
 ---
 
@@ -322,7 +326,7 @@
 
 ### MSG-TC-C01 · Submit a post-trade review
 
-> ⚠️ **Needs re-verification (2026-08-12):** The success toast copy "Your review has been submitted!" was not found as an exact string in the current source — verify the actual success message wording.
+> ✅ **Re-verify resolved 2026-09-02 (guide-currency audit):** the success copy `Alert('Success','Your review has been submitted!')` **exists** in `src/screens/review/SubmitReviewScreen.tsx` L106 — the earlier 2026-08-12 "string not found" caveat is cleared.
 
 **Actors:** test-reviewer
 
@@ -336,7 +340,7 @@
 3. Enter an optional comment and tap **Submit Review**.
 
 **Expected Result:**
-- Stars fill gold up to the selected rating; the comment shows a live "{count}/500 characters"; on submit a "Your review has been submitted!" success appears.
+- Stars fill gold up to the selected rating; the comment shows a live "{count}/500 characters"; on submit a success alert "Your review has been submitted!" appears.
 
 ### MSG-TC-C02 · Rating required validation
 
@@ -376,6 +380,8 @@
 
 ### MSG-TC-C05 · Review display on seller profile
 
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** `SellerProfileScreen` shows a **star row + numeric average + `(N reviews)`** and a section header **`Reviews (N)`** plus `No ratings yet`/`No reviews yet` (L299–469). The literal strings `"Average Rating: {x}/5"` and `"Total Reviews: {n}"` in the previous guide text **do not exist**.
+
 **Actors:** test-buyer
 
 **Objective:** Verify reviews and aggregate rating display.
@@ -384,27 +390,30 @@
 1. Open a seller's profile and view the rating section and review list.
 
 **Expected Result:**
-- The profile shows a star average, "Average Rating: {x}/5", and "Total Reviews: {n}" (or "No ratings yet"); each review card shows reviewer, stars, date, and comment.
+- The profile shows a star row with a numeric average and a `(N reviews)` count (or "No ratings yet"/"No reviews yet" when empty), and a section header `Reviews (N)`.
+- Each review card shows reviewer, stars, date, and comment.
 
 ### MSG-TC-C06 · Report a review
+
+> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** the report actions now include a **4th option `Report Other`** (`review-report-other`, `ReviewCard.tsx` L154), and the success copy is now `Alert('Success','Review reported. Thank you!')` (L81) — changed 2026-08-31 per TRD-TC-Q15 / DEV-TASK-75. The previous guide's "Thank you for reporting. We will review this content." string is obsolete.
 
 **Actors:** test-seller (reviewee)
 
 **Objective:** Verify a reviewee can report a review.
 
 **Steps:**
-1. As the reviewee, open a review card's ⋯ menu and choose "Report as Spam" / "Report as Offensive" / "Report False Information".
+1. As the reviewee, open a review card's ⋯ menu and choose "Report as Spam" / "Report as Offensive" / "Report False Information" / "Report Other".
 2. Confirm.
 
 **Expected Result:**
-- A confirmation appears and "Thank you for reporting. We will review this content." is shown.
+- A confirmation appears and the success copy reads **"Review reported. Thank you!"**.
 
 **Locator hints:**
-- Review card ⋯ menu → `review-menu-button` · report actions → `review-report-spam` / `review-report-offensive` / `review-report-false-info` (ReviewCard report menu instrumented 2026-08-15).
+- Review card ⋯ menu → `review-menu-button` · report actions → `review-report-spam` / `review-report-offensive` / `review-report-false-info` / `review-report-other` (ReviewCard report menu instrumented 2026-08-15; 4th `Report Other` added 2026-08-31).
 - Report confirmation is native `Alert.alert` — dialog locator: N/A — see Dependencies.
 
 **Dependencies:**
-- Native `Alert.alert` (report confirmation) — match 'Confirm' / 'Cancel' by text via Detox (`by.text('Confirm')`) / Appium; assert "Thank you for reporting. We will review this content."
+- Native `Alert.alert` (report confirmation) — match 'Confirm' / 'Cancel' by text; assert success "Review reported. Thank you!".
 
 ---
 
@@ -1036,41 +1045,48 @@
 
 ## Group J — Notification Preferences
 
-### MSG-TC-J01 · Category × channel toggles
+> 🔄 **Group rewritten 2026-09-02 (guide-currency audit):** the notification-preferences screen the previous text described (`src/screens/notifications/NotificationSettingsScreen.tsx` — `Trade Updates`, `Safety Alerts`, `DEFAULT_PREFS`) is **unregistered and has zero live callers** (only its own unit test imports it). The **live, reachable screen** is `src/screens/profile/NotificationPreferencesScreen.tsx` (route `NotificationPreferences`, entered from Settings → Notifications row). Its category set is: **Subscription & Membership · Swap Points Events · Badges & Achievements · Trades & Transactions · System Updates** (`NotificationCategory` = `subscription|sp_events|badges|trades|system`, `src/services/notificationPreferences.ts` L7). There is **no `Safety Alerts` toggleable category and no `id_verification` category**. Preferences load from the DB (`getNotificationPreferences`).
+
+### MSG-TC-J01 · Category × channel toggles (live screen)
 
 **Actors:** test-buyer
 
-**Objective:** Verify per-category channel toggles.
+**Objective:** Verify per-category channel toggles on the live Notification Preferences screen.
 
 **Steps:**
-1. Open **Notification Settings** and toggle Push / In-App / Email for a category (e.g., Trade Updates).
+1. Open **Notification Preferences** (Settings → Notifications) and toggle Push / In-App / Email for a category (e.g., Trades & Transactions).
 
 **Expected Result:**
-- Each category card (Subscription & Membership, Trade Updates, Swap Points Events, Badges & Achievements, Safety Alerts) exposes Push ("Receive alerts on your device"), In-App ("Show badges inside the app"), and Email ("Send updates to your email") toggles that update optimistically and persist.
+- Five categories render: **Subscription & Membership · Swap Points Events · Badges & Achievements · Trades & Transactions · System Updates**.
+- Each category exposes Push / In-App / Email toggles (`toggle-<cat>-push|in_app|email`) that update optimistically and persist.
+- **Note:** there is **no `Safety Alerts` category** in the live UI (the old `Trade Updates`/`Safety Alerts` taxonomy is gone — see J03 for the always-on safety note).
 
-### MSG-TC-J02 · Default preferences
+### MSG-TC-J02 · Default preferences (DB-driven)
 
 **Actors:** new-user
 
-**Objective:** Verify default channel settings.
+**Objective:** Verify the initial channel settings come from the seeded DB preferences (there is no hardcoded defaults screen to assert).
 
 **Steps:**
-1. Open Notification Settings as a fresh user and review defaults.
+1. As a fresh user, open **Notification Preferences** and review the initial toggle state.
+2. Cross-check against the seeded `notification_preferences` row (or re-run the seed) to confirm the defaults the app loaded.
 
 **Expected Result:**
-- Defaults match: Subscription Push/In-App/Email ON; Trades Push/In-App ON, Email OFF; Swap Points Push/In-App ON, Email OFF; Badges Push/In-App ON, Email OFF; Safety Push ON, In-App/Email OFF.
+- The screen reflects the DB-loaded preferences (the five live categories above); there are no user-editable toggles for a Safety category (see J03).
+- Assert against the seeded DB rows rather than a fixed default table, since the old `DEFAULT_PREFS` (with Safety) belongs to the dead screen.
 
-### MSG-TC-J03 · Safety alerts always-on note
+### MSG-TC-J03 · Safety/always-on note (live footer copy)
 
 **Actors:** test-buyer
 
-**Objective:** Verify the always-on safety note.
+**Objective:** Verify the always-on note on the live screen.
 
 **Steps:**
-1. Scroll below the category cards in Notification Settings.
+1. Scroll to the footer of the Notification Preferences screen.
 
 **Expected Result:**
-- A note reads "Critical safety alerts (product recalls) are always delivered regardless of your preferences."
+- The footer reads **"Critical system alerts and safety notifications cannot be disabled."** (`NotificationPreferencesScreen.tsx` L421).
+- **Note:** the previous guide sentence about "product recalls" being always delivered lives only in the dead `NotificationSettingsScreen` L184 — the live copy uses the wording above (semantics preserved: critical/safety alerts cannot be turned off).
 
 ### MSG-TC-J04 · Quiet hours (subscriber) + validation
 
@@ -1084,21 +1100,15 @@
 **Expected Result:**
 - An invalid format shows "Invalid time format. Please use 24-hour format: HH:MM (example: 22:00)."; a valid value saves successfully.
 
-### MSG-TC-J05 · ID verification preference controls decision delivery
+### MSG-TC-J05 · ID verification preference controls decision delivery — 🚫 NOT SUPPORTED (no such category)
 
-**Actors:** new-user, admin
+> 🚫 **Dead premise (2026-09-02, guide-currency audit):** there is **no `id_verification` notification-preference category** in the live UI or in the `NotificationCategory` type union (`notificationPreferences.ts` L7). The premise of this case (a category or "equivalent verification-notification controls" on the settings screen) is unsupported in the live app, so it **cannot be executed as written**. ID-verification *type* notifications do still appear in the Notification Center (`id_verification_*` icon map), but there is no per-category preference for them.
 
-**Objective:** Verify the ID verification category preferences control which decision notifications are delivered.
+**Actors:** n/a (feature absent)
 
-**Steps:**
-1. Open **Notification Settings** as **new-user** and locate the ID verification category or equivalent verification-notification controls.
-2. Disable one channel and keep another enabled.
-3. As **admin**, process the user's pending verification request.
+**Objective:** (Recorded only.) If/when an ID-verification preference category is added, verify per-channel control of decision-notification delivery.
 
-**Expected Result:**
-- The preference change persists.
-- The decision notification is delivered only through the enabled channels.
-- Returning the channel to enabled restores delivery on the next verification event.
+**Status:** 🚫 **NOT SUPPORTED — do not run.** Move to a Fixture-Gated/Not-Supported note until the feature ships.
 
 ---
 
@@ -1177,8 +1187,8 @@
 | Rating-required validation | MSG-TC-C02 |
 | Anonymous review | MSG-TC-C03 |
 | Skip review | MSG-TC-C04 |
-| Review display + aggregate | MSG-TC-C05 |
-| Report a review | MSG-TC-C06 |
+| Review display + aggregate (live numeric avg + (N reviews)) | MSG-TC-C05 |
+| Report a review (spam/offensive/false-info/other) | MSG-TC-C06 |
 | ID upload (library) | MSG-TC-D01 |
 | ID capture (camera) | MSG-TC-D02 |
 | ID submit → pending | MSG-TC-D03, MSG-TC-D06 |
@@ -1217,7 +1227,7 @@
 | Mark all read | MSG-TC-I05 |
 | Pagination + refresh | MSG-TC-I06 |
 | Real-time notification | MSG-TC-I07, MSG-TC-R02 |
-| Category × channel toggles | MSG-TC-J01 |
-| Default preferences | MSG-TC-J02 |
-| Safety always-on note | MSG-TC-J03, MSG-TC-R03 |
+| Category × channel toggles (live Notification Preferences) | MSG-TC-J01 |
+| Default preferences (DB-driven) | MSG-TC-J02 |
+| Always-on note (live footer copy) | MSG-TC-J03, MSG-TC-R03 |
 | Quiet hours + validation | MSG-TC-J04 |

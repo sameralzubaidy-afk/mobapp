@@ -5,7 +5,7 @@ applyTo: "p2p-kids-marketplace/src/**"
 
 # Mobile Client Hardening Protocol
 
-Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device), BP-58 (bottom-anchored UI must clear the floating pill nav), BP-59 (verify scripted JSX mass-edits with more than typecheck alone) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device), BP-58 (bottom-anchored UI must clear the floating pill nav), BP-59 (verify scripted JSX mass-edits with more than typecheck alone), BP-82 (account/subscription screens must use Pass It Up semantic tokens — no Material/Tailwind/system-blue leakage) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -26,6 +26,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-58 Bottom-anchored UI on pill-nav screens — scroll content `paddingBottom: 100`, fixed bottom bars `bottom: 120`, in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: (a) typecheck, (b) grep for a bare prop-like line immediately followed by a JSX child (text-children corruption), (c) Prettier and confirm it doesn't rewrite the region unexpectedly.
 - BP-61 Accessibility props in `<Text>` — never paste `accessible`/`accessibilityRole`/`accessibilityLabel` as literal children; they must be attributes on the opening tag (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole`) whenever writing or reviewing `<Text>` components.
+- BP-82 Account/subscription screens — Pass It Up semantic tokens only (`#5DBB8E` primary/success, `#E85D75` error, `#FFA726` warning, `#5B8FB9` info, `#1A1A1A`/`#6B6B6B`/`#999999` neutrals); no Material (`#4CAF50`/`#E53935`/`#29B6F6`), Tailwind gray/amber (`#111827`/`#6B7280`/`#D1D5DB`/`#D97706`) or iOS system blue (`#0066CC`/`#007AFF`/`#93C5FD`) leakage.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -350,3 +351,19 @@ Detection checklist:
 - `rg -n "accessible accessibilityRole=" p2p-kids-marketplace/src` → on an opening tag = fine (real attribute); inside `<Text>` children = BUG.
 - A user-visible line like `accessible accessibilityRole="button" ...` in the rendered UI is the on-device symptom.
 - Genuine attribute usage (e.g. `ReviewCard.tsx` / `IssueReportModal.tsx` TouchableOpacity props) is NOT this bug — do not "fix" those.
+
+## BP-82: Account/Subscription Screens Must Use Pass It Up Semantic Tokens — No Material / Tailwind / iOS-System-Blue Leakage (ManageSubscription family)
+
+Problem: The account/subscription screen family hardcodes foreign palettes instead of the Pass It Up semantic tokens from `docx/design-system-passitup.md` (primary/success `#5DBB8E`, error `#E85D75`, warning `#FFA726`, info `#5B8FB9`, neutrals `#1A1A1A`/`#6B6B6B`/`#999999`). Confirmed 2026-09-02 (QA Task 21) on the **Manage Kids Club+** screen (`ManageKidsClubScreen.tsx` + `components/subscription/{PaymentMethodSection,AutoRenewToggle,BillingHistoryLink}.tsx`): status badges use the Material palette (`badge_active #4CAF50`, `badge_grace_period #E53935`, `badge_trial #29B6F6`, `badge_cancelled #FFA726`); the primary "Add Payment Method" CTA and the Auto-Renew switch render in iOS system blue (`#0066CC`, track `#93C5FD`); the disabled-warning text is Tailwind amber-600 `#D97706` (≠ warning `#FFA726`); text grays are Tailwind (`#111827`/`#6B7280`/`#D1D5DB`) rather than the canonical neutrals.
+
+Rules:
+1. When writing or editing account/subscription screens (Manage/My Subscription, Payment Method, Auto-Renew, Billing History), use the Pass It Up semantic tokens — the primary-green `#5DBB8E` pill for primary CTAs and the semantic error/warning/info colors for badges/callouts. Never Material (`#4CAF50`, `#E53935`, `#29B6F6`, `#FFA726`-only), Tailwind gray/amber scales (`#111827`, `#6B7280`, `#D1D5DB`, `#D97706`), or iOS system blue (`#0066CC`, `#007AFF`, `#93C5FD`).
+2. Status badges should mirror doc semantics: active → success `#5DBB8E`; grace/cancelled/pending → warning `#FFA726`; expired/failed → error `#E85D75` (not Material red `#E53935`).
+3. Toggle/switch ON states should use the primary `#5DBB8E` (not system blue); warning copy uses `#FFA726` (not `#D97706`); text tiers use `#1A1A1A`/`#6B6B6B`/`#999999`.
+4. Prefer the shared token source/`ui` components so new screens inherit the palette; where a theme file exists, keep it reconciled per BP-56's discoveryTokens discipline.
+5. Before merging any subscription/account UI change, grep the touched files for `#4CAF50|#E53935|#29B6F6|#0066CC|#007AFF|#93C5FD|#D97706|#111827|#6B7280|#D1D5DB` — a hit is a token leak to fix.
+
+Detection checklist:
+- `rg -n "#4CAF50|#E53935|#29B6F6|#0066CC|#007AFF|#93C5FD|#D97706|#111827|#6B7280|#D1D5DB" p2p-kids-marketplace/src/screens/subscription p2p-kids-marketplace/src/components/subscription`
+- Visual: a primary CTA or toggle rendering blue instead of green `#5DBB8E`, or an "Active" badge rendering Material green instead of the brand green.
+See also: BP-56 (Discover/design tokens via `@/theme/discoveryTokens`).

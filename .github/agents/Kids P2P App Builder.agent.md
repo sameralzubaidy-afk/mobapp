@@ -690,7 +690,18 @@ Issue: "Subscription features not working after purchase"
 ✅ Check: users.subscription_tier updated in DB
 ✅ Check: subscription_expires_at set correctly
 ✅ Check: Mobile app refetched user profile after purchase
-See also: BP-40 (Stripe `trial_end`/`trial_period_days` mutual exclusivity), BP-28 (admin-configurable value with no hardcoded fallback)
+See also: BP-40 (Stripe `trial_end`/`trial_period_days` mutual exclusivity), BP-28 (admin-configurable value with no hardcoded fallback), BP-83 (webhook must be subscribed to `checkout.session.completed` + `customer.subscription.created`, or the purchase never creates the `subscriptions` row)
+Issue: "Subscription not renewing / current_period_end not advancing"
+
+✅ Check: The Stripe webhook endpoint is subscribed to `invoice.payment_succeeded` (BP-83)
+✅ Check: If driving a renewal via test clock, the clock was set at subscription CREATION — clocks cannot be retro-attached to an existing Checkout sub (BP-83)
+✅ Check: The `invoice.payment_succeeded` handler found the `subscriptions` row by `stripe_subscription_id` before the renewal invoice fired (BP-83)
+See also: BP-83 (test-clock renewal verification), BP-71 (real charge/pay path)
+Issue: "Screen colors/tokens look off-brand (blue CTAs / Material palette)"
+
+✅ Check: No Material/Tailwind/system-blue hex in the screen or its sub-components (BP-82)
+✅ Check: The screen imports Pass It Up semantic tokens, not a legacy/foreign palette (BP-82 / BP-56)
+See also: BP-82 (account/subscription screens), BP-56 (Discover discoveryTokens)
 Issue: "Push/in-app notification never arrives for a state change"
 
 ✅ Check: Is there already a DB trigger handling this event? (BP-20)
@@ -1302,7 +1313,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-80)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-83)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1384,6 +1395,8 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps, and PostgREST maps `42501` to HTTP 401 — treat a 401 from a revoked caller as the expected rejection (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-80 Two-phase provisioning deliverables — fixture/migration work is delivered as (1) code/scripts/migration file written + Tier 0 green and (2) executed against staging (REQUIRES Samer's explicit approval per the MCP Usage Protocol); in the Session Handoff state "written, NOT applied/run" and mark the regression tier DEFERRED, never implying provisioning happened (DEV-TASK-77, 2026-08-31).
 - BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but doesn't write a `schema_migrations` row; verify the migration landed by invoking the changed object live, never by the migration list (DEV-TASK-83, 2026-09-02) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-82 Account/subscription screens — Pass It Up semantic tokens only; no Material/Tailwind/iOS-system-blue leakage (Manage Kids Club+ family `#4CAF50`/`#E53935`/`#0066CC`/`#D97706` etc., confirmed 2026-09-02) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-83 Stripe test-clock renewal verification — a test clock cannot be retro-attached to an existing Checkout subscription (`parameter_unknown`); verify a real renewal on a fresh clock-bound subscription metadata-bound to the same `user_id` (2026-09-02) — full text: `.github/instructions/edge-functions.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
