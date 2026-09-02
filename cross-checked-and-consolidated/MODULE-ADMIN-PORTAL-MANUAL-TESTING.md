@@ -1146,7 +1146,7 @@
 
 ### ADM-TC-F08 · R1 tiered buyer-fee fields
 
-> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render a **Tiered Buyer Fee — R1** section. Do not run as written until the page renders these fields (or re-scope).
+> ✅ **Restored (2026-09-02, Dev Task 91):** `/settings/trade-timing` → **Transaction Fees → Tiered Buyer Fee — R1 (first-trade protection)** renders all six fields (flat active-member, flat first-trade, % subsequent, fixed subsequent, max cap, display label). These controls are separate from F09's Buyer Fee-Tier Distribution display card (which remains on `/analytics`). Run as written.
 
 **Ref:** /settings/trade-timing · RPC `fn_get_admin_config_values` / `upsert_admin_config_setting`
 **Actors:** test-admin
@@ -1180,7 +1180,7 @@
 
 ### ADM-TC-F10 · Legacy fee keys
 
-> ⚠️ **BLOCKED-ON-PAGE (2026-09-02):** the live `/settings/trade-timing` page does **not** render a **Legacy fee keys (audit only)** section — and the live fee keys are named `transaction_fee_subscriber_cents` / `transaction_fee_non_subscriber_cents` (the guide's `transaction_fee_member_cents`/`_non_member_cents` legacy keys are not surfaced). Do not run as written until reconciled to the live page.
+> ✅ **Restored (2026-09-02, Dev Task 91):** `/settings/trade-timing` → **Transaction Fees → Legacy fee keys (audit only)** surfaces the legacy keys read-only (disabled inputs, not editable): `transaction_fee_member_cents` (Legacy Member Fee), `transaction_fee_non_member_cents` (Legacy Non-Member Fee), `platform_fee_seller_discount_percentage_freemium` (Legacy Seller Discount % — Free). The live/current keys remain `transaction_fee_subscriber_cents` / `transaction_fee_non_subscriber_cents` (guide naming is reconciled — run as written).
 
 **Ref:** /settings/trade-timing · `Legacy fee keys (audit only)`
 **Actors:** test-admin
