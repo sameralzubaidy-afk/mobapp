@@ -66,4 +66,15 @@ verify_jwt = false
 [functions.purge-cache]
 verify_jwt = false
 
+# grace-period-cron is a server-to-server daily cron invoked by pg_cron job
+# "grace-period-daily" via the SECURITY DEFINER invoke_grace_period_cron() RPC
+# (net.http_post with the service-role key) — never by a user JWT. The original
+# scheduling migration documented deploying it with --no-verify-jwt. MUST stay
+# false: without this entry the CLI deploy defaults to verify_jwt=true, but the
+# RPC sends a service-role bearer so the gateway still accepts it either way.
+# DEV-TASK-98 (2026-09-03): entry added so config.toml represents the deployed
+# intent instead of silently relying on the CLI default.
+[functions.grace-period-cron]
+verify_jwt = false
+
 

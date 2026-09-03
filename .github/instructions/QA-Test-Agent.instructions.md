@@ -629,6 +629,12 @@ The following permanent tooling/app-side fixes are queued as a separate dev task
 - **`leaderboard_rank_up` fixture or `qa-badge-award` trigger** for a test persona — unblocks B05's render leg AND B04's celebration modal (currently nothing can reach Leaderboard live).
 - **Schema cheat-sheet update** — fold the verified MSG table column sets into `/memories/repo/schema-cheat-sheet.md` so P0 recon is one query instead of guess-and-verify (R-NEW-3 standing duty).
 
+### 5.52 Standing rule — QA Task 24 (MSG-complete) load-time persistence (2026-09-03) — R50
+
+Zero-dev-cost discipline derived from the QA Task 24 MSG-completion run — evidence source: `e2e-test-results/qa-task24-msg-complete-2026-09-03/report.md` + `ledger.md`. This rule closes the gap where §5.7 defines the load-time measurement but nothing required the measurements to survive to handoff time.
+
+**R50 — Persist every §5.7 load-time measurement into the run's notes/report AT CAPTURE TIME, not in working memory.** A run is not complete until the §8.2 batch load-time table and the §8.3 Perceived Load-Time Verdict are populated from recorded measurements — never reconstructed from memory at the end of the run. When a timed transition (§5.7) is measured, immediately write its row (screen → transition → start/end → elapsed time, labeled per §5.7) into the run's report/notes — maintain a running per-transition table continuously in-session so no measurement is lost between capture and handoff and the Perceived Load-Time Verdict is never left thin or stated from general impression alone. Extends §5.7 (which defines the measurement + the ≥3s flag rule) with a persistence/completeness requirement; it is the load-time analog of R16 (§5.39 — keep a running friction/facts list in session memory throughout the run), applied to timed-transition data. *Evidence: QA Task 24 — systematic per-transition stopwatch data was not retained during the run, so the §8.3 Perceived Load-Time Verdict could only be stated as GOOD from general observation instead of from a populated §8.2 table; that gap was flagged in the run's own "Suggested to improve agent rules" entry.*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

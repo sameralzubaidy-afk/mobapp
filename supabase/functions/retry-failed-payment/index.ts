@@ -29,7 +29,7 @@ interface RetryPaymentRequest {
 
 interface RetryPaymentResponse {
   success: boolean;
-  message: string;
+  message?: string;
   subscription?: {
     status: string;
     payment_retry_count: number;
@@ -245,6 +245,19 @@ serve(async (req: Request): Promise<Response> => {
       });
       if (attemptError) {
         console.error('[retry-failed-payment] record_payment_attempt failed after successful payment:', attemptError.message);
+      }
+
+      // DEV-TASK-99 (R6): a successful retry returns the subscription to active —
+      // also return the SP wallet to 'active' (earn+spend) if grace entry had
+      // moved it to 'grace_period'. rpc_set_sp_wallet_state is service-role only.
+      const { error: walletRestoreError } = await supabaseClient.rpc('rpc_set_sp_wallet_state', {
+        p_user_id: user_id,
+        p_state: 'active',
+      });
+      if (walletRestoreError) {
+        console.error('[retry-failed-payment] rpc_set_sp_wallet_state(active) failed after successful payment:', walletRestoreError.message);
+      } else {
+        console.log(`[retry-failed-payment] SP wallet -> active for user=${user_id}`);
       }
 
       // ── Billing ledger (idempotent on charge_id) — Item 3 (2026-08-27) ───────

@@ -153,6 +153,17 @@ export const TEST_USERS = {
     name: 'Test Grace User',
     phone: '5551234012',
   },
+  // SUB-TC-C09/D03 (Dev Task R41): standing genuinely-EXPIRED subscription persona
+  // (not cancelled, not grace) so the ManageKidsClub expired info box + the
+  // navigator's SubscriptionExpired initial-route are reachable — see
+  // seedExpiredPersonaFixture().
+  expiredUser: {
+    id: 'a1234567-0000-0000-0000-000000000013', // Fixed UUID for C09/D03 expired persona
+    email: 'test-expired@kidsmarketplace.test',
+    password: 'TestExpired123!',
+    name: 'Test Expired User',
+    phone: '5551234013',
+  },
 };
 
 const TEST_CATEGORIES = [
@@ -884,6 +895,96 @@ async function seedGracePersonaFixture(): Promise<void> {
     console.log(`   ✓ G07 VERIFY OK: subscriptions.status='grace' + future grace_ends_at (${gu.email})`);
   } else {
     console.warn(`   ⚠️ G07 VERIFY FAIL: subscriptions.status=${verifySub?.status ?? 'null'}`);
+  }
+}
+
+/**
+ * SUB-TC-C09 / SUB-TC-D03 (Dev Task R41) — standing genuinely-EXPIRED
+ * subscription persona for the QA Test Agent.
+ *
+ * Why it exists: C09 ("Manage Kids Club+ expired state") and D03 ("Subscription
+ * Expired screen") need a user whose subscription is genuinely `expired` — not
+ * cancelled (test-buyer's stale-active sub / a cancelled row don't reach the
+ * expired display) and not in grace (test-grace). The app only renders the
+ * expired states when `subscriptions.status` is literally `'expired'`
+ * (ManageKidsClub `isExpired` box + `AppNavigator` `initialRouteName =
+ * 'SubscriptionExpired'` when the session status is expired).
+ *
+ * Shape mirrors what the grace-period cron produces when a grace period lapses
+ * (R6): `status='expired'` + the SP wallet is `frozen` (the cron calls
+ * `rpc_set_sp_wallet_state(...,'frozen')` on expiry), with all period/grace
+ * timestamps in the PAST so the row reads as a genuinely lapsed membership.
+ *
+ * Idempotent: re-running re-signs the user (no-op if exists) and re-applies the
+ * expired subscription + frozen-wallet state.
+ */
+async function seedExpiredPersonaFixture(): Promise<void> {
+  console.log('   ── SUB-TC-C09/D03 expired-persona fixture ──');
+  const eu = TEST_USERS.expiredUser;
+
+  // 1. Ensure the auth user + full profile exist (same as a normal persona).
+  await signupTestUser(eu, 'user');
+
+  // 2. Set subscription to expired with past period/grace dates. The signup
+  //    trigger auto-creates a 'free' row; upsert (onConflict user_id) is used
+  //    so a missing row is created, not skipped. status='expired' is valid
+  //    (subscriptions CHECK includes 'expired').
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const expiredSubRow = {
+    user_id: eu.id,
+    status: 'expired',
+    // A membership that lapsed ~40 days ago after a grace period ended ~10 days ago.
+    current_period_start: new Date(now - 120 * day).toISOString(),
+    current_period_end: new Date(now - 40 * day).toISOString(),
+    grace_started_at: new Date(now - 40 * day).toISOString(),
+    grace_ends_at: new Date(now - 10 * day).toISOString(),
+    cancelled_at: new Date(now - 40 * day).toISOString(),
+    auto_renew_enabled: false,
+    updated_at: new Date().toISOString(),
+  };
+  const { error: subError } = await adminSupabase
+    .from('subscriptions')
+    .upsert(expiredSubRow, { onConflict: 'user_id' });
+
+  if (subError) {
+    console.warn(`   ⚠️ C09/D03 expired subscription upsert failed: ${subError.message}`);
+  } else {
+    console.log(`   ✓ test-expired subscription status='expired' (period ended ~40d ago)`);
+  }
+
+  // 3. Freeze the SP wallet (mirrors the grace cron's expiry freeze — R6).
+  //    state='frozen' is CHECK-valid; frozen_at backdated to the expiry moment.
+  const { error: walletError } = await adminSupabase
+    .from('sp_wallets')
+    .upsert(
+      {
+        user_id: eu.id,
+        state: 'frozen',
+        frozen_at: new Date(now - 40 * day).toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' }
+    );
+  if (walletError) {
+    console.warn(`   ⚠️ C09/D03 sp_wallets upsert failed: ${walletError.message}`);
+  } else {
+    console.log("   ✓ test-expired sp_wallets.state='frozen'");
+  }
+
+  // 4. Verify end-state.
+  const { data: verifySub, error: verifyError } = await adminSupabase
+    .from('subscriptions')
+    .select('status, current_period_end, grace_ends_at')
+    .eq('user_id', eu.id)
+    .maybeSingle();
+
+  if (verifyError) {
+    console.warn(`   ⚠️ C09/D03 VERIFY: subscription read failed: ${verifyError.message}`);
+  } else if (verifySub?.status === 'expired') {
+    console.log(`   ✓ C09/D03 VERIFY OK: subscriptions.status='expired' (${eu.email})`);
+  } else {
+    console.warn(`   ⚠️ C09/D03 VERIFY FAIL: subscriptions.status=${verifySub?.status ?? 'null'}`);
   }
 }
 
@@ -2008,6 +2109,7 @@ async function main(): Promise<void> {
     await seedSuspendedAccountFixture();
     await seedUnsubscribeTokenFixture();
     await seedGracePersonaFixture();
+    await seedExpiredPersonaFixture();
 
     // Get fresh sessions for both users
     const { data: buyerSession } = await supabase.auth.signInWithPassword({
@@ -2118,6 +2220,9 @@ async function main(): Promise<void> {
     }
     console.log(
       `SUSPENDED: ${TEST_USERS.suspendedUser.email} / ${TEST_USERS.suspendedUser.password} (ACC-TC-F01/F04 gate)`
+    );
+    console.log(
+      `EXPIRED: ${TEST_USERS.expiredUser.email} / ${TEST_USERS.expiredUser.password} (SUB-TC-C09/D03 gate)`
     );
     if (IS_EXTENDED) {
       console.log(`FREE:   ${TEST_USERS.freeUser.email} / ${TEST_USERS.freeUser.password}`);

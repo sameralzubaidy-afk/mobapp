@@ -209,7 +209,9 @@
 1. Paste or type more than 2000 characters into the message field.
 
 **Expected Result:**
-- Input is capped at 2000 characters with a notice that the message was truncated to 2000 characters.
+- On iOS the input silently caps at 2000 characters (`maxLength={2000}`): you cannot exceed the limit, and **no truncation notice appears** (the in-app "Message Too Long" alert is unreachable on iOS — `maxLength` clamps before the length check fires). A paste over 2000 characters is clamped to exactly 2000.
+
+> Doc-drift note (DT97): the guide previously described a "message was truncated to 2000 characters" notice. On iOS `maxLength` clamps silently, so that notice never fires on this platform.
 
 ### MSG-TC-A08 · Quick-reply meeting chips
 
@@ -481,7 +483,9 @@
 1. On the upload screen, tap submit without selecting an image.
 
 **Expected Result:**
-- "Please select an image" appears and nothing is submitted.
+- The **Submit** button is **disabled until an image is selected** (disabled-button guard, not post-click validation), so tapping submit with no image does nothing; the "Please select an image" error text is unreachable through the UI.
+
+> Doc-drift note (DT97): the implementation guards via a disabled Submit button; the "Please select an image" message branch is dead code through the UI.
 
 ### MSG-TC-D06 · Pending state screen
 
@@ -534,22 +538,26 @@
 
 **Expected Result:**
 - The user receives an in-app confirmation notification for the submission.
-- A confirmation email arrives with the review SLA messaging.
+- A confirmation email is sent to the user's account email **and recorded in `email_logs`** when the user's **badges** notification preference has email enabled (defaults off — the email is preference-gated).
+
+> Note (DT97): the submission-email send+log path was fixed 2026-09-03, so the `id_badge_submission` email now appears in `email_logs` when the badges-email preference is on. Enable the recipient's `badges` email channel to verify.
 - The notification content refers to the ID verification submission, not a generic system event.
 
-### MSG-TC-D10 · Decision notifications honor channel preferences
+### MSG-TC-D10 · Decision notifications honor channel preferences — 🚫 NOT SUPPORTED (no such category)
 
 **Actors:** new-user, admin
 
 **Objective:** Verify approval/rejection notifications follow the user's channel preferences for ID verification.
 
+> By-design/not-supported (DT97, matches J05): there is **no `id_verification` notification category**. Notification categories are `subscription`, `sp_events`, `badges`, `trades`, `system`, and ID-verification notifications (submission/approval/rejection) route through **`badges`**. This case cannot be exercised as written — treat as NOT SUPPORTED. (If product later adds an `id_verification` category, re-open this case.)
+
 **Steps:**
-1. As **new-user**, set the ID verification notification category so one channel is disabled and another remains enabled.
+1. As **new-user**, toggle the **badges** notification category (the category that governs ID-verification notifications) so one channel is disabled and another remains enabled.
 2. As **admin**, approve or reject the pending request.
 3. Check the enabled and disabled channels.
 
 **Expected Result:**
-- The enabled channels receive the decision notification.
+- The enabled channels receive the decision notification (per the `badges` category prefs).
 - Disabled channels do not receive the decision notification.
 - The delivered message includes the decision-specific content such as approval copy or the rejection reason.
 
@@ -637,6 +645,8 @@
 ---
 
 ## Group F — Referrals
+
+> Note (DT97): referral settings (enabled flag + reward amounts) live in **`sp_config`** (keys `referral_*` / `starter_pack_*`), **not** `admin_config`. F07/F08 toggle `sp_config` via the admin Referrals configuration UI. Any legacy `admin_config` referral keys (e.g. `feature_flag_referral_program_enabled`) are stale/ignored.
 
 ### MSG-TC-F01 · View referral code + hero
 
@@ -914,7 +924,9 @@
 1. Tap **Reject**, attempt to confirm without a reason, then enter a reason and confirm.
 
 **Expected Result:**
-- Without a reason "Please provide a rejection reason" appears; with a reason the item is rejected and the seller is notified.
+- The **Reject** button is **disabled until a Decision Note/reason is entered**, so "confirm without a reason" is not possible (disabled-button guard — the "Please provide a rejection reason" alert is unreachable); with a reason entered, the item is rejected and the seller is notified.
+
+> Doc-drift note (DT97): the `/items/flagged` queue guards via a disabled Reject button (Decision Note required), matching the admin-portal guide's ADM-TC-C04 wording.
 
 ### MSG-TC-H04 · Request edits
 

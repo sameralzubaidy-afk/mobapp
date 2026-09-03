@@ -135,6 +135,7 @@
 | Free (trial available) | test-free@kidsmarketplace.test | None | Never used trial |
 | Free (trial used) | test-free-2@kidsmarketplace.test | None | `can_start_trial = false` |
 | Grace period | test-grace@kidsmarketplace.test | Grace period | SP wallet frozen |
+| Expired | test-expired@kidsmarketplace.test | Expired (`status='expired'`, past dates) | **Standing fixture (2026-09-03, Dev Task R41)** — genuine expired membership + frozen wallet for SUB-TC-C09/D03; login lands on SubscriptionExpired. Password `TestExpired123!`; one-call login `qa-login-as?persona=test-expired` |
 | Seller | test-seller@kidsmarketplace.test | Kids Club+ Active | Has payout balance + methods |
 | Admin | test-admin@kidsmarketplace.test | — | Required for admin-side payout/SP cases |
 

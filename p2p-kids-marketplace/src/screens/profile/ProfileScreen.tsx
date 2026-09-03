@@ -87,6 +87,9 @@ export default function ProfileScreen({ route }: any) {
     completedTradesCount: 0,
   });
   const [showProfileSavedBanner, setShowProfileSavedBanner] = useState(false);
+  // DT97 (Item 5-2): bump to re-fetch the BadgeShowcase list after the badge
+  // celebration modal dismisses so "My Badges (N)" reflects a new award at once.
+  const [badgeShowcaseRefresh, setBadgeShowcaseRefresh] = useState(0);
   const hasFocusedOnceRef = useRef(false);
   const skipNextFocusRefreshRef = useRef(false);
 
@@ -105,6 +108,8 @@ export default function ProfileScreen({ route }: any) {
   const handleCelebrationClose = () => {
     setShowCelebration(false);
     clearNewBadge();
+    // DT97 (Item 5-2): refresh the showcase so the count updates with the modal.
+    setBadgeShowcaseRefresh((n) => n + 1);
   };
 
   // Apply optimistic updates coming back from EditProfile for instant UX.
@@ -590,7 +595,7 @@ export default function ProfileScreen({ route }: any) {
           </View>
 
           {/* Badges Section */}
-          <BadgeShowcase userId={user.id} />
+          <BadgeShowcase userId={user.id} refreshToken={badgeShowcaseRefresh} />
 
           {/* Secondary Utilities Section (List style) */}
           <View style={styles.utilitySection}>

@@ -3,6 +3,7 @@
 // Handles wallet operations, balance queries, and ledger history
 
 import { supabase } from '@/config/supabase';
+import { getSimulatedWalletNotFoundMode } from '@/services/devTestingService';
 
 export interface SPWallet {
   id: string;
@@ -52,6 +53,15 @@ export interface SPLedgerEntry {
  */
 export async function getWallet(userId: string): Promise<SPWallet | null> {
   try {
+    // SUB-TC-I08 fixture (dev/test only, fail-closed): when the session-local
+    // `sp_wallet_not_found` QA toggle is armed, short-circuit BEFORE any DB
+    // read/auto-insert so SpWalletScreen renders its 💳 "Wallet Not Found"
+    // branch. The real auto-insert safety net is untouched for real users.
+    if ((await getSimulatedWalletNotFoundMode()) === 'not_found') {
+      console.warn('🧪 [DEV] Simulated SP wallet-not-found (sp_wallet_not_found armed)');
+      return null;
+    }
+
     // First try to get existing wallet
     const { data: wallet, error } = await supabase
       .from('sp_wallets')

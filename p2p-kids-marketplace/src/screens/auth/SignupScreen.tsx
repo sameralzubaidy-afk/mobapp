@@ -255,15 +255,16 @@ export default function SignupScreen() {
             buttons: [
               {
                 text: 'Fix it',
-                style: 'cancel',
+                primary: true,
                 testID: 'referral-invalid-fix-it-button',
                 onPress: () => {
-                  // Do nothing, let user edit
+                  // DT97 (Item 5-1): user typed a code -> their intent is to use it,
+                  // so "Fix it" leads (primary). Do nothing; let user edit the code.
                 },
               },
               {
                 text: 'Continue anyway',
-                primary: true,
+                style: 'cancel',
                 testID: 'referral-invalid-continue-anyway-button',
                 onPress: async () => {
                   // Proceed without the referral code

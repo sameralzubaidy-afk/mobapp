@@ -793,6 +793,7 @@ export async function clearQaLocalValues(): Promise<void> {
       QA_FORCE_CARD_DECLINE_KEY,
       QA_CONFIG_FETCH_FAILURE_KEY,
       QA_PAYMENT_CARD_KEY,
+      QA_SP_WALLET_NOT_FOUND_KEY,
     ]);
   } catch (err) {
     console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
@@ -1161,6 +1162,45 @@ export async function getSimulatedConfigFetchFailure(): Promise<QaConfigFetchFai
  *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=payment_card&value=mastercard_4444"
  *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=payment_card&value=none"
  */
+// ========================================
+// QA SP-WALLET-NOT-FOUND SIMULATION (SUB-TC-I08 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that forces the SP-wallet "not found" path
+ * (SUB-TC-I08). Absence, 'none', or any unknown value = no simulation
+ * (fail-closed). Values: 'not_found' | 'none'
+ *   - 'not_found' → `getWallet` returns `null` without querying/auto-inserting,
+ *     so `SpWalletScreen` renders its 💳 "Wallet Not Found" / "Unable to load
+ *     your SP wallet." state.
+ *
+ * Why this exists: `getWallet` auto-inserts a missing `sp_wallets` row on read
+ * (SUB-TC-I08 note), so no persona can show the "not found" state — it is only
+ * reachable today when the select/insert throws (RLS/DB/network failure).
+ * Arming this session-local toggle reproduces the exact user-visible branch
+ * on demand WITHOUT breaking the auto-insert safety net for real users (the
+ * armed branch is dev/test-only and short-circuits before any DB call).
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real wallet fetch always
+ * runs. The simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=sp_wallet_not_found&value=not_found"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=sp_wallet_not_found&value=none"
+ */
+export const QA_SP_WALLET_NOT_FOUND_KEY = 'qa_local_sp_wallet_not_found';
+
+export type QaWalletNotFoundMode = 'not_found' | 'none';
+
+export async function getSimulatedWalletNotFoundMode(): Promise<QaWalletNotFoundMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_SP_WALLET_NOT_FOUND_KEY);
+  return value === 'not_found' ? 'not_found' : 'none';
+}
+
 export const QA_PAYMENT_CARD_KEY = 'qa_local_payment_card';
 
 export type QaPaymentCardPreference = 'mastercard_4444' | 'visa_4242' | 'none';
@@ -1202,6 +1242,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   card_decline: QA_FORCE_CARD_DECLINE_KEY,
   config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
   payment_card: QA_PAYMENT_CARD_KEY,
+  sp_wallet_not_found: QA_SP_WALLET_NOT_FOUND_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1214,6 +1255,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_FORCE_CARD_DECLINE_KEY]: ['hold_decline', 'none'],
   [QA_CONFIG_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
   [QA_PAYMENT_CARD_KEY]: ['mastercard_4444', 'visa_4242', 'none'],
+  [QA_SP_WALLET_NOT_FOUND_KEY]: ['not_found', 'none'],
 };
 
 /**
@@ -1289,6 +1331,9 @@ export default {
 
   // QA Forced-Card Selection (TRD-TC-B03/B06)
   getSimulatedPaymentCardPreference,
+
+  // QA SP-Wallet-Not-Found Simulation (SUB-TC-I08)
+  getSimulatedWalletNotFoundMode,
 
   // Session-local QA toggle storage (A03/D02/C04)
   setQaLocalValue,

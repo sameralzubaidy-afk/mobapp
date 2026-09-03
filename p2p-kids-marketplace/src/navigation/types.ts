@@ -131,7 +131,9 @@ export type RootStackParamList = {
   PlanComparison: undefined;
   UpgradePlan: undefined;
   CancelSubscription: undefined;
-  SubscriptionExpired: { planName?: string; expiredDate?: string } | undefined;
+  // DEV-TASK-100 item 1: the expired screen derives planName/date from the
+  // subscription row — no route params are read or passed anymore.
+  SubscriptionExpired: undefined;
   MySubscription: undefined;
   // MODULE-15.1 FLOW-19: Help & Support
   HelpSupport: undefined;

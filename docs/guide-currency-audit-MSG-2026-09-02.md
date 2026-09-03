@@ -20,7 +20,7 @@
 | A04 | Realtime receive | **Current** | Realtime `postgres_changes` on `messages` (list L90+, Chat); needs 2-user fixture. |
 | A05 | Typing indicator | **Current** | Presence channel `presence-trade-${tradeId}`, 3s inactivity stop (L313–484). 2-user. |
 | A06 | Image send + viewer | **Current** | Upload spinner → `Alert('Error','Failed to upload image')`; image-viewer Modal (L601–643, L1040+). |
-| A07 | 2000-char limit | **Current** | `MESSAGE_CHAR_LIMIT = 2000` + truncation notice (L102, L439–520). |
+| A07 | 2000-char limit | **Current** (doc-drift fixed 2026-09-03, DT97) | `MESSAGE_CHAR_LIMIT = 2000` (L102) + `maxLength={2000}` (L980) clamps silently on iOS — the "Message Too Long"/truncation notice (L439–520) never fires on iOS (dead code). Guide corrected to describe the silent clamp. |
 | A08 | Quick-reply chips | **Current** | `QuickReplyChips` = exact **5-chip set**: 📅 Available today / 📆 Available tomorrow / 🗓 Suggest times / 📍 Public place only / ⏰ Running late + `+ More` (`quick-reply-chip-*`) — `QuickReplyChips.tsx`. |
 | A09 | Safety banner + modal | **Current** | Both `"Trade Smart, Trade Safe"`, button `"Got it — Let's Trade Safely"`; shown once per listing (L826–836, L1119–1166). |
 | A10 | Photo permission denied | **Current** | `Alert('Permission Required','Please allow access to your photo library…')` (L572–576). |

@@ -497,19 +497,23 @@ const styles = StyleSheet.create({
   },
 
   // ── Back Button (Pending / Verified states) ────────────────────────────────
+  // DT97 (Item 5-3): secondary OUTLINE affordance (navigation, not an action) —
+  // white fill + 2px brand-green border per design-system-passitup.md §4.2.
   backButton: {
     borderRadius: 26,
     height: 52,
     paddingHorizontal: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#5DBB8E',
     marginTop: 8,
     minWidth: 200,
   },
   backButtonText: {
     fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '500',
+    color: '#5DBB8E',
+    fontWeight: '600',
   },
 });

@@ -235,6 +235,10 @@ export const ReferralsScreen: React.FC = () => {
     rewardsConfig.first_trade_enabled || rewardsConfig.first_listing_enabled;
   const isProgramPaused = !rewardsConfig.program_enabled;
   const isShareDisabled = isProgramPaused || !hasAnyBonusConfigured;
+  // DT97 (Item 5-4): when paused, dim the reward rows + "You earn" line so the
+  // paused-vs-live state reads beyond the amber banner.
+  const rowDim = isProgramPaused ? styles.rowDimmed : undefined;
+  const earningColorPaused = isProgramPaused ? styles.yourEarningAmountPaused : undefined;
 
   return (
     <ScreenLayout variant="detail" title="Referrals">
@@ -276,7 +280,7 @@ export const ReferralsScreen: React.FC = () => {
             )}
 
             {rewardsConfig.first_trade_enabled && (
-              <View style={styles.programRow} testID="trade-bonus-row">
+              <View style={[styles.programRow, rowDim]} testID="trade-bonus-row">
                 <View style={styles.programIcon}>
                   <Storefront size={20} color="#5DBB8E" weight="fill" />
                 </View>
@@ -294,7 +298,7 @@ export const ReferralsScreen: React.FC = () => {
             )}
 
             {rewardsConfig.first_listing_enabled && (
-              <View style={styles.programRow} testID="listing-bonus-row">
+              <View style={[styles.programRow, rowDim]} testID="listing-bonus-row">
                 <View style={styles.programIcon}>
                   <Notebook size={20} color="#5DBB8E" weight="fill" />
                 </View>
@@ -311,9 +315,9 @@ export const ReferralsScreen: React.FC = () => {
               </View>
             )}
 
-            <View style={styles.yourEarningRow}>
+            <View style={[styles.yourEarningRow, rowDim]}>
               <Text style={styles.yourEarningLabel}>You earn:</Text>
-              <Text style={styles.yourEarningAmount}>
+              <Text style={[styles.yourEarningAmount, earningColorPaused]}>
                 {rewardsConfig.first_trade_enabled && `${rewardsConfig.referrer_sp} SP per trade`}
                 {rewardsConfig.first_trade_enabled && rewardsConfig.first_listing_enabled && ' • '}
                 {rewardsConfig.first_listing_enabled &&
@@ -581,6 +585,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#5DBB8E',
     fontWeight: '600',
+  },
+  // DT97 (Item 5-4): paused-state dimming for reward rows + earnings line.
+  rowDimmed: {
+    opacity: 0.5,
+  },
+  yourEarningAmountPaused: {
+    color: '#6B6B6B',
   },
   noProgramsCard: {
     backgroundColor: '#FFF9E6',

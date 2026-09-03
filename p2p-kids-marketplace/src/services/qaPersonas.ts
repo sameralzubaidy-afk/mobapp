@@ -32,6 +32,7 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   'test-buyer-2': { email: 'test-buyer-2@kidsmarketplace.test', password: 'TestBuyer2123!' },
   'test-buyer-3': { email: 'test-buyer-3@kidsmarketplace.test', password: 'TestBuyer3123!' },
   'test-grace': { email: 'test-grace@kidsmarketplace.test', password: 'TestGrace123!' },
+  'test-expired': { email: 'test-expired@kidsmarketplace.test', password: 'TestExpired123!' },
   'test-suspended': { email: 'test-suspended@kidsmarketplace.test', password: 'TestSuspended123!' },
   'test-admin': { email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
   'qa-deleted': { email: 'qa-deleted@kidsmarketplace.test', password: 'TestDeleted123!' },

@@ -116,6 +116,10 @@ serve(async (req: Request) => {
             body: JSON.stringify({
               type: 'id_badge_submission',
               to: idRequest.email,
+              // DT97 (Item 3d): pass userId so send-email creates + updates an
+              // email_logs row (send-email only logs when userId is present).
+              // Without it no submission-email log was ever written (QA D09).
+              userId,
               data: {
                 subject,
                 body: emailBody

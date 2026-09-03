@@ -17,9 +17,16 @@ import { UserBadge } from '../types/badge';
 
 interface BadgeShowcaseProps {
   userId: string;
+  /**
+   * Optional refresh trigger (increment to force a reload). Lets a parent (e.g.
+   * ProfileScreen) re-fetch badges when a celebration modal dismisses, so the
+   * "My Badges (N)" count reflects a just-awarded badge immediately.
+   * DT97 (Item 5-2). Omitted (default 0) it is a no-op for other callers.
+   */
+  refreshToken?: number;
 }
 
-export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
+export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId, refreshToken = 0 }) => {
   const navigation = useNavigation<any>();
   const [badges, setBadges] = useState<UserBadge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +45,7 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
 
   useEffect(() => {
     loadBadges();
-  }, [loadBadges]);
+  }, [loadBadges, refreshToken]);
 
   const handleNavigateToBadges = () => {
     navigation.navigate('Badges');

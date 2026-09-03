@@ -356,9 +356,34 @@ async function handleSubscriptionUpdated(
     await sendCancellationConfirmationNotification(sub.user_id, currentPeriodEnd || '');
   }
 
-  // If entering grace period, freeze SP wallet
+  // If entering grace period, enter grace + sync SP wallet to 'grace_period' (R6)
   if (newStatus === 'grace_period' && sub.status !== 'grace_period') {
-    await triggerSpFreeze(sub.user_id, 'subscription_updated_to_grace');
+    await enterGracePeriodAndSyncWallet(supabase, sub.user_id, 'subscription_updated_to_grace');
+  }
+
+  // DEV-TASK-99 (R6, reverse direction): if a subscription returns to active from
+  // grace/cancel (e.g. a past_due recovery — Stripe can fire subscription.updated
+  // with status 'active' BEFORE the invoice.payment_succeeded event), the SP wallet
+  // must also return to 'active' (earn+spend). The invoice.payment_succeeded
+  // handler covers the same restore when IT is the first signal; this guards the
+  // subscription.updated-first ordering observed live in the DT-99 edge-case run.
+  if (
+    newStatus === 'active' &&
+    (sub.status === 'grace_period' || sub.status === 'grace' || sub.status === 'cancelled' || sub.status === 'canceled')
+  ) {
+    const { error: walletRestoreError } = await supabase.rpc('rpc_set_sp_wallet_state', {
+      p_user_id: sub.user_id,
+      p_state: 'active',
+    });
+    if (walletRestoreError) {
+      console.error(
+        `[stripe-webhook-subscriptions] handleSubscriptionUpdated: wallet restore (-> active) failed user=${sub.user_id} prev_status=${sub.status}: ${walletRestoreError.message}`,
+      );
+    } else {
+      console.log(
+        `[stripe-webhook-subscriptions] handleSubscriptionUpdated: wallet -> active user=${sub.user_id} prev_status=${sub.status}`,
+      );
+    }
   }
 }
 
@@ -410,8 +435,8 @@ async function handleSubscriptionDeleted(
     `[stripe-webhook-subscriptions] handleSubscriptionDeleted: user=${sub.user_id} grace_until=${graceEnd} event=${eventId}`,
   );
 
-  // Freeze SP wallet (MODULE-09 integration)
-  await triggerSpFreeze(sub.user_id, 'subscription_deleted');
+  // Enter grace + sync SP wallet to 'grace_period' (R6)
+  await enterGracePeriodAndSyncWallet(supabase, sub.user_id, 'subscription_deleted');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -513,9 +538,9 @@ async function handleInvoicePaymentFailed(
   // MODULE-14 NOTIF-V2-002: Critical notifications bypass user preferences
   await sendCriticalPaymentFailureNotification(sub.user_id, retryCount);
 
-  // ── Freeze SP if 3rd failure → grace period ────────────────────────────────
+  // ── 3rd failure → grace period (DEV-TASK-99): move sub + sync SP wallet ───
   if (maxRetriesReached && sub.status !== 'grace_period') {
-    await triggerSpFreeze(sub.user_id, 'payment_failed_max_retries');
+    await enterGracePeriodAndSyncWallet(supabase, sub.user_id, 'payment_failed_max_retries');
   }
 }
 
@@ -1058,6 +1083,18 @@ async function handleInvoicePaymentSucceeded(
     });
     if (statusError) {
       console.error(`[stripe-webhook-subscriptions] invoice.payment_succeeded: status restore failed`, statusError);
+    } else {
+      // DEV-TASK-99 (R6): returning to active must also return the SP wallet to
+      // 'active' (earn+spend) — grace entry moves it to 'grace_period'.
+      const { error: walletRestoreError } = await supabase.rpc('rpc_set_sp_wallet_state', {
+        p_user_id: sub.user_id,
+        p_state: 'active',
+      });
+      if (walletRestoreError) {
+        console.error(`[stripe-webhook-subscriptions] invoice.payment_succeeded: wallet restore failed`, walletRestoreError);
+      } else {
+        console.log(`[stripe-webhook-subscriptions] invoice.payment_succeeded: wallet -> active user=${sub.user_id}`);
+      }
     }
   }
 
@@ -1410,37 +1447,97 @@ async function sendPaymentFailureNotification(userId: string, retryCount: number
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SP Wallet freeze trigger (MODULE-09 integration)
-// Calls the SP lapse URL if configured; fails gracefully if not yet deployed.
+// Grace-entry + SP wallet sync (DEV-TASK-99; R6 model — owner decision 2026-08-09)
+// Runs on EVERY path that moves a subscription into grace. Under the R6 model
+// grace entry does NOT hard-freeze the wallet:
+//   * subscription.status -> 'grace_period' with grace_started_at/grace_ends_at
+//   * sp_wallets.state    -> 'grace_period'  (can spend existing SP, cannot earn)
+// The true 'frozen' transition happens only AFTER the grace window ends, by
+// grace-period-cron -> rpc_set_sp_wallet_state('frozen'). A resubscribe or a
+// successful renewal returns the wallet to 'active'.
+//
+// DEV-TASK-99 (2026-09-03): previously named `triggerSpFreeze`, it no-oped
+// because it POSTed to SP_SUBSCRIPTION_LAPSE_URL — an external MODULE-09 lapse
+// endpoint that was never deployed (TODO(MODULE-09)) — so no grace entry ever
+// happened on the 3rd payment failure and the wallet never synced. R6 replaced
+// external wallet-state URLs with the first-party rpc_set_sp_wallet_state, so
+// grace entry is now driven here with existing service-role RPCs (no HTTP seam).
 // ─────────────────────────────────────────────────────────────────────────────
-async function triggerSpFreeze(userId: string, reason: string): Promise<void> {
-  const spLapseUrl = Deno.env.get('SP_SUBSCRIPTION_LAPSE_URL');
-
-  if (!spLapseUrl) {
-    // TODO(MODULE-09): Configure SP_SUBSCRIPTION_LAPSE_URL once MODULE-09 SP freeze endpoint is deployed
-    console.warn(
-      `[stripe-webhook-subscriptions] SP_SUBSCRIPTION_LAPSE_URL not set — skipping SP freeze for user=${userId} reason=${reason}`,
-    );
-    return;
-  }
-
+async function enterGracePeriodAndSyncWallet(
+  supabase: any,
+  userId: string,
+  reason: string,
+): Promise<void> {
   try {
-    const resp = await fetch(spLapseUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, reason }),
+    // 1) Subscription -> grace_period (idempotent: the customer.subscription.deleted
+    //    / customer.subscription.updated paths already set grace before calling this,
+    //    so only transition when the row is not already in grace).
+    const { data: sub, error: fetchError } = await supabase
+      .from('subscriptions')
+      .select('id, status')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (fetchError || !sub) {
+      console.error(
+        `[stripe-webhook-subscriptions] enterGracePeriodAndSyncWallet: no subscription row user=${userId} reason=${reason} error=${fetchError?.message ?? 'none'}`,
+      );
+      return;
+    }
+
+    if (sub.status !== 'grace_period' && sub.status !== 'grace') {
+      const graceDays = await getGracePeriodDays(supabase, userId);
+      const now = new Date();
+      const graceEnd = new Date(now.getTime() + graceDays * 24 * 60 * 60 * 1000).toISOString();
+
+      // Direct table update (NOT the update_subscription_status RPC): on staging
+      // there are TWO live overloads of that RPC (an orphaned 12-arg one plus the
+      // canonical 14-arg one), so this 4-named-arg call is ambiguous and PostgREST
+      // rejects it. This mirrors handleSubscriptionDeleted's proven grace update.
+      const { error: statusError } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'grace_period',
+          grace_started_at: now.toISOString(),
+          grace_ends_at: graceEnd,
+          updated_at: now.toISOString(),
+        })
+        .eq('id', sub.id);
+
+      if (statusError) {
+        // Do NOT sync the wallet when the sub could not be moved to grace — a
+        // wallet in 'grace_period' while the sub stays active would be inconsistent.
+        console.error(
+          `[stripe-webhook-subscriptions] enterGracePeriodAndSyncWallet: grace status transition failed user=${userId} reason=${reason}: ${statusError.message}`,
+        );
+        return;
+      }
+
+      console.log(
+        `[stripe-webhook-subscriptions] enterGracePeriodAndSyncWallet: subscription -> grace_period user=${userId} grace_until=${graceEnd} reason=${reason}`,
+      );
+    }
+
+    // 2) SP wallet -> grace_period (R6 spendable-grace model). rpc_set_sp_wallet_state
+    //    auto-initializes a missing wallet and is service-role callable only.
+    const { error: walletError } = await supabase.rpc('rpc_set_sp_wallet_state', {
+      p_user_id: userId,
+      p_state: 'grace_period',
     });
 
-    if (!resp.ok) {
-      const text = await resp.text();
+    if (walletError) {
       console.error(
-        `[stripe-webhook-subscriptions] SP freeze call failed user=${userId} status=${resp.status} body=${text}`,
+        `[stripe-webhook-subscriptions] enterGracePeriodAndSyncWallet: wallet -> grace_period failed user=${userId} reason=${reason}: ${walletError.message}`,
       );
     } else {
-      console.log(`[stripe-webhook-subscriptions] SP freeze triggered for user=${userId} reason=${reason}`);
+      console.log(
+        `[stripe-webhook-subscriptions] enterGracePeriodAndSyncWallet: wallet -> grace_period user=${userId} reason=${reason}`,
+      );
     }
   } catch (err: any) {
-    // Non-blocking: SP freeze failure must not prevent subscription state update
-    console.error(`[stripe-webhook-subscriptions] SP freeze request error user=${userId}:`, err.message);
+    // Non-blocking: a grace-entry failure must not crash the webhook handler.
+    console.error(
+      `[stripe-webhook-subscriptions] enterGracePeriodAndSyncWallet error user=${userId} reason=${reason}: ${err?.message ?? err}`,
+    );
   }
 }

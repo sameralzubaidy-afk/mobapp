@@ -240,13 +240,64 @@ async function maybeSendGraceReminder(
     return false;
   }
 
-  // Send push notification
+  const title = getReminderTitle(daysRemaining);
+  const body = getReminderBody(daysRemaining);
+
+  // DEV-TASK-98 (DEFECT-1 FIX): the legacy code inserted into a bare
+  // `notifications` table that has never existed in this project — the real
+  // table is `user_notifications` — so the in-app leg errored on every run.
+  // Create the in-app row here with the app's canonical subscription
+  // notification shape (category/type = 'subscription', data.event =
+  // 'grace_period_reminder', deep_link '/subscription' → ManageKidsClub), then
+  // pass its id to send-push-notification so that function does NOT auto-create
+  // a duplicate record (it only auto-creates a row when no notificationId is
+  // supplied).
+  const { data: inAppRow, error: inAppError } = await supabaseClient
+    .from('user_notifications')
+    .insert({
+      user_id: sub.user_id,
+      category: 'subscription',
+      type: 'subscription',
+      title,
+      body,
+      channels: ['push', 'in_app'],
+      data: {
+        event: 'grace_period_reminder',
+        days_left: daysRemaining,
+        days_remaining: daysRemaining,
+        status,
+        deep_link: '/subscription',
+      },
+      is_read: false,
+    })
+    .select('id')
+    .maybeSingle();
+
+  if (inAppError) {
+    console.error('[maybeSendGraceReminder] Error inserting in-app notification:', inAppError.message);
+  } else {
+    console.log(`[maybeSendGraceReminder] In-app notification created for ${sub.user_id} (${daysRemaining} days), id=${inAppRow?.id ?? 'n/a'}`);
+  }
+
+  // Send push notification, linked to the in-app row when one was created
   try {
     const sendPushUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/send-push-notification';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    const title = getReminderTitle(daysRemaining);
-    const body = getReminderBody(daysRemaining);
+    const pushBody: Record<string, unknown> = {
+      userId: sub.user_id,
+      title,
+      body,
+      data: {
+        type: 'grace_period_reminder',
+        days_remaining: daysRemaining,
+        status,
+        deep_link: '/subscription',
+      },
+    };
+    if (inAppRow?.id) {
+      pushBody.notificationId = inAppRow.id;
+    }
 
     const response = await fetch(sendPushUrl, {
       method: 'POST',
@@ -254,22 +305,13 @@ async function maybeSendGraceReminder(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${serviceRoleKey}`,
       },
-      body: JSON.stringify({
-        userId: sub.user_id,
-        title,
-        body,
-        data: {
-          type: 'grace_period_reminder',
-          days_remaining: daysRemaining,
-          status,
-        },
-      }),
+      body: JSON.stringify(pushBody),
     });
 
     if (!response.ok) {
       console.error('[maybeSendGraceReminder] Push notification failed:', response.status);
     } else {
-      console.log(`[maybeSendGraceReminder] Reminder sent to ${sub.user_id} (${daysRemaining} days)`);
+      console.log(`[maybeSendGraceReminder] Push requested for ${sub.user_id} (${daysRemaining} days)`);
     }
   } catch (err) {
     console.error('[maybeSendGraceReminder] Error sending push notification:', err);
@@ -283,25 +325,8 @@ async function maybeSendGraceReminder(
       .eq('id', sub.id);
 
     if (flagError) {
-      console.error('[maybeSendGraceReminder] Error updating reminder flag:', flagError);
+      console.error('[maybeSendGraceReminder] Error updating reminder flag:', flagError.message);
     }
-  }
-
-  // Also insert into notifications table for history
-  const { error: notifError } = await supabaseClient.from('notifications').insert({
-    user_id: sub.user_id,
-    type: 'grace_period_reminder',
-    title: getReminderTitle(daysRemaining),
-    body: getReminderBody(daysRemaining),
-    data: {
-      days_remaining: daysRemaining,
-      status,
-    },
-    read: false,
-  });
-
-  if (notifError) {
-    console.error('[maybeSendGraceReminder] Error inserting notification:', notifError);
   }
 
   return true;

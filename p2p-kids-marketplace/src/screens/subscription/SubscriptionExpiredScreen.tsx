@@ -2,15 +2,19 @@
  * File: p2p-kids-marketplace/src/screens/subscription/SubscriptionExpiredScreen.tsx
  * MODULE-15.1 FLOW-12 Screen 8: Subscription Expired
  *
- * TASK: Redesign SubscriptionExpiredScreen — VISUAL ONLY
- * DO NOT CHANGE: renew handler, continue free handler, plan/date params
- * ONLY CHANGE: StyleSheet, icons → Phosphor
+ * DEV-TASK-100 item 1 (C09/D03): the "plan ended on" date is now derived from
+ * the user's subscription row via useSubscription(), NOT a navigation route
+ * param — no production navigation path ever passed {planName, expiredDate}
+ * (the navigator mounts this screen as an initialRouteName with no params), so
+ * genuinely expired users always saw the fallback copy. Fallback copy (no
+ * row-derived date, e.g. never-subscribed) still applies.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSubscription } from '@/hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
 import {
   WarningCircle,
@@ -22,9 +26,9 @@ import {
   TrendUp,
 } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-type RouteProps = RouteProp<RootStackParamList, 'SubscriptionExpired'>;
 
 const BENEFITS = [
   {
@@ -49,16 +53,23 @@ const BENEFITS = [
 
 export default function SubscriptionExpiredScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<RouteProps>();
+  // DEV-TASK-100: read the real expiry from the subscription row (same fetch
+  // logic as MySubscriptionScreen / ManageKidsClubScreen via useSubscription).
+  const { subscription, loading } = useSubscription();
 
-  const planName = route.params?.planName || 'Kids Club+';
-  // DEV-TASK-94 (2026-09-03): a parent with no real expiration date (e.g. a
-  // never-subscribed account that lands on this screen) previously saw the
-  // placeholder "Your Kids Club+ plan ended on recently" — awkward. When no real
-  // date exists we say the plan is simply no longer active.
-  const hasExpiredDate = Boolean(route.params?.expiredDate);
-  const expiredDate = hasExpiredDate
-    ? new Date(route.params!.expiredDate!).toLocaleDateString(undefined, {
+  // Genuinely-expired users were Kids Club+ members, so the plan name is fixed.
+  const planName = 'Kids Club+';
+  // subscription_expires_at = trial_ends_at || current_period_end (the last day
+  // of paid access — the same date grace-period messaging tells users their
+  // subscription ended on). Null only when there is no subscription row at all
+  // (e.g. a never-subscribed account that lands here).
+  const endedDate = subscription?.subscription_expires_at || null;
+  // DEV-TASK-94 (2026-09-03): a parent with no real expiration date previously
+  // saw the placeholder "Your Kids Club+ plan ended on recently" — awkward. When
+  // no row-derived date exists we say the plan is simply no longer active.
+  const hasEndedDate = Boolean(endedDate);
+  const expiredDate = hasEndedDate
+    ? new Date(endedDate!).toLocaleDateString(undefined, {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
@@ -72,6 +83,14 @@ export default function SubscriptionExpiredScreen() {
   const handleContinueFree = () => {
     navigation.navigate('Discover');
   };
+
+  if (loading) {
+    return (
+      <ScreenLayout variant="detail" title="Subscription Expired">
+        <LoadingSpinner />
+      </ScreenLayout>
+    );
+  }
 
   return (
     <ScreenLayout variant="detail" title="Subscription Expired">
@@ -88,7 +107,7 @@ export default function SubscriptionExpiredScreen() {
             Subscription Expired
           </Text>
 
-          {hasExpiredDate ? (
+          {hasEndedDate ? (
             <View style={styles.dateContainer}>
               <Text style={styles.message} testID="message">
                 Your {planName} plan ended on
