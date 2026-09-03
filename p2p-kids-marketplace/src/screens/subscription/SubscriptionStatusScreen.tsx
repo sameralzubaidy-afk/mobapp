@@ -4,20 +4,18 @@
  *
  * Purpose: Manual verification screen showing current subscription state,
  * payment retry count, and grace period countdown.
- * Accessible via AdminDashboard → SUB-007 link.
+ * DEV-TASK-94 (2026-09-03): this is a QA/manual verification screen with NO
+ * in-app navigation and NO AdminDashboard link (the old "Accessible via
+ * AdminDashboard → SUB-007 link" comment was stale — QA Task 22 found no such
+ * link). It is reachable only by tapping a push notification whose payload maps
+ * the deep link `/subscription/status` (see services/deepLink.ts DEEP_LINK_ROUTES),
+ * which requires a notification-insert fixture to drive.
  *
  * TODO(UX): Refine layout once final Figma design is available.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/config/supabase';
@@ -262,9 +260,7 @@ export default function SubscriptionStatusScreen() {
           <Text style={styles.cardTitle}>Manage Subscription</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() =>
-              navigation.navigate('JoinKidsClub')
-            }
+            onPress={() => navigation.navigate('JoinKidsClub')}
           >
             <Text style={styles.retryButtonText}>
               {isFreeOrCancelled ? 'Start / Upgrade Kids Club+' : 'Manage Billing & Payment'}
@@ -280,7 +276,6 @@ export default function SubscriptionStatusScreen() {
           SUB-007: Pull down to refresh after triggering webhook events via Stripe CLI or Dashboard
         </Text>
       </ScrollView>
-
     </ScreenLayout>
   );
 }

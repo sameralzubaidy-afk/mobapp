@@ -2,7 +2,7 @@
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-10 SP Wallet Read · FLOW-11 SP Earn/Spend/Cap · FLOW-12 Subscriptions · FLOW-12A Subscription Payment (Stripe) · FLOW-17 Subscription Event Notifications · FLOW-22 Seller Payouts · FLOW-23 Payout Method Verification · FLOW-25 Manual Payout Admin · FLOW-26 Webhook Processing & Verification · FLOW-30 SP Wallet Admin Ops)
 **Tasks covered:** Subscription Lifecycle (plans, comparison, trial, payment, manage, cancel, renew, grace, expiry, billing history) · Seller Payouts & Withdrawals (dashboard, methods, verification, request, earnings) · SP Wallet & Transaction History (balance, earn, expiry, ledger, billing) · Provider webhook reconciliation for subscription and payout state changes
-**Last updated:** 2026-09-02 (guide-currency audit v3: webhook **Group L refreshed to QA Task 21's live full-lifecycle verification** — L01 renewal + L04 idempotency now **LIVE PASS**, L02/L03 remain PARTIAL with exact fixture needs; v2 retired the removed in-app subscription-purchase Group B and renewal D02/D04 to the web-first Web Subscription Purchase E2E; rewrote Groups F/G05/H to the live PayoutSettingsScreen; re-homed D06/D07 + flagged E04 fixture-gated)
+**Last updated:** 2026-09-03 (guide-currency audit v4 — DEV-TASK-94 doc-sync: E01/E02/E03 `BillingHistoryScreen`→live `TransactionHistoryScreen` + live E02 empty copy; A05 `KidsClubOverview`→`JoinKidsClubScreen` alias with per-status coverage on `ManageKidsClubScreen`; Groups F/G/H already live on `PayoutSettingsScreen` since v3; v3 = 2026-09-02 webhook Group L refreshed to QA Task 21's live full-lifecycle verification — L01 renewal + L04 idempotency now **LIVE PASS**, L02/L03 remain PARTIAL with exact fixture needs; v2 retired the removed in-app subscription-purchase Group B and renewal D02/D04 to the web-first Web Subscription Purchase E2E; rewrote Groups F/G05/H to the live PayoutSettingsScreen; re-homed D06/D07 + flagged E04 fixture-gated)
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -218,20 +218,21 @@
 
 ---
 
-### SUB-TC-A05 · Kids Club+ Overview screen by subscription status
+### SUB-TC-A05 · Kids Club+ overview by subscription status (aliased to JoinKidsClub; per-status on Manage)
 
-**Ref:** FLOW-12 · KidsClubOverviewScreen
+**Ref:** FLOW-12 · `JoinKidsClubScreen` (alias) + `ManageKidsClubScreen` (per-status) — DEV-TASK-94 doc-sync: `KidsClubOverviewScreen` is **dead/aliased** — the `KidsClubOverview` and `SubscriptionPlans` routes both render `JoinKidsClubScreen` (no distinct Overview/Plans screen; AppNavigator L771/L775; see the N-group aliasing note). Per-status CTA coverage lives on **Manage Kids Club+** (`ManageKidsClubScreen`), verified live in QA Task 22 §0.3 (active / grace / cancelled / free all PASS).
 **Actors:** test-free, test-buyer, test-grace
 
-**Objective:** Verify the Overview screen shows the correct primary CTA per status.
+**Objective:** Verify the Kids Club+ surface shows the correct primary CTA per subscription status.
 
 **Steps:**
-1. Open **Kids Club+** overview as **test-free**, then as **test-buyer** (active), then as **test-grace**.
+1. Open **Kids Club+** (JoinKidsClubScreen) as **test-free**, then **Manage Kids Club+** (`ManageKidsClubScreen`) as **test-buyer** (active) and **test-grace**.
+2. (free) Confirm the join surface's value-prop + CTA; (active / grace) confirm the Manage surface per-status states.
 
 **Expected Result:**
-- **Free:** primary CTA **[Start 30-Day Free Trial]** + benefits overview.
-- **Active/Trial:** renewal/countdown info + **[Manage Kids Club+]** + a cancel option.
-- **Grace period:** urgency message with days remaining + **[Re-subscribe and Unlock SP]** (SP frozen messaging).
+- **Free:** Join surface shows the Kids Club+ value-prop, the "Membership is managed on the web" card, and CTA **[Join Kids Club+]** (canonical non-trial label — the retired "Start 30-Day Free Trial" CTA is gone; trial_enabled=false).
+- **Active/Trial:** Manage Kids Club+ shows the **Active** badge + Next Billing Date + cancel option + auto-renew toggle.
+- **Grace period:** Manage Kids Club+ shows the **Grace Period** badge + SP-frozen warning + **[Re-subscribe]** (SP frozen messaging).
 - Cancellation modal (if opened) is titled "We'll miss you!" with the six reason options including "Other".
 
 ---
@@ -611,7 +612,7 @@
 
 ### SUB-TC-D05 · Reactivate from cancelled state
 
-**Ref:** FLOW-12 · ManageKidsClubScreen / KidsClubOverviewScreen
+**Ref:** FLOW-12 · ManageKidsClubScreen — DEV-TASK-94 doc-sync: dropped the dangling `KidsClubOverviewScreen` alias (dead; reactivation lives on **Manage Kids Club+**)
 **Actors:** A cancelled (not yet expired) user
 
 **Objective:** Verify reactivation before expiry restores active status.
@@ -630,13 +631,13 @@
 
 ### SUB-TC-E01 · Billing History list — records, status badges, amounts
 
-**Ref:** FLOW-12 · BillingHistoryScreen
+**Ref:** FLOW-12 · `TransactionHistoryScreen` (route `TransactionHistory`) — DEV-TASK-94 doc-sync: the former `BillingHistoryScreen` is **dead/aliased** (DT-93); Profile's **"Billing History"** row opens the live `TransactionHistoryScreen` (QA Task 22 E01 PASS live)
 **Actors:** test-buyer
 
 **Objective:** Verify billing records render with date, status, description, amount.
 
 **Steps:**
-1. As **test-buyer**, open **Billing History**.
+1. As **test-buyer**, open **Transaction History**: Profile → **Billing History** row.
 
 **Expected Result:**
 - Each record shows the date, a status badge (Succeeded green / Pending orange / Failed red / Refunded grey), description ("Kids Club+ Subscription"), and the formatted amount.
@@ -646,28 +647,28 @@
 
 ### SUB-TC-E02 · Billing History empty state
 
-**Ref:** FLOW-12 · BillingHistoryScreen
+**Ref:** FLOW-12 · `TransactionHistoryScreen` (route `TransactionHistory`) — DEV-TASK-94 doc-sync: `BillingHistoryScreen` is **dead/aliased** (DT-93); live surface is `TransactionHistory` (Profile → **Billing History** row). QA Task 22 E02 PASS live.
 **Actors:** test-free
 
 **Objective:** Verify the empty state for a user who's never been charged.
 
 **Steps:**
-1. As **test-free**, open Billing History.
+1. As **test-free**, open **Transaction History** (Profile → **Billing History** row).
 
 **Expected Result:**
-- "No Billing History" with "You haven't been charged yet…" message; no records listed.
+- Empty state shows a grey receipt icon with **"No billing history yet."** (live copy, verified QA Task 22 E02); no records listed.
 
 ---
 
 ### SUB-TC-E03 · Failed charge shows error message
 
-**Ref:** FLOW-12 · BillingHistoryScreen
+**Ref:** FLOW-12 · `TransactionHistoryScreen` (route `TransactionHistory`) — DEV-TASK-94 doc-sync: `BillingHistoryScreen` is **dead/aliased** (DT-93); live surface is `TransactionHistory` (Profile → **Billing History** row).
 **Actors:** A user with a failed charge record
 
 **Objective:** Verify failed billing records surface the error.
 
 **Steps:**
-1. Open Billing History for a user that has a failed charge.
+1. Open **Transaction History** (Profile → **Billing History** row) for a user that has a failed charge.
 
 **Expected Result:**
 - The failed record shows a red "Failed" badge and the error message text below the amount.

@@ -209,7 +209,10 @@ function getDefaultConfig(): AdminConfig {
     // (QA Task 20 F-3). Re-enable later = admin_config flip, not this default.
     trial_enabled: false,
     max_trial_uses: 1,
-    grace_period_days: 90,
+    // Canonical admin_config.grace_period_days = 30 (DT-94). subscription_tiers
+    // grace_period_days (=90) is a separate per-tier fallback. This client value
+    // is display-only and additionally capped at MAX_DISPLAY_GRACE_PERIOD_DAYS.
+    grace_period_days: 30,
 
     // Swap Points
     sp_earn_multiplier: 1.0,
@@ -565,6 +568,16 @@ export async function getSPExpirationDays(forceRefresh = false): Promise<number>
   return getConfigValue('sp_expiration_days', forceRefresh);
 }
 
+// DEV-TASK-94 (2026-09-03): grace-period display safety cap. grace_period_days
+// is a single global admin_config value (canonical = 30 days, per DT-94; it was
+// mis-set to 500 and surfaced "frozen for a 500-day grace period" to a parent on
+// the Manage-Kids-Club+ screen — QA Task 22 P2). This read feeds DISPLAY copy
+// only (the actual grace window grace_ends_at is computed server-side by
+// grace-period-cron from the live config), so clamp here so a future config
+// mistake can never render an absurd number to a parent again. The config itself
+// is fixed to 30; this cap is defense in depth, not the fix.
+const MAX_DISPLAY_GRACE_PERIOD_DAYS = 60;
+
 export async function getGracePeriodDays(forceRefresh = false): Promise<number> {
   try {
     const { data, error } = await supabase.rpc('get_config_value', {
@@ -574,7 +587,7 @@ export async function getGracePeriodDays(forceRefresh = false): Promise<number> 
     if (!error && data != null) {
       const parsed = Number(data);
       if (Number.isFinite(parsed)) {
-        return Math.max(parsed, 0);
+        return Math.min(Math.max(parsed, 0), MAX_DISPLAY_GRACE_PERIOD_DAYS);
       }
     }
   } catch (err) {
@@ -584,7 +597,8 @@ export async function getGracePeriodDays(forceRefresh = false): Promise<number> 
     );
   }
 
-  return getConfigValue('grace_period_days', forceRefresh);
+  const fallback = await getConfigValue('grace_period_days', forceRefresh);
+  return Math.min(Math.max(Number(fallback) || 0, 0), MAX_DISPLAY_GRACE_PERIOD_DAYS);
 }
 
 /**

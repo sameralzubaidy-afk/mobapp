@@ -665,21 +665,25 @@ async function handleCheckoutSessionCompleted(
 
   const tierId = await resolveTierIdForPrice(supabase, subscription.items?.data?.[0]?.price?.id ?? null);
   const upsert = await upsertWebSubscription(supabase, userId, subscription, tierId);
-  await sendSubscriptionWelcomeNotification(userId, subscription.status === 'trialing');
 
-  // DEV-TASK-92 (2026-09-02): a brand-new web subscription's initial charge must
+  // DEV-TASK-92/94 (2026-09-02/03): a brand-new web subscription's initial charge must
   // appear in Transaction History. Stripe may deliver the initial
-  // `invoice.payment_succeeded` BEFORE this handler inserts the subscriptions
-  // row (the invoice handler then no-ops on the missing row and webhooks are
-  // never re-delivered after a 200), so record the first paid invoice here — but
-  // ONLY when the upsert just INSERTED a new row (old_status === null), never on
-  // a re-bind/update of an existing subscription (e.g. a test-clock re-bind).
-  if (upsert.subscription_id && upsert.old_status == null) {
+  // `invoice.payment_succeeded` BEFORE this handler binds the subscriptions row
+  // (the invoice handler then no-ops on the unbound row and webhooks are never
+  // re-delivered after a 200), so record the first paid invoice here — but only
+  // on a transition FROM a non-live subscription state (see shouldRecordInitialBilling:
+  // every user starts with a signup-created `free` row, so the RPC UPDATE returns
+  // old_status='free', never null), and never on a re-bind/update of an ALREADY
+  // live subscription (e.g. a test-clock re-bind of an active sub). The billing
+  // write runs BEFORE the welcome notification so a slow notification can never
+  // delay/starve the money-critical write.
+  if (upsert.subscription_id && shouldRecordInitialBilling(upsert.old_status)) {
     await recordInitialBillingRow(supabase, upsert.subscription_id, userId, subscription);
   }
+  await sendSubscriptionWelcomeNotification(userId, subscription.status === 'trialing');
 
   console.log(
-    `[stripe-webhook-subscriptions] checkout.session.completed: linked user=${userId} subscription=${stripeSubId} status=${subscription.status} event=${eventId}`,
+    `[stripe-webhook-subscriptions] checkout.session.completed: linked user=${userId} subscription=${stripeSubId} status=${subscription.status} old_status=${upsert.old_status} event=${eventId}`,
   );
 }
 
@@ -729,17 +733,46 @@ async function handleSubscriptionCreated(
   const tierId = await resolveTierIdForPrice(supabase, subscription.items?.data?.[0]?.price?.id ?? null);
   const upsert = await upsertWebSubscription(supabase, userId, subscription, tierId);
 
-  // DEV-TASK-92: same initial-billing-row net as checkout.session.completed — the
-  // handler that INSERTs the row first records the first paid invoice; whichever
-  // of the two events wins the race, the sibling then sees the row already exists
-  // and is a no-op (old_status != null).
-  if (upsert.subscription_id && upsert.old_status == null) {
+  // DEV-TASK-92/94: same initial-billing-row net as checkout.session.completed —
+  // the first row-binding handler records the first paid invoice; whichever of
+  // the two events wins the race, the sibling then sees the row is already live
+  // and is a no-op (shouldRecordInitialBilling(old_status) === false for active).
+  // DEV-TASK-94: gate is shouldRecordInitialBilling — never old_status === null,
+  // because the signup trigger pre-creates a `free` subscriptions row, so the
+  // RPC UPDATE path returns old_status='free' on the first real subscription.
+  if (upsert.subscription_id && shouldRecordInitialBilling(upsert.old_status)) {
     await recordInitialBillingRow(supabase, upsert.subscription_id, userId, subscription);
   }
 
   console.log(
-    `[stripe-webhook-subscriptions] customer.subscription.created: linked user=${userId} subscription=${subscription.id} status=${subscription.status} event=${eventId}`,
+    `[stripe-webhook-subscriptions] customer.subscription.created: linked user=${userId} subscription=${subscription.id} status=${subscription.status} old_status=${upsert.old_status} event=${eventId}`,
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: decide whether a subscription transition warrants recording the
+// subscription's current (initial) paid invoice as a billing_history row.
+//
+// DEV-TASK-94 (2026-09-03): the original DT92 gate (old_status === null, i.e.
+// "the RPC just INSERTED a brand-new row") never fired in practice because the
+// signup trigger (20260214000000_add_subscription_creation_to_signup.sql) pre-
+// creates a default `subscriptions` row with status 'free' for EVERY user — so
+// the RPC always finds that row and takes its UPDATE path, returning
+// old_status='free', never null. result: recordInitialBillingRow was never
+// called and the initial $5.99 charge never reached Transaction History (QA
+// Task 22 reproduced live).
+//
+// The correct semantic: record the initial invoice on any transition FROM a
+// non-live subscription state — brand-new (null), free→paid, or a re-subscribe
+// after cancel/expiry (all of which carry a REAL first charge) — but NOT when
+// the row was ALREADY a live paid subscription (active/trial/grace) and is just
+// being re-bound/updated (e.g. QA Task 21's test-clock re-bind of an active sub,
+// whose initial invoice is not a real user charge).
+// ─────────────────────────────────────────────────────────────────────────────
+const LIVE_SUB_STATUSES = new Set(['active', 'trial', 'grace', 'grace_period']);
+
+function shouldRecordInitialBilling(oldStatus: string | null | undefined): boolean {
+  return oldStatus == null || !LIVE_SUB_STATUSES.has(oldStatus);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -749,12 +782,13 @@ async function handleSubscriptionCreated(
 // DEV-TASK-92 (2026-09-02): QA Task 21 found the initial web-purchase charge
 // produced NO billing_history row — only renewals did. Root cause: for a new
 // subscription Stripe can deliver the initial `invoice.payment_succeeded`
-// BEFORE checkout.session.completed / customer.subscription.created create the
-// `subscriptions` row, so handleInvoicePaymentSucceeded no-ops on the missing
-// row and (webhooks are not re-delivered after a 200) the first $5.99 charge is
-// never recorded. Called by the row-creating handlers right after the row is
-// INSERTED (old_status === null → genuinely new subscription), so the initial
-// charge is recorded deterministically regardless of event ordering.
+// BEFORE checkout.session.completed / customer.subscription.created bind the
+// `subscriptions` row, so handleInvoicePaymentSucceeded no-ops on the missing/
+// unbound row and (webhooks are not re-delivered after a 200) the first $5.99
+// charge is never recorded. Called by the row-binding handlers right after the
+// row is transitioned to a live subscription (see shouldRecordInitialBilling),
+// so the initial charge is recorded deterministically regardless of event
+// ordering.
 // Idempotent: pre-checked by stripe_invoice_id + upsert onConflict charge_id,
 // so a later real invoice.payment_succeeded (or the sibling handler) never
 // creates a duplicate.
@@ -770,7 +804,17 @@ async function recordInitialBillingRow(
     subscription.latest_invoice?.id ||
     null;
 
+  // DEV-TASK-94: explicit branch markers — the EF log tool has been down several
+  // sessions, so each early-return/success/failure point is individually logged
+  // for any future log read-back.
+  console.log(
+    `[stripe-webhook-subscriptions] recordInitialBillingRow: enter user=${userId} sub=${dbSubscriptionId} latest_invoice=${latestInvoiceId ?? '(none)'}`,
+  );
+
   if (!latestInvoiceId) {
+    console.log(
+      `[stripe-webhook-subscriptions] recordInitialBillingRow: no latest_invoice on subscription — skipping`,
+    );
     return;
   }
 
@@ -787,7 +831,11 @@ async function recordInitialBillingRow(
 
   const amount = invoice.amount_paid ?? invoice.amount_due ?? 0;
   if (invoice.status !== 'paid' || amount <= 0) {
-    // e.g. a $0 trial invoice — nothing charged yet, nothing to record.
+    // e.g. a $0 trial invoice, or an async payment not yet settled when the
+    // row-binding handler runs — nothing to record yet.
+    console.log(
+      `[stripe-webhook-subscriptions] recordInitialBillingRow: invoice not paid/settled yet invoice=${invoice.id} status=${invoice.status} amount=${amount} — skipping`,
+    );
     return;
   }
 
@@ -797,11 +845,16 @@ async function recordInitialBillingRow(
     .eq('stripe_invoice_id', invoice.id)
     .maybeSingle();
   if (existing?.id) {
+    console.log(
+      `[stripe-webhook-subscriptions] recordInitialBillingRow: already recorded invoice=${invoice.id} — skipping`,
+    );
     return; // already recorded (helper or invoice.payment_succeeded handler).
   }
 
   // Same charge-id fallback as handleInvoicePaymentSucceeded so a subsequent
-  // real invoice.payment_succeeded upsert reconciles onto this row.
+  // real invoice.payment_succeeded upsert reconciles onto this row. This
+  // environment's invoices carry no charge/payment_intent id, so charge_id
+  // falls back to invoice.id — unique per invoice, so it never collides.
   const chargeId =
     (typeof invoice.charge === 'string' && invoice.charge) ||
     (typeof invoice.payment_intent === 'string' && invoice.payment_intent) ||

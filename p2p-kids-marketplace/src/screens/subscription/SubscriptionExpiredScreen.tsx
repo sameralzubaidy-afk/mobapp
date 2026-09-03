@@ -52,13 +52,18 @@ export default function SubscriptionExpiredScreen() {
   const route = useRoute<RouteProps>();
 
   const planName = route.params?.planName || 'Kids Club+';
-  const expiredDate = route.params?.expiredDate
-    ? new Date(route.params.expiredDate).toLocaleDateString(undefined, {
+  // DEV-TASK-94 (2026-09-03): a parent with no real expiration date (e.g. a
+  // never-subscribed account that lands on this screen) previously saw the
+  // placeholder "Your Kids Club+ plan ended on recently" — awkward. When no real
+  // date exists we say the plan is simply no longer active.
+  const hasExpiredDate = Boolean(route.params?.expiredDate);
+  const expiredDate = hasExpiredDate
+    ? new Date(route.params!.expiredDate!).toLocaleDateString(undefined, {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
       })
-    : 'recently';
+    : null;
 
   const handleRenew = () => {
     navigation.navigate('JoinKidsClub');
@@ -83,12 +88,18 @@ export default function SubscriptionExpiredScreen() {
             Subscription Expired
           </Text>
 
-          <View style={styles.dateContainer}>
-            <Text style={styles.message} testID="message">
-              Your {planName} plan ended on
+          {hasExpiredDate ? (
+            <View style={styles.dateContainer}>
+              <Text style={styles.message} testID="message">
+                Your {planName} plan ended on
+              </Text>
+              <Text style={styles.dateHighlight}>{expiredDate}</Text>
+            </View>
+          ) : (
+            <Text style={styles.messageNoDate} testID="message">
+              Your {planName} plan is no longer active.
             </Text>
-            <Text style={styles.dateHighlight}>{expiredDate}</Text>
-          </View>
+          )}
         </View>
 
         <View style={styles.benefitsContainer}>
@@ -112,8 +123,8 @@ export default function SubscriptionExpiredScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Don't let your benefits slip away. Renew now to continue enjoying the full Kids
-            Marketplace experience.
+            Don't let your benefits slip away. Renew now to continue enjoying the full Pass It Up
+            experience.
           </Text>
 
           <TouchableOpacity
@@ -206,6 +217,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1A1A',
+  },
+  messageNoDate: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    textAlign: 'center',
   },
   benefitsContainer: {
     paddingHorizontal: 24,
