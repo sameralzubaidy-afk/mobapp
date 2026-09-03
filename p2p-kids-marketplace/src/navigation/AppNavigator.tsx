@@ -164,6 +164,16 @@ const linking = {
       Favorites: 'favorites',
       SpWallet: 'sp-wallet',
       SpTransactionHistory: 'sp-history',
+      // Dev Task 95 item 1: raw deep-link paths for Badges / Referrals / Chat /
+      // TradeList so `p2pkidsmarketplace://badges|referrals|chat/<tradeId>|trades`
+      // navigate instead of dead-ending (screens were only reachable via in-app
+      // nav / notification taps). SpWallet already had `sp-wallet`.
+      // NOTE: Leaderboard intentionally NOT added — deferred post-MVP per product
+      // decision (matches its lack of an in-app nav entry; see MSG-TC-B05).
+      Badges: 'badges',
+      ReferralDashboard: 'referrals',
+      Chat: 'chat/:tradeId',
+      TradeList: 'trades',
       PhoneVerification: 'phone-verification',
       SuspendedAccount: 'suspended-account',
       ProfileSetup: 'profile-setup',

@@ -2,7 +2,7 @@
 
 **Source of truth:** `Prompts/Done/MODULE-07-MESSAGING.md` · `Prompts/Done/MODULE-08-BADGES-V2.md` · `Prompts/Done/MODULE-08-Badges & Achievements VERIFICATION-V2.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `Prompts/Done/MODULE-10-ID-BADGE-VERIFICATION-V2.md` · `Prompts/Done/MODULE-11-REFERRALS-V2.md` · `Prompts/Done/MODULE-13-SAFETY-COMPLIANCE.md` · `Prompts/Done/MODULE-14-NOTIFICATIONS-V2.md` · `docs/flow-registry.md`
 **Flows covered:** FLOW-13 (Referrals) · FLOW-14 (Messaging/Realtime) · FLOW-15 (Safety & Moderation) · FLOW-16 (CPSC Recall Check) · FLOW-17 (Notifications) · FLOW-29 (ID Badge Submission & Decision Notifications) · Badges/Achievements & ID Verification (trust/reputation)
-**Last updated:** 2026-09-02 (guide-currency audit v2: B05 Leaderboard = no in-app entry (deep-link/notification); C01 re-verify resolved; C05/C06 review copy corrected + Report Other added; Group J re-pointed to live NotificationPreferencesScreen; J05 marked NOT SUPPORTED)
+**Last updated:** 2026-09-03 (Dev Task 95: B05 marked DEFERRED post-MVP — Leaderboard out of scope for QA until prioritized; C06 Dependencies corrected — confirm is in-app GlobalAlertProvider, not native Alert.alert) · 2026-09-02 (guide-currency audit v2: B05 Leaderboard = no in-app entry (deep-link/notification); C01 re-verify resolved; C05/C06 review copy corrected + Report Other added; Group J re-pointed to live NotificationPreferencesScreen; J05 marked NOT SUPPORTED)
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -26,7 +26,7 @@
 | | MSG-TC-B02 | Badge detail modal |
 | | MSG-TC-B03 | Badge showcase on profile |
 | | MSG-TC-B04 | Badge celebration modal on unlock |
-| | MSG-TC-B05 | Leaderboard ranking (no in-app entry — deep-link/notification only) |
+| | MSG-TC-B05 | 🚫 DEFERRED (post-MVP) — Leaderboard ranking (no in-app entry — deep-link/notification only) |
 | **C — Reviews & Ratings** | MSG-TC-C01 | Submit a post-trade review (stars + comment) |
 | | MSG-TC-C02 | Rating required validation |
 | | MSG-TC-C03 | Anonymous review |
@@ -304,21 +304,24 @@
 **Expected Result:**
 - A celebration modal appears: "🎉 New Badge Earned! 🎉" with the badge icon, name, description, confetti animation, and an **Awesome!** button to close.
 
-### MSG-TC-B05 · Leaderboard ranking — 🔎 no in-app entry (deep-link/notification only)
+### MSG-TC-B05 · Leaderboard ranking — 🚫 DEFERRED (post-MVP) — no in-app entry (deep-link/notification only)
 
-> 🔄 **Rewritten 2026-09-02 (guide-currency audit):** the `LeaderboardScreen` exists and is registered (route `Leaderboard`), but there is **no `navigate('Leaderboard')` caller anywhere in `src`** — there is no static in-app menu/tap entry. The only ways to reach it are tapping a `leaderboard_rank_up` notification or the `/leaderboard` deep link (`src/services/deepLink.ts`). The previous guide step ("Open the Leaderboard screen") implied a static entry that does not exist.
+> 🚫 **DEFERRED (post-MVP, 2026-09-03, product decision + Dev Task 95).** The `LeaderboardScreen` exists and is registered (route `Leaderboard`), but Leaderboard is **deferred post-MVP** — it has **no `navigate('Leaderboard')` caller anywhere in `src`**, no static in-app menu/tap entry, and (per Dev Task 95) no `/leaderboard` deep-link path is being added to the React Navigation linking config. **Out of scope for future QA rounds until Leaderboard is prioritized.** Do not treat its reachability as a defect or re-flag it.
+>
+> **Reachability finding retained for when Leaderboard is picked up later:** the screen is reachable today only by tapping a `leaderboard_rank_up` notification (`src/services/deepLink.ts` `TYPE_TO_ROUTE_MAP`). When Leaderboard is prioritized, the linking-config gap (no `Leaderboard: 'leaderboard'` path in `AppNavigator` `linking.config.screens`) will need addressing then.
 
 **Actors:** test-buyer
 
 **Objective:** Verify the leaderboard (reached via its notification/deep-link entry).
 
+**Status:** 🚫 **DEFERRED (post-MVP) — do not run in QA rounds until Leaderboard is prioritized.**
+
 **Steps:**
-1. Reach the **Leaderboard** screen by tapping a `leaderboard_rank_up` notification or opening the `/leaderboard` deep link (there is no other in-app entry).
+1. Reach the **Leaderboard** screen by tapping a `leaderboard_rank_up` notification (there is no other in-app entry and no `/leaderboard` deep link on this build).
 2. Pull to refresh.
 
 **Expected Result:**
 - The screen titled "Leaderboard" lists top traders by badge count with medals (🥇/🥈/🥉) and rank/name/badge count; an empty data set shows "No Badges Yet".
-- **Reachability flag:** because there is no static in-app entry, this case is effectively **deep-link/notification-gated** — if no `leaderboard_rank_up` notification is available, drive it via the `/leaderboard` deep link.
 
 ---
 
@@ -410,10 +413,10 @@
 
 **Locator hints:**
 - Review card ⋯ menu → `review-menu-button` · report actions → `review-report-spam` / `review-report-offensive` / `review-report-false-info` / `review-report-other` (ReviewCard report menu instrumented 2026-08-15; 4th `Report Other` added 2026-08-31).
-- Report confirmation is native `Alert.alert` — dialog locator: N/A — see Dependencies.
+- Report confirmation renders via the in-app `GlobalAlertProvider` branded modal (buttons `global-alert-button-0` = Cancel, `global-alert-button-1` = Report).
 
 **Dependencies:**
-- Native `Alert.alert` (report confirmation) — match 'Confirm' / 'Cancel' by text; assert success "Review reported. Thank you!".
+- In-app `GlobalAlertProvider` (report confirmation) — the dialog is **not** native `Alert.alert` (doc corrected 2026-09-03): `ReviewCard.tsx` calls `Alert.alert('Report Review', …)`, but `GlobalAlertProvider` globally patches `Alert.alert` so every call renders through its branded queue. Resolve `global-alert-button-0` (Cancel) / `global-alert-button-1` (Report) from the AX tree per §5.4; assert success "Review reported. Thank you!".
 
 ---
 
@@ -1182,7 +1185,7 @@
 | Badge detail modal | MSG-TC-B02 |
 | Badge showcase on profile | MSG-TC-B03 |
 | Badge unlock celebration | MSG-TC-B04 |
-| Leaderboard | MSG-TC-B05 |
+| 🚫 DEFERRED (post-MVP) Leaderboard — out of scope for QA until prioritized | MSG-TC-B05 |
 | Submit review (stars+comment) | MSG-TC-C01 |
 | Rating-required validation | MSG-TC-C02 |
 | Anonymous review | MSG-TC-C03 |

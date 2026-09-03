@@ -298,7 +298,7 @@ export default function NotificationPreferencesScreen({ navigation: _navigation 
                     <View style={styles.settingItem}>
                       <View style={styles.settingTextContainer}>
                         <Text style={styles.settingLabel}>In-App Notifications</Text>
-                        <Text style={styles.settingSublabel}>Show badges inside the app</Text>
+                        <Text style={styles.settingSublabel}>Show alerts inside the app</Text>
                       </View>
                       <Switch
                         testID={`toggle-${pref.category}-in_app`}
