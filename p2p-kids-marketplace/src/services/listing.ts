@@ -1221,9 +1221,17 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
  * Fetch a single listing by ID
  *
  * @param listing_id - Listing ID
+ * @param options.asOwnerUserId - When the caller is this listing's OWNER, allow
+ *   loading the listing regardless of status (flagged / rejected / needs_edits)
+ *   — used by the Safety Review + Edit Listing flows. The bypass is only honored
+ *   when the fetched row's seller_id matches this id, so the general-purpose
+ *   strict available-only filter is unchanged for every other caller.
  * @returns Listing object with related data
  */
-export async function getListingById(listing_id: string): Promise<Listing | null> {
+export async function getListingById(
+  listing_id: string,
+  options?: { asOwnerUserId?: string }
+): Promise<Listing | null> {
   try {
     // First, fetch the item without relationship expansion to avoid PostgREST cache issues
     const { data: item, error: itemError } = await supabase
@@ -1244,11 +1252,18 @@ export async function getListingById(listing_id: string): Promise<Listing | null
       // The items_select_same_node_or_own policy blocks viewing items from other nodes,
       // but get_recommendations() (SECURITY DEFINER) can return items from any node.
       // This fallback ensures users can view item details from recommendations.
-      return getListingByIdFallback(listing_id);
+      return getListingByIdFallback(listing_id, options);
     }
 
     // ⭐ FIX: Don't show items that are no longer available (sold, removed, etc.)
-    if (item.status !== 'available') {
+    // DEV-TASK-101: A listing owner may load their OWN non-available (flagged /
+    // rejected / needs_edits) listing for the Safety Review / Edit flows. RLS
+    // (items_select_available_or_own) already limits the direct read to owner or
+    // available rows, so matching seller_id here is belt-and-suspenders and keeps
+    // the strict filter for every non-owner caller.
+    const isOwnerContext =
+      Boolean(options?.asOwnerUserId) && item.seller_id === options?.asOwnerUserId;
+    if (item.status !== 'available' && !isOwnerContext) {
       console.log('[listing] getListingById - item not available (status=' + item.status + '), returning null');
       return null;
     }
@@ -1350,7 +1365,10 @@ export async function getListingById(listing_id: string): Promise<Listing | null
  * This is needed because get_recommendations() bypasses RLS and can return items from any node.
  * MODULE-15.5 PROD-004
  */
-async function getListingByIdFallback(listing_id: string): Promise<Listing | null> {
+async function getListingByIdFallback(
+  listing_id: string,
+  options?: { asOwnerUserId?: string }
+): Promise<Listing | null> {
   try {
     console.log('[listing] getListingByIdFallback - trying RPC bypass for id:', listing_id);
     const { data, error } = await supabase.rpc('get_listing_by_id', {
@@ -1404,7 +1422,13 @@ async function getListingByIdFallback(listing_id: string): Promise<Listing | nul
     };
 
     // ⭐ FIX: Don't show items that are no longer available
-    if (data.status !== 'available') {
+    // DEV-TASK-101: For an owner-scoped read, permit the owner's own non-available
+    // listing. This RPC is SECURITY DEFINER and returns ANY item to an authed user,
+    // so an explicit seller_id match is REQUIRED before honoring the bypass —
+    // otherwise a non-owner could read another user's flagged/rejected row by id.
+    const isOwnerContext =
+      Boolean(options?.asOwnerUserId) && data.seller_id === options?.asOwnerUserId;
+    if (data.status !== 'available' && !isOwnerContext) {
       console.log('[listing] getListingByIdFallback - item not available (status=' + data.status + '), returning null');
       return null;
     }

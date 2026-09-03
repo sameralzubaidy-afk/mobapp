@@ -1,0 +1,891 @@
+guide_full	guide	group	tc_id	description
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A01	Successful signup with valid details
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A02	Field validation errors (name/email/phone/password)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A03	Password mismatch + weak password
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A04	Under-18 date of birth blocked
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A05	Duplicate email blocked
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A06	Optional referral code (valid / invalid handling)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A07	Terms of Service & Privacy Policy links
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	A — Signup (Email/Password)	AUTH-TC-A08	Landing footer legal links (Terms / Privacy Policy)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B01	Successful login routes by onboarding status
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B02	Invalid credentials error
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B03	Forgot Password link
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B04	Session restore after app kill/relaunch
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B05	App resume refreshes silently (no spinner)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B06	Cold launch does not hang on spinner
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B07	Empty-field + invalid-email inline validation
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B08	ACCOUNT_DELETED login branch
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B09	PROFILE_NOT_FOUND login branch
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B10	Back button returns to previous screen
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B11	Sign Up footer link
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	B — Login & Session Restore	AUTH-TC-B12	Log In footer link (Create Account)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	C — Social Login	AUTH-TC-C01	Sign in / Continue with Google
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	C — Social Login	AUTH-TC-C02	Sign in / Continue with Facebook
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	C — Social Login	AUTH-TC-C03	Sign in / Continue with Apple (iOS + Android)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	C — Social Login	AUTH-TC-C04	Existing-email account-link prompt
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	C — Social Login	AUTH-TC-C05	Provider unavailable → email fallback banner
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	C — Social Login	AUTH-TC-C06	User cancels OAuth — silent return
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	C — Social Login	AUTH-TC-C07	Social-only user sets a password
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	D — Logout	AUTH-TC-D01	Logout from Profile with confirmation
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	D — Logout	AUTH-TC-D02	Sign Out from Settings
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	D — Logout	AUTH-TC-D03	After logout, app returns to Landing
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	E — Phone Verification (Deferred Gate)	AUTH-TC-E01	OTP screen sends + verifies 6-digit code
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	E — Phone Verification (Deferred Gate)	AUTH-TC-E02	Incomplete / invalid / expired code errors
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	E — Phone Verification (Deferred Gate)	AUTH-TC-E03	Resend cooldown (60s)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	E — Phone Verification (Deferred Gate)	AUTH-TC-E04	OTP rate limiting message
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	E — Phone Verification (Deferred Gate)	AUTH-TC-E05	Gate blocks first listing until verified
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	F — Node/ZIP Gating & Waitlist (End User)	AUTH-TC-F01	Active ZIP → assigned to node, no waitlist
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	F — Node/ZIP Gating & Waitlist (End User)	AUTH-TC-F02	"Inactive ZIP → ""We're Coming Soon!"" + Join Waitlist"
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	F — Node/ZIP Gating & Waitlist (End User)	AUTH-TC-F03	Waitlist confirmation + fallback node access
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	F — Node/ZIP Gating & Waitlist (End User)	AUTH-TC-F04	Continue Trading without joining waitlist
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	F — Node/ZIP Gating & Waitlist (End User)	AUTH-TC-F05	ZIP auto-lookup shows city/state
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	F — Node/ZIP Gating & Waitlist (End User)	AUTH-TC-F06	Node-scoped content (My Node vs Show All Nodes)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	G — Node Management (Admin)	AUTH-TC-G01	Admin creates an active node (ZIP auto-lookup)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	G — Node Management (Admin)	AUTH-TC-G02	Admin creates an inactive node
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	G — Node Management (Admin)	AUTH-TC-G03	Admin edits a node
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	G — Node Management (Admin)	AUTH-TC-G04	Admin deactivates a node with members (warning)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	G — Node Management (Admin)	AUTH-TC-G05	Admin reactivates a node
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	G — Node Management (Admin)	AUTH-TC-G06	Node stats cards + validation
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	H — Profile Setup & Onboarding	AUTH-TC-H01	Profile Setup: avatar + display name + ZIP
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	H — Profile Setup & Onboarding	AUTH-TC-H02	Profile Setup validation errors
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	H — Profile Setup & Onboarding	AUTH-TC-H03	Avatar upload failure does not block
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	H — Profile Setup & Onboarding	AUTH-TC-H04	~~Welcome screen → Get Started~~ (REMOVED — screen deleted; superseded by H06/H07)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	H — Profile Setup & Onboarding	AUTH-TC-H05	~~Feature Highlights carousel~~ (REMOVED — screen deleted; superseded by H06/H07)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	H — Profile Setup & Onboarding	AUTH-TC-H06	Onboarding carousel: Next / Skip / Get Started
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	H — Profile Setup & Onboarding	AUTH-TC-H07	Onboarding completion routes to Home
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	I — Subscription Choice (Onboarding)	AUTH-TC-I01	~~Start Free Trial enrolls Kids Club+~~ (REMOVED — no in-app trial-choice step; subscription purchase superseded by web-first `JoinKidsClubScreen` path)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	I — Subscription Choice (Onboarding)	AUTH-TC-I02	~~Continue Free stays on free tier~~ (REMOVED — post-Profile-Setup routes to EDU carousel → free-tier Home; no Continue Free step)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	I — Subscription Choice (Onboarding)	AUTH-TC-I03	~~Trial limit reached hides trial CTA~~ (REMOVED — no in-app trial CTA; trial disabled via `admin_config.trial_enabled=false`)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J01	Photo-first gating (fields hidden until 1 photo)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J02	AI auto-fill Apply All + per-field Use
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J03	Required field validation
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J04	Condition / Age Group / Gender / Color options
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J05	"""Other"" category → custom name required"
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J06	Payment preference — subscriber Accept SP toggle
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J07	Payment preference — free user upgrade prompt
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J08	SP earnings preview (subscriber)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J09	Submit for Review → pending + success modal
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J10	Phone-verification gate before publish
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J11	Draft auto-save + resume
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J12	Listing photos — multiple upload, type and size validation
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J13	Listing photos — remove, reorder, replace, and persist after resume
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J14	Bonus category badge appears in picker and preview
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	J — Listing Creation (Single Item)	AUTH-TC-J15	Category-specific SP earn and buyer-cap preview recalculates
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	K — Bulk Listing Creation	AUTH-TC-K01	Multi-photo upload + auto-grouping
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	K — Bulk Listing Creation	AUTH-TC-K02	Regroup / merge / move photos
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	K — Bulk Listing Creation	AUTH-TC-K03	Step indicator: Photos → Group → Review → Publish
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	K — Bulk Listing Creation	AUTH-TC-K04	Apply to All bar (brand/condition/age/gender)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	K — Bulk Listing Creation	AUTH-TC-K05	Submit N Items for Review + confirm sheet
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	K — Bulk Listing Creation	AUTH-TC-K06	Bulk SP summary (subscriber)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	L — Admin Review / Pending	AUTH-TC-L01	New listing not visible in feed until approved
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	L — Admin Review / Pending	AUTH-TC-L02	Admin approves → item becomes visible
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	L — Admin Review / Pending	AUTH-TC-L03	Seller receives approval notification
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	L — Admin Review / Pending	AUTH-TC-L04	Editing an approved listing returns to pending
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M01	Search bar (debounced) + clear
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M02	Recent searches + autocomplete
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M03	Sort options
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M04	Filters modal: SP toggle, Location/Category/Age, More Filters, live count
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M05	"""Accepts SP"" quick-toggle (header ↔ sheet sync)"
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M06	Empty / no-results states
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M07	Recent Searches chip row + Clear
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M08	Trending in {State} section
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M09	Result count + active filter chips (incl. gold SP chip)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	M — Discovery: Search & Filters	AUTH-TC-M10	Discover header: bookmark → Favorites (local header)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	N — Discovery: Category & Favorites	AUTH-TC-N01	Category browse filters results
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	N — Discovery: Category & Favorites	AUTH-TC-N02	Favorite heart toggle on item card
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	N — Discovery: Category & Favorites	AUTH-TC-N03	Infinite scroll pagination
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	N — Discovery: Category & Favorites	AUTH-TC-N04	"""Accepts SP"" badge on item card (gold, §6.7)"
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	O — Discovery: Node Scoping & SP Visibility	AUTH-TC-O01	Results scoped to user's node
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	O — Discovery: Node Scoping & SP Visibility	AUTH-TC-O02	Location ZIP + radius filter
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	O — Discovery: Node Scoping & SP Visibility	AUTH-TC-O03	Inactive ZIP in filter → explicit waitlist opt-in (no auto-enroll)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	O — Discovery: Node Scoping & SP Visibility	AUTH-TC-O04	Subscriber vs free SP visibility
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	O — Discovery: Node Scoping & SP Visibility	AUTH-TC-O05	Admin radius defaults and bounds reflect in Discover
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P01	Header node chip shows registered market (read-only)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P02	Header right cluster: bell + chat + avatar; logout removed from header
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P03	Header chat icon opens Messages with unread badge
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P04	Floating pill nav: order, margins, radius, shadow, safe area
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P05	Inbox removed from nav; Messages via header chat only
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P06	Trades tab: Active Trades (item, counterpart, status label)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P07	Trades tab: Trade History (reverse chronological)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P08	Trades badge counts active (not completed/cancelled)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P09	Basket badge + Home active state unchanged
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P10	Post FAB globally visible + opens Sell sheet
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P11	Composer bar: tap focuses, type, placeholder
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P12	"Composer ""+"" → New Item Photos step, Title pre-filled"
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P13	Composer empty submit → empty Title
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P14	Composer camera → New Item straight to camera
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P15	AI never overwrites composer-pre-filled Title
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P16	FAB Sell sheet unchanged (parallel entry point)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P17	Logout still reachable from Profile/Settings
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P18	Composer analytics (tap + submit with/without text)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	P — Global Header, Floating Nav & Home Composer	AUTH-TC-P19	Accessibility identifiers (Trades tab, header chat)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	Q — Trading Education (End User)	AUTH-TC-Q01	Education Help screen — published sections only
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	Q — Trading Education (End User)	AUTH-TC-Q02	Education Help screen — section by type
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	Q — Trading Education (End User)	AUTH-TC-Q03	SP calculator — sell mode (no hardcoded rates)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	Q — Trading Education (End User)	AUTH-TC-Q04	SP calculator — buy mode (cash + fee + cap)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	Q — Trading Education (End User)	AUTH-TC-Q05	SP calculator — bonus categories + example SP
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	Q — Trading Education (End User)	AUTH-TC-Q06	Education analytics — event tracking (no throw)
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	Q — Trading Education (End User)	AUTH-TC-Q07	Education prompts — onboarding + in-app prompt state machine
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S01	Forgot Password — success + Send Another Email
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S02	Forgot Password — invalid email
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S03	Forgot Password — rate-limit error
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S04	Forgot Password — SMTP-config (500) error
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S05	Forgot Password — 400 error
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S06	Forgot Password — Back to Login
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S07	Reset Password — validation + requirements card
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S08	Reset Password — success → Login
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S09	Reset Password — link-error (expired) → Request New Reset Email
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S10	Reset Password — no active reset session
+AUTH-ONBOARDING-NODES-LISTING-DISCOVERY	AUTH	S — Password Recovery	AUTH-TC-S11	Deep link `p2pkidsmarketplace://reset-password
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A01	Conversation list (search, unread badges, empty state)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A02	Open a chat thread + trade context banner
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A03	Send a text message + delivery status (sent→delivered→read)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A04	Receive a message in real time
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A05	Typing indicator
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A06	Send an image message + full-screen viewer
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A07	Message length limit (2000 chars)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A08	Quick-reply meeting chips
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A09	Safety meeting banner + Learn more
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	A — Messaging: Conversations & Chat	MSG-TC-A10	Photo permission denied error
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	B — Badges & Achievements	MSG-TC-B01	My Badges grid (earned vs locked)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	B — Badges & Achievements	MSG-TC-B02	Badge detail modal
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	B — Badges & Achievements	MSG-TC-B03	Badge showcase on profile
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	B — Badges & Achievements	MSG-TC-B04	Badge celebration modal on unlock
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	B — Badges & Achievements	MSG-TC-B05	🚫 DEFERRED (post-MVP) — Leaderboard ranking (no in-app entry — deep-link/notification only)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	C — Reviews & Ratings	MSG-TC-C01	Submit a post-trade review (stars + comment)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	C — Reviews & Ratings	MSG-TC-C02	Rating required validation
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	C — Reviews & Ratings	MSG-TC-C03	Anonymous review
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	C — Reviews & Ratings	MSG-TC-C04	Skip review
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	C — Reviews & Ratings	MSG-TC-C05	Review display on seller profile + aggregate rating
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	C — Reviews & Ratings	MSG-TC-C06	Report a review (reviewee only)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D01	Start ID verification + upload from library
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D02	Capture ID with camera
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D03	Submit creates pending request
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D04	Duplicate pending request blocked
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D05	No-image submit validation
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D06	Pending state screen
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D07	Approved → Verified badge on profile
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D08	Rejected → reason shown + resubmit
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D09	Submission confirmation notifications reach the user
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	D — ID Badge Verification (End User)	MSG-TC-D10	Decision notifications honor channel preferences
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	E — ID Badge Verification (Admin)	MSG-TC-E01	Review queue (stats, filters, search)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	E — ID Badge Verification (Admin)	MSG-TC-E02	Approve a request
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	E — ID Badge Verification (Admin)	MSG-TC-E03	Reject with reason
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	E — ID Badge Verification (Admin)	MSG-TC-E04	View completed request details
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	E — ID Badge Verification (Admin)	MSG-TC-E05	Edit message templates
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	E — ID Badge Verification (Admin)	MSG-TC-E06	New submission creates admin alert notification
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F01	View referral code + hero
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F02	Copy referral code
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F03	Share referral code (native share)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F04	Active rewards display
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F05	Referral history (pending vs completed)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F06	Enter referral code at signup
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F07	Program paused banner + disabled share
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	F — Referrals	MSG-TC-F08	Admin configures referral rewards
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G01	Listing flagged → Safety Review screen
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G02	Appeal a flagged/rejected listing
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G03	"Resubmit a ""needs edits"" listing"
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G04	Remove a flagged listing
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G05	Recall safety alert notification
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G06	Appeal max-attempt limit follows admin config
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G07	Appeal window follows admin config
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G08	AI moderation toggle affects automated image review
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	G — Safety & Compliance (End User)	MSG-TC-G09	Recall check toggle and threshold affect recall flagging
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	H — Safety & Compliance (Admin)	MSG-TC-H01	Flagged items moderation queue
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	H — Safety & Compliance (Admin)	MSG-TC-H02	Approve a flagged item
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	H — Safety & Compliance (Admin)	MSG-TC-H03	Reject with reason
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	H — Safety & Compliance (Admin)	MSG-TC-H04	Request edits
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	H — Safety & Compliance (Admin)	MSG-TC-H05	Trade dispute: mark under review
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	H — Safety & Compliance (Admin)	MSG-TC-H06	Trade dispute: resolve complete / refund
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	I — Notifications: Permission & Center	MSG-TC-I01	Enable push notifications
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	I — Notifications: Permission & Center	MSG-TC-I02	Push error states (Expo Go / web)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	I — Notifications: Permission & Center	MSG-TC-I03	Notification center list + icons
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	I — Notifications: Permission & Center	MSG-TC-I04	Tap notification → deep link + mark read
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	I — Notifications: Permission & Center	MSG-TC-I05	Mark all as read
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	I — Notifications: Permission & Center	MSG-TC-I06	Pagination + pull to refresh
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	I — Notifications: Permission & Center	MSG-TC-I07	Real-time arrival
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	J — Notification Preferences	MSG-TC-J01	Category × channel toggles (live screen — 5 categories, no Safety)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	J — Notification Preferences	MSG-TC-J02	Default preferences (DB-driven, no hardcoded defaults)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	J — Notification Preferences	MSG-TC-J03	Always-on note (live footer copy)
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	J — Notification Preferences	MSG-TC-J04	Quiet hours (subscriber) + validation
+MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS	MSG	J — Notification Preferences	MSG-TC-J05	🚫 NOT SUPPORTED — ID verification preference category (none exists)
+TRADE-FLOW-V2	TRD	A — Core Happy Paths	TRD-TC-A01	Cash Only: full happy path (buyer confirms)
+TRADE-FLOW-V2	TRD	A — Core Happy Paths	TRD-TC-A02	Accept SP: SP entry at offer → seller accepts → buyer confirms
+TRADE-FLOW-V2	TRD	A — Core Happy Paths	TRD-TC-A03	Accept SP: Pay Cash (0 SP) — subscriber seller still earns SP
+TRADE-FLOW-V2	TRD	A — Core Happy Paths	TRD-TC-A04	Donate listing: [Claim] button, no charge
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B01	Seller declines offer
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B02	Offer expires (seller never responds) + seller ignore prompt
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B03	Multiple competing offers — sort order + auto-decline
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B04	Buyer cancels pending trade — no consequence level
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05	Per-seller cap: max 3 pending offers per seller (2026-07-18)
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05a	Per-seller cap: Buyer at 3 with Seller A can still submit to Seller B
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05b	Per-seller cap: Blocked at 4th offer to same seller
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05c	Per-seller cap: Bundle offer counts as 1 slot, not N
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05d	Per-seller cap: Expired offer frees slot immediately
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05e	Regression: No leftover global cap blocks buyer over old global limit
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05f	Admin config: Change offer cap from 3 to 5 on Trade Timing page
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05g	Admin config: Revert cap from 5 back to 3 (forward-looking only)
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05h	Admin config: Validation — reject invalid values (0, 11)
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05i	Mobile client: Config fetch failure — graceful degradation
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B05j	Regression: Per-seller scope + bundle=1 still hold after config change
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B06	Card declined at offer submission
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B07	Expired offer timeline — no message button
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B08	Chat frozen after trade is cancelled or completed
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B09	Chat remains active for in_progress trades
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B10	Replace Card path (saved card → new card)
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B11	Subscribe-upsell → JoinKidsClub
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B12	SP info tooltip (not wired — flag)
+TRADE-FLOW-V2	TRD	B — Offer Lifecycle	TRD-TC-B13	Duplicate-offer modal navigation (dead code — flag)
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C01	SP reserved on offer submission
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C02	SP restored to buyer on seller decline
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C03	SP restored to buyer on offer expiry
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C04	SP stays reserved when seller accepts
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C05	SP released to seller at trade completion
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C06	SP restored to buyer on seller cancel (in_progress)
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C07	Free user sees locked Use SP button + upgrade modal
+TRADE-FLOW-V2	TRD	C — SP Behavior	TRD-TC-C08	SP entry capped by the item's category cap (50–80%, admin-configurable)
+TRADE-FLOW-V2	TRD	D — Auto-Complete & Timers	TRD-TC-D01	Auto-complete when buyer never taps I Got It
+TRADE-FLOW-V2	TRD	D — Auto-Complete & Timers	TRD-TC-D02	Auto-complete skipped when dispute is open
+TRADE-FLOW-V2	TRD	D — Auto-Complete & Timers	TRD-TC-D03	Offer countdown pill color states
+TRADE-FLOW-V2	TRD	D — Auto-Complete & Timers	TRD-TC-D04	Auto-complete banner visible to buyer only
+TRADE-FLOW-V2	TRD	D — Auto-Complete & Timers	TRD-TC-D05	Post-meetup nudge after auto-complete
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E01	Buyer opens Report a Problem modal
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E02	Disputed trade does not auto-complete
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E03	Buyer UI during active dispute
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E04	Seller UI during active dispute
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E05	Admin resolves dispute → Complete
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E06	Admin resolves dispute → Refund
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E07	Report an Issue modal — no reason (disabled submit)
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E08	Report an Issue modal — reason selected (non-Other)
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E09	"Report an Issue modal — ""Other"" + min-20 description"
+TRADE-FLOW-V2	TRD	E — Dispute Flow	TRD-TC-E10	Report an Issue modal — submitting + success/error
+TRADE-FLOW-V2	TRD	F — Payout	TRD-TC-F01	Payout shown on completion (no dispute)
+TRADE-FLOW-V2	TRD	F — Payout	TRD-TC-F02	Payout held when dispute is open
+TRADE-FLOW-V2	TRD	F — Payout	TRD-TC-F03	Payout needs action when seller has no payout method
+TRADE-FLOW-V2	TRD	G — Notifications	TRD-TC-G01	Offer expiry reminders to seller
+TRADE-FLOW-V2	TRD	G — Notifications	TRD-TC-G02	Auto-complete reminders to buyer
+TRADE-FLOW-V2	TRD	G — Notifications	TRD-TC-G03	Notification throttle per trade
+TRADE-FLOW-V2	TRD	G — Notifications	TRD-TC-G04	Push notifications deep-link to correct screen
+TRADE-FLOW-V2	TRD	G — Notifications	TRD-TC-G05	Buyer cancel-request notification to seller
+TRADE-FLOW-V2	TRD	G — Notifications	TRD-TC-G06	Cancel-request outcome notifications to buyer
+TRADE-FLOW-V2	TRD	G — Notifications	TRD-TC-G07	Cancel-request resolution (keep-trade) notifications
+TRADE-FLOW-V2	TRD	H — Completion CTAs	TRD-TC-H01	Free buyer sees subscription CTA
+TRADE-FLOW-V2	TRD	H — Completion CTAs	TRD-TC-H02	"Subscriber buyer used SP — ""You saved $X"""
+TRADE-FLOW-V2	TRD	H — Completion CTAs	TRD-TC-H03	Subscriber seller on Accept SP listing — SP pending notice
+TRADE-FLOW-V2	TRD	H — Completion CTAs	TRD-TC-H04	Subscriber seller on Cash Only listing — upsell
+TRADE-FLOW-V2	TRD	H — Completion CTAs	TRD-TC-H05	Subscription lifecycle — trial / paid / cancel regression
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I01	Safe meetup card on in_progress trade
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I02	Safe meetup card dismissible per trade
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I03	In-chat safety banner persistent
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I04	Pre-first-message safety modal once per listing
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I05	Chat quick-reply chips on in_progress trade
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I06	Liability disclaimer modal gates purchase (checkbox + Accept & Continue)
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I07	Disclaimer modal Cancel path — no trade created
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I08	Disclaimer modal ✕ close behaves like Cancel
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I09	Disclaimer checkbox resets to unchecked on reopen
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I10	Disclaimer modal loading state
+TRADE-FLOW-V2	TRD	I — Safety UX	TRD-TC-I11	Disclaimer modal not shown for non-trade actions
+TRADE-FLOW-V2	TRD	J — Seller Cancel Consequences	TRD-TC-J01	Seller cancels in_progress trade → Level 1
+TRADE-FLOW-V2	TRD	J — Seller Cancel Consequences	TRD-TC-J02	2nd post-acceptance cancel → Level 2
+TRADE-FLOW-V2	TRD	J — Seller Cancel Consequences	TRD-TC-J03	3rd post-acceptance cancel → Level 3
+TRADE-FLOW-V2	TRD	J — Seller Cancel Consequences	TRD-TC-J04	Seller cancel button only on in_progress
+TRADE-FLOW-V2	TRD	J — Seller Cancel Consequences	TRD-TC-J05	Seller cancel modal shows seller reasons only
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K01	Subscriber sees $1.49 fee + Sales Tax line in value stack
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K02	Non-subscriber sees tiered fee (first-trade $1.49) + Sales Tax line in value stack
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K03	SP discount row conditional on SP used
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K04	Bundle checkout — fee charged per item (admin toggle OFF)
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K05	Bundle checkout — one fee per bundle (admin toggle ON)
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K06	Bundle timeline — fee display matches charge mode
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K07	Admin partial refund — refund price only, keep fee
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K08	Admin partial refund — tax ledger partially refunded
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K09	Payments reconciliation page — charged vs refunded per trade
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K10	Server-side enforcement — one-fee-per-bundle with stale client
+TRADE-FLOW-V2	TRD	K — Value Stack & Fees	TRD-TC-K11	Seller fee = 5% × cash portion (SP trade)
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L01	Bundle banner on trade detail
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L02	Confirm All shortcut for bundle (buyer)
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L03	Bundle offer rows in Offers tab (seller)
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L04	Non-bundle offers render as single rows
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L05	In-progress bundles section in Buying tab
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L06	Bundle banner in Review Offer screen
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L07	Accept All N Items in Review Offer screen
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L08	Individual accept/decline alongside bundle siblings
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L09	**Bundle card in Your Offers (buyer)**
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L10	Bundle cancel prompt (buyer + seller)
+TRADE-FLOW-V2	TRD	L — Bundle Flows	TRD-TC-L11	Bundle checkout skips items already in an active trade — buyer notified, flow continues
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M01	Add first item → active cart created
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M02	Add second item from same seller
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M03	Add item from different seller → choice modal
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M04	Replace Cart option
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M05	Cannot add own item to cart
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M06	Cannot add unavailable / out-of-node item
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M07	Duplicate item prevented in same cart
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M08	Remove item from cart
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M09	Clear cart
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M10	Saved carts: max 3, server rejects 4th save, switch cart
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M11	Minimum cart value warning + checkout blocked
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M12	Max SP available shown per cart item (subscriber)
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M13	Realtime: item becomes unavailable while in cart
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M14	Favorites add / remove
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M15	Favorites screen: availability + empty state
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M16	Success toast appears and auto-dismisses on add-to-cart
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M17	Cart badge increments in sync with toast
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M18	"Toast copy uses ""Trade Basket"" terminology"
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M19	Home dashboard Favorites quick-action tile navigates to Favorites
+TRADE-FLOW-V2	TRD	M — Cart (End User)	TRD-TC-M20	Discover header heart icon navigates to Favorites
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N01	Admin sets minimum cart value → reflects in app
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N02	Admin minimum cart value validation
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N03	Admin updates Minimum Listing Price on Config → Fees tab
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N04	Seller cannot publish single-item listing below threshold
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N05	Bulk: below-threshold items flagged, valid items publish
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N06	Existing listing auto-paused when threshold raised above price
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N07	Seller raises price to meet threshold → listing repurchasable
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N08	Regression: single-item + bundle checkout at/above threshold
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N09	Price adjustment modal displays correct copy and button text (single-item)
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N10	"""Update Price"" dismisses modal and auto-scrolls + auto-focuses price field (single-item)"
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N11	Price adjustment modal in edit listing flow (single-item edit)
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N12	Bulk listing: per-item chip shows dynamic threshold in missing-required warning
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N13	Bulk listing: publish failure shows clear error message for below-threshold items
+TRADE-FLOW-V2	TRD	N — Cart (Admin)	TRD-TC-N14	Regression: minimum-price validation still blocks publish in single-item and bulk flows
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O01	Sales tax shown in checkout/cart breakdown (0 SP)
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O02	Tax base stays on full item price as SP entry changes (offer + checkout)
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O03	Tax $0 when globally disabled
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O04	Tax $0 when node tax disabled
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O05	Tax-exempt user sees Tax Free badge
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O06	Transaction history shows tax details
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O07	Refund shows proportional tax refunded
+TRADE-FLOW-V2	TRD	O — Tax (End User)	TRD-TC-O08	Tax shown on trade timeline/detail for buyer only
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C01	Admin creates a new tax rule for general_tangible_goods
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C02	Admin creates second rule for same category — overlap blocked
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C03	Admin edits existing rule — new version created
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C04	Admin deactivates a rule
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C05	Existing listings backfill to general_tangible_goods
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C06	New single-listing creation receives default tax category
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C07	New bulk-listing creation receives default tax category
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C08	Admin changes individual listing's tax category
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C09	Tax-exempt category configuration
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C10	Price-threshold category configuration (clothing_footwear)
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C11	Fee-in-tax-base toggle on and off
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C12	Unauthorized user cannot view or edit tax configuration
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C13	Audit trail shows actor, timestamp, before/after values
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C14	Admin views and edits category→tax-category mapping
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C15	Category mapping change affects new listings immediately
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C16	Admin cannot map to non-existent or inactive tax category
+TRADE-FLOW-V2	TRD	O-1 — Tax Categories (Admin Config)	TRD-TC-O1-C17	Admin filters tax rules by active / inactive status
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C01	Single taxable item, no SP — offer is quoted/authorized, not collected
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C02	Bundle with taxable, exempt, and threshold items — line-level tax correct
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C03	Platform-fee tax toggle off and on — tax base changes by fee amount
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C04	SP used — taxable base unchanged, card auth reflects SP tender
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C05	Seller accepts — tax remains quoted/authorized, not collected
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C06	Buyer cancels while Awaiting Seller — PI canceled, tax voided, SP released once
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C07	Seller declines and offer expiry — PI canceled, tax voided
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C08	Buyer completes successfully — capture succeeds, tax collected
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C09	Auto-complete after 72 hours — capture succeeds, tax collected
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C10	Capture failure — no payout, no collected tax, recovery state visible
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C11	Duplicate webhook/retry — no duplicate tax collection, payout, or SP event
+TRADE-FLOW-V2	TRD	O-2 — Tax Status Lifecycle	TRD-TC-O2-C12	Historical/backfill records — clearly classified, never falsely marked as collected
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C01	"Buyer wording: ""Payment authorized"" before capture (Awaiting Seller)"
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C02	"Buyer wording: ""Payment authorized"" after seller accept (In Progress)"
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C03	"Buyer wording: ""Paid"" after successful capture (Completed)"
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C04	"Capture failure shows ""payment could not be completed"" (no completed state)"
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C05	Admin dispute route: full refund with Stripe + tax reversal (captured trade)
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C06	Duplicate refund/retry is idempotent
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C07	Admin dispute route: uncaptured PI is cancelled (not refunded)
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C08	Admin dispute route: Stripe refund failure stays unresolved
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C09	Stripe refund pending → tax pending_refund
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C10	Report: newly submitted offer → Pending/Authorized Tax
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C11	Report: captured trade → Tax Collected using capture timestamp
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C12	Report: cancelled/declined/expired → Voided/Expired Tax, not collected
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C13	Report: refunded trade → Tax Refunded, Net adjusts
+TRADE-FLOW-V2	TRD	O-3 — Tax Refund & Reconciliation	TRD-TC-O3-C14	Report: CSV totals match on-screen totals
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P01	Node tax rate config (view/edit, validation)
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P02	Bulk tax update across nodes
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P03	Tax rate change history / audit
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P04	Global tax settings toggle + warning banner
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P05	Tax reporting dashboard: summary + date presets
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P06	Jurisdiction breakdown + 7 report types
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P07	CSV export for filing
+TRADE-FLOW-V2	TRD	P — Tax (Admin)	TRD-TC-P08	Admin changes rate → new transactions use new rate
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q01	Review prompt ([Rate Seller] / [Rate Buyer]) on completion
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q02	Star rating required — submit blocked without rating
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q03	Comment optional, max 500 characters
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q04	Anonymous review hides reviewer identity
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q05	Skip review — no blocking, no re-prompt for same trade
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q06	Mutual review status shown on completed trade detail
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q07	Completed reviews visible on counterparty's profile
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q08	Average rating and total review count on user profile
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q09	Rating breakdown (5 → 1 stars) on profile
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q10	Edit review succeeds within 24h window
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q11	Edit blocked after 24h window
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q12	One review per trade — duplicate submission blocked
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q13	30-day same-counterparty cooldown enforced
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q14	24h post-completion cooldown — review locked
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q15	Flag a review (select reason)
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q16	Auto-hide review after 3+ reports
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q17	Cannot flag own review
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q18	Admin moderation queue — reported reviews with counts
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q19	Admin approves (unhides) a reported review
+TRADE-FLOW-V2	TRD	Q — Reviews & Ratings	TRD-TC-Q20	Admin deletes a reported review
+TRADE-FLOW-V2	TRD	R — Refund & Cancellation State Machine	TRD-TC-R01	Buyer cancels pending trade → cancelled, auth voided, SP restored
+TRADE-FLOW-V2	TRD	R — Refund & Cancellation State Machine	TRD-TC-R02	Seller declines pending offer → cancelled, SP restored
+TRADE-FLOW-V2	TRD	R — Refund & Cancellation State Machine	TRD-TC-R03	Offer expiry → auto-cancel + competing offers cancelled
+TRADE-FLOW-V2	TRD	R — Refund & Cancellation State Machine	TRD-TC-R04	Card declined at offer submission → no trade created
+TRADE-FLOW-V2	TRD	R — Refund & Cancellation State Machine	TRD-TC-R05	Seller cancels in_progress → refund + consequence level
+TRADE-FLOW-V2	TRD	R — Refund & Cancellation State Machine	TRD-TC-R06	Refund settlement breakdown (cash + proportional tax + fee)
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T01	"SP input appears only on eligible items; ineligible show ""Not eligible"" label"
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T02	Entered SP applies correct amount (wallet + category cap both sufficient)
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T03	"Entered SP applies partial amount with ""Limited by your SP balance"" subtext when wallet insufficient"
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T04	Category cap limits applied points even when wallet covers more
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T05	Clearing SP restores balance for sequential allocation
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T06	"Running ""Points remaining"" counter updates accurately across entries/clears"
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T07	"Order Summary ""Points Applied"" line and cash total correct after multiple SP entries"
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T08	Seller Review Offer shows per-item points breakdown
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T09	"Seller Review Offer shows ""Total Payout"" and ""Buyer's Total Paid"" correctly"
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T10	"""Includes points redemption"" tag on seller's offer list/inbox card"
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T11	Wallet ledger: buyer debited at offer, seller credited + bonus at completion
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T12	No ledger transaction on offer decline
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T13	Regression: single-item (non-bundle) offer flow with SP still works
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-T14	"Regression: bundle CTA, different-seller modal, ""more from this seller"" still functional"
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-R07	SP reversal on refund (reserved/transferred returned)
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-R08	Seller payout withheld / cancelled on refund
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-R09	Admin dispute resolve → Refund (full settlement)
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-R10	Admin dispute resolve → Complete (no refund)
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-R11	Refund / cancellation notifications to both parties
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-R12	Refund idempotency — no double refund
+TRADE-FLOW-V2	TRD	T — Points Redemption (Bundle Checkout)	TRD-TC-R13	Cancelled / refunded trade status + timeline
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S01	Different-seller modal uses generic copy (no seller name leak)
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S02	"""More from this seller"" icon appears only when 2+ approved listings"
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S03	"""More from this seller"" icon hidden when seller has exactly 1 listing"
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S04	"Tapping icon opens ""More from this seller"" page — no seller identity"
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S05	Add to Cart from filtered seller page populates cart correctly
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S06	"""Matches Your Cart"" indicator on filtered seller page"
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S07	Bundle CTA appears on CartScreen with 2+ same-seller items
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S08	Bundle CTA hidden with single item or empty cart
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S09	Bundle CTA navigates to checkout in bundle mode
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S10	"Bundle checkout shows ""Bundle Offer"" banner"
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S11	Regression: Discover/search grid unchanged (no badges)
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S12	Regression: single-item offer flow unchanged
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S13	Regression: seller identity unlocks only post-acceptance
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S14	More from seller — Item Detail CTA in standalone position (below seller card)
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S15	More from seller — Item Detail CTA hidden at 0 additional listings
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S16	"More from seller — Item Detail CTA does not disrupt ""Matches Your Cart"" badge"
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S17	More from seller — Trade Basket banner shows correct remaining-item count
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S18	More from seller — Trade Basket banner recalculates after adding item from filtered page
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S19	More from seller — Trade Basket banner disappears when all seller's listings are in basket
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S20	More from seller — Trade Basket banner dismissible via X button
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S21	More from seller — Banner and filtered page never reveal seller identity
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S22	Regression: Seller Info card elements unchanged
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S23	Regression: Trade Basket subtotal/total/bundle CTA layout unaffected
+TRADE-FLOW-V2	TRD	S — Seller Group & Bundle Discovery	TRD-TC-S24	More from seller — Return-to-Cart navigation after adding item from filtered page
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X01	Bottom nav renders identically on Home (Dashboard)
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X02	Bottom nav renders identically on Discover
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X03	Bottom nav renders identically on Trades
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X04	Bottom nav renders identically on Trade Basket
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X05	Bottom nav renders on Item Detail / Cart Checkout / Trade screens
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X06	Bottom nav renders on Profile, Settings, Wallet, Subscriptions
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X07	Cart badge shows item count from multiple entry points
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X08	Cart badge count accuracy — add / remove / clear
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X09	"""Me"" tab removed — Profile still accessible via Home avatar"
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X10	Sell FAB opens action sheet on every screen
+TRADE-FLOW-V2	TRD	X — Navigation Consistency & Bottom Nav	TRD-TC-X16	Flow Registry (nav) — flow-registry.md entries updated
+TRADE-FLOW-V2	TRD	U — Top Nav Header Pattern Consistency	TRD-TC-U01	Root/tab screens use pattern 1 (no back button, greeting/avatar/title, bell)
+TRADE-FLOW-V2	TRD	U — Top Nav Header Pattern Consistency	TRD-TC-U02	Secondary/detail screens use pattern 2 (back button + title + bell)
+TRADE-FLOW-V2	TRD	U — Top Nav Header Pattern Consistency	TRD-TC-U03	Notification bell behavior + badge accuracy
+TRADE-FLOW-V2	TRD	U — Top Nav Header Pattern Consistency	TRD-TC-U04	Screens without ScreenLayout still have working headers
+TRADE-FLOW-V2	TRD	U — Top Nav Header Pattern Consistency	TRD-TC-U05	Checkout/payment screens intentionally hide the bell
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V01	"""Basket"" (short form) appears in bottom tab bar"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V02	"""Trade Basket"" appears as screen title on Cart screen"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V03	"Empty state shows ""trade basket"" in copy"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V04	"""View Trade Basket"" button on Item Detail screen"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V05	"""Add to Trade Basket"" button on More from This Seller screen"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V06	"""In Trade Basket"" status on More from This Seller items already in basket"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V07	"""Added to Trade Basket"" alert on item add"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V08	"""Matches Your Trade Basket"" badge on matching items"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V09	"Different-seller modal references ""trade basket"""
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V10	"Bundle CTA says ""Make one offer"" (no ""Bundle"" visible)"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V11	"""Combined Offer"" banner on checkout (no ""Bundle"" visible)"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V12	"Bundle Builder screen title shows ""Build Offer"" (no ""Bundle"" visible)"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V13	"Favorites ""Added to Trade Basket"" alert copy"
+TRADE-FLOW-V2	TRD	V — Copy Rename Verification	TRD-TC-V14	Functional behavior unchanged (adding items, submitting offers)
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W01	"Trades page has ""Single Trades"" and ""Bundle Trades"" tabs"
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W02	Single Trades tab shows only non-bundle trades
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W03	Bundle Trades tab groups trades by bundle_id
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W04	Bundle row shows item count, totals, buyer/seller, statuses
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W05	Clicking a bundle row navigates to bundle detail page
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W06	Bundle detail page lists all trades in the bundle
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W07	Bundle detail page shows monetary breakdown
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W08	Each trade row links to individual trade detail
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W09	"Bundle detail page has ""Force Cancel Entire Bundle"" action"
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W10	Force Cancel succeeds for all trades in the bundle
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W11	Status filter works in Bundle Trades view
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-W12	Tab toggle resets filters when switching views
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-D06	Pickup window drives the auto-complete deadline (R2 — configurable)
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-G05	Pickup-window reminders to buyer (R2)
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C01	Retried offer submission → exactly 1 PaymentIntent / 1 trade / 1 SP reservation / 1 audit row
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C02	Retried payout trigger → exactly 1 seller_payouts row / 1 Stripe transfer
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C03	Retried refund / duplicate refund webhook → exactly 1 refund, no double refund
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C04	Re-run SP release processor → no double-credit
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C05	Retried SP debit/credit on cancel → no double mutation
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C06	Admin SP adjustment double-click → single credit
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C07	Audit completeness — every payment/SP/fee/tax transition logged
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C08	Audit log insert-only + RLS (service-role/admin read)
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C09	Duplicate idempotency key → prior result, no partial write
+TRADE-FLOW-V2	TRD	W — Admin Bundle Trade Views	TRD-TC-N2-C10	Reconciliation — payments vs trade_refunds vs financial_audit_log
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y01	Trade List summary filter chips
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y02	Trade List Load More history pagination
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y03	Trade List Message button on rows
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y04	"Trade List ""See all →"" link"
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y05	R15 — Request More Time (requester)
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y06	R15 — counterparty Accept
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y07	R15 — counterparty Decline
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y08	R15 — granted state
+TRADE-FLOW-V2	TRD	Y — Trade List & Timeline	TRD-TC-Y09	"""What to do next"" card + ""Got it"" toggle"
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z01	Buyer request → seller approves → cancel + refund
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z02	Seller declines → escalate → admin approve-cancel
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z03	Timeout auto-escalates to admin
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z04	Buyer withdraws a pending request
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z05	Bundle: whole-bundle default + per-item option
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z06	Escalation disabled → decline ends the request
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z07	Gating: no request on pending/completed/disputed/duplicate
+TRADE-FLOW-V2	TRD	Z — Buyer Cancel Request & Escalation	TRD-TC-Z08	Regression: seller instant cancel unchanged
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	A — Settings Hub	ACC-TC-A01	Settings screen sections + rows render
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	A — Settings Hub	ACC-TC-A02	Sign Out confirmation
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	A — Settings Hub	ACC-TC-A03	Test Push Notification (rate limit / quiet hours / queued)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	A — Settings Hub	ACC-TC-A04	Settings → legal & help links navigate
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	A — Settings Hub	ACC-TC-A05	"""Manage Payment Methods"" row navigates"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B01	Edit profile fields load + save (optimistic)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B02	Email change requires re-verification
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B03	Phone change → OTP verification modal
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B04	Avatar upload
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B05	Profile screen stats, badges, reviews, status badge
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B06	Form validation (phone 10-digit, email format)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B07	"""No Changes"" alert"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B08	Waitlist prompt (unreachable from Edit Profile — flag)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B09	"""Already verified"" phone path"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	B — Edit Profile	ACC-TC-B10	"Locked-field ""cannot be changed"" alerts"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	C — Linked Accounts	ACC-TC-C01	Linked accounts list (email readonly, password, social)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	C — Linked Accounts	ACC-TC-C02	Link a social provider (password re-auth gate)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	C — Linked Accounts	ACC-TC-C03	Unlink provider (confirmation + last-method guard)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	C — Linked Accounts	ACC-TC-C04	Email mismatch on link blocked
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	D — Notification Preferences	ACC-TC-D01	Five categories × three channel toggles
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	D — Notification Preferences	ACC-TC-D02	Optimistic toggle reverts on failure
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	D — Notification Preferences	ACC-TC-D03	Quiet hours toggle + time validation
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	D — Notification Preferences	ACC-TC-D04	Empty state → Initialize Settings
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	E — Delete Account (COPPA)	ACC-TC-E01	Delete account consequences + password gate
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	E — Delete Account (COPPA)	ACC-TC-E02	Wrong password blocked
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	E — Delete Account (COPPA)	ACC-TC-E03	Two-step confirmation → deletion + logout
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	F — Suspended / Unsubscribe / Offline	ACC-TC-F01	Suspended account screen (Contact Support + Log Out, no email)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	F — Suspended / Unsubscribe / Offline	ACC-TC-F02	Unsubscribe via deep-link token (success/error)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	F — Suspended / Unsubscribe / Offline	ACC-TC-F03	Offline screen + Try Again
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	F — Suspended / Unsubscribe / Offline	ACC-TC-F04	Suspended account — Log Out tap
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G01	Greeting + subscription badge + SP balance
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G02	Dashboard banners (independent top banners + Action Items list)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G03	Quick action tiles route correctly
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G04	ID verification CTA banner (none / rejected only)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G05	Recommendations + recent trade card
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G06	Pull-to-refresh reloads dashboard
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G07	"""Show more actions"" toggle"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G08	"Free-user ""Unlock Swap Points"" strip"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G09	"""No session found"" state"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G10	Empty-trade state
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G11	"""View Timeline"" nav"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G12	"""See All"" → Discover nav"
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	G — Home Dashboard	ACC-TC-G13	Subscription-card Upgrade button
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	H — Help & Support Menu	ACC-TC-H01	Help & Support menu (3 cards) routes (entered from Profile)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	H — Help & Support Menu	ACC-TC-H02	FAQ list — search + category filter
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	H — Help & Support Menu	ACC-TC-H03	FAQ fallback when offline
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	H — Help & Support Menu	ACC-TC-H04	FAQ detail — helpful vote (Yes/No)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	H — Help & Support Menu	ACC-TC-H05	Contact Support form (unified flow — logged-in AND logged-out)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	H — Help & Support Menu	ACC-TC-H06	No raw support-email surfaces (cross-screen sweep)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	H — Help & Support Menu	ACC-TC-H07	Contact Support reachable logged-out (Login + Signup entry)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	I — Education & SP Calculator	ACC-TC-I01	Education Help screen sections (accordion + deep link)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	I — Education & SP Calculator	ACC-TC-I02	SP Calculator (free mode) sell/buy outputs
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	I — Education & SP Calculator	ACC-TC-I03	SP Calculator bonus category badge
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	I — Education & SP Calculator	ACC-TC-I04	SP Calculator validation (price range)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	I — Education & SP Calculator	ACC-TC-I05	Education analytics events fire
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J01	Terms of Service view + last updated
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J02	TOS acceptance flow (requireAcceptance)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J03	Privacy Policy view + acceptance
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J04	Liability Disclaimer view (read-only + retry)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J05	Policy versioning — re-acceptance on new version
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J06	Signup implies TOS + Privacy agreement (no mandatory dialog)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J07	Legal screen unavailable state (no published policy)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J08	Legal screen load failure — inline error (Retry only on Liability)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J09	Very long policy content renders + scrolls smoothly
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J10	Legal screens render consistently on iOS and Android
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J11	Legal screen loads < 2s and scrolls without lag
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	J — Legal Screens	ACC-TC-J12	Liability Disclaimer unavailable state
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	K — Privacy & Security / MFA 🚫	ACC-TC-K01	🚫 NOT IMPLEMENTED — MFA factors list + enrollment (no UI exists)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	K — Privacy & Security / MFA 🚫	ACC-TC-K02	🚫 NOT IMPLEMENTED — enroll/verify authenticator factor (no UI)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	K — Privacy & Security / MFA 🚫	ACC-TC-K03	🚫 NOT IMPLEMENTED — MFA challenge on protected action (no UI)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	K — Privacy & Security / MFA 🚫	ACC-TC-K04	🚫 NOT IMPLEMENTED — recovery / remove factor (no UI)
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	L — Error Recovery & Crash Reporting	ACC-TC-L01	Render-time error shows fallback instead of red/white screen
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	L — Error Recovery & Crash Reporting	ACC-TC-L02	Try Again recovers after transient error
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	L — Error Recovery & Crash Reporting	ACC-TC-L03	Persistent error stays contained to fallback
+ACCOUNT-DASHBOARD-HELP-LEGAL	ACC	L — Error Recovery & Crash Reporting	ACC-TC-L04	Error reporting is safe with and without telemetry
+ADMIN-PORTAL	ADM	A — Auth & Dashboard	ADM-TC-A01	Admin login with admin role
+ADMIN-PORTAL	ADM	A — Auth & Dashboard	ADM-TC-A02	Non-admin login rejected (RBAC gate)
+ADMIN-PORTAL	ADM	A — Auth & Dashboard	ADM-TC-A03	Dashboard layout: intro → health strip → Action Center → KPIs (no duplicate nav)
+ADMIN-PORTAL	ADM	A — Auth & Dashboard	ADM-TC-A04	Direct protected route access without session redirects to login
+ADMIN-PORTAL	ADM	A — Auth & Dashboard	ADM-TC-A05	Expired session redirects once without a loop
+ADMIN-PORTAL	ADM	A — Auth & Dashboard	ADM-TC-A06	Dashboard KPI cards follow design-system styling
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B01	User list, search, status filters, pagination
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B02	User detail drawer (identity, subscription, SP, trades)
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B03	Suspend / ban / delete account
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B04	Credit/debit SP + freeze wallet from user
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B05	User analytics cards (totals, DAU/MAU)
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B06	Reset Password action
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B07	Unsuspend action
+ADMIN-PORTAL	ADM	B — User Management	ADM-TC-B08	Sort By / Sort Order
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C01	Listing management — search & analytics tabs
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C02	Flagged items — filter tabs + statuses
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C03	Approve flagged item
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C04	Reject item with required reason
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C05	Item detail view + appeal info
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C06	Force Delete
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C07	Pause
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C08	Approve
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C09	Request Edits
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C10	Reject
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C11	Select-all / selection counter (no bulk execute — flag)
+ADMIN-PORTAL	ADM	C — Listings, Items & Flagged	ADM-TC-C12	Individual filter controls
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D01	Category list, filters (incl. Bonus), search
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D02	Create / edit category + SP multiplier
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D03	Activate / deactivate category
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D04	Category suggestions queue + count badge
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D05	Icon / badge upload
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D06	SP spending cap %
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D07	SP redemption cap
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D08	Drag-and-drop reorder
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D09	Bulk actions (Activate / Deactivate / Delete / Export CSV)
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D10	Delete category + guards
+ADMIN-PORTAL	ADM	D — Categories	ADM-TC-D11	Suggestion Approve / Merge / Reject
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E01	Geographic nodes list + stats
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E02	Add / edit node
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E03	Deactivate node with members warning
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E04	Node settings (radius validations)
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E05	ZIP waitlist queue + status filter
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E06	Node tagging completeness (N6) — every record resolves to one node
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E07	Per-node KPIs (N6) — expansion-gate metrics per node
+ADMIN-PORTAL	ADM	E — Nodes & Waitlist	ADM-TC-E08	Waitlist API authorization (401 without admin session)
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F01	Global configuration inline edit + permission gate
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F02	Cart settings (min value, max carts, expiry)
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F03	Trade timing config (timing keys + nested validation) — incl. consolidated fees
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F04	Settings single-source — cross-link + last-updated + audit
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F05	N1 configurability — pickup countdown + payout buffer (live)
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F06	R2 — 7-day guardrail (hard block) + pickup reminders (live)
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F07	Trade Pipeline visualization — see & track trades in all stages
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F08	R1 tiered buyer-fee fields (live)
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F09	Buyer Fee-Tier Distribution table (moved → /analytics)
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F10	Legacy fee keys (audit-only, read-only — live)
+ADMIN-PORTAL	ADM	F — Global Config & Settings	ADM-TC-F11	Reset button
+ADMIN-PORTAL	ADM	G — Policy Management	ADM-TC-G01	Policy tabs (TOS/Privacy/Liability) + versions
+ADMIN-PORTAL	ADM	G — Policy Management	ADM-TC-G02	Create new policy version (version regex)
+ADMIN-PORTAL	ADM	G — Policy Management	ADM-TC-G03	Edit draft policy
+ADMIN-PORTAL	ADM	G — Policy Management	ADM-TC-G04	Publish policy (confirmation)
+ADMIN-PORTAL	ADM	H — Trades	ADM-TC-H01	Trade list filters + columns
+ADMIN-PORTAL	ADM	H — Trades	ADM-TC-H02	Trade detail (info, monetary breakdown, audit)
+ADMIN-PORTAL	ADM	H — Trades	ADM-TC-H03	Trade admin actions
+ADMIN-PORTAL	ADM	H — Trades	ADM-TC-H04	Subscription Context section
+ADMIN-PORTAL	ADM	H — Trades	ADM-TC-H05	External References (Stripe PI/refund + SP ledger IDs)
+ADMIN-PORTAL	ADM	H — Trades	ADM-TC-H06	Sales Tax line in monetary breakdown
+ADMIN-PORTAL	ADM	I — Disputes	ADM-TC-I01	Dispute queue + SLA highlighting
+ADMIN-PORTAL	ADM	I — Disputes	ADM-TC-I02	Mark dispute under review
+ADMIN-PORTAL	ADM	I — Disputes	ADM-TC-I03	Resolve dispute — Complete
+ADMIN-PORTAL	ADM	I — Disputes	ADM-TC-I04	Resolve dispute — Refund
+ADMIN-PORTAL	ADM	I — Disputes	ADM-TC-I05	Filter-tab click behavior (All/Reported/Under Review)
+ADMIN-PORTAL	ADM	J — Tax Admin	ADM-TC-J01	Tax admin entry points (no bare /tax — use sub-pages)
+ADMIN-PORTAL	ADM	K — Payouts	ADM-TC-K01	Payout fee configuration + test breakdown
+ADMIN-PORTAL	ADM	K — Payouts	ADM-TC-K02	Payouts management list, stats, filters
+ADMIN-PORTAL	ADM	K — Payouts	ADM-TC-K03	Retry failed payout (confirmation)
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L01	SP Economy hub tabs (Health/Flow/Rules)
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L02	SP Analytics dashboard + CSV export
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L03	SP Wallet admin — economy metrics + search
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L04	SP adjustment (credit/deduct) with reason
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L05	Freeze / unfreeze / suspend wallet
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L06	SP Economy summary metrics — dashboard + /sp-wallet entry (no home card)
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L07	SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state
+ADMIN-PORTAL	ADM	L — SP Economy / Analytics / Wallet	ADM-TC-L08	SP Wallet warning banners (mobile) — frozen/suspended/grace
+ADMIN-PORTAL	ADM	M — Subscriptions Admin	ADM-TC-M01	Grace period config (days + reminders)
+ADMIN-PORTAL	ADM	M — Subscriptions Admin	ADM-TC-M02	Subscriptions list, filters, metrics
+ADMIN-PORTAL	ADM	M — Subscriptions Admin	ADM-TC-M03	Extend / cancel / reactivate
+ADMIN-PORTAL	ADM	M — Subscriptions Admin	ADM-TC-M04	Reactivate button (confirm + mobile reflection)
+ADMIN-PORTAL	ADM	M — Subscriptions Admin	ADM-TC-M05	Metrics cards (MRR/churn/trial)
+ADMIN-PORTAL	ADM	M — Subscriptions Admin	ADM-TC-M06	"""free"" status filter"
+ADMIN-PORTAL	ADM	N — Referrals Admin	ADM-TC-N01	Referral configuration tab
+ADMIN-PORTAL	ADM	N — Referrals Admin	ADM-TC-N02	Referral analytics tab
+ADMIN-PORTAL	ADM	N — Referrals Admin	ADM-TC-N03	5 SP fields + 3 toggles
+ADMIN-PORTAL	ADM	N — Referrals Admin	ADM-TC-N04	"""Missing configuration"" warning"
+ADMIN-PORTAL	ADM	O — ID Badge Verification	ADM-TC-O01	ID badge queue + stats + status filter
+ADMIN-PORTAL	ADM	O — ID Badge Verification	ADM-TC-O02	Review request — approve
+ADMIN-PORTAL	ADM	O — ID Badge Verification	ADM-TC-O03	Review request — reject with reason
+ADMIN-PORTAL	ADM	O — ID Badge Verification	ADM-TC-O04	Request details (screenshot deleted note)
+ADMIN-PORTAL	ADM	O — ID Badge Verification	ADM-TC-O05	Message templates edit
+ADMIN-PORTAL	ADM	P — Badges & Sandbox	ADM-TC-P01	Badge management list + toggle
+ADMIN-PORTAL	ADM	P — Badges & Sandbox	ADM-TC-P02	Create/edit/delete badge
+ADMIN-PORTAL	ADM	P — Badges & Sandbox	ADM-TC-P03	Manual award badge
+ADMIN-PORTAL	ADM	P — Badges & Sandbox	ADM-TC-P04	Badge sandbox event simulation
+ADMIN-PORTAL	ADM	Q — Review Moderation	ADM-TC-Q01	Reported reviews list + reason filter
+ADMIN-PORTAL	ADM	Q — Review Moderation	ADM-TC-Q02	Hide review (confirmation — copy corrected)
+ADMIN-PORTAL	ADM	Q — Review Moderation	ADM-TC-Q03	Approve review (unhide + delete reports — copy corrected)
+ADMIN-PORTAL	ADM	Q — Review Moderation	ADM-TC-Q04	Status filter dropdown
+ADMIN-PORTAL	ADM	Q — Review Moderation	ADM-TC-Q05	Sort-by dropdown
+ADMIN-PORTAL	ADM	Q — Review Moderation	ADM-TC-Q06	Search input
+ADMIN-PORTAL	ADM	R — Education & FAQ CMS	ADM-TC-R01	Education sections/examples/analytics
+ADMIN-PORTAL	ADM	R — Education & FAQ CMS	ADM-TC-R02	FAQ management (questions/categories/analytics)
+ADMIN-PORTAL	ADM	R — Education & FAQ CMS	ADM-TC-R03	Publish FAQ / education content
+ADMIN-PORTAL	ADM	S — Support Messages	ADM-TC-S01	Support inbox + unread filter (incl. Guest tickets)
+ADMIN-PORTAL	ADM	S — Support Messages	ADM-TC-S02	Support detail + mark as read
+ADMIN-PORTAL	ADM	S — Support Messages	ADM-TC-S03	Support reply (stored + emailed to user)
+ADMIN-PORTAL	ADM	T — Analytics	ADM-TC-T01	Revenue & Analytics dashboard
+ADMIN-PORTAL	ADM	T — Analytics	ADM-TC-T02	Notification analytics (category/type/variant)
+ADMIN-PORTAL	ADM	U — Audit Logs	ADM-TC-U01	Audit logs view
+ADMIN-PORTAL	ADM	V — Monitoring & Cron	ADM-TC-V01	Monitoring run + alerts (acknowledge/note)
+ADMIN-PORTAL	ADM	V — Monitoring & Cron	ADM-TC-V02	Cron jobs status + run history + timezone
+ADMIN-PORTAL	ADM	W — Sidebar Navigation	ADM-TC-W01	Sidebar grouped into 7 labeled sections
+ADMIN-PORTAL	ADM	W — Sidebar Navigation	ADM-TC-W02	Expand / collapse a section via label + chevron
+ADMIN-PORTAL	ADM	W — Sidebar Navigation	ADM-TC-W03	Section state persists per admin across sessions
+ADMIN-PORTAL	ADM	W — Sidebar Navigation	ADM-TC-W04	Active route auto-expands its parent section
+ADMIN-PORTAL	ADM	W — Sidebar Navigation	ADM-TC-W05	Active/inactive item styling + label typography
+ADMIN-PORTAL	ADM	W — Sidebar Navigation	ADM-TC-W06	Collapsed icon rail shows all destinations
+ADMIN-PORTAL	ADM	W — Sidebar Navigation	ADM-TC-W07	All previous nav destinations still reachable
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X01	Action Center page loads aggregated cards
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X02	Same-type items bundled with count
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X03	Severity tags (Urgent/Routine)
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X04	Expand card drills into item list
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X05	Inline approve flagged item
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X06	Inline mark dispute under review
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X07	Inline retry failed payout (confirmation)
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X08	"Empty state ""All caught up"""
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X09	Sidebar pinned nav item + live count badge
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X10	Header bell opens Action Center + badge
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X11	Config drift card lists out-of-range settings
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X12	Dashboard embeds top-5 Action Center cards + View all link
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X13	Cancellation Insights card drill
+ADMIN-PORTAL	ADM	X — Action Center	ADM-TC-X14	/cancellation-insights full page
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y01	⌘K / Ctrl+K opens the palette from any page
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y02	Header search bar opens the palette
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y03	Parallel search across 4 entity types with grouped labels
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y04	Breadcrumb context per result row
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y05	Input debounced ~200ms
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y06	"Top 5 per group + ""See all N results"" expansion"
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y07	"Footer ""View all in <domain>"" → prefilled list page"
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y08	Selecting a result navigates directly
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y09	Keyboard navigation (↑/↓/↵/Esc) + focus trap
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y10	Non-admin rejected (permission scoping)
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y11	Secret settings values never shown
+ADMIN-PORTAL	ADM	Y — Command Palette & Global Search	ADM-TC-Y12	Empty + no-results states
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-Z01	Health strip renders below title, above Action Center
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-Z02	Six indicators with colored dots + labels + values
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-Z03	Dot color reflects configurable thresholds
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-Z04	Clicking an indicator navigates to its detail page
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-Z05	Failed Payouts deep-link pre-filters to failed
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-Z06	Thresholds tunable via /config (health) without code change
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-Z07	Dashboard embeds Action Center below the strip
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A01	Financial audit journal viewable per trade
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A02	Admin SP adjustment — double-click cannot double-credit
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A03	Duplicate refund attempt rejected (no double refund)
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A04	Payout — single row per trade, single transfer
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A05	Financial Audit screen accessible from sidebar + renders
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A06	Financial Audit — search & filters
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A07	Financial Audit — row details, trade link, amount formatting
+ADMIN-PORTAL	ADM	Z — Dashboard Health Strip	ADM-TC-N2-A08	Financial Audit — summary strip reconciles with journal
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	A — Plans & Comparison	SUB-TC-A01	Subscription Plans screen — Free vs Kids Club+ cards
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	A — Plans & Comparison	SUB-TC-A02	Plan Comparison table — feature-by-feature + POPULAR badge
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	A — Plans & Comparison	SUB-TC-A03	Dynamic pricing & fees pulled from admin config
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	A — Plans & Comparison	SUB-TC-A04	"Current plan reflected (button disabled / ""Current Plan"")"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	A — Plans & Comparison	SUB-TC-A05	Kids Club+ Overview screen by subscription status
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B01	🔴 RETIRED — in-app payment removed; web-first → SUB-TC-N01/N02 + Web Subscription Purchase E2E (QA Task 20)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B02	🔴 RETIRED — in-app payment screen removed; coverage → Web Subscription Purchase E2E (QA Task 20)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B03	🔴 RETIRED — in-app Success screen removed; coverage → Web Subscription Purchase E2E (QA Task 20)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B04	🔴 RETIRED — in-app trial-gating removed; server-side trial config → QA Task 20 finding F-3
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B05	🔴 RETIRED — in-app trial-disabled alert removed; coverage → QA Task 20 finding F-3
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B06	🔴 RETIRED — ContinueKidsClub is deep-link-only; see SUB-TC-N03–N06
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B07	🔴 RETIRED — referral bonus-loss warning on removed Subscription Choice; see SUB-TC-N03
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B08	🔴 RETIRED — in-app trial-limit CTA removed; config reflection → SUB-TC-R05
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B09	🔴 RETIRED — in-app Stripe sheet removed; checkout UX → QA Task 20 scope 2
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B10	🔴 RETIRED — in-app decline handling removed; checkout decline → QA Task 20 scope 2
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B11	🔴 RETIRED — in-app saved-card resub removed; cards on file → Group M
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B12	🔴 RETIRED — in-app payment network-error path removed; → QA Task 20 scope 2
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	B — Start Trial & Payment 🔴 (retired — web-first)	SUB-TC-B13	🔴 RETIRED — in-app Apple/Google Pay removed; web wallet-pay → QA Task 20 scope 2
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C01	My Subscription screen — paid member view
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C02	My Subscription quick menu (Billing / Payment / Help)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C03	Manage Kids Club+ — status, next billing, days remaining
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C04	"Cancel flow — retention screen ""Keep My Benefits"""
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C05	Cancel reason modal + final confirmation
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C06	Cancelled subscription stays active until period end
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C07	Auto-renew toggle / update payment method
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C08	Manage Kids Club+ free/no-subscription state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C09	Manage Kids Club+ expired state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C10	My Subscription free-user state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C11	"My Subscription ""Learn More"" link"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	C — Manage & Cancel	SUB-TC-C12	"My Subscription ""Member Since"" value (latent bug)"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	D — Renewal, Grace & Expiry	SUB-TC-D01	Grace period banner + SP wallet frozen warning
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	D — Renewal, Grace & Expiry	SUB-TC-D02	🔴 RETIRED — in-app re-subscribe payment removed; web-first → SUB-TC-N01/N02 + Web E2E
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	D — Renewal, Grace & Expiry	SUB-TC-D03	Subscription Expired screen — benefits lost + Renew
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	D — Renewal, Grace & Expiry	SUB-TC-D04	🔴 RETIRED — in-app renewal payment removed; web-first → SUB-TC-N01/N02 + Web E2E
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	D — Renewal, Grace & Expiry	SUB-TC-D05	Reactivate from cancelled state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	D — Renewal, Grace & Expiry	SUB-TC-D06	📦 moved to Fixture-Gated Backlog (clock/push fixture)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	D — Renewal, Grace & Expiry	SUB-TC-D07	📦 moved to Fixture-Gated Backlog (clock/push fixture)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	E — Billing History & Status	SUB-TC-E01	Billing History list — records, status badges, amounts
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	E — Billing History & Status	SUB-TC-E02	Billing History empty state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	E — Billing History & Status	SUB-TC-E03	Failed charge shows error message
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	E — Billing History & Status	SUB-TC-E04	⏸ FIXTURE-GATED (push-payload) — Subscription Status screen diagnostics
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F01	Payout Settings hero — Available / Pending / Lifetime Earned (live)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F02	Payout method section (add vs existing) — live
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F03	Payout history list (completed / pending) — live
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F04	Earnings figures (Available/Pending/Lifetime) + history net/fee — live
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F05	Payout history empty state — live
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F06	Pending earnings figure follows admin release timing — live
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F07	Payout load error + recovery — live
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	F — Payout Settings (live surface) 🔄	SUB-TC-F08	Payout history Load More pagination (+5) — live
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G01	Add Stripe Connect payout method (onboarding)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G02	🚫 N/A — PayPal/Venmo unconfigured provider (UI lists, not drivable)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G03	🚫 N/A — Bank ACH unconfigured / no UI option
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G04	Set primary method / delete method (confirmation)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G05	Unverified method blocks payout (live: cannot set primary / withdraw)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G06	"requires_action payout → ""Set Up Payout Method"""
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G07	"Payout Settings — ""Edit Details"" sheet"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G08	"""Cannot Delete Primary/Only Method"" guard"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G09	"""Cannot Set as Primary"" (unverified) guard"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G10	Payout history Load More
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	G — Payout Methods & Verification	SUB-TC-G11	NoMethodModal flow
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	H — Request & Withdraw 🔄 (live)	SUB-TC-H01	Withdraw Now — no-balance guard (amount entry removed)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	H — Request & Withdraw 🔄 (live)	SUB-TC-H02	WithdrawModal summary — Available / Payout Fee / You'll Receive
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	H — Request & Withdraw 🔄 (live)	SUB-TC-H03	Confirm Withdrawal success
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	H — Request & Withdraw 🔄 (live)	SUB-TC-H04	Withdraw blocked when no verified primary method
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	H — Request & Withdraw 🔄 (live)	SUB-TC-H05	Withdraw Now from Payout Settings hero (verified template)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	H — Request & Withdraw 🔄 (live)	SUB-TC-H06	Admin minimum withdrawal blocks full-balance requests below the floor
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	H — Request & Withdraw 🔄 (live)	SUB-TC-H07	Minimum withdrawal disabled when config = 0
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I01	SP Wallet hero balance + lifetime stats
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I02	Quick actions (Shop / Sell / History)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I03	How to Earn SP section + Learn More
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I04	SP expiration info + expiring-soon alert
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I05	Wallet warning banner by state (active/grace/expired)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I06	Free user SP wallet inactive state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I07	"SP Wallet — ""Reserved in trades"" card"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I08	"SP Wallet — ""Wallet Not Found"" error"
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	I — SP Wallet Balance & Earn	SUB-TC-I09	SP Wallet — pending-release summary note
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	J — SP Transaction History	SUB-TC-J01	SP History tabs (All / Earned / Spent)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	J — SP Transaction History	SUB-TC-J02	Transaction rows — type icon, label, signed amount
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	J — SP Transaction History	SUB-TC-J03	Empty state per tab
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	J — SP Transaction History	SUB-TC-J04	Pull-to-refresh updates ledger
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	K — Transaction / Billing History (Profile)	SUB-TC-K01	Transaction History list + status badges
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	K — Transaction / Billing History (Profile)	SUB-TC-K02	Transaction History empty + error/retry
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	L — Webhooks & Reconciliation 🔄	SUB-TC-L01	Renewal webhook → billing + member state — **LIVE PASS** (QA Task 21: real test-clock renewal advanced `current_period_end` + wrote `billing_history` row)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	L — Webhooks & Reconciliation 🔄	SUB-TC-L02	Payment-failed webhook → retry/grace — **PARTIAL** (mechanism live-subscribed; no live failing-renewal fixture driven)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	L — Webhooks & Reconciliation 🔄	SUB-TC-L03	Invalid webhook signature rejected — **PARTIAL** (source+deployed parity; negative-signature POST not driven)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	L — Webhooks & Reconciliation 🔄	SUB-TC-L04	Duplicate webhook delivery idempotent — **LIVE PASS** (QA Task 21: 4 webhook events → ONE `subscriptions` + ONE `subscription_events` row)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	L — Webhooks & Reconciliation 🔄	SUB-TC-L05	Payout-status webhook updates seller payout history (payout domain)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	M — Payment Methods (Card on File)	SUB-TC-M01	Payment Methods — loading state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	M — Payment Methods (Card on File)	SUB-TC-M02	Empty state + Add Payment Method (Stripe sheet)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	M — Payment Methods (Card on File)	SUB-TC-M03	Saved-card display + security banner
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	M — Payment Methods (Card on File)	SUB-TC-M04	Update Payment Method
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	M — Payment Methods (Card on File)	SUB-TC-M05	Remove This Card (confirm + success)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	M — Payment Methods (Card on File)	SUB-TC-M06	Go Back
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	M — Payment Methods (Card on File)	SUB-TC-M07	Backend contract — attach / detach / retryFailedPayment branches
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	N — Kids Club Join & Continue	SUB-TC-N01	JoinKidsClub value-prop + web CTA
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	N — Kids Club Join & Continue	SUB-TC-N02	JoinKidsClub web redirect (passitup.com)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	N — Kids Club Join & Continue	SUB-TC-N03	Route-alias reachability (JoinKidsClub vs deep-link-only aliases)
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	N — Kids Club Join & Continue	SUB-TC-N04	ContinueKidsClub active-subscription variant
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	N — Kids Club Join & Continue	SUB-TC-N05	ContinueKidsClub loading state
+SUBSCRIPTIONS-PAYOUTS-SPWALLET	SUB	N — Kids Club Join & Continue	SUB-TC-N06	ContinueKidsClub trial-ending urgency badge

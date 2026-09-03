@@ -625,7 +625,7 @@
 1. Open the **Message Templates** tab, tap **Edit** on a message, change the text (using variables like `{first_name}`), and **Save**.
 
 **Expected Result:**
-- A "Message saved" confirmation appears and the updated copy is used for users.
+- The edit saves inline and shows a green "✓ Saved successfully" confirmation line (not a dialog); the updated copy is used for users.
 
 ### MSG-TC-E06 · New submission creates admin alert notification
 

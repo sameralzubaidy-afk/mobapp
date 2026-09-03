@@ -48,7 +48,12 @@ export default function ListingSafetyReviewScreen() {
       setLoading(true);
       setError(null);
 
-      const data = await getListingById(listing_id);
+      const data = await getListingById(listing_id, {
+        // DEV-TASK-101: owner-scoped fetch — this screen loads the seller's own
+        // flagged / rejected / needs_edits listing, which the strict
+        // available-only getListingById filter would otherwise reject.
+        asOwnerUserId: session?.user?.id,
+      });
       if (!data) {
         setError('Listing not found');
         return;
@@ -193,8 +198,10 @@ export default function ListingSafetyReviewScreen() {
   if (loading) {
     return (
       <ScreenLayout variant="detail" title="Safety Review">
-        <LoadingSpinner />
-        <Text style={styles.helperText}>Loading safety review...</Text>
+        <View style={styles.centered}>
+          <LoadingSpinner />
+          <Text style={styles.helperText}>Loading safety review...</Text>
+        </View>
       </ScreenLayout>
     );
   }
@@ -202,11 +209,13 @@ export default function ListingSafetyReviewScreen() {
   if (error || !listing) {
     return (
       <ScreenLayout variant="detail" title="Safety Review">
-        <Text style={styles.errorTitle}>Unable to open safety review</Text>
-        <Text style={styles.errorText}>{error || 'Listing not found'}</Text>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.primaryButtonText}>Back</Text>
-        </TouchableOpacity>
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Unable to open safety review</Text>
+          <Text style={styles.errorText}>{error || 'Listing not found'}</Text>
+          <TouchableOpacity style={styles.errorBackButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.errorBackButtonText}>Back</Text>
+          </TouchableOpacity>
+        </View>
       </ScreenLayout>
     );
   }
@@ -854,12 +863,30 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
+    textAlign: 'center',
     marginBottom: 8,
   },
   errorText: {
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
-    marginBottom: 16,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  // DEV-TASK-101: centered ~pill Back button for the empty/error state (was
+  // full-bleed). Horizontally centered via the parent styles.centered container.
+  errorBackButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 48,
+    minWidth: 200,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorBackButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

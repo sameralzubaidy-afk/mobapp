@@ -123,7 +123,13 @@ export default function EditListingScreen({ route, navigation }: any) {
       setCheckingSubscription(true);
 
       // Load listing
-      const listing = await getListingById(listing_id);
+      // DEV-TASK-101: owner-scoped fetch — this screen is reached for flagged /
+      // rejected / needs_edits listings via the Safety Review "Make Edits Now" /
+      // "Edit Listing" action, so the strict available-only filter is bypassed for
+      // the listing's owner.
+      const listing = await getListingById(listing_id, {
+        asOwnerUserId: session?.user?.id,
+      });
       if (!listing) {
         Alert.alert('Error', 'Listing not found');
         navigation.goBack();

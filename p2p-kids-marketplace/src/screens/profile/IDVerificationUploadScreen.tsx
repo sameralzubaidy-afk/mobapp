@@ -243,6 +243,18 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
           <Text style={styles.subtext}>{disclaimerText}</Text>
         </View>
 
+        {/* DEV-TASK-101 (UX): after an admin rejection the user returns to this
+            upload state with no inline context. Brief amber note so resubmitting
+            users understand why without opening the Notification Center. */}
+        {verificationStatus?.status === 'rejected' && (
+          <View style={styles.rejectedNote} testID="id-verification-rejected-note">
+            <Text style={styles.rejectedNoteText}>
+              Your previous submission wasn't approved — see the reason in your
+              notifications.
+            </Text>
+          </View>
+        )}
+
         {state.selectedImage ? (
           <View style={styles.imagePreview} testID="id-verification-image-preview">
             <Image source={{ uri: state.selectedImage }} style={styles.image} />
@@ -341,6 +353,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
     gap: 12,
+  },
+
+  // DEV-TASK-101 (UX): rejected-submission inline note. Amber warning treatment
+  // (distinct from the hard-error red errorBox below), matches statusPill palette.
+  rejectedNote: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  rejectedNoteText: {
+    fontSize: 14,
+    color: '#B45309',
+    lineHeight: 20,
   },
 
   // ── Header ───────────────────────────────────────────────────────────────────

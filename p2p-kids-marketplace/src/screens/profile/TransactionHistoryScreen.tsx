@@ -7,7 +7,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/hooks/useAuth';
 import { getBillingHistory } from '@/services/billingHistory';
 import { captureException } from '@/services/errorReporter';
@@ -17,7 +16,6 @@ import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
 export default function TransactionHistoryScreen() {
-  const navigation = useNavigation();
   const { session } = useAuth();
   const userId = session?.user?.id;
 
@@ -93,6 +91,13 @@ export default function TransactionHistoryScreen() {
           </Text>
         </View>
       </View>
+
+      {/* DEV-TASK-101: surface WHY a charge failed — the stored error message from
+          renew-subscription / retry-failed-payment / the invoice.payment_failed
+          webhook, so a parent knows to update their payment method. */}
+      {item.status === 'failed' && item.error_message ? (
+        <Text style={styles.failureReason}>{item.error_message}</Text>
+      ) : null}
     </View>
   );
 
@@ -209,6 +214,14 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  // DEV-TASK-101: caption under a failed charge (billing_history.error_message).
+  // Mirrors the on-screen FAILED red + date sizing for visual consistency.
+  failureReason: {
+    fontSize: 12,
+    color: '#E53935',
+    marginTop: 8,
+    lineHeight: 16,
   },
   errorText: {
     fontSize: 14,

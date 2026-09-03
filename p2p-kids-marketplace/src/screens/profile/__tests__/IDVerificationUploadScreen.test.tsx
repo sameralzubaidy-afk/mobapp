@@ -184,12 +184,16 @@ describe('IDVerificationUploadScreen', () => {
     it('renders State A again when status is rejected (user can re-submit)', async () => {
       setupMocks({ status: 'rejected' });
 
-      const { getByTestId } = render(
+      const { getByTestId, getByText } = render(
         <IDVerificationUploadScreen navigation={mockNavigation} />
       );
 
       await waitFor(() => {
         expect(getByTestId('id-verification-unverified-state')).toBeTruthy();
+        // DEV-TASK-101 (Item 7): inline note explains why the user is back at upload
+        // without needing to open the Notification Center.
+        expect(getByTestId('id-verification-rejected-note')).toBeTruthy();
+        expect(getByText(/previous submission wasn't approved/i)).toBeTruthy();
       });
     });
 

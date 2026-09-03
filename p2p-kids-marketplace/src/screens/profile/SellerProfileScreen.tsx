@@ -3,7 +3,8 @@
 // Displays another user's public profile with ratings, badges (collapsible), and active listings
 // NOTE: Follow button has been intentionally removed. Do NOT re-add it.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -158,15 +159,15 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
         return;
       }
 
+      // DEV-TASK-101 (Item 5): resolve the ID-verification pill INDEPENDENTLY of
+      // the decorative loads below. Previously the pill waited on the slowest of
+      // ALL four parallel reads (badges + completed-trades included), so a slow
+      // badges/trades query kept a just-approved owner's own view on
+      // "Identity Not Verified" for ~1-2 min after approval. Group A drives
+      // setIdVerificationStatus as soon as the two id_badge reads return.
       void (async () => {
         try {
-          const [
-            badgeResult,
-            verificationStatuses,
-            completedTradeCounts,
-            approvedVerificationMatches,
-          ] = await Promise.all([
-            getUserBadges(String(resolvedProfile.user_id || userId)).catch(() => []),
+          const [verificationStatuses, approvedVerificationMatches] = await Promise.all([
             Promise.all(
               candidateUuids.map(async (candidateId) => ({
                 candidateId,
@@ -174,21 +175,6 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
                   status: 'none' as IDVerificationStatus['status'],
                 })),
               }))
-            ),
-            Promise.all(
-              candidateUuids.map(async (candidateId) => {
-                const { count, error } = await supabase
-                  .from('trades')
-                  .select('id', { count: 'exact', head: true })
-                  .eq('seller_id', candidateId)
-                  .eq('status', 'completed');
-
-                return {
-                  candidateId,
-                  count: count ?? 0,
-                  error,
-                };
-              })
             ),
             Promise.all(
               candidateUuids.map(async (candidateId) => {
@@ -207,15 +193,9 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
             ),
           ]);
 
-          const completedTradesMax = completedTradeCounts.reduce((maxValue, entry) => {
-            return entry.count > maxValue ? entry.count : maxValue;
-          }, 0);
-          setCompletedTradesCount(completedTradesMax);
-
           const hasApprovedFromPolicyRead = approvedVerificationMatches.some(
             (entry) => entry.hasApproved
           );
-
           const approvedStatus = verificationStatuses.find(
             (entry) => entry.status?.status === 'approved'
           );
@@ -225,7 +205,40 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
             verificationStatuses.find((entry) => entry.status?.status !== 'none')?.status?.status ||
             'none';
           setIdVerificationStatus(preferredStatus);
+        } catch (verificationLoadError) {
+          captureException(verificationLoadError, {
+            tags: { screen: 'SellerProfileScreen', action: 'load_verification_status' },
+          });
+        }
+      })();
 
+      // Group B — badges + completed-trades count (decorative; must never block
+      // the Verified pill above).
+      void (async () => {
+        try {
+          const [badgeResult, completedTradeCounts] = await Promise.all([
+            getUserBadges(String(resolvedProfile.user_id || userId)).catch(() => []),
+            Promise.all(
+              candidateUuids.map(async (candidateId) => {
+                const { count, error } = await supabase
+                  .from('trades')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('seller_id', candidateId)
+                  .eq('status', 'completed');
+
+                return {
+                  candidateId,
+                  count: count ?? 0,
+                  error,
+                };
+              })
+            ),
+          ]);
+
+          const completedTradesMax = completedTradeCounts.reduce((maxValue, entry) => {
+            return entry.count > maxValue ? entry.count : maxValue;
+          }, 0);
+          setCompletedTradesCount(completedTradesMax);
           setBadges(badgeResult);
         } catch (secondaryLoadError) {
           captureException(secondaryLoadError, {
@@ -242,9 +255,18 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
     }
   }, [userId]);
 
-  useEffect(() => {
-    void loadSellerProfile();
-  }, [loadSellerProfile]);
+  // DEV-TASK-101 (Item 5): refresh on FOCUS, not just mount. React Navigation
+  // re-focuses an already-mounted SellerProfile instance (navigation.navigate to a
+  // route already in the stack) WITHOUT remounting it — so a profile opened while
+  // an ID request was still pending kept showing "Identity Not Verified" for ~1-2
+  // min after admin approval on the owner's own device, while a peer (whose
+  // device mounted fresh) saw Verified immediately. A focus-driven refetch clears
+  // that stale self-view the moment the screen regains focus.
+  useFocusEffect(
+    useCallback(() => {
+      void loadSellerProfile();
+    }, [loadSellerProfile])
+  );
 
   if (loading) {
     return (

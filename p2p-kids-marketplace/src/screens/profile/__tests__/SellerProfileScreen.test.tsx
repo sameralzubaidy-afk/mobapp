@@ -12,6 +12,17 @@ jest.mock('@/services/review');
 jest.mock('@/components/organisms/PersistentTabBar', () => ({
   PersistentTabBar: () => null,
 }));
+// DEV-TASK-101 (Item 5): the screen now refreshes on focus via useFocusEffect.
+// This test renders outside a NavigationContainer, so mock it to fire the
+// callback on mount (same timing as the old mount-only useEffect).
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useFocusEffect: (callback: () => void) => {
+      React.useEffect(callback, [callback]);
+    },
+  };
+});
 
 const mockGetUserProfile = getUserProfile as jest.MockedFunction<typeof getUserProfile>;
 const mockGetUserReviews = getUserReviews as jest.MockedFunction<typeof getUserReviews>;

@@ -130,6 +130,24 @@ describe('ListingSafetyReviewScreen', () => {
     expect(mockNavigation.goBack).toHaveBeenCalled();
   });
 
+  // DEV-TASK-101 (Item 1): owner-scoped load — the screen must request its listing
+  // with the caller's user id so a seller can open their OWN flagged/rejected /
+  // needs_edits listing (the strict available-only getListingById filter is bypassed
+  // only for the owner via asOwnerUserId).
+  it('requests the listing with asOwnerUserId (owner-scoped bypass)', async () => {
+    mockGetListingById.mockResolvedValue(mockFlaggedListing as any);
+
+    render(<ListingSafetyReviewScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Item')).toBeTruthy();
+    });
+
+    expect(mockGetListingById).toHaveBeenCalledWith('listing-123', {
+      asOwnerUserId: 'seller-1',
+    });
+  });
+
   // STATE: Flagged Listing (No Appeal UI)
   it('renders flagged listing without appeal button', async () => {
     mockGetListingById.mockResolvedValue(mockFlaggedListing as any);
