@@ -58,6 +58,10 @@ import ScreenLayout from '@/components/ScreenLayout';
 // QA-only render-crash trigger (ACC-TC-L01-L04) — inert in production builds
 // (see QaCrashProbe + devTestingService.getQaCrashTriggerMode gate).
 import QaCrashProbe from '@/components/QaCrashProbe';
+// DEV-TASK-96 (item 4): QA `qa-scroll-to?testID=<id>` deep-link support for the
+// Profile screen's long scroll (flingy-scroll overshoot, QA MSG run B03). The
+// registry helpers are inert outside dev/staging builds.
+import { registerQaScrollToHandler, scrollChildIntoView } from '@/services/qaScrollRegistry';
 
 type UserProfile = any;
 
@@ -66,6 +70,13 @@ const getInitials = (name?: string | null) => {
   const parts = name.trim().split(' ').filter(Boolean).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
 };
+
+// DEV-TASK-96 (item 4): QA-only gate — mirrors TradeTimelineScreen. Production
+// builds never register the scroll handler.
+const QA_TOOLING_ENABLED: boolean =
+  __DEV__ ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'development' ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'staging';
 
 export default function ProfileScreen({ route }: any) {
   const navigation = useNavigation<any>();
@@ -92,6 +103,38 @@ export default function ProfileScreen({ route }: any) {
   const [badgeShowcaseRefresh, setBadgeShowcaseRefresh] = useState(0);
   const hasFocusedOnceRef = useRef(false);
   const skipNextFocusRefreshRef = useRef(false);
+
+  // DEV-TASK-96 (item 4): qa-scroll-to registration for Profile's long scroll.
+  // Refs for the main ScrollView + the bottom-of-page rows QA reaches for
+  // (badge showcase strip + utility rows). Register on mount, unregister on
+  // unmount (exactly one screen owns the registry at a time).
+  const profileScrollRef = useRef<ScrollView>(null);
+  const badgeShowcaseRef = useRef<View>(null);
+  const billingHistoryRef = useRef<View>(null);
+  const settingsRef = useRef<View>(null);
+  const adminDashboardRef = useRef<View>(null);
+  const helpSupportRef = useRef<View>(null);
+  const logoutRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (!QA_TOOLING_ENABLED) return;
+
+    const targets: Record<string, React.RefObject<View | null> | null> = {
+      'badge-showcase': badgeShowcaseRef,
+      'profile-billing-history': billingHistoryRef,
+      'profile-settings': settingsRef,
+      'profile-admin-dashboard': adminDashboardRef,
+      'profile-help-support': helpSupportRef,
+      'profile-logout': logoutRef,
+    };
+
+    return registerQaScrollToHandler(async (testID) => {
+      const target = targets[testID];
+      if (!target || !target.current) return null;
+      return scrollChildIntoView(profileScrollRef, target);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // TASK NOTIF-V2-004: Badge celebration integration
   const { newBadgeAwarded, clearNewBadge, showCelebration, setShowCelebration } = useUserBadges(
@@ -387,7 +430,7 @@ export default function ProfileScreen({ route }: any) {
       {/* QA render-crash trigger (ACC-TC-L01-L04) — inert in production. */}
       <QaCrashProbe screenName="Profile" />
       <View style={{ flex: 1, flexDirection: 'column' }}>
-        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <ScrollView ref={profileScrollRef} style={styles.container} contentContainerStyle={styles.contentContainer}>
           {showProfileSavedBanner && (
             <View style={styles.savedBanner}>
               <Text style={styles.savedBannerText}>Profile updated successfully</Text>
@@ -595,12 +638,17 @@ export default function ProfileScreen({ route }: any) {
           </View>
 
           {/* Badges Section */}
-          <BadgeShowcase userId={user.id} refreshToken={badgeShowcaseRefresh} />
+          {/* DEV-TASK-96 (item 4): wrapper ref lets qa-scroll-to?testID=badge-showcase
+              bring the strip into view (collapsable=false keeps a measurable node). */}
+          <View ref={badgeShowcaseRef} collapsable={false}>
+            <BadgeShowcase userId={user.id} refreshToken={badgeShowcaseRefresh} />
+          </View>
 
           {/* Secondary Utilities Section (List style) */}
           <View style={styles.utilitySection}>
             <TouchableOpacity
               style={styles.utilityRow}
+              ref={billingHistoryRef}
               onPress={() => navigation.navigate('TransactionHistory')}
               testID="profile-billing-history"
               accessible
@@ -614,6 +662,7 @@ export default function ProfileScreen({ route }: any) {
 
             <TouchableOpacity
               style={styles.utilityRow}
+              ref={settingsRef}
               onPress={() => navigation.navigate('Settings')}
               testID="profile-settings"
               accessible
@@ -628,6 +677,7 @@ export default function ProfileScreen({ route }: any) {
             {/* Admin Dashboard - visible if user has role or in dev */}
             <TouchableOpacity
               style={styles.utilityRow}
+              ref={adminDashboardRef}
               onPress={() => navigation.navigate('AdminDashboard')}
               testID="profile-admin-dashboard"
               accessible
@@ -641,6 +691,7 @@ export default function ProfileScreen({ route }: any) {
 
             <TouchableOpacity
               style={styles.utilityRow}
+              ref={helpSupportRef}
               onPress={() => navigation.navigate('HelpSupport')}
               testID="profile-help-support"
               accessible
@@ -654,6 +705,7 @@ export default function ProfileScreen({ route }: any) {
 
             <TouchableOpacity
               style={[styles.utilityRow, { borderBottomWidth: 0 }]}
+              ref={logoutRef}
               onPress={handleLogout}
               disabled={loggingOut}
               testID="profile-logout"

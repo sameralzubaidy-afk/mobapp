@@ -51,6 +51,15 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId, refreshTok
     navigation.navigate('Badges');
   };
 
+  // DEV-TASK-96 (QA tooling): kebab-case tile id for the showcase strip badges
+  // (they were plain Views inside an accessible card → grouped out of the AX
+  // tree, so QA had to OCR the strip). Not user-facing.
+  const showcaseTileId = (name: string): string =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'badge';
+
   if (loading) {
     return <ActivityIndicator size="small" color="#5DBB8E" style={styles.loader} />;
   }
@@ -74,20 +83,35 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId, refreshTok
     );
   }
 
-  const renderBadge = ({ item }: { item: UserBadge }) => (
-    <View style={styles.badgeItem}>
-      <View style={styles.iconContainer}>
-        {item.badge?.icon_url ? (
-          <Image source={{ uri: item.badge.icon_url }} style={styles.badgeIcon} />
-        ) : (
-          <Medal size={28} color="#F59E0B" weight="fill" />
-        )}
-      </View>
-      <Text style={styles.badgeName} numberOfLines={1}>
-        {item.badge?.name || 'Milestone'}
-      </Text>
-    </View>
-  );
+  const renderBadge = ({ item }: { item: UserBadge }) => {
+    const badgeName = item.badge?.name || 'Milestone';
+    return (
+      // DEV-TASK-96 (QA tooling): per-badge AX tile (BP-53). Each strip badge
+      // is its own accessible button (navigates to My Badges like the card
+      // itself), so QA can read which badges the showcase shows in one tree
+      // pass instead of OCR-ing the horizontal strip.
+      <TouchableOpacity
+        style={styles.badgeItem}
+        onPress={handleNavigateToBadges}
+        activeOpacity={0.7}
+        testID={`badge-showcase-${showcaseTileId(badgeName)}`}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={badgeName}
+      >
+        <View style={styles.iconContainer}>
+          {item.badge?.icon_url ? (
+            <Image source={{ uri: item.badge.icon_url }} style={styles.badgeIcon} />
+          ) : (
+            <Medal size={28} color="#F59E0B" weight="fill" />
+          )}
+        </View>
+        <Text style={styles.badgeName} numberOfLines={1}>
+          {badgeName}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <TouchableOpacity
@@ -95,9 +119,11 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId, refreshTok
       testID="badge-showcase"
       onPress={handleNavigateToBadges}
       activeOpacity={0.7}
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel="My Badges"
+      // DEV-TASK-96 (QA tooling): the whole card stays touch-tappable, but it
+      // must NOT group its children (accessible=false) or the "My Badges (N)"
+      // count text and each badge tile below would be hidden from the AX tree
+      // (QA previously had to OCR the count + strip names).
+      accessible={false}
     >
       <View style={styles.header}>
         <Text style={styles.title}>My Badges ({badges.length})</Text>

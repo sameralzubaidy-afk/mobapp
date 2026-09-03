@@ -29,6 +29,12 @@
  *   --screen-height H  viewport height in POINTS (e.g. 956 for iPhone 17 Pro Max)
  *   --pill-top N       y of the top edge of the floating tab pill band (points)
  *   --pill-bottom M    y of the bottom edge of the pill band (points)
+ *   --header-bottom N  y of the bottom edge of a pinned/fixed header band
+ *                      (points). Content whose LOGICAL y starts under the band
+ *                      (but extends below it) is flagged — its reported y is not
+ *                      the rendered tap point (the QA MSG run P2/P3 mis-tap
+ *                      trap: a scrolled toggle sat at y94 under the header and
+ *                      the tap hit the header bell instead).
  *   If --screen-height is omitted, a best-effort value is auto-detected from the
  *   tree (a top-level screen/window object, else the max element bottom). Pass
  *   --pill-top/--pill-bottom only when you need the occlusion flag.
@@ -53,7 +59,7 @@ function valueOf(name) {
 
 function usage() {
   console.error(
-    'usage: node scripts/qa/ax-tree.mjs <resource-file> [--name <substring>] [--max N] [--list] [--raw] [--screen-width W] [--screen-height H] [--pill-top N] [--pill-bottom M]'
+    'usage: node scripts/qa/ax-tree.mjs <resource-file> [--name <substring>] [--max N] [--list] [--raw] [--screen-width W] [--screen-height H] [--pill-top N] [--pill-bottom M] [--header-bottom N]'
   );
   process.exit(2);
 }
@@ -75,10 +81,12 @@ const screenWidthRaw = valueOf('--screen-width');
 const screenHeightRaw = valueOf('--screen-height');
 const pillTopRaw = valueOf('--pill-top');
 const pillBottomRaw = valueOf('--pill-bottom');
+const headerBottomRaw = valueOf('--header-bottom');
 const screenWidth = screenWidthRaw ? Number(screenWidthRaw) : undefined;
 const screenHeight = screenHeightRaw ? Number(screenHeightRaw) : undefined;
 const pillTop = pillTopRaw ? Number(pillTopRaw) : undefined;
 const pillBottom = pillBottomRaw ? Number(pillBottomRaw) : undefined;
+const headerBottom = headerBottomRaw ? Number(headerBottomRaw) : undefined;
 
 // ─── Parse: try JSON, then JSON-embedded-in-text ───────────────────────────
 let parsed;
@@ -199,6 +207,20 @@ function flagsOf(el) {
   ) {
     out.push('under-pill (floating tab bar occlusion)');
   }
+  // DEV-TASK-96 (item 3): header-band occlusion (QA MSG run P2/P3 mis-tap trap).
+  // Flag content whose LOGICAL y starts above the pinned header's bottom edge
+  // while the element still extends below it — such an element renders PARTLY
+  // under the header, so its reported y is NOT a safe tap point. Header-native
+  // elements (fully inside the band: bottom <= headerBottom) are intentionally
+  // not flagged.
+  if (
+    h !== undefined &&
+    headerBottom !== undefined &&
+    y < headerBottom &&
+    bottom > headerBottom
+  ) {
+    out.push('under-header (top edge hidden under pinned header)');
+  }
   return out;
 }
 
@@ -229,7 +251,8 @@ if (resolvedScreenHeight !== undefined) {
       (pillTop !== undefined && pillBottom !== undefined
         ? ` · pill band y ${pillTop}–${pillBottom}`
         : '') +
-      ` (add --screen-height/--pill-top/--pill-bottom to refine)\n`
+      (headerBottom !== undefined ? ` · header band bottom y ${headerBottom}` : '') +
+      ` (add --screen-height/--pill-top/--pill-bottom/--header-bottom to refine)\n`
   );
 }
 process.stdout.write('─'.repeat(72) + '\n');

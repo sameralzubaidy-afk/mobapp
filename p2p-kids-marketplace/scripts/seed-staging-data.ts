@@ -164,6 +164,18 @@ export const TEST_USERS = {
     name: 'Test Expired User',
     phone: '5551234013',
   },
+  // MSG-TC-A01 empty-inbox leg (Dev Task 96 item 7): standing NO-CONVERSATION
+  // persona. A01's "No messages yet" empty state was unreachable because every
+  // standing persona had conversations. This dedicated persona has a full,
+  // completed profile but ZERO messages/trades (see
+  // seedNoConversationPersonaFixture()) so the empty inbox renders.
+  noConversationUser: {
+    id: 'a1234567-0000-0000-0000-000000000014', // Fixed UUID for A01 no-conversation persona
+    email: 'test-noconvo@kidsmarketplace.test',
+    password: 'TestNoConvo123!',
+    name: 'QA No Conversation User',
+    phone: '5551234014',
+  },
 };
 
 const TEST_CATEGORIES = [
@@ -1315,6 +1327,160 @@ async function seedCancelledTradeConversationFixture(
   }
 }
 
+/**
+ * Dev Task 96 (item 7) — seeded message thread on an IN-PROGRESS trade.
+ *
+ * The MSG guide assumes in-progress trades already carry a message thread; on
+ * current staging data the QA agent found in-progress trades with NO messages,
+ * which cost recon calls to discover. This fixture picks the buyer's
+ * in_progress trade with the seller (falling back to any buyer/seller trade if
+ * none is in_progress yet) and idempotently seeds a short two-message exchanged
+ * thread (buyer then seller), so an in-progress trade reliably appears in the
+ * conversation list with a real thread.
+ *
+ * Idempotent: if the target trade already has any message, it is a no-op.
+ */
+async function seedInProgressTradeThreadFixture(
+  buyerId: string,
+  sellerId: string
+): Promise<void> {
+  console.log('   ── DT-96 in-progress trade thread fixture ──');
+
+  // Prefer an in_progress trade (the guide's assumption); fall back to any
+  // buyer/seller trade if none is in_progress yet.
+  let { data: trade, error: tradeError } = await adminSupabase
+    .from('trades')
+    .select('id, status')
+    .eq('buyer_id', buyerId)
+    .eq('seller_id', sellerId)
+    .eq('status', 'in_progress')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (tradeError || !trade) {
+    const fallback = await adminSupabase
+      .from('trades')
+      .select('id, status')
+      .eq('buyer_id', buyerId)
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (fallback.error || !fallback.data) {
+      console.warn(
+        `   ⚠️ DT-96: no buyer/seller trade found to attach a thread (${fallback.error?.message ?? 'none'})`
+      );
+      return;
+    }
+    trade = fallback.data as any;
+  }
+
+  // TS null-narrowing guard: `trade` is `X | null` after the fallback; the
+  // branches above return when no trade was found, so this is defensive.
+  if (!trade) {
+    console.warn('   ⚠️ DT-96: no trade available to attach a thread (early exit)');
+    return;
+  }
+
+  // Idempotency guard: skip if the trade already has messages.
+  const { data: existingRows } = await adminSupabase
+    .from('messages')
+    .select('id')
+    .eq('trade_id', trade.id)
+    .is('deleted_at', null)
+    .limit(1);
+
+  if (existingRows && existingRows.length > 0) {
+    console.log(`   ✓ DT-96 thread already exists on trade ${trade.id} (${trade.status})`);
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const msgs = [
+    {
+      trade_id: trade.id,
+      sender_id: buyerId,
+      content: "Hi! I'm ready to move forward with this trade — what times work for you?",
+      message_type: 'text',
+      delivery_status: 'sent',
+      read_at: now,
+      created_at: now,
+    },
+    {
+      trade_id: trade.id,
+      sender_id: sellerId,
+      content: 'Great! I can meet this weekend — I will confirm the spot once we settle a time.',
+      message_type: 'text',
+      delivery_status: 'sent',
+      read_at: now,
+      created_at: new Date(Date.now() + 1000).toISOString(),
+    },
+  ];
+
+  const { error: insertError } = await adminSupabase.from('messages').insert(msgs);
+  if (insertError) {
+    console.warn(`   ⚠️ DT-96 thread insert failed on trade ${trade.id}: ${insertError.message}`);
+  } else {
+    console.log(`   ✓ DT-96 2-message thread seeded on ${trade.status} trade ${trade.id}`);
+  }
+}
+
+/**
+ * Dev Task 96 (item 7) — MSG-TC-A01 empty-inbox persona fixture.
+ *
+ * A01's "No messages yet" empty state needs a persona with ZERO conversations.
+ * A conversation exists iff the user is a party to a trade that has ≥1 message
+ * (getConversations filters trades by messages!inner), so this fixture:
+ *   1. ensures the persona has a full, completed profile (signupTestUser), and
+ *   2. deletes every message on any trade the persona is a party to, then any
+ *      trades they're a party to (idempotent), guaranteeing an empty inbox on
+ *      every re-seed.
+ *
+ * Idempotent + safe: re-running re-signs (no-op if exists) and re-clears
+ * conversation rows; the persona is dedicated, so no other test data depends on
+ * it.
+ */
+async function seedNoConversationPersonaFixture(): Promise<void> {
+  console.log('   ── A01 no-conversation persona fixture ──');
+  const nc = TEST_USERS.noConversationUser;
+
+  // 1. Ensure the auth user + full profile exist (same as a normal persona).
+  await signupTestUser(nc, 'user');
+
+  // 2. Delete every message on any trade the persona is a party to (both
+  //    directions — otherwise deleting the trades below could hit the messages
+  //    FK), plus any stray message the persona sent elsewhere.
+  const { data: personaTrades } = await adminSupabase
+    .from('trades')
+    .select('id')
+    .or(`buyer_id.eq.${nc.id},seller_id.eq.${nc.id}`);
+  const tradeIds = (personaTrades ?? []).map((t: any) => t.id);
+  if (tradeIds.length > 0) {
+    await adminSupabase.from('messages').delete().in('trade_id', tradeIds);
+  }
+  await adminSupabase.from('messages').delete().eq('sender_id', nc.id);
+
+  // 3. Delete any trades they're a party to (dedicated persona — nothing else
+  //    depends on them).
+  await adminSupabase
+    .from('trades')
+    .delete()
+    .or(`buyer_id.eq.${nc.id},seller_id.eq.${nc.id}`);
+
+  // 4. Verify: zero trades remain for the persona (hence zero conversations).
+  const { data: leftover } = await adminSupabase
+    .from('trades')
+    .select('id')
+    .or(`buyer_id.eq.${nc.id},seller_id.eq.${nc.id}`)
+    .limit(1);
+  if (leftover && leftover.length > 0) {
+    console.warn(`   ⚠️ A01 VERIFY FAIL: trades still reference ${nc.email}`);
+  } else {
+    console.log(`   ✓ A01 no-conversation persona ready (empty inbox): ${nc.email}`);
+  }
+}
+
 async function seedListings(
   sellerId: string,
   sellerSession: any,
@@ -2111,6 +2277,10 @@ async function main(): Promise<void> {
     await seedGracePersonaFixture();
     await seedExpiredPersonaFixture();
 
+    // 2d. MSG-TC-A01 empty-inbox persona (Dev Task 96 item 7) — full profile,
+    //     guaranteed zero conversations.
+    await seedNoConversationPersonaFixture();
+
     // Get fresh sessions for both users
     const { data: buyerSession } = await supabase.auth.signInWithPassword({
       email: TEST_USERS.buyer.email,
@@ -2150,6 +2320,10 @@ async function main(): Promise<void> {
 
     // 4c. TRD-TC-B08 canned cancelled-trade conversation fixture (Dev Task 25 item 6)
     await seedCancelledTradeConversationFixture(buyerId, sellerId, categoryMap);
+
+    // 4d. DT-96 in-progress-trade message-thread fixture — the MSG guide assumes
+    //     in-progress trades carry a thread; ensure one exists (idempotent).
+    await seedInProgressTradeThreadFixture(buyerId, sellerId);
 
     // 5. Create subscriptions
     await seedSubscriptions(buyerId, sellerId);

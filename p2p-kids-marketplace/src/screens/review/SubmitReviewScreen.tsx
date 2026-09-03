@@ -26,6 +26,9 @@ import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 import { theme } from '@/theme';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+// DEV-TASK-96 (item 6): read the trade row to resolve the reviewee for the
+// `/submit-review?tradeId=` deep link (which carries only tradeId).
+import { supabase } from '@/config/supabase';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
@@ -34,7 +37,13 @@ export function SubmitReviewScreen() {
   const route = useRoute<SubmitReviewRouteProp>();
   const navigation = useNavigation<SubmitReviewNavigationProp>();
   const { user } = useAuth();
-  const { tradeId, revieweeId, revieweeName } = route.params;
+  // DEV-TASK-96 (item 6): the `/submit-review?tradeId=<id>` deep link only
+  // carries tradeId — revieweeId/revieweeName are optional and resolved from the
+  // trade row when absent (in-app callers always pass them). Held in state so the
+  // async resolution lands before the review form is usable.
+  const { tradeId, revieweeId: paramRevieweeId, revieweeName: paramRevieweeName } = route.params;
+  const [revieweeId, setRevieweeId] = useState<string | undefined>(paramRevieweeId);
+  const [revieweeName, setRevieweeName] = useState<string | undefined>(paramRevieweeName);
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -46,6 +55,31 @@ export function SubmitReviewScreen() {
   useEffect(() => {
     checkCanReview();
   }, []);
+
+  // DEV-TASK-96 (item 6): deep-link entry — resolve the counterparty from the
+  // trade row when reviewee params weren't provided. The current user is one
+  // party, so the reviewee is the other (mirrors
+  // TradeTimelineScreen.handleReviewPress). Returns false if the trade can't be
+  // read (not a party / RLS) — caller treats that as "cannot review".
+  const resolveRevieweeFromTrade = async (): Promise<boolean> => {
+    if (!user?.id) return false;
+    try {
+      const { data: tradeRow } = await supabase
+        .from('trades')
+        .select('buyer_id, seller_id')
+        .eq('id', tradeId)
+        .maybeSingle();
+      if (!tradeRow) return false;
+      const isBuyer = tradeRow.buyer_id === user.id;
+      const otherId = isBuyer ? tradeRow.seller_id : tradeRow.buyer_id;
+      if (!otherId) return false;
+      setRevieweeId(otherId);
+      setRevieweeName(isBuyer ? 'the seller' : 'the buyer');
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const checkCanReview = async () => {
     if (!user?.id) {
@@ -61,6 +95,21 @@ export function SubmitReviewScreen() {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
       return;
+    }
+
+    // DEV-TASK-96 (item 6): /submit-review deep link may not carry reviewee
+    // params — resolve from the trade now (still inside the loading gate) so the
+    // header/title + submit call always have a reviewee.
+    if (!revieweeId) {
+      const resolved = await resolveRevieweeFromTrade();
+      if (!resolved) {
+        Alert.alert(
+          'Cannot Submit Review',
+          'We could not identify the other party on this trade.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        return;
+      }
     }
 
     setCanSubmit(true);
@@ -79,6 +128,17 @@ export function SubmitReviewScreen() {
 
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to submit a review');
+      return;
+    }
+
+    // DEV-TASK-96 (item 6): guard so TS narrows revieweeId to string for the
+    // submitReview call below (canSubmit is only enabled after resolution, so
+    // this is defensive only).
+    if (!revieweeId) {
+      Alert.alert(
+        'Error',
+        'We could not identify who you are reviewing. Please go back and try again.'
+      );
       return;
     }
 
@@ -191,7 +251,8 @@ export function SubmitReviewScreen() {
           {/* Comment Section */}
           <View style={styles.section}>
             <Text style={styles.label}>Comment (optional)</Text>
-            <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            <TextInput
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.commentInput}
               placeholder="Share your experience with this trade..."
               placeholderTextColor="#9CA3AF"

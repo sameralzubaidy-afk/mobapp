@@ -208,6 +208,11 @@ const linking = {
       // tap handler.
       TradeDetail: 'trade/:tradeId',
       TradeTimeline: 'trade/timeline/:tradeId',
+      // DEV-TASK-96 (item 6): `/submit-review?tradeId=<id>` jumps straight to the
+      // review screen for a trade (QA MSG run C01–C04 previously needed a
+      // My Trades → timeline → scroll → Review hop of ~6 calls). The screen
+      // resolves the reviewee from the trade when only tradeId is present.
+      SubmitReview: 'submit-review',
       AdminDashboard: 'admin',
       IDVerificationUpload: 'id-verification-upload',
       ManageKidsClub: 'manage-kids-club',

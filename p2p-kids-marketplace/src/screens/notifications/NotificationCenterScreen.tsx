@@ -342,7 +342,12 @@ const NotificationItem = React.memo(function NotificationItem({
       accessible
       testID={`notification-item-${item.id}`}
       accessibilityRole="button"
-      accessibilityLabel={item.title}
+      // DEV-TASK-96 (QA tooling): the row is a single accessible element (its
+      // icon/title/body testIDs are grouped out of the AX tree), so surface the
+      // per-type discriminator + read/unread in the label. QA can now assert
+      // "which type exists" / "unread" in one tree read instead of OCR + pixel
+      // scanning the icon chip column.
+      accessibilityLabel={`${item.type ?? item.category ?? 'notification'}${isUnread ? ', unread' : ''}: ${item.title}`}
       // MODULE-15.1 FLOW-17: Unread rows #F7F7F7, read rows white
       style={[styles.notificationItem, isUnread && styles.notificationItemUnread]}
       onPress={() => onPress(item)}

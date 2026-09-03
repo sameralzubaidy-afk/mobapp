@@ -22,15 +22,17 @@ export type RootStackParamList = {
   // MODULE-04: Listing routes
   MyListings: undefined;
   // MODULE-04 V3: Photo-first listing creation
-  ItemCreate: {
-    draftId?: string;
-    /** Title pre-filled from the Home composer bar (always wins over AI). */
-    prefilledTitle?: string;
-    /** Auto-launch this photo source on the Photos step (camera/library). */
-    initialPhotoSource?: 'camera' | 'library';
-    /** Whether to show the photo-source modal. Default true. */
-    showPhotoSourcePrompt?: boolean;
-  } | undefined;
+  ItemCreate:
+    | {
+        draftId?: string;
+        /** Title pre-filled from the Home composer bar (always wins over AI). */
+        prefilledTitle?: string;
+        /** Auto-launch this photo source on the Photos step (camera/library). */
+        initialPhotoSource?: 'camera' | 'library';
+        /** Whether to show the photo-source modal. Default true. */
+        showPhotoSourcePrompt?: boolean;
+      }
+    | undefined;
   BulkListingCreate: { draftId?: string } | undefined;
   EditListing: { listing_id: string };
   ListingDetail: { listing_id: string };
@@ -93,7 +95,12 @@ export type RootStackParamList = {
   Badges: undefined;
   Leaderboard: undefined;
   // MODULE-08: Review routes
-  SubmitReview: { tradeId: string; revieweeId: string; revieweeName: string };
+  // DEV-TASK-96 (item 6): revieweeId/revieweeName are OPTIONAL — in-app callers
+  // (trade timeline / success / detail) always pass them, but the
+  // `/submit-review?tradeId=` deep link provides only tradeId and the screen
+  // resolves the counterparty itself (NAV-7: loosened params stay optional so
+  // existing callers are unaffected).
+  SubmitReview: { tradeId: string; revieweeId?: string; revieweeName?: string };
   // MODULE-09: Swap Points routes
   SpWallet: undefined;
   SpWalletScreen: undefined;

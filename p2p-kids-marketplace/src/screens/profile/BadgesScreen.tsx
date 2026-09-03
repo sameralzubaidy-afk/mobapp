@@ -51,6 +51,16 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
     return userBadges.some((ub) => ub.badge_id === badgeId);
   };
 
+  // DEV-TASK-96 (QA tooling): stable kebab-case tile id from a badge name so
+  // the QA agent can target a specific grid tile in one AX-tree read. Badge
+  // tiles were AX-invisible (image+label) → every earned/locked assertion
+  // degenerated into screenshot→OCR→pixel-scan. Not user-facing.
+  const badgeTileId = (name: string): string =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'badge';
+
   const renderBadgeItem = ({ item }: { item: Badge }) => {
     const earned = isBadgeEarned(item.id);
     const userBadgeInfo = userBadges.find((ub) => ub.badge_id === item.id);
@@ -62,6 +72,12 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
           setSelectedBadge({ ...item, earned, userBadgeInfo });
           setModalVisible(true);
         }}
+        // DEV-TASK-96 (QA tooling): per-tile testID + AX label (BP-53) so QA
+        // can assert badge name + earned/locked state from the tree in one read.
+        testID={`badge-tile-${badgeTileId(item.name)}`}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, ${earned ? 'earned' : 'locked'}`}
       >
         {item.icon_url ? (
           <Image source={{ uri: item.icon_url }} style={styles.badgeImage} resizeMode="contain" />
@@ -98,11 +114,17 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
         transparent
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}
+        // DEV-TASK-96 (QA tooling): let the modal's Close surface as its own AX
+        // element (BP-53 — accessible containers group their children).
+        accessibilityViewIsModal
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setModalVisible(false)}
+          // BP-53: the overlay must not group its children or the Close button
+          // below never surfaces in the iOS AX tree.
+          accessible={false}
         >
           <View style={styles.modalContent}>
             {selectedBadge && !selectedBadge.earned && (
@@ -119,7 +141,16 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
                 Unlocked: {new Date(selectedBadge.userBadgeInfo.awarded_at).toLocaleDateString()}
               </Text>
             )}
-            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+              // DEV-TASK-96 (QA tooling): the badge-detail Close previously had
+              // NO testID at all — QA had to OCR + pixel-scan the green pill.
+              testID="badge-detail-close-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
