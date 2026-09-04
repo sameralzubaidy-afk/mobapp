@@ -179,7 +179,9 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## MSG · Messaging / Badges / ID-Verification / Referrals / Safety / Notifications
 
-**Guide file:** `cross-checked-and-consolidated/MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` · **Cases:** 72 · **PASS** 63 · **PARTIAL** 2 · **OPEN** 2 · **DOC-DRIFT** 2 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 3
+**Guide file:** `cross-checked-and-consolidated/MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` · **Cases:** 72 · **PASS** 64 · **PARTIAL** 4 · **OPEN** 2 · **DOC-DRIFT** 2 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 0
+
+> **QA Task 30 (2026-09-04, `qa-task30-adm-moderation-msg-y-2026-09-04/`) — MSG last-3 never-run pool closed (G05/G08/G09).** Config round-trips + recall-flagged scenario + banner leg executed; behavioral legs gated on product/infra decisions (no recall_alert producer; Google Vision reachability). MSG now has 0 remaining never-run cases.
 
 ### Completed test cases (have a verdict on record)
 
@@ -236,6 +238,9 @@ _All cases in this guide have a verdict on record — none remaining._
 | MSG-TC-G04 | Remove a flagged listing | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | remove flow on rejected ce322cd9: Remove Listing → confirm modal → removed (DB status deleted). Note: pure-flagged shows Edit-only; Remove Listing renders on rejected only |
 | MSG-TC-G06 | Appeal max-attempt limit follows admin config | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | appeal-count-3 ce322cd9: 4th appeal blocked "Appeal limit reached. Maximum allowed appeals: 3." (DB-verified unchanged) — matches moderation_appeal_max_attempts=3 |
 | MSG-TC-G07 | Appeal window follows admin config | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | backdated-15d e2096de2: appeal blocked "Appeal window has expired... within 14 days" (DB unchanged) — matches moderation_appeal_window_days=14 |
+| MSG-TC-G05 | Recall safety alert notification | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | banner leg PASS: cpsc_recall side-flag on a disposable (item_safety_flags flag_type=cpsc_recall pending) → seller Safety Review renders "This listing is currently under safety review." + FLAGGED (mobile, on-device). Notification leg = product-decision-gated: NO production producer of a recall_alert notification exists (check-item-safety only flags → generic "Item Under Review" notification) — guide wording unverified per its own 2026-08-12 flag. MSG last-never-run pool now closed |
+| MSG-TC-G08 | AI moderation toggle affects automated image review | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | config round-trip PASS: moderation_ai_enabled false→true→false via qa:admin-config-set, DB+UI (/config MODERATION) verified each way. Behavioral AI-image-flag leg = infra-gated (Google Vision AI service reachability from staging + an image fixture that triggers it — R41 runbook verdict; do not fake). G08 no longer never-run |
+| MSG-TC-G09 | Recall check toggle and threshold affect recall flagging | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | config round-trips PASS: cpsc_recall_check_enabled true→false→true + cpsc_match_threshold 0.5→0.95→0.5 (qa:admin-config-set, DB+UI verified). Match behavior: check_cpsc_recalls('FUNTOK 24V 2-Seater Ride-On Truck') → recall 26348 @ 0.9143 similarity (≥0.5 = flagged; EF gate source: score ≥ threshold). Recall-flagged scenario driven on a disposable (item_safety_flags cpsc_recall + flagged + queue + mobile banner). Residual: full New-Item create-with-recall-title comparison leg not driven (ItemCreate fiddly; needs a recall-titled create) — EF-level threshold demonstration residual. G09 no longer never-run |
 | MSG-TC-H01 | Flagged items moderation queue | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-H02 | Approve a flagged item | ✅ PASS | PASS | 2026-09-04 | `qa-task27-sub-msg-closure-2026-09-04` | real admin /items/flagged approve of flagged ba6345ce (Cash-Only Item): confirm dialog → item left the moderation queue (DB-rendered; direct SQL read-back tool disabled mid-run). Consumed the last G01 fixture — documented |
 | MSG-TC-H03 | Reject with reason | ✅ PASS | PASS | 2026-09-04 | `qa-task27-sub-msg-closure-2026-09-04` | real admin /items/flagged reject of flagged ccf97ae4: Reject disabled until Decision Note entered (guard verified) → note + confirm → queue row shows Rejected + "Latest Admin Decision Note" persisted (DB-rendered). Consumed the G02 fixture — documented |
@@ -255,13 +260,9 @@ _All cases in this guide have a verdict on record — none remaining._
 | MSG-TC-J04 | Quiet hours (subscriber) + validation | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-J05 | 🚫 NOT SUPPORTED — ID verification preference category (none exists) | 📄 DOC-DRIFT | NOT SUPPORTED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | by-design NOT SUPPORTED re-confirmed via DB enum for D10 — no id_verification category; ID-verif routes via badges. DOC-DRIFT label = tracker has no NOT-SUPPORTED status |
 
-### Remaining test cases — NEVER RUN (3)
+### Remaining test cases — NEVER RUN (0)
 
-| TC-ID | Description | Note / why remaining |
-|---|---|---|
-| MSG-TC-G05 | Recall safety alert notification | config/fixture-gated (needs a recall-flagged listing + alert scenario) — not tooling-queued |
-| MSG-TC-G08 | AI moderation toggle affects automated image review | admin-config/toggle-gated — not tooling-queued |
-| MSG-TC-G09 | Recall check toggle and threshold affect recall flagging | admin-config/toggle-gated — not tooling-queued |
+None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30-adm-moderation-msg-y-2026-09-04`); see their Completed rows above. MSG's never-run pool is fully closed.
 
 ## TRD · TradeFlow V2 (Module 15.1.2)
 
@@ -653,9 +654,10 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## ADM · Admin Portal
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` · **Cases:** 160 · **PASS** 72 · **PARTIAL** 8 · **OPEN** 7 · **DOC-DRIFT** 0 · **SKIPPED** 1 · **Remaining (NEVER RUN)** 72
+**Guide file:** `cross-checked-and-consolidated/MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` · **Cases:** 160 · **PASS** 94 · **PARTIAL** 11 · **OPEN** 7 · **DOC-DRIFT** 1 · **SKIPPED** 1 · **Remaining (NEVER RUN)** 46
 
 > **QA Task 29 (2026-09-04, `qa-task29-adm-first-live-2026-09-04/`) — ADM's first full real execution round.** ~88 of 160 cases executed against the live admin portal. Full per-case ledger + reasons in `ledger-FULL-160.md` / `report.md`. Executed cases below moved to Completed; the remaining-table rows for executed IDs are superseded by the block below (prune on next maintenance).
+> **QA Task 30 (2026-09-04, `qa-task30-adm-moderation-msg-y-2026-09-04/`) — disposable-fixture moderation round (C03–C10, X05–X07) + Y-group (⌘K palette) + DT106 spot-checks.** All 8 C moderation commit legs + X05/X06 PASS live on disposable fixtures (all deleted post-run); X07 fixture-gated (0 failed payout rows). Y01–Y12 executed (Y05/Y08 PARTIAL). Spot-checks: F06 batch guardrail fix HOLDS (one-Save 48→100/72→67 atomic, DT106); K02 /payouts data leg drivable + Z05 deep-link PASS; B04 = DOC-DRIFT (SP credit/debit lives on /sp-wallet, not /users). New finding: /config SMS-stats API 401 (same BP-49 class).
 
 ### Completed test cases (have a verdict on record)
 
@@ -680,6 +682,7 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-F04 | Settings single-source + audit | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-F05 | N1 pickup/payout config (live) | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | round-trip 2→5→2 DB |
 | ADM-TC-F06 | R2 168h guardrail + reminders | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | 🔴 finding: order-dep server guardrail |
+| ADM-TC-F06b | (QA30 spot-check) R2 batch guardrail fix | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | DT106 batch RPC fix HOLDS: one-Save offer 48→100 + pickup 72→67 succeeded atomically (DB 100/67 SAME updated_at) → reverted 48/72 (DB-verified). The QA Task 29 order-dependent-guardrail finding is RESOLVED |
 | ADM-TC-F07 | Trade Pipeline board | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-F08 | R1 tiered buyer-fee fields | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-F09 | Fee-Tier Distribution (/analytics) | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
@@ -732,12 +735,32 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-N2-A05 | Financial Audit accessible | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-N2-A06 | Financial Audit search/filters | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-S03 | Support reply | ⏭️ SKIPPED | SKIPPED | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` |  |
-
-### Completed test cases (have a verdict on record)
-
-| TC-ID | Description | Status | Latest | Date | Source | Notes |
-|---|---|---|---|---|---|---|
-| ADM-TC-S03 | Support reply (stored + emailed to user) | ⏭️ SKIPPED | SKIPPED | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` |  |
+| ADM-TC-B04 | Credit/debit SP + freeze wallet from user | 📄 DOC-DRIFT | DOC-DRIFT | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | DOC-DRIFT confirmed: guide points at /users user panel, but the /users drawer SP Wallet section is READ-ONLY (no controls). Actual surface = /sp-wallet "💎 SP Wallet Operations": Manual SP Adjustment (adj-amount-input +/- add/deduct, reason*, Apply Adjustment) via admin_adjust_sp_wallet + Wallet Status Active/Frozen/Suspended via admin_toggle_sp_wallet_status (all render after loading a wallet). Commit-leg round-trip on a real wallet NOT run (needs disposable user) — queued |
+| ADM-TC-C03 | Approve flagged item | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 7bc46028: /items/flagged Review modal Approve → confirm → "Item approved successfully" → DB available + approved_by 1a546991 + flag cleared + admin_activity_log approve_listing |
+| ADM-TC-C04 | Reject item with required reason | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable a821258d: Reject DISABLED without reason (guard), enabled after Decision Note → confirm → "Item rejected successfully" → DB rejected + rejection_reason stored + appeal_count 1 |
+| ADM-TC-C05 | Item detail view + appeal info | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | appeal info (Appeals Submitted + Latest Seller Appeal Note + "Appealed at:") verified on the /items/flagged Review modal for e8e7c11a (needs_edits, appeal_count 2). DOC-DRIFT: guide's /items/[id] route renders NO appeal data (only general item + tax-category change) + hung on "Loading item details..." for e8e7c11a (anon-key RLS query) — appeal data lives on the Review modal |
+| ADM-TC-C06 | Force Delete | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 033baae0 (available): /listings details Force Delete → reason required → Confirm Delete → "Listing force-deleted successfully" → DB deleted |
+| ADM-TC-C07 | Pause | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 53a3b578 (available): Pause → reason form → "Listing paused successfully" → DB paused |
+| ADM-TC-C08 | Approve | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 033baae0 (pending): Approve Listing present (pending-only) → Admin Notes optional → "Listing approved..." → DB available + approved_by 1a546991 |
+| ADM-TC-C09 | Request Edits | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 7a045732 (flagged): Request Edits → Decision Note required (Confirm disabled w/o) → confirm → "Send this listing back..." → "Edit request sent..." → DB needs_edits + note stored |
+| ADM-TC-C10 | Reject | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable a8d41d07 (flagged): Reject → Decision Note required → "Are you sure you want to reject this listing?" → "Listing rejected successfully" → DB rejected |
+| ADM-TC-K02 | /payouts/earnings data render | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | DT106 client fix HOLDS: Seller Payouts renders 100 rows (Total 100/Completed 0/Pending 38/Failed 0/$5183.53), NO 401 (was BLOCKED-on-finding in QA Task 29) |
+| ADM-TC-X05 | Inline approve flagged item | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | /action-center Flagged Items card (3 flagged) → expand → inline Approve on disposable 7bc46028 → toast "Approved QA Bundle Fixture 1 of 5..." → row left, card count 3→2, DB available |
+| ADM-TC-X06 | Inline mark dispute under review | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | r41-dispute opened reported on fe3924ee → /action-center Disputes card (Urgent) → inline Under Review → toast "Dispute marked under review." → DB dispute_status under_review (trade in_progress intact). r41-dispute reset refuses under_review (only 'reported') → trade LEFT under_review (residue; dev follow-up) |
+| ADM-TC-X07 | Inline retry failed payout (confirmation) | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | affordance verified: 0 failed seller_payouts rows on staging → NO Failed Payouts card renders (empty-source omitted, correct) + retry button only renders for failed rows (source). Retry commit leg fixture-gated (no failed-payout fixture exists — same as K03) |
+| ADM-TC-Z05 | Failed Payouts deep-link pre-filters to failed | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | /payouts/earnings?status=failed → filter preset 'failed' + "No payouts found matching your criteria" (0 failed rows, correct) |
+| ADM-TC-Y01 | ⌘K / Ctrl+K opens the palette from any page | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | handler verified via synthetic Meta+k: opens + focuses input from /, /users, /trades, /config; 2nd Meta+k toggles closed; Esc closes. DRIVER-LIMITED: embedded driver cannot deliver a real ⌘K keystroke (host reserves it) — real-keyboard leg needs a normal-browser pass |
+| ADM-TC-Y02 | Header search bar opens palette | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | topbar-global-search pill click opens palette, input focused |
+| ADM-TC-Y03 | Parallel search, grouped labels | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | query "samer" → Users(21)/Listings(68)/Trades(514) groups in ONE render; empty groups omitted |
+| ADM-TC-Y04 | Breadcrumb context per row | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | Users → email, Listings → title, Trades → short-id, Config → category → key |
+| ADM-TC-Y05 | Input debounced ~200ms | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | 200ms debounce source-verified (CommandPalette.tsx). Char-by-char typing not drivable (driver) → no per-keystroke network count; single native-setter → single fetch observed |
+| ADM-TC-Y06 | Top-5 + "See all N results" | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | 5/group + See all → Users expanded 5→21, See-all button removed |
+| ADM-TC-Y07 | Footer "View all in <domain>" | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | View all users → /users?search=samer (prefilled); listings → /listings?tab=search&q=bike; trades → /trades?search=samer |
+| ADM-TC-Y08 | Selecting a result navigates directly | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | Settings → /config?tab=subscription ✓; Users → /users?search=<uuid> ✓; Trades → /trades/<id> ✓. FINDING: Listings row → /listings?tab=search&q=<listing-uuid> lands on "Results (0)" — admin_search_listings_v2 matches text columns NOT item UUID, so the chosen listing is NOT surfaced (guide expects "listing surfaced"). Dev: pass title or add ID matching |
+| ADM-TC-Y09 | Keyboard navigation + focus trap | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | ArrowDown moved cursor (Enter opened row 2, uuid 30be9c70 after 1 ArrowDown); ArrowUp moved back (row 1, 22488089); Esc closed. Focus trap source-confirmed (handlePanelKeyDown), not fully driven |
+| ADM-TC-Y10 | Non-admin rejected (permission scoping) | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | two-source: only role 'admin' in RBAC; profiles role gate (5235 user vs 1 admin); portal login rejects non-admins (A02 same build) → non-admin palette session NOT provisionable. Palette/RPC defense-in-depth: admin_global_search raises 'Forbidden: admin role required' → "Only admins can use global search." (source-verified) |
+| ADM-TC-Y11 | Secret settings values never shown | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | config rows show key+description+breadcrumb, NEVER value; search matches key/description not value (no is_secret=true rows on staging; values hidden regardless) |
+| ADM-TC-Y12 | Empty + no-results states | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | empty query → hint "Search across settings, users, listings, and trades."; no-results "zzzzznope" → "No results for …" + tip; no errors |
 
 ### Remaining test cases — NEVER RUN (159)
 
