@@ -32,7 +32,7 @@
 | | ADM-TC-C02 | Flagged items — filter tabs + statuses |
 | | ADM-TC-C03 | Approve flagged item |
 | | ADM-TC-C04 | Reject item with required reason |
-| | ADM-TC-C05 | Item detail view + appeal info |
+| | ADM-TC-C05 | /items/flagged Review modal — item + appeal info |
 | | ADM-TC-C06 | Force Delete |
 | | ADM-TC-C07 | Pause |
 | | ADM-TC-C08 | Approve |
@@ -517,18 +517,23 @@
 
 ---
 
-### ADM-TC-C05 · Item detail view + appeal info
+### ADM-TC-C05 · Moderation item review — appeal info on the /items/flagged Review modal
 
-**Ref:** FLOW-18 · /items/[id]
+**Ref:** FLOW-18 · /items/flagged (row + Review modal) · RPC `admin_*` item status actions
 **Actors:** test-admin
 
-**Objective:** Verify the item detail page and appeal data.
+**Objective:** Verify an admin can review a flagged / rejected / needs-edits item and see its appeal data.
+
+> **Route note (corrected DEV-TASK-108):** appeal data (Appeals Submitted count, Latest Seller Appeal Note, "Appealed at:" date) renders ONLY on the **/items/flagged** table row and its **Review** modal — NOT on **/items/[id]**. `/items/[id]` is a separate item-detail surface (general item / seller / category / created date plus the tax-category change control) and renders **no** appeal fields. Do not check appeal info on `/items/[id]`.
 
 **Steps:**
-1. Open **/items/[id]** for an item with an appeal.
+1. Open **/items/flagged** and find a row with an appeal (Appeals count > 0 and/or a Latest Seller Appeal Note).
+2. Click **Review** on that row to open the Review modal.
 
 **Expected Result:**
-- Shows title, description, price, status, seller, category, created date; for appealed items, appeal count, appeal reason, and appeal date display; back/Open Listings navigation works.
+- The table row shows the item (title + price), Item ID, seller, status pill, flagged date, **Appeals** count, and **Latest Appeal Note** (or "No seller appeal note").
+- The Review modal shows title, description, price, status pill, **Latest Admin Decision Note** (when a rejection reason exists), **Appeals Submitted** count, **Latest Seller Appeal Note** (or "No appeal note submitted yet."), and **Appealed at:** timestamp.
+- Approve & Make Available / Request Edits / Reject / Cancel actions are present; Reject and Request Edits require a Decision Note.
 
 ### ADM-TC-C06 · Force Delete
 
@@ -3119,7 +3124,7 @@ SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='
 | Flagged items filters | ADM-TC-C02 |
 | Approve flagged item | ADM-TC-C03 |
 | Reject item with reason | ADM-TC-C04 |
-| Item detail + appeal | ADM-TC-C05 |
+| /items/flagged Review modal — item + appeal info | ADM-TC-C05 |
 | Category list/filter/search (FLOW-21) | ADM-TC-D01 |
 | Create/edit category + multiplier | ADM-TC-D02 |
 | Activate/deactivate category | ADM-TC-D03 |

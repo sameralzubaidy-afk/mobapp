@@ -22,9 +22,12 @@
  *         NOT the same path — this is the real dispute write.
  *
  *   reset --trade-id <uuid> [--dry-run]
- *       → admin service-role restore: dispute_status back to 'none' + clear the
+ *       → admin service-role restore: dispute_status back to 'none' + clear ALL
  *         dispute columns + remove the trade_event / seller notification rows
- *         created by the open-dispute EF (only when currently 'reported').
+ *         created by the open-dispute / resolve-dispute EFs. Restores BOTH
+ *         'reported' AND 'under_review' end-states (DEV-TASK-108: previously
+ *         only 'reported' was reset, leaving an under_review trade — e.g. the
+ *         X06 commit leg — stranded with no sanctioned reset path).
  *
  * All writes are against STAGING — dev-team run with Samer's approval
  * (two-phase provisioning; this file is Phase 1). --dry-run is read-only.
@@ -124,25 +127,40 @@ async function cmdOpen(buyerId, sellerId) {
 
 async function cmdReset() {
   if (!TRADE_ID) { console.error('❌ reset requires --trade-id <uuid>'); process.exit(2); }
-  const { data: t, error } = await admin.from('trades').select('id, dispute_status, dispute_reason, dispute_notes, dispute_opened_at').eq('id', TRADE_ID).maybeSingle();
+  const { data: t, error } = await admin.from('trades').select('id, dispute_status, dispute_reason, dispute_notes, dispute_opened_at, disputed_at, dispute_resolution, dispute_resolved_at, dispute_resolved_by').eq('id', TRADE_ID).maybeSingle();
   if (error) { console.error(`❌ trade read failed: ${error.message}`); process.exit(1); }
   if (!t) { console.error(`❌ No trade ${TRADE_ID}`); process.exit(1); }
-  if (t.dispute_status !== 'reported') {
-    log('r41-dispute', `trade ${TRADE_ID} dispute_status=${t.dispute_status} — nothing to reset (only resets 'reported')`);
+  // DEV-TASK-108: reset BOTH 'reported' and 'under_review' (a QA mark-under-review
+  // commit leg otherwise strands the trade with no sanctioned reset path).
+  if (!['reported', 'under_review'].includes(t.dispute_status)) {
+    log('r41-dispute', `trade ${TRADE_ID} dispute_status=${t.dispute_status} — nothing to reset (only resets 'reported' or 'under_review')`);
     return;
   }
-  if (DRY_RUN) { log('r41-dispute', `DRY-RUN — would clear dispute columns + rows for trade ${TRADE_ID}`); return; }
+  if (DRY_RUN) { log('r41-dispute', `DRY-RUN — would clear all dispute columns + rows for trade ${TRADE_ID}`); return; }
+  // Trade status (in_progress) is untouched — this clears ONLY the dispute
+  // overlay columns. Clear every dispute_* column (incl. disputed_at /
+  // dispute_resolution / dispute_resolved_at / dispute_resolved_by) so a
+  // partially-advanced state never leaves residue.
   const { error: upErr } = await admin.from('trades').update({
     dispute_status: 'none',
     dispute_reason: null,
     dispute_notes: null,
     dispute_opened_at: null,
+    disputed_at: null,
+    dispute_resolution: null,
+    dispute_resolved_at: null,
+    dispute_resolved_by: null,
     updated_at: new Date().toISOString(),
   }).eq('id', TRADE_ID);
   if (upErr) { console.error(`❌ dispute reset failed: ${upErr.message}`); process.exit(1); }
-  await admin.from('trade_events').delete().eq('trade_id', TRADE_ID).eq('event_type', 'trade_disputed').catch(() => {});
-  await admin.from('trade_notification_log').delete().eq('trade_id', TRADE_ID).eq('notification_type', 'trade_dispute_opened').catch(() => {});
-  log('r41-dispute', `✅ trade ${TRADE_ID} dispute reset to 'none'`);
+  // Cleanup of the EF-created rows is non-blocking (the reset already landed);
+  // a supabase-js query builder has no .catch() — await + check the error
+  // instead (DEV-TASK-108, same pattern fix as the L02 script).
+  const { error: evErr } = await admin.from('trade_events').delete().eq('trade_id', TRADE_ID).eq('event_type', 'trade_disputed');
+  if (evErr) console.warn(`[r41-dispute] trade_event cleanup warn: ${evErr.message}`);
+  const { error: nlErr } = await admin.from('trade_notification_log').delete().eq('trade_id', TRADE_ID).eq('notification_type', 'trade_dispute_opened');
+  if (nlErr) console.warn(`[r41-dispute] notif cleanup warn: ${nlErr.message}`);
+  log('r41-dispute', `✅ trade ${TRADE_ID} dispute reset to 'none' (was '${t.dispute_status}')`);
 }
 
 async function main() {
