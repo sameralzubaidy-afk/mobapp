@@ -33,6 +33,10 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   'test-buyer-3': { email: 'test-buyer-3@kidsmarketplace.test', password: 'TestBuyer3123!' },
   'test-grace': { email: 'test-grace@kidsmarketplace.test', password: 'TestGrace123!' },
   'test-expired': { email: 'test-expired@kidsmarketplace.test', password: 'TestExpired123!' },
+  // DEV-TASK-109 (item 2): standing disposable SP-wallet persona for the
+  // freeze/suspend mobile legs (L05/L07/L08, B04) — Kids Club+ active with an
+  // admin-freezable wallet. Provision via `npm run qa:wallet-persona -- ensure`.
+  'qa-wallet': { email: 'qa-wallet@kidsmarketplace.test', password: 'TestWallet123!' },
   // DEV-TASK-96 (item 7): MSG-TC-A01 empty-inbox persona — full profile, zero
   // conversations (see seedNoConversationPersonaFixture in seed-staging-data.ts).
   'test-noconvo': { email: 'test-noconvo@kidsmarketplace.test', password: 'TestNoConvo123!' },

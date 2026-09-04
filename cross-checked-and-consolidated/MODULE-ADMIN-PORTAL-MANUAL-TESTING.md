@@ -2,8 +2,8 @@
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-18 Admin Controls / CPSC Recall Imports / ID Badge Verification · FLOW-20 Audit/Logging · FLOW-21 Category Management / Education CMS · FLOW-22 Sales Tax · FLOW-25 Manual Payout Admin · FLOW-28 Cron & Background Jobs · FLOW-30 SP Wallet Admin Ops · FLOW-34 Admin Auth Middleware)
 **Tasks covered:** Admin Auth & Dashboard (health strip, Action Center, KPI cards, no duplicate nav cards) · Users · Listings/Items/Flagged · Categories · Nodes/Node Settings/Waitlist + **per-node KPIs (N6 node tagging)** · Global Config (cart, trade-timing, N1 configurability — pickup/payout) · Policies · Trades · Disputes · Tax · Payouts (config + earnings) · SP Economy/Analytics/Wallet · Subscriptions · Referrals · ID Badges/Badges · Review Moderation · Education/FAQ CMS · Support · Revenue/Notification Analytics · Audit Logs · Monitoring/Cron · Sidebar Navigation (grouped & collapsible)
-**Last updated:** 2026-09-02 (guide-currency audit v2: Group F page-drift flags on F03/F05/F06/F08/F10 + F09 moved to /analytics; J01 no bare /tax; L06 dashboard card removed; Q02/Q03 review-confirm copy corrected; W01 OVERVIEW = Action Center + Dashboard)
-**Scope:** Admin portal manual testing in a **web browser** (this is a web-based admin tool, not a mobile app). No SQL / no DB access required — **exception:** the N6 node-tagging data-layer checks (ADM-TC-E06, and the SQL reconcile step in ADM-TC-E07) run **read-only** queries in the Supabase SQL Editor on staging.
+**Last updated:** 2026-09-04 (DEV-TASK-110: D04/D11 sanctioned pending-suggestion fixture note; D08 drag-free Move Up/Down reorder path + `Surfaces: admin, mobile` leg; E06/E07 sanctioned read-only SQL path note)
+**Scope:** Admin portal manual testing in a **web browser** (this is a web-based admin tool, not a mobile app). No SQL / no DB access required — **exception:** the N6 node-tagging data-layer checks (ADM-TC-E06, and the SQL reconcile step in ADM-TC-E07) run **read-only** queries. For the embedded QA driver the sanctioned equivalent of the Studio SQL Editor is **read-only** `mcp_supabase_execute_sql` (pre-approved for read-only; never a write) — see the E06/E07 case notes.
 **Devices:** Desktop browser (Chrome/Safari/Firefox). Admin login required.
 
 > Note: detailed **Sales Tax admin** cases (node rate config, bulk update, audit history, reporting dashboard, CSV export) live in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group P (TRD-TC-P01–TRD-TC-P08). This guide's Tax group (Group J) covers entry points and cross-references those.
@@ -725,6 +725,11 @@
 
 **Objective:** Verify the seller category-suggestions queue.
 
+**Setup (pending suggestions — sanctioned fixture, DEV-TASK-110):** staging has no pending suggestions by default (all terminal), and the real producer is the mobile "Other"-listing flow. A dev must stage disposable ones first (owner-approved, two-phase):
+- `npm run qa:category-suggestion -- stage --persona test-seller --count 3` (from `p2p-kids-marketplace/`)
+- Cleanup after the run: `npm run qa:category-suggestion -- reset --persona test-seller`
+- Read-only status check anytime: `npm run qa:category-suggestion -- list --persona test-seller`
+
 **Steps:**
 1. Open the **Suggestions** tab.
 
@@ -778,16 +783,27 @@
 
 ### ADM-TC-D08 · Drag-and-drop reorder
 
-**Ref:** /categories · POST `/api/admin/categories/reorder` (or RPC `reorder_categories`)
+**Ref:** /categories · POST `/api/admin/categories/reorder` (the UI drag handler AND the Move Up/Down buttons both call this; no DB RPC in the browser path — QA Task 31)
 **Actors:** test-admin
+**Surfaces:** admin, mobile
 
-**Objective:** Verify drag-to-reorder persists category order.
+**Objective:** Verify category display order persists after a reorder and reflects in the mobile category picker.
 
-**Steps:**
-1. On **/categories**, drag a category row by its drag handle to a new position.
+**Steps (drag — primary):**
+1. On **/categories**, drag a category row by its drag handle to a new position; reload.
+
+**Steps (drag-free — DEV-TASK-110, recommended for the embedded driver):**
+HTML5 drag-and-drop is not reliably drivable by the embedded browser driver (QA Task 31). Use each row's **Move Up / Move Down** buttons (`btn-move-up-<id>` / `btn-move-down-<id>` in the Actions cell) — they persist through the exact same `POST /api/admin/categories/reorder` endpoint the drag handler calls. Recommended non-destructive recipe (real categories never change order):
+1. Create **two** disposable active categories **A** then **B** via the create flow (ADM-TC-D02) — both append at the bottom in the order `… , A, B`.
+2. On **/categories**, click **Move Down** on **A** (or **Move Up** on **B**) → the two swap to `… , B, A` and persist immediately.
+3. Reload **/categories** and confirm the swap persisted.
+
+**Mobile leg (R55 — mandatory for PASS):** in a fresh mobile session, open the sell/category picker (`CategorySelectModal`) for a persona in the affected node and confirm that, **within the main category list (ignore any "Recent" section pinned above it)**, the two disposable categories now appear **B before A** (they previously read **A before B**). Mobile `getCategories` orders active categories by `display_order` ascending — no app cache to clear beyond a fresh load.
 
 **Expected Result:**
-- The row reorders; the new order is saved via the reorder endpoint and persists after reload.
+- The reorder (drag or Move button) persists across reload in admin and reflects in the mobile category picker order.
+
+**Cleanup:** delete both disposable categories (ADM-TC-D10) — real categories never changed order, so no restore is needed.
 
 ### ADM-TC-D09 · Bulk actions (Activate / Deactivate / Delete / Export CSV)
 
@@ -825,14 +841,18 @@
 
 **Objective:** Verify the suggestion moderation actions.
 
+**Setup (pending suggestions — sanctioned fixture, DEV-TASK-110):** same as ADM-TC-D04 — dev stages disposable suggestions first (`npm run qa:category-suggestion -- stage --persona test-seller --count 3`). The fixture stages each suggestion on its own disposable `draft` item, so Approve / Merge reassigning the suggestion's item only moves a fixture-owned item, never a shared seed item.
+
 **Steps:**
-1. On the **Suggestions** tab, try **Approve**, **Merge** (with an existing category), and **Reject** on suggestions.
+1. On the **Suggestions** tab, try **Approve** (#1), **Merge** (#2, into an existing category), and **Reject** (#3) on the staged suggestions.
 
 **Expected Result:**
-- Approve modal: `Approve & Create Category` creates the category.
+- Approve modal: `Approve & Create Category` creates the category (item reassigned — disposable).
 - Merge modal: requires `Select Existing Category *` (default `-- Select a category --`) then `Merge Suggestion`.
 - Reject modal: `Admin Note (optional)` then `Reject Suggestion`.
-- Each updates the suggestion queue.
+- Each updates the suggestion queue (pending count decrements).
+
+**Cleanup (required):** after all three legs, dev runs `npm run qa:category-suggestion -- reset --persona test-seller` — this deletes the fixture's items/suggestions AND the category the Approve leg created, returning the DB to its pre-stage state. Run cleanup even if a leg was skipped.
 
 ---
 
@@ -941,9 +961,11 @@
 ### ADM-TC-E06 · Node tagging completeness (N6)
 
 **Ref:** FLOW-03 · BRD §6.10 (BR-N6-001..005, 007) · SRS §8A (SR-N6-001..005, 007, 008) · migration `20260809000005_n6_node_tagging.sql`
-**Actors:** test-admin (SQL Editor on staging)
+**Actors:** test-admin — SQL steps via the sanctioned **read-only** QA path (below), not the Studio SQL Editor
 
 **Objective:** Verify every user, listing, trade, and cost/ledger record resolves to exactly **one** node.
+
+**QA driving note (DEV-TASK-110 — no new access needed):** the read-only queries in the steps below are pre-approved for QA via `mcp_supabase_execute_sql` (read-only SQL is permitted for the QA agent; writes are never performed). There is no separate Studio "SQL Editor" console for the embedded driver, and none is required. Step 3's write-trigger leg (create a listing + trade → confirm `node_id` auto-population) must be driven through a real product path (a seller persona creates the listing/trade in the app) or staged by a dev fixture — never hand-inserted `items`/`trades` rows to fake it.
 
 **Steps (SQL Editor — one statement at a time):**
 1. Run the per-table NULL-node coverage query from migration verification #3 (items, trades, payments, trade_refunds, sp_wallets, sp_ledger, sp_batches, seller_payouts, seller_balance, cart_items).
@@ -959,9 +981,11 @@
 ### ADM-TC-E07 · Per-node KPIs (N6 expansion-gate metrics)
 
 **Ref:** FLOW-03 · BRD §6.10 (BR-N6-006) · SRS §8A (SR-N6-006) · GTM plan §13/§15.6
-**Actors:** test-admin (browser + SQL Editor on staging)
+**Actors:** test-admin (browser + read-only SQL via `mcp_supabase_execute_sql`)
 
 **Objective:** Verify the per-node KPIs are visible in the admin Nodes page and reconcile with the RPC.
+
+**QA driving note (DEV-TASK-110 — no new access or fixture needed):** the `admin_node_kpis` calls are read-only RPC `SELECT`s — pre-approved for QA via `mcp_supabase_execute_sql`. Run them one statement at a time and reconcile against the UI as written. Requires only seeded nodes with members/listings/trades (present on staging).
 
 **Steps (UI):**
 1. Open **/nodes**.
