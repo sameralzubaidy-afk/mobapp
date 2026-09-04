@@ -656,6 +656,35 @@ The file **`e2e-test-results/QA-TESTCASE-STATUS-2026-09-03.md`** is the **canoni
 
 *Evidence: `e2e-test-results/QA-TESTCASE-STATUS-2026-09-03.md` and `TEST-COVERAGE-INVENTORY-v2.md` created 2026-09-03 (no-cutoff reconciliation of all QA evidence on disk; supersedes the 2026-08-24 inventory that omitted TRD Groups S–Z, ACC closures, and the MSG/SUB live rounds).*
 
+### 5.55 Standing rule — the FORMAL QA Session Handoff (complete §8.3 block, every field) is the MANDATORY final-chat deliverable of every QA run (R53, 2026-09-04)
+
+**R53 — Every QA run MUST end with the complete formal QA Session Handoff — the full §8.3 block with EVERY field populated — emitted verbatim as part of the agent's FINAL chat-visible reply. A condensed summary, a "see the report" pointer, a partial field set, or prose that paraphrases the fields is NOT acceptable and does not complete the run.** This is a hard, non-negotiable contract between the QA agent and the humans (project owner / dev agent) who consume the agent's output — the formal handoff block is the *only* reliably-scanned status artifact the humans read, so it must be complete and self-contained in the chat message every single time.
+
+1. **Trigger.** The rule applies to the END of EVERY run — every per-case report (§8.1), every batch summary (§8.2), and every multi-case session close — regardless of run size (one case or one hundred), verdict mix (all-PASS or all-BLOCKED), or surface (mobile-only, admin-only, or mixed). It is not optional and is not skippable on "small run" or "nothing to report" grounds — a run with zero findings still emits the block with explicit "None" / "not applicable" values.
+2. **What "every field" means.** Reproduce the §8.3 block's field set exactly and verbatim (field labels intact), and fill every field with real content from this run — do not delete or merge fields:
+   - `**Test Scope:**`
+   - `**Design-System Compliance:**`
+   - `**Perceived Load-Time Verdict:**`
+   - `**Design & Copy Compliance Confirmation:**`
+   - `**Verdict Summary:**`
+   - `**Coverage Tracker Updated:**`
+   - `**Critical Findings:**`
+   - `**App State Left Behind:**`
+   - `**Why It Matters:**`
+   - `**How to Verify/Reproduce:**`
+   - `**Known Gaps / Not Tested:**`
+   - `**What Needs To Be Fixed Next:**`
+   - `**UX Enhancement Ideas (optional, not defects):**`
+   - `**Suggested Next Session:**`
+   - `**Suggested to Improve Agent Rules:**`
+   Where a field has no content this run, write the explicit null phrase required by the template (e.g. "None — all reachable behavior in this batch is correct.", "None this run — no friction or enhancement opportunities observed…", "none") — never leave the field blank and never omit the label.
+3. **No "file-only" escape, and no summary substitute.** §8.4 already forbids file-only emission; R53 additionally forbids replacing the verbatim block with a condensed bullet list, a "top-line verdict + see report.md" hand-wave, or a link. The detailed per-case traces/screenshots/tables stay in `report.md`; the *complete handoff block itself* is repeated verbatim in the final chat reply. (This is the standard the QA Task 26 final reply missed — it delivered a rich prose summary but omitted most of the §8.3 fields; do not regress to that.)
+4. **Sequence check before ending the turn.** Before the final message, self-check: (a) the run's verdicts are recorded (tracker per §5.54 R52 AND `report.md`/`ledger.md`), (b) the §8.3 block is fully written to the report, and (c) the SAME complete block is being emitted verbatim as the last thing in the chat reply. If any of (a)–(c) is missing, the run is not complete — finish it before ending the turn.
+5. **Scope adaptation still applies (unchanged from §8.3):** per-case → scope fields to that single case; batch/session → roll-up across the whole batch. `App State Left Behind` always records account/session/fixture state left behind.
+6. **Relationship to existing sections.** R53 is the enforcement companion to §8.3 (the template — canonical field set and scope adaptation), §8.4 (verbatim chat emission — extended here to forbid condensed substitutes), and §5.54 R52 (`Coverage Tracker Updated` field content). Those sections stay canonical for their own details; R53 is the numbered rule that makes the complete-emission obligation explicit and testable.
+
+*Evidence / origin: owner standing request (2026-09-04, after QA Task 26) — "for future requests I want the QA test agent to send the formal handoff with all the points in it. This is a mandatory request" — prompted by the QA Task 26 final reply delivering a rich prose summary that omitted most §8.3 fields. Dated consolidation in `/memories/repo/qa-test-agent.md` (2026-09-04 entry).*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
@@ -784,6 +813,7 @@ The full §8.3 handoff block — **every field**, including the fields added abo
 
 - The detailed per-case execution traces, screenshots, and full batch tables may remain in the report file only.
 - The handoff itself — every field from §8.3 — must surface directly in the chat response every time. A run is not complete until the complete §8.3 block appears in the agent's final chat message.
+- **No condensed substitute (R53, §5.55 — MANDATORY):** a prose summary, a "top-line verdict + see `report.md`" pointer, or a partial field set does **not** satisfy this requirement. The complete §8.3 block — **all field labels verbatim, every field populated** (with the template's explicit "None" phrasing where a field has no content) — must be the closing block of the agent's final chat message, verbatim and self-contained. Do not leave any §8.3 field blank, omitted, or merged. (Origin: owner standing request 2026-09-04 — the QA Task 26 final reply omitted most §8.3 fields behind a rich prose summary; do not regress to that.)
 
 ## 9. Friction & follow-ups
 

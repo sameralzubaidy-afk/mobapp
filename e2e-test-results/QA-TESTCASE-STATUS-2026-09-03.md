@@ -20,11 +20,11 @@
 | Guide | Canonical file | Cases | ✅ PASS | 🟡 PARTIAL | 🔴 OPEN | 📄 DRIFT | ⏭️ SKIP | **Remaining (NEVER RUN)** |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | **AUTH** | `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` | 138 | 118 | 2 | 16 | 0 | 2 | **0** |
-| **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 47 | 6 | 5 | 0 | 0 | **14** |
+| **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 63 | 2 | 2 | 2 | 0 | **3** |
 | **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 234 | 28 | 2 | 3 | 2 | **19** |
 | **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 57 | 0 | 17 | 0 | 1 | **0** |
 | **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 0 | 0 | 0 | 0 | 1 | **159** |
-| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 30 | 5 | 7 | 0 | 0 | **58** |
+| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 45 | 2 | 3 | 0 | 0 | **50** |
 
 Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP. A case that is PASS, PARTIAL or OPEN has been executed at least once; DRIFT/SKIP rows are documented; the **Remaining** column is what still needs a run.
 
@@ -179,7 +179,7 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## MSG · Messaging / Badges / ID-Verification / Referrals / Safety / Notifications
 
-**Guide file:** `cross-checked-and-consolidated/MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` · **Cases:** 72 · **PASS** 47 · **PARTIAL** 6 · **OPEN** 5 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 14
+**Guide file:** `cross-checked-and-consolidated/MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` · **Cases:** 72 · **PASS** 63 · **PARTIAL** 2 · **OPEN** 2 · **DOC-DRIFT** 2 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 3
 
 ### Completed test cases (have a verdict on record)
 
@@ -209,14 +209,18 @@ _All cases in this guide have a verdict on record — none remaining._
 | MSG-TC-D01 | Start ID verification + upload from library | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-D03 | Submit creates pending request | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
 | MSG-TC-D06 | Pending state screen | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
-| MSG-TC-D07 | Approved → Verified badge on profile | 🟡 PARTIAL | PARTIAL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
-| MSG-TC-D08 | Rejected → reason shown + resubmit | 🟡 PARTIAL | PARTIAL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
+| MSG-TC-D07 | Approved → Verified badge on profile | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 verbatim PASS: test-seller-3 ID screen "Identity Verified" + green Verified pill; other-user Seller Profile shows Verified + Trust level Ultimate. Caveat finding #2: OWN public-profile self-view showed Not-Verified ~1-2 min post-approval (DEV-TASK-102/Item 5 tracks) — badge legs pass |
+| MSG-TC-D08 | Rejected → reason shown + resubmit | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 verbatim PASS: after E03 rejection test-seller's ID screen returns to upload state (resubmission possible, by design) + Notification Center top row shows "Your ID verification was not approved... Reason: Unclear Photo." — reason + notes delivered |
 | MSG-TC-D09 | Submission confirmation notifications reach the user | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
+| MSG-TC-D02 | Capture ID with camera | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | simulator leg: Use Camera → graceful inline "Failed to take photo" error, no crash (iOS sim has no camera hardware). Capture-success + permission-denied-alert legs require a physical device — genuine PARTIAL |
+| MSG-TC-D04 | Duplicate pending request blocked | ✅ PASS | PASS | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | submitted new ID request (row 28846a18 pending) → re-enter ID Verification renders Pending state (no upload/Use-Camera/submit affordance) → 2nd request structurally impossible; DB: exactly 1 pending row. Doc-drift: guide's "Pending Request" alert branch is dead code — the Pending-state screen is the live guard |
+| MSG-TC-D05 | No-image submit validation | ✅ PASS | PASS | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | Submit disabled (gray) until an image is selected; no-image tap = no-op, no error box (disabled-button guard, matches guide + DT97 doc-drift note) |
+| MSG-TC-D10 | Decision notifications honor channel preferences — 🚫 NOT SUPPORTED (no such category) | 📄 DOC-DRIFT | NOT SUPPORTED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | by-design NOT SUPPORTED confirmed: notification_category enum = subscription/sp_events/badges/trades/system (NO id_verification); ID-verif notifications route via badges — DB enum + test-buyer prefs verified. Mirrors J05. DOC-DRIFT label = tracker has no NOT-SUPPORTED status |
 | MSG-TC-E01 | Review queue (stats, filters, search) | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
-| MSG-TC-E02 | Approve a request | 🟡 PARTIAL | PARTIAL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
-| MSG-TC-E03 | Reject with reason | 🟡 PARTIAL | PARTIAL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
-| MSG-TC-E04 | View completed request details | 🟡 PARTIAL | PARTIAL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
-| MSG-TC-E05 | Edit message templates | 🟡 PARTIAL | PARTIAL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
+| MSG-TC-E02 | Approve a request | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 verbatim PASS: approve d148ee0f → DB approved + reviewed_at/by + approval_notes; id_badge_approved notification to test-seller-3; screenshot storage object deleted post-decision (privacy promise held) |
+| MSG-TC-E03 | Reject with reason | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 verbatim PASS: no-reason submit fired "Please select a rejection reason" dialog (guide match) → reason + notes → rejected; DB rejected + rejection_reason=unclear_photo + id_badge_rejected notification with reason/notes |
+| MSG-TC-E04 | View completed request details | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | details shows Approved (green pill), holds after reload — DEV-TASK-101 stale-status fix verified live |
+| MSG-TC-E05 | Edit message templates | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 verbatim PASS: template text edited (appended QA-E05-temp) → Save → "✓ Saved successfully" + Last-updated bumped; reverted. Minor doc drift: confirmation copy is "✓ Saved successfully", not guide's "Message saved" |
 | MSG-TC-E06 | New submission creates admin alert notification | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-F01 | View referral code + hero | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-F02 | Copy referral code | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
@@ -226,11 +230,15 @@ _All cases in this guide have a verdict on record — none remaining._
 | MSG-TC-F06 | Enter referral code at signup | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-F07 | Program paused banner + disabled share | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-F08 | Admin configures referral rewards | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
-| MSG-TC-G01 | Listing flagged → Safety Review screen | 🔴 STILL OPEN | BLOCKED | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | BLOCKED (env/fixture) |
-| MSG-TC-G04 | Remove a flagged listing | 🔴 STILL OPEN | BLOCKED | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | BLOCKED (env/fixture) |
-| MSG-TC-G06 | Appeal max-attempt limit follows admin config | 🔴 STILL OPEN | BLOCKED | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | BLOCKED (env/fixture) |
-| MSG-TC-G07 | Appeal window follows admin config | 🔴 STILL OPEN | BLOCKED | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | BLOCKED (env/fixture) |
+| MSG-TC-G01 | Listing flagged → Safety Review screen | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | flagged ba6345ce loads (FLAGGED badge, correct actions) — DEV-TASK-101 owner-scoped fetch fix live |
+| MSG-TC-G02 | Appeal a flagged/rejected listing | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | rejected-fresh ccf97ae4: empty/<10 char validation + valid appeal → flagged; DB-verified appeal_reason+appealed_at+edited_since_rejection |
+| MSG-TC-G03 | Resubmit a "needs edits" listing | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | needs-edits afd3384a: Make Edits Now → pre-populated EditListing → edit → Save → auto-resubmit → pending (DB-verified, appeal_count 1) |
+| MSG-TC-G04 | Remove a flagged listing | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | remove flow on rejected ce322cd9: Remove Listing → confirm modal → removed (DB status deleted). Note: pure-flagged shows Edit-only; Remove Listing renders on rejected only |
+| MSG-TC-G06 | Appeal max-attempt limit follows admin config | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | appeal-count-3 ce322cd9: 4th appeal blocked "Appeal limit reached. Maximum allowed appeals: 3." (DB-verified unchanged) — matches moderation_appeal_max_attempts=3 |
+| MSG-TC-G07 | Appeal window follows admin config | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | backdated-15d e2096de2: appeal blocked "Appeal window has expired... within 14 days" (DB unchanged) — matches moderation_appeal_window_days=14 |
 | MSG-TC-H01 | Flagged items moderation queue | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
+| MSG-TC-H02 | Approve a flagged item | ✅ PASS | PASS | 2026-09-04 | `qa-task27-sub-msg-closure-2026-09-04` | real admin /items/flagged approve of flagged ba6345ce (Cash-Only Item): confirm dialog → item left the moderation queue (DB-rendered; direct SQL read-back tool disabled mid-run). Consumed the last G01 fixture — documented |
+| MSG-TC-H03 | Reject with reason | ✅ PASS | PASS | 2026-09-04 | `qa-task27-sub-msg-closure-2026-09-04` | real admin /items/flagged reject of flagged ccf97ae4: Reject disabled until Decision Note entered (guard verified) → note + confirm → queue row shows Rejected + "Latest Admin Decision Note" persisted (DB-rendered). Consumed the G02 fixture — documented |
 | MSG-TC-H04 | Request edits | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-H05 | Trade dispute: mark under review | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
 | MSG-TC-H06 | Trade dispute: resolve complete / refund | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
@@ -239,29 +247,21 @@ _All cases in this guide have a verdict on record — none remaining._
 | MSG-TC-I05 | Mark all as read | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-I06 | Pagination + pull to refresh | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-I07 | Real-time arrival | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
+| MSG-TC-I01 | Enable push notifications | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | prompt leg PASS (🔔 Stay Connected + 5 benefit bullets + Privacy box render). Enable Notifications CTA occluded by floating PersistentTabBar (y868-905 pill band; NotificationSetup NOT in TAB_BAR_HIDDEN_ROUTES) → interaction not drivable; success leg needs a physical device (registerForPushNotifications returns null when !Device.isDevice) |
+| MSG-TC-I02 | Push error states (Expo Go / web) | 🔴 STILL OPEN | BLOCKED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | simulator error-state leg blocked on-device: Enable Notifications CTA occluded by the floating tab bar → cannot reach the 'Could not obtain push token' error. Behavior source-confirmed (sim → null token → iOS message). Fix: add NotificationSetup to TAB_BAR_HIDDEN_ROUTES (dev follow-up) |
 | MSG-TC-J01 | Category × channel toggles (live screen — 5 categories, no Safety) | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-J02 | Default preferences (DB-driven, no hardcoded defaults) | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-J03 | Always-on note (live footer copy) | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-J04 | Quiet hours (subscriber) + validation | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
+| MSG-TC-J05 | 🚫 NOT SUPPORTED — ID verification preference category (none exists) | 📄 DOC-DRIFT | NOT SUPPORTED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | by-design NOT SUPPORTED re-confirmed via DB enum for D10 — no id_verification category; ID-verif routes via badges. DOC-DRIFT label = tracker has no NOT-SUPPORTED status |
 
-### Remaining test cases — NEVER RUN (14)
+### Remaining test cases — NEVER RUN (3)
 
 | TC-ID | Description | Note / why remaining |
 |---|---|---|
-| MSG-TC-D02 | Capture ID with camera |  |
-| MSG-TC-D04 | Duplicate pending request blocked |  |
-| MSG-TC-D05 | No-image submit validation |  |
-| MSG-TC-D10 | Decision notifications honor channel preferences |  |
-| MSG-TC-G02 | Appeal a flagged/rejected listing |  |
-| MSG-TC-G03 | Resubmit a "needs edits" listing |  |
-| MSG-TC-G05 | Recall safety alert notification |  |
-| MSG-TC-G08 | AI moderation toggle affects automated image review |  |
-| MSG-TC-G09 | Recall check toggle and threshold affect recall flagging |  |
-| MSG-TC-H02 | Approve a flagged item |  |
-| MSG-TC-H03 | Reject with reason |  |
-| MSG-TC-I01 | Enable push notifications |  |
-| MSG-TC-I02 | Push error states (Expo Go / web) |  |
-| MSG-TC-J05 | 🚫 NOT SUPPORTED — ID verification preference category (none exists) |  |
+| MSG-TC-G05 | Recall safety alert notification | config/fixture-gated (needs a recall-flagged listing + alert scenario) — not tooling-queued |
+| MSG-TC-G08 | AI moderation toggle affects automated image review | admin-config/toggle-gated — not tooling-queued |
+| MSG-TC-G09 | Recall check toggle and threshold affect recall flagging | admin-config/toggle-gated — not tooling-queued |
 
 ## TRD · TradeFlow V2 (Module 15.1.2)
 
@@ -827,27 +827,35 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## SUB · Subscriptions / Payouts / SP Wallet
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 30 · **PARTIAL** 5 · **OPEN** 7 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 58
+**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 45 · **PARTIAL** 2 · **OPEN** 3 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 50
 
 ### Completed test cases (have a verdict on record)
 
 | TC-ID | Description | Status | Latest | Date | Source | Notes |
 |---|---|---|---|---|---|---|
 | SUB-TC-A01 | Subscription Plans screen — Free vs Kids Club+ cards | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
+| SUB-TC-A02 | Plan Comparison table — feature-by-feature + POPULAR badge | ✅ PASS | PASS | 2026-09-02 | `qa-task22-sub-remainder-2026-09-02` | comparison table renders (qa22 "A02 PASS (render)" — render-level pass) |
 | SUB-TC-A03 | Dynamic pricing & fees pulled from admin config | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-A04 | Current plan reflected (button disabled / "Current Plan") | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-C01 | My Subscription screen — paid member view | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-C02 | My Subscription quick menu (Billing / Payment / Help) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-C03 | Manage Kids Club+ — status, next billing, days remaining | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
+| SUB-TC-C04 | Cancel flow — retention screen "Keep My Benefits" | ✅ PASS | PASS | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | real on-device cancel loop (disposable sub user): My Subscription → Cancel → retention "We'll miss you!" (C04 surface) → confirm → cancelled; Stripe cancel_at_period_end + DB status canceled verified (A6) |
+| SUB-TC-C05 | Cancel reason modal + final confirmation | 🟡 PARTIAL | PARTIAL | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | cancel OUTCOME verified via the My Subscription retention/alert path (A6); the Manage Kids Club+ reason-modal surface (cancel-reason-* rows, disabled Confirm, Other free-text) NOT driven — genuine PARTIAL |
+| SUB-TC-C06 | Cancelled subscription stays active until period end | ✅ PASS | PASS | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | Manage shows Cancelled / Access Until Oct 2 / 30 days / Auto-Renew OFF + benefits-until-end copy; Stripe cancel_at 2026-10-02 (A6) |
+| SUB-TC-C07 | Auto-renew toggle / update payment method | ✅ PASS | PASS | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | in-app re-enable toggle → Stripe cancel_at_period_end=false + DB active again (A6) |
+| SUB-TC-C08 | Manage Kids Club+ free/no-subscription state | ✅ PASS | PASS | 2026-09-02 | `qa-task22-sub-remainder-2026-09-02` | test-free Manage: "You don't have an active Kids Club+ subscription." + green Subscribe CTA (qa22 b4-C08) |
 | SUB-TC-C09 | Manage Kids Club+ expired state | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
 | SUB-TC-C10 | My Subscription free-user state | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-C11 | My Subscription "Learn More" link | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-C12 | My Subscription "Member Since" value (latent bug) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
+| SUB-TC-D01 | Grace period banner + SP wallet frozen warning | ✅ PASS | PASS | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | test-grace Manage Kids Club+ (deep link): Status 'Grace Period' badge + warning box "Grace Period Active / Your Swap Points are frozen. Re-subscribe before November 2, 2026 to restore access, or they will be permanently deleted." + Re-subscribe to Kids Club+ CTA. Copy diff vs guide: live shows the re-subscribe DEADLINE (grace_ends_at 11/02/2026) rather than guide's "Your subscription ended on ..." phrasing + day-count — intent met. Closes the Manage-Kids-Club-surface equivalent of SUB-TC-I05 |
 | SUB-TC-D03 | Subscription Expired screen — benefits lost + Renew | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
 | SUB-TC-D06 | 📦 moved to Fixture-Gated Backlog (clock/push fixture) | 🔴 STILL OPEN | BLOCKED | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | BLOCKED (env/fixture) |
 | SUB-TC-D07 | 📦 moved to Fixture-Gated Backlog (clock/push fixture) | 🔴 STILL OPEN | BLOCKED | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | BLOCKED (env/fixture) |
-| SUB-TC-E02 | Billing History empty state | 🔴 STILL OPEN | BLOCKED | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | BLOCKED (env/fixture) |
-| SUB-TC-E03 | Failed charge shows error message | 🔴 STILL OPEN | FAIL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | FAIL, unresolved |
+| SUB-TC-E01 | Billing History list — records, status badges, amounts | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` | bundled with SUB-TC-K01 PASS (qa19, same live TransactionHistory surface) + qa21 E01-billing-recon renewal row |
+| SUB-TC-E02 | Billing History empty state | ✅ PASS | PASS | 2026-09-02 | `qa-task22-sub-remainder-2026-09-02` | test-free Transaction History empty state — "No billing history yet." (on-device qa22; was budget-not-run in qa21, NOT blocked) |
+| SUB-TC-E03 | Failed charge shows error message | ✅ PASS | PASS | 2026-09-04 | `qa-task26-msg-g-closing-2026-09-03` | FAILED row ($5.99 Sep 3) shows error_message caption under red badge — DEV-TASK-101 render fix live (test-buyer billing-history deep link)
 | SUB-TC-E04 | ⏸ FIXTURE-GATED (push-payload) — Subscription Status screen diagnostics | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
 | SUB-TC-F02 | Payout method section (add vs existing) — live | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-H05 | Withdraw Now from Payout Settings hero (verified template) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
@@ -861,13 +869,13 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-I09 | SP Wallet — pending-release summary note | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-J01 | SP History tabs (All / Earned / Spent) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-J02 | Transaction rows — type icon, label, signed amount | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
-| SUB-TC-J03 | Empty state per tab | 🔴 STILL OPEN | BLOCKED | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | BLOCKED (env/fixture) |
-| SUB-TC-J04 | Pull-to-refresh updates ledger | 🔴 STILL OPEN | BLOCKED | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | BLOCKED (env/fixture) |
+| SUB-TC-J03 | Empty state per tab | ✅ PASS | PASS | 2026-09-02 | `qa-task22-sub-remainder-2026-09-02` | test-free SP History All/Earned/Spent all "No transactions yet" (qa22; was budget-not-run in qa21, NOT blocked) |
+| SUB-TC-J04 | Pull-to-refresh updates ledger | ✅ PASS | PASS | 2026-09-02 | `qa-task22-sub-remainder-2026-09-02` | RefreshControl wired (SpTransactionHistoryScreen L147); pull gesture executed, no error (qa22; was budget-not-run in qa21) |
 | SUB-TC-K01 | Transaction History list + status badges | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
-| SUB-TC-L01 | Renewal webhook → billing + member state — **LIVE PASS** (QA Task 21: real test-clock renewal advanced `current_period_end` + wrote `billing_history` row) | 🟡 PARTIAL | PARTIAL | 2026-09-02 | `qa-task21-sub-close-2026-09-02` |  |
-| SUB-TC-L02 | Payment-failed webhook → retry/grace — **PARTIAL** (mechanism live-subscribed; no live failing-renewal fixture driven) | 🟡 PARTIAL | PARTIAL | 2026-09-03 | `qa-task25-consolidated-2026-09-03` |  |
-| SUB-TC-L03 | Invalid webhook signature rejected — **PARTIAL** (source+deployed parity; negative-signature POST not driven) | 🟡 PARTIAL | PARTIAL | 2026-09-02 | `qa-task21-sub-close-2026-09-02` |  |
-| SUB-TC-L04 | Duplicate webhook delivery idempotent — **LIVE PASS** (QA Task 21: 4 webhook events → ONE `subscriptions` + ONE `subscription_events` row) | 🟡 PARTIAL | PARTIAL | 2026-09-02 | `qa-task21-sub-close-2026-09-02` |  |
+| SUB-TC-L01 | Renewal webhook → billing + member state — **LIVE PASS** (QA Task 21: real test-clock renewal advanced `current_period_end` + wrote `billing_history` row) | ✅ PASS | PASS | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | qa21 §F upgrades PARTIAL→PASS (real test-clock renewal: current_period_end 10-02→11-02 + billing_history row in_1UBMIB4 599 SUCCEEDED) |
+| SUB-TC-L02 | Payment-failed webhook → retry/grace — **PASS** (grace/freeze leg confirmed live via DT99 independent QA) | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 Batch4 PASS (cross-ref): DT99 independent QA drove real failing-renewal on a disposable user — 3rd failure → status grace_period + sp_wallets.state grace_period + 3 critical payment-failed notifs; upgrades PARTIAL→PASS |
+| SUB-TC-L03 | Invalid webhook signature rejected — **PASS** (live negative-signature POST) | ✅ PASS | PASS | 2026-09-02 | `qa-task22-sub-remainder-2026-09-02` | qa22 L03 PASS (live): POST to stripe-webhook-subscriptions with bogus Stripe-Signature → HTTP 400 INVALID_SIGNATURE, no mutation; upgrades qa21 PARTIAL→PASS |
+| SUB-TC-L04 | Duplicate webhook delivery idempotent — **LIVE PASS** (QA Task 21: 4 webhook events → ONE `subscriptions` + ONE `subscription_events` row) | ✅ PASS | PASS | 2026-09-02 | `qa-task21-sub-close-2026-09-02` | qa21 §F upgrades PARTIAL→PASS (4 webhook events → ONE subscriptions + ONE subscription_events row; billing_history UNIQUE(charge_id) held) |
 | SUB-TC-L05 | Payout-status webhook updates seller payout history (payout domain) | 🟡 PARTIAL | PARTIAL | 2026-09-02 | `qa-task21-sub-close-2026-09-02` |  |
 | SUB-TC-M02 | Empty state + Add Payment Method (Stripe sheet) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-M03 | Saved-card display + security banner | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
@@ -876,11 +884,10 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-N01 | JoinKidsClub value-prop + web CTA | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-N02 | JoinKidsClub web redirect (passitup.com) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 
-### Remaining test cases — NEVER RUN (58)
+### Remaining test cases — NEVER RUN (51)
 
 | TC-ID | Description | Note / why remaining |
 |---|---|---|
-| SUB-TC-A02 | Plan Comparison table — feature-by-feature + POPULAR badge |  |
 | SUB-TC-A05 | Kids Club+ Overview screen by subscription status |  |
 | SUB-TC-B01 | 🔴 RETIRED — in-app payment removed; web-first → SUB-TC-N01/N02 + Web Subscription Purchase E2E (QA Task 20) |  |
 | SUB-TC-B02 | 🔴 RETIRED — in-app payment screen removed; coverage → Web Subscription Purchase E2E (QA Task 20) |  |
@@ -895,16 +902,10 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-B11 | 🔴 RETIRED — in-app saved-card resub removed; cards on file → Group M |  |
 | SUB-TC-B12 | 🔴 RETIRED — in-app payment network-error path removed; → QA Task 20 scope 2 |  |
 | SUB-TC-B13 | 🔴 RETIRED — in-app Apple/Google Pay removed; web wallet-pay → QA Task 20 scope 2 |  |
-| SUB-TC-C04 | Cancel flow — retention screen "Keep My Benefits" |  |
-| SUB-TC-C05 | Cancel reason modal + final confirmation |  |
-| SUB-TC-C06 | Cancelled subscription stays active until period end |  |
-| SUB-TC-C07 | Auto-renew toggle / update payment method |  |
-| SUB-TC-C08 | Manage Kids Club+ free/no-subscription state |  |
-| SUB-TC-D01 | Grace period banner + SP wallet frozen warning |  |
+
 | SUB-TC-D02 | 🔴 RETIRED — in-app re-subscribe payment removed; web-first → SUB-TC-N01/N02 + Web E2E |  |
 | SUB-TC-D04 | 🔴 RETIRED — in-app renewal payment removed; web-first → SUB-TC-N01/N02 + Web E2E |  |
 | SUB-TC-D05 | Reactivate from cancelled state |  |
-| SUB-TC-E01 | Billing History list — records, status badges, amounts |  |
 | SUB-TC-F01 | Payout Settings hero — Available / Pending / Lifetime Earned (live) |  |
 | SUB-TC-F03 | Payout history list (completed / pending) — live |  |
 | SUB-TC-F04 | Earnings figures (Available/Pending/Lifetime) + history net/fee — live |  |

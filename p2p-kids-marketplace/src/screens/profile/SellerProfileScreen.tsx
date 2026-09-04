@@ -154,10 +154,16 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
       }
       setReviewsLoading(false);
 
-      const candidateUuids = candidateIds.filter((candidateId) => isUuid(String(candidateId)));
-      if (candidateUuids.length === 0) {
-        return;
-      }
+      // DEV-TASK-103: the id-badge reads below must NOT be gated behind an
+      // isUuid() filter. Seeded QA personas carry synthetic ids like
+      // a1234567-0000-0000-0000-000000000012 (version nibble 0) that fail the
+      // RFC-4122 isUuid() regex, but Postgres accepts them in uuid columns, so
+      // the filtered list would be empty, the reads would never run, and the
+      // pill would default to "Identity Not Verified" even for an approved
+      // user. Each read below fails soft (service .catch / { data, error } /
+      // IIFE try-catch), so it is safe to read against the raw deduped
+      // candidateIds. isUuid() now only gates the separate profiles-row-id
+      // fallback lookup above.
 
       // DEV-TASK-101 (Item 5): resolve the ID-verification pill INDEPENDENTLY of
       // the decorative loads below. Previously the pill waited on the slowest of
@@ -169,7 +175,7 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
         try {
           const [verificationStatuses, approvedVerificationMatches] = await Promise.all([
             Promise.all(
-              candidateUuids.map(async (candidateId) => ({
+              candidateIds.map(async (candidateId) => ({
                 candidateId,
                 status: await idBadgeService.getVerificationStatus(candidateId).catch(() => ({
                   status: 'none' as IDVerificationStatus['status'],
@@ -177,7 +183,7 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
               }))
             ),
             Promise.all(
-              candidateUuids.map(async (candidateId) => {
+              candidateIds.map(async (candidateId) => {
                 const { data, error } = await supabase
                   .from('id_badge_verification_requests')
                   .select('id')
@@ -219,7 +225,7 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
           const [badgeResult, completedTradeCounts] = await Promise.all([
             getUserBadges(String(resolvedProfile.user_id || userId)).catch(() => []),
             Promise.all(
-              candidateUuids.map(async (candidateId) => {
+              candidateIds.map(async (candidateId) => {
                 const { count, error } = await supabase
                   .from('trades')
                   .select('id', { count: 'exact', head: true })

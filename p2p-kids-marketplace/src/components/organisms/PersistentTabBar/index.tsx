@@ -40,9 +40,16 @@ import { colors, borderRadius, shadows, spacing, componentSpacing } from '@/them
 // the `p2pkidsmarketplace://create-item` deep link or the Sell FAB — QA E05
 // measured 0px scroll at max scroll because the Publish button sat behind the
 // pill. The pill hides here so the form's own sticky CTA is reachable.
+// NotificationSetup (root Stack screen, reached via Settings → Enable Push
+// Notifications or the `p2pkidsmarketplace://notification-setup` deep link)
+// renders its "Enable Notifications" button at the bottom of its own
+// SafeAreaView, directly under where the pill floats — QA Task 28 (2026-09-04)
+// measured the CTA at y868-905 inside the pill band (~y844-908), occluding it
+// on every reachable presentation and making the Settings push-notification
+// flow unusable. The pill hides here so the CTA is reachable.
 // TODO(REFACTOR): BulkListingCreate is the same class of full-screen form and
 // may need the same treatment — not included to keep this fix scoped.
-const TAB_BAR_HIDDEN_ROUTES = new Set<string>(['ItemCreate']);
+const TAB_BAR_HIDDEN_ROUTES = new Set<string>(['ItemCreate', 'NotificationSetup']);
 
 // ─── Sell Action Sheet (self-contained modal) ─────────────────────────────────
 

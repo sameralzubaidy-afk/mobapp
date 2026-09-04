@@ -958,6 +958,7 @@ When you need to verify runtime behavior instead of guessing from static code:
 Use Metro MCP (`mcp_metro-mcp_*`) to inspect the running app directly: `get_console_logs`, `get_network_requests`, `get_redux_state`/`get_redux_actions`, `get_component_tree`, `get_current_route`, `get_errors`/`get_bundle_errors`. Prefer this over asking the user to read console output manually.
 Use XcodeBuildMCP (`mcp_xcodebuildmcp_*`) to build and run on the iOS Simulator (`build_run_sim`) and capture evidence (`screenshot`, `record_sim_video`) instead of only telling the user to “open the simulator.” Call `session_show_defaults` first per that tool's own instructions.
 Use mobile-mcp (`mcp_mobile-mcp_*`) for cross-platform simulator/device interaction (tap, swipe, screenshot) when Metro MCP is not connected.
+When driving mobile-mcp taps on a SCROLLABLE screen, never tap a target whose AX-tree coordinates sit at/under the floating pill band or below the visible fold — AX coordinates for below-the-fold scroll content are logical, not hit-testable (DT105, 2026-09-04: Profile "App Settings" was reported at y910-963, under the pill, and a tap at that coordinate hit the "My Badges (1)" showcase row instead). Scroll the target up into the visible, pill-free band, re-list the element tree for fresh coordinates, then tap — never trust a single off-screen AX snapshot.
 These tools do NOT replace the Tier 0 Compile Gate — only use them AFTER typecheck/lint pass (see HP-2a).
 12 Hardening Protocol (mandatory)
 HP-1 Contract-first + Single Source of Truth (no exceptions)
