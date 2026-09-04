@@ -256,7 +256,7 @@
 
 ### ADM-TC-A06 · Dashboard KPI cards follow design-system styling
 
-**Ref:** FLOW-18 · / (dashboard) · `docx/old/design-system.md` (Card / §8.1 Level 1 shadow)
+**Ref:** FLOW-18 · / (dashboard) · `docx/design-system.md` (Card / §8.1 Level 1 shadow)
 **Actors:** test-admin
 
 **Objective:** Verify the dashboard KPI stat cards match the design-system card spec.
@@ -266,7 +266,7 @@
 
 **Expected Result:**
 - Each KPI card has a white background (`#FFFFFF`), a **16px** border radius (`rounded-2xl`), a **Level 1 shadow** (`0px 2px 8px rgba(0,0,0,0.08)`), and **16px** padding (`p-4`).
-- Labels are uppercase 14px; values are bold 24px with a colored accent per metric (green/blue/indigo/red).
+- Labels are uppercase **12px** (design-system Label token — `docx/design-system.md` §3.2); values are bold **24px** with a colored accent per metric (green/blue/indigo/red). (DEV-TASK-106: reconciled from an outdated "14px" — that claim traced to the deleted `docx/old/design-system.md`; code + the surviving design token are 12px.)
 
 ### ADM-TC-A04 · Direct protected route access without session redirects to login
 
@@ -1684,6 +1684,7 @@
 
 **Expected Result:**
 - Metrics (total, active, grace, cancelled, expired); table with user, tier, status badge, start/end dates, actions; filters work. (`/subscriptions?user_id=...` shows a single user's subscriptions.)
+- Bare `/subscriptions` now redirects to `/subscriptions/manage` (DEV-TASK-106 — no dead-end "Provide ?user_id=..." default; the per-user view is reached only via `?user_id=`, deep-linked from Trade detail ADM-TC-H04).
 
 ---
 
