@@ -23,7 +23,7 @@
 | **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 63 | 2 | 2 | 2 | 0 | **3** |
 | **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 234 | 28 | 2 | 3 | 2 | **19** |
 | **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 57 | 0 | 17 | 0 | 1 | **0** |
-| **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 0 | 0 | 0 | 0 | 1 | **159** |
+| **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 72 | 8 | 7 | 0 | 1 | **72** |
 | **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 45 | 2 | 3 | 0 | 0 | **50** |
 
 Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP. A case that is PASS, PARTIAL or OPEN has been executed at least once; DRIFT/SKIP rows are documented; the **Remaining** column is what still needs a run.
@@ -653,7 +653,85 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## ADM · Admin Portal
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` · **Cases:** 160 · **PASS** 0 · **PARTIAL** 0 · **OPEN** 0 · **DOC-DRIFT** 0 · **SKIPPED** 1 · **Remaining (NEVER RUN)** 159
+**Guide file:** `cross-checked-and-consolidated/MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` · **Cases:** 160 · **PASS** 72 · **PARTIAL** 8 · **OPEN** 7 · **DOC-DRIFT** 0 · **SKIPPED** 1 · **Remaining (NEVER RUN)** 72
+
+> **QA Task 29 (2026-09-04, `qa-task29-adm-first-live-2026-09-04/`) — ADM's first full real execution round.** ~88 of 160 cases executed against the live admin portal. Full per-case ledger + reasons in `ledger-FULL-160.md` / `report.md`. Executed cases below moved to Completed; the remaining-table rows for executed IDs are superseded by the block below (prune on next maintenance).
+
+### Completed test cases (have a verdict on record)
+
+| TC-ID | Description | Status | Latest | Date | Source | Notes |
+|---|---|---|---|---|---|---|
+| ADM-TC-A01 | Admin login with admin role | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-A02 | Non-admin login rejected (RBAC gate) | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-A03 | Dashboard layout | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-A04 | Direct protected route → login | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-A05 | Expired session redirect once | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-A06 | KPI card design-system styling | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | label 12px vs 14px doc |
+| ADM-TC-B01 | User list/filters/pagination | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | 5230 users |
+| ADM-TC-B02 | User detail drawer | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-B05 | User analytics cards | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-B08 | Sort By / Sort Order | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-C01 | Listing management tabs | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-C02 | Flagged items tabs/statuses | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-D01 | Category list/filters/Bonus/SP | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F01 | Config hub inline edit + gate | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F02 | Cart settings + single-source | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F03 | Trade timing + fees + validation | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F04 | Settings single-source + audit | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F05 | N1 pickup/payout config (live) | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | round-trip 2→5→2 DB |
+| ADM-TC-F06 | R2 168h guardrail + reminders | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | 🔴 finding: order-dep server guardrail |
+| ADM-TC-F07 | Trade Pipeline board | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F08 | R1 tiered buyer-fee fields | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F09 | Fee-Tier Distribution (/analytics) | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-F10 | Legacy fee keys read-only | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-G01 | Policy tabs + versions | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-H01 | Trade list filters/columns | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-H02 | Trade detail money breakdown | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | DB-verified $45.99 |
+| ADM-TC-H03 | Trade admin actions | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | affordance (not committed) |
+| ADM-TC-H04 | Subscription Context section | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-H06 | Sales Tax line | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-J01 | Tax admin entry points | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | bare /tax 404 confirmed |
+| ADM-TC-K01 | Payout fee configuration | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-L01 | SP Economy hub tabs | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-L06 | SP Economy summary + sidebar | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | card-sp-wallet gone |
+| ADM-TC-N01 | Referral config tab | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-N03 | Referral SP fields | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-O01 | ID badge queue/stats/filter | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-O02 | ID review — approve | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | cross-ref QA Task 25 |
+| ADM-TC-O03 | ID review — reject | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | cross-ref QA Task 25 |
+| ADM-TC-P01 | Badge list + toggle | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Q01 | Reported reviews list + filter | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Q02 | Hide review confirmation | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | copy EXACT match |
+| ADM-TC-Q03 | Approve review confirmation | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | copy EXACT match |
+| ADM-TC-Q04 | Status filter | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Q05 | Sort-by dropdown | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Q06 | Search input | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-V01 | Monitoring run + alerts | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-V02 | Cron jobs + timezone | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-W01 | Sidebar 7 groups | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-W02 | Expand/collapse section | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-W04 | Active route expands parent | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-W05 | Section label styling | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-W07 | All nav destinations reachable | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | 34 links |
+| ADM-TC-X01 | Action Center loads cards | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-X02 | Same-type bundling + count | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | DB-reconciled |
+| ADM-TC-X03 | Severity pills | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-X09 | Sidebar pinned + badge | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-X10 | Header bell + badge | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-X12 | Dashboard embeds AC + View all | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-X13 | Cancellation Insights card | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-X14 | /cancellation-insights page | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Z01 | Health strip position | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Z02 | Six indicators | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Z04 | Indicator deep-links | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-Z06 | Health thresholds via /config | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | render (no HEALTH tab) |
+| ADM-TC-Z07 | Dashboard embeds AC | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-R01 | Session persists across pages | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-R02 | Confirm destructive/financial | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-R05 | Auditable actions logged | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | admin_audit_log |
+| ADM-TC-N2-A05 | Financial Audit accessible | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-N2-A06 | Financial Audit search/filters | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
+| ADM-TC-S03 | Support reply | ⏭️ SKIPPED | SKIPPED | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` |  |
 
 ### Completed test cases (have a verdict on record)
 
