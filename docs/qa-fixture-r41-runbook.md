@@ -24,8 +24,10 @@ separately approval-gated; nothing here was run on staging in this session.
 | `scripts/qa/r41-sub-fixtures.mjs` | `billing-failed` (E03) · `notif-sub-status` (E04) · `notif-sub-event` (D06/D07/R02) · `wallet-state` (I06/I05) |
 | `scripts/qa/r41-moderation-fixtures.mjs` | MSG G01–G07 / G09: `list` / `apply` / `reset` a listing's moderation state |
 | `scripts/qa/r41-dispute-fixture.mjs` | MSG H05/H06: `find` / `open` (real open-dispute EF) / `reset` a trade dispute |
+| `scripts/qa/r41-in-progress-trade.mjs` | QA 31-M FG-1 (DEV-TASK-110): `find` / `create` / `reset` a sanctioned in_progress single trade (dispute + changed-value timing legs) |
+| `scripts/qa/r41-reported-review-fixture.mjs` | QA 31-M FG-2 (DEV-TASK-110): `find` / `create` / `reset` a reported review (Q01–Q06 + mobile display leg) |
 | `scripts/qa/dev-task-r41-l02-failing-renewal.mjs` | SUB-TC-L02: real test-clock 3-failure renewal cycle on a disposable user |
-| `package.json` | `qa:r41-sub`, `qa:r41-moderation`, `qa:r41-dispute`, `qa:r41-l02-failing-renewal` |
+| `package.json` | `qa:r41-sub`, `qa:r41-moderation`, `qa:r41-dispute`, `qa:r41-l02-failing-renewal`, `qa:r41-in-progress-trade`, `qa:r41-review` |
 
 All commands run from `p2p-kids-marketplace/`. All writes are service-role against
 **staging** — dev-team run, one call at a time, with Samer's approval. `--dry-run`
@@ -282,3 +284,35 @@ All steps below were EXECUTED against staging and verified by read-back.
 - I06/I05 `wallet-state`: dev applies on demand at the QA run; do NOT leave a shared persona frozen.
 - G08/G05/R03/G09 live-create legs: gated on the AI-vision reachability / recall-alert-producer decisions.
 - L02 grace/freeze leg: gated on the `SP_SUBSCRIPTION_LAPSE_URL` / grace-cron decision.
+
+---
+
+## DEV-TASK-110 addendum (2026-09-04) — QA Task 31-M fixture enablers (FG-1 / FG-2) + moderation cleanup fix
+
+Date: 2026-09-04. Owner: dev team. Phase 1 only — nothing below was executed against staging
+in this session (BP-80 two-phase; approval-gated).
+
+### New artifacts (see table above)
+- `scripts/qa/r41-in-progress-trade.mjs` — **FG-1** (unblocks ADM-TC-I03/I04/X06 dispute-reflection +
+  F03/F05/F06/F08 changed-value timing legs). `find | create [--with-auto-complete] | reset`.
+  - `create` stages ONE disposable in_progress non-bundle trade (test-buyer → test-seller) with
+    `dispute_status='none'` — report it with `qa:r41-dispute open --trade-id <id>`; `reset` deletes
+    every tagged trade (notes `fixture:qa_r41_inprog_trade:*`) + its item + EF side rows.
+  - `--with-auto-complete` sets `auto_complete_at` from current `pickup_window_hours` (fallback
+    `auto_complete_hours` → 72h, mirroring `fn_set_auto_complete_at`) so the mobile pickup/
+    auto-complete countdown reflects the CURRENT admin_config timing (F-group changed-value legs).
+    Default (no flag) leaves it NULL so the auto-complete cron never touches the fixture.
+  - Command: `npm run qa:r41-in-progress-trade -- create` (then `qa:r41-dispute open --trade-id …`).
+- `scripts/qa/r41-reported-review-fixture.mjs` — **FG-2** (unblocks ADM-TC-Q01–Q06 commit + mobile
+  display leg). `find | create [--reason …] | reset`.
+  - `create` stages ONE disposable completed trade + review (test-buyer → test-seller, tagged
+    `(QA fixture <marker>)` in the comment) + ONE `review_reports` row (reporter = reviewee/test-seller,
+    default reason `offensive`) → the trigger flips `review_status='pending_review'`. It then appears
+    in the admin `/reviews` reported queue AND on test-seller's mobile profile (`is_hidden=false`).
+  - `reset` deletes all tagged reviews (found by the comment tag, which survives Hide AND Keep) +
+    their reports/trades/items.
+  - Command: `npm run qa:r41-review -- create` (then admin /reviews Q02 Hide / Q03 Keep).
+- **`r41-moderation-fixtures.mjs` cleanup fix (QA 31-M finding 2, LOW):** `cmdReset` no longer calls
+  `.catch()` on a supabase-js builder (builders are thenables, not Promises → threw “...catch is not a
+  function” and silently skipped the `item_safety_flags` cleanup). Now `await` + `{ error }` check,
+  matching r41-dispute's DEV-TASK-108 pattern. `reset` fully clears the safety-flag side rows.

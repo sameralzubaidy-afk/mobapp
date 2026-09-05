@@ -1443,6 +1443,39 @@ async function getListingByIdFallback(
 }
 
 /**
+ * Listing-availability probe — friendlier "no longer available" UX (QA 31-M).
+ *
+ * getListingById() returns null for BOTH (a) a real listing that exists but is
+ * not purchasable to this buyer (status paused / sold / removed / not yet
+ * available) AND (b) a listing id that does not exist or is a broken/invalid
+ * deep link — a caller cannot tell the two apart. This probe re-reads the row
+ * through the existing SECURITY DEFINER get_listing_by_id RPC (which returns
+ * ANY item — including its `status` — to an authenticated user, regardless of
+ * availability; returns NULL when the item does not exist) so a screen can show
+ * "This item is no longer available" (marketplace fact) vs "Listing not found"
+ * (genuinely broken link).
+ *
+ * Returns { exists, status }. status is null when the item doesn't exist, the
+ * caller is not authenticated (the RPC is authenticated-only), or the RPC
+ * errors — all of which safely fall back to the "not found" copy.
+ */
+export async function probeListingAvailability(
+  listing_id: string
+): Promise<{ exists: boolean; status: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc('get_listing_by_id', {
+      p_listing_id: listing_id,
+    });
+    if (error || !data || typeof data.status !== 'string') {
+      return { exists: false, status: null };
+    }
+    return { exists: true, status: data.status };
+  } catch {
+    return { exists: false, status: null };
+  }
+}
+
+/**
  * Fetch all listings for a specific seller
  * Used by "My Listings" screen
  *

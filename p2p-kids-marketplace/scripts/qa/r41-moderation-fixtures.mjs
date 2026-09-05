@@ -201,7 +201,13 @@ async function cmdReset(userId) {
     updated_at: now,
   }).eq('id', listing.id);
   if (updateErr) { console.error(`❌ reset failed: ${updateErr.message}`); process.exit(1); }
-  await admin.from('item_safety_flags').delete().eq('item_id', listing.id).catch(() => {});
+  // Cleanup of the safety-flag side row is non-blocking (the item-status reset
+  // already landed). A supabase-js query builder is a thenable, NOT a Promise —
+  // it has no .catch(); await + check the { error } instead (same pattern fix
+  // as r41-dispute DEV-TASK-108). Otherwise the flag cleanup silently never
+  // runs and this line throws "...catch is not a function".
+  const { error: flagErr } = await admin.from('item_safety_flags').delete().eq('item_id', listing.id);
+  if (flagErr) console.warn(`[r41-moderation] item_safety_flags cleanup warn: ${flagErr.message}`);
   log('r41-moderation', `✅ "${listing.title}" (${listing.id}) reset to available`);
 }
 

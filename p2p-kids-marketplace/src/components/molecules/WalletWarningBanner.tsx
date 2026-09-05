@@ -16,10 +16,16 @@ interface WalletWarningBannerProps {
  *
  * Visibility Rules:
  * - active: No banner shown (normal operation)
- * - frozen: Blue banner (subscription in grace period, cannot spend)
- * - suspended: Red banner (admin-imposed ban, contact support)
- * - grace_period: Yellow banner (90-day grace, renew to keep points)
+ * - frozen: Info-blue banner (cannot spend until renewed) — info #5B8FB9
+ * - suspended: Error-red banner (admin-imposed ban, contact support) — error #E85D75
+ * - grace_period: Warning-amber banner (90-day grace, renew to keep points) — warning #FFA726
  * - inactive: No banner shown (user has no wallet)
+ *
+ * Colors are the canonical Pass-It-Up semantic tokens (docx/design-system-passitup.md §6:
+ * info #5B8FB9 / error #E85D75 / warning #FFA726) with the app-standard soft-tint banner
+ * idiom used by ManageKidsClubScreen infoBox/warningBox (#EBF4F9 / #FFF3E0 tints, neutral
+ * title/body text, colored left border + icon). QA Task 31-M finding 4 flagged the prior
+ * Tailwind palette chips (#DBEAFE / #FEE2E2 / #FEF3C7).
  */
 const WalletWarningBanner: React.FC<WalletWarningBannerProps> = ({ walletState }) => {
   // Don't show banner for active or inactive states
@@ -30,53 +36,67 @@ const WalletWarningBanner: React.FC<WalletWarningBannerProps> = ({ walletState }
   const config = getWarningConfig(walletState);
 
   return (
-    <View style={[styles.container, { backgroundColor: config.bgColor }]}>
-      <Text style={[styles.icon, { color: config.iconColor }]}>{config.icon}</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: config.bgColor, borderLeftColor: config.accentColor },
+      ]}
+    >
+      <Text style={[styles.icon, { color: config.accentColor }]}>{config.icon}</Text>
       <View style={styles.textContainer}>
-        <Text style={[styles.title, { color: config.textColor }]}>{config.title}</Text>
-        <Text style={[styles.message, { color: config.textColor }]}>{config.message}</Text>
+        <Text style={[styles.title, { color: config.titleColor }]}>{config.title}</Text>
+        <Text style={[styles.message, { color: config.messageColor }]}>{config.message}</Text>
       </View>
     </View>
   );
 };
 
 function getWarningConfig(state: WalletState) {
+  // Semantic banner palette (design-system-passitup.md §6 + ManageKidsClubScreen idiom).
+  const info = { bgColor: '#EBF4F9', accentColor: '#5B8FB9' }; // info tint + info 500
+  const error = { bgColor: '#FFF0F2', accentColor: '#E85D75' }; // error tint + error 500
+  const warning = { bgColor: '#FFF3E0', accentColor: '#FFA726' }; // warning tint + warning 500
+  // Neutral text on tints keeps contrast AA-clean (same as ManageKidsClub infoBox/warningBox).
+  const titleColor = '#1A1A1A'; // neutral 900
+  const messageColor = '#6B6B6B'; // neutral 700
+
   switch (state) {
     case 'frozen':
       return {
         icon: '⚠️',
         title: 'Swap Points Frozen',
         message: 'Your Swap Points are frozen. Renew your subscription to use them again.',
-        bgColor: '#DBEAFE', // blue-100
-        iconColor: '#1E40AF', // blue-800
-        textColor: '#1E3A8A', // blue-900
+        ...info,
+        titleColor,
+        messageColor,
       };
     case 'suspended':
       return {
         icon: '🚫',
         title: 'Wallet Suspended',
         message: 'Your SP wallet has been suspended. Please contact support for assistance.',
-        bgColor: '#FEE2E2', // red-100
-        iconColor: '#991B1B', // red-800
-        textColor: '#7F1D1D', // red-900
+        ...error,
+        titleColor,
+        messageColor,
       };
     case 'grace_period':
       return {
         icon: '⏳',
         title: 'Grace Period Active',
         message: 'You can keep spending existing Swap Points, but you won\'t earn new ones until you renew.',
-        bgColor: '#FEF3C7', // yellow-100
-        iconColor: '#92400E', // yellow-800
-        textColor: '#78350F', // yellow-900
+        ...warning,
+        titleColor,
+        messageColor,
       };
     default:
       return {
         icon: 'ℹ️',
         title: 'Wallet Status Unknown',
         message: 'Please refresh to see your current wallet status.',
-        bgColor: '#F3F4F6', // gray-100
-        iconColor: '#374151', // gray-700
-        textColor: '#1F2937', // gray-800
+        bgColor: '#F7F7F7', // neutral 50
+        accentColor: '#999999', // neutral 500
+        titleColor,
+        messageColor,
       };
   }
 }
@@ -87,6 +107,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: 12,
     borderRadius: 8,
+    borderLeftWidth: 4,
     marginHorizontal: 16,
     marginVertical: 8,
     // Shadow for iOS

@@ -30,7 +30,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useUserStore } from '@/stores/userStore';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
-import { getListingById } from '@/services/listing';
+import { getListingById, probeListingAvailability } from '@/services/listing';
 import { captureException } from '@/services/errorReporter';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
@@ -90,6 +90,10 @@ export default function ItemDetailScreen() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // QA 31-M UX: a real listing that exists but is paused/removed/sold shows the
+  // friendly marketplace-fact state ("This item is no longer available"), distinct
+  // from a genuinely broken/invalid link ("Listing not found" error state).
+  const [unavailable, setUnavailable] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Buyer subscription context (MODULE-11 dependency)
@@ -237,6 +241,7 @@ export default function ItemDetailScreen() {
     try {
       setLoading(true);
       setError(null);
+      setUnavailable(false);
 
       if (!listing_id || listing_id === 'undefined') {
         captureException(new Error('Missing listing_id route param'), {
@@ -251,10 +256,19 @@ export default function ItemDetailScreen() {
       const data = await getListingById(listing_id);
 
       if (!data) {
-        captureException(new Error('Listing fetch returned null'), {
-          tags: { screen: 'ItemDetailScreen', action: 'listing_fetch_null' },
-        });
-        setError('Listing not found');
+        // QA 31-M UX: distinguish a real-but-unavailable listing (paused/removed/sold)
+        // from a genuinely broken/invalid link. probeListingAvailability re-reads the
+        // row via the SECURITY DEFINER get_listing_by_id RPC (authenticated-only); a
+        // non-authed caller / RPC error / nonexistent id all fall back to not-found.
+        const probe = await probeListingAvailability(listing_id);
+        if (probe.exists) {
+          setUnavailable(true);
+        } else {
+          captureException(new Error('Listing fetch returned null'), {
+            tags: { screen: 'ItemDetailScreen', action: 'listing_fetch_null' },
+          });
+          setError('Listing not found');
+        }
         setListing(null);
         return;
       }
@@ -458,7 +472,17 @@ export default function ItemDetailScreen() {
       <ScreenLayout variant="detail" title="Item Detail">
         <View style={{ flex: 1, flexDirection: 'column' }}>
           <View style={styles.centerContent}>
-            <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
+            {unavailable ? (
+              <>
+                <Text style={styles.unavailableTitle}>This item is no longer available</Text>
+                <Text style={styles.unavailableHint}>
+                  It may have been sold or removed by the seller. Browse other items to keep
+                  exploring.
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
+            )}
           </View>
         </View>
       </ScreenLayout>
@@ -1107,6 +1131,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#c62828',
     marginBottom: 16,
+  },
+  // QA 31-M UX: gentle marketplace-fact state for a paused/removed listing (no
+  // error styling). Neutral pass-it-up text colors (design-system-passitup.md).
+  unavailableTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  unavailableHint: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   header: {
     flexDirection: 'row',
