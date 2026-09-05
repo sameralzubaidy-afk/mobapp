@@ -213,6 +213,32 @@ describe('TradeOfferScreen', () => {
     });
   });
 
+  it('hides SP input and explains when wallet is frozen (DEV-TASK-112 items 2+8)', async () => {
+    // Active subscription BUT frozen wallet. canSpendSP stays true here because
+    // session.can_spend_sp is subscription-only after refreshSession() — the gate
+    // must key on wallet_state, so this case proves the wallet gate wins.
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: 'buyer-123', email: 'buyer@test.com' }, wallet_state: 'frozen' },
+      refreshSession: jest.fn().mockResolvedValue(undefined),
+    });
+    mockUseSubscriptionStatus.mockReturnValue({
+      status: 'active',
+      canSpendSP: true,
+      isTrialExpired: false,
+    });
+
+    const { queryByTestId, getByText } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(queryByTestId('sp-amount-input')).toBeNull();
+      expect(
+        getByText(
+          'Your Swap Points wallet is frozen. Renew your subscription to restore SP spending.'
+        )
+      ).toBeTruthy();
+    });
+  });
+
   it('caps SP input at max allowed value', async () => {
     const { getByTestId } = render(<TradeOfferScreen />);
 

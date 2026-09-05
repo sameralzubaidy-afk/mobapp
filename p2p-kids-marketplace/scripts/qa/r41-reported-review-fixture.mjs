@@ -229,21 +229,27 @@ async function cmdReset() {
     const { error: revErr } = await admin.from('reviews').delete().eq('id', r.id);
     if (revErr) { console.error(`❌ review delete failed for ${r.id}: ${revErr.message}`); continue; }
     deleted += 1;
-    // Its disposable completed trade + item (idempotent; a fully manual delete is fine).
+    // Its disposable completed trade + item. Resolve the item id FIRST, then
+    // delete the TRADE before the item (mirror r41-in-progress-trade cmdReset):
+    // the trades→items FK (fk_trades_listing_id ... ON DELETE SET NULL) on a
+    // NOT NULL listing_id rejects deleting an item still referenced by its
+    // completed trade — the old item-first order stranded an orphaned sold item
+    // (DEV-TASK-112 item 4; orphan 0253b2cb on staging).
     if (r.trade_id) {
       const { data: t, error: trErr } = await admin
         .from('trades')
         .select('listing_id')
         .eq('id', r.trade_id)
         .maybeSingle();
-      if (!trErr && t?.listing_id) {
+      const { error: tdErr } = await admin.from('trades').delete().eq('id', r.trade_id);
+      if (tdErr) {
+        console.warn(`[r41-review] trade cleanup warn (non-fatal): ${tdErr.message}`);
+      } else if (!trErr && t?.listing_id) {
         const { error: imgErr } = await admin.from('item_images').delete().eq('item_id', t.listing_id);
         if (imgErr) console.warn(`[r41-review] item_images cleanup warn: ${imgErr.message}`);
         const { error: itErr } = await admin.from('items').delete().eq('id', t.listing_id);
         if (itErr) console.warn(`[r41-review] item cleanup warn (non-fatal): ${itErr.message}`);
       }
-      const { error: tdErr } = await admin.from('trades').delete().eq('id', r.trade_id);
-      if (tdErr) console.warn(`[r41-review] trade cleanup warn (non-fatal): ${tdErr.message}`);
     }
     log('r41-review', `  ✔ deleted review ${r.id}`);
   }

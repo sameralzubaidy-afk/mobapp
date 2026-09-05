@@ -85,8 +85,16 @@ export function argValue(name) {
   const idx = process.argv.indexOf(`--${name}`);
   return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1] : null;
 }
+/**
+ * True when the CLI contains a flag for `name`. Accepts either the bare name
+ * ('dry-run') or the already-dashed form ('--dry-run'): callers historically
+ * pass the dashed form, so a naive `--${name}` prefix produced '----dry-run',
+ * which never matched — --dry-run/--force/--keep/--remove/--with-auto-complete
+ * were silently dead and dry runs actually created rows (DEV-TASK-112 item 3).
+ */
 export function hasFlag(name) {
-  return process.argv.includes(`--${name}`);
+  const normalized = name.replace(/^--/, '');
+  return process.argv.includes(`--${normalized}`);
 }
 
 /**

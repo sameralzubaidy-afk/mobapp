@@ -68,6 +68,16 @@ export default function TradeOfferScreen() {
   const user = session?.user;
   const { itemId } = route.params;
 
+  // DEV-TASK-112 items 2+8 — the "ADD SP OFFER" input must not render when the
+  // wallet can't spend SP. Gate on wallet_state (server-authoritative): after
+  // refreshSession() the session.can_spend_sp flag is subscription-status-only
+  // (get_subscription_summary ignores wallet state), so a frozen/suspended wallet
+  // under an active subscription would still report canSpendSP=true. Only the
+  // wallet state reliably blocks spending (fn_get_sp_entitlement: active/grace).
+  const walletState = (session?.wallet_state ?? 'inactive') as WalletState;
+  const canSpendSPNow =
+    subStatus.canSpendSP && (walletState === 'active' || walletState === 'grace_period');
+
   // ── Stripe hooks (unconditional, top-level) ─────────────────────────────
   // The Stripe module is intentionally unused on this screen (card entry flows
   // through usePaymentSheet), but the hook MUST be called unconditionally at
@@ -530,7 +540,7 @@ export default function TradeOfferScreen() {
         >
           <Text style={styles.heading}>Make an Offer</Text>
 
-          <WalletWarningBanner walletState={(session?.wallet_state ?? 'inactive') as WalletState} />
+          <WalletWarningBanner walletState={walletState} />
 
           {/* Trade Card - Two Column Layout */}
           <View style={styles.tradeCard} testID="trade-offer-card">
@@ -557,8 +567,11 @@ export default function TradeOfferScreen() {
             </View>
           </View>
 
-          {/* SP Offer Input — only for subscribers */}
-          {isSubscriber && item.accepts_swap_points && maxSpToUse > 0 && (
+          {/* SP Offer Input — only for subscribers with a spendable wallet.
+              DEV-TASK-112 items 2+8: a frozen/suspended wallet must not show an
+              enabled SP input (the server rejects it with SP_NOT_ENTITLED); the
+              block below replaces the control with a plain explanation instead. */}
+          {isSubscriber && canSpendSPNow && item.accepts_swap_points && maxSpToUse > 0 && (
             <View style={styles.section}>
               <Text style={styles.spLabel}>ADD SP OFFER</Text>
               <View style={styles.spInputWrapper} testID="sp-input-wrapper">
@@ -581,6 +594,33 @@ export default function TradeOfferScreen() {
               <Text style={styles.spHint}>
                 Max: {maxSpToUse} SP ({maxSpPercentage}% of price)
               </Text>
+            </View>
+          )}
+
+          {/* Subscriber but the wallet can't spend SP (frozen/suspended/etc.) — no
+              dead control; auto-collapse the ADD SP OFFER section and explain. */}
+          {isSubscriber && !canSpendSPNow && item.accepts_swap_points && (
+            <View style={styles.section}>
+              <View style={styles.spUnavailableRow}>
+                <Coins
+                  size={18}
+                  color={walletState === 'suspended' ? '#E85D75' : '#5B8FB9'}
+                  weight="regular"
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={[
+                    styles.spUnavailableText,
+                    walletState === 'suspended' && styles.spUnavailableTextError,
+                  ]}
+                >
+                  {walletState === 'frozen'
+                    ? 'Your Swap Points wallet is frozen. Renew your subscription to restore SP spending.'
+                    : walletState === 'suspended'
+                      ? 'Your Swap Points wallet is suspended. Please contact support for assistance.'
+                      : 'Swap Points are currently unavailable.'}
+                </Text>
+              </View>
             </View>
           )}
 
@@ -961,6 +1001,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B6B6B',
     marginTop: 8,
+  },
+  // DEV-TASK-112 items 2+8 — frozen/suspended-wallet notice that replaces the
+  // ADD SP OFFER input (info #5B8FB9 for frozen, error #E85D75 for suspended).
+  spUnavailableRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  spUnavailableText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#5B8FB9',
+    fontWeight: '500',
+  },
+  spUnavailableTextError: {
+    color: '#E85D75',
   },
   disclaimerBox: {
     backgroundColor: '#E8F5F0',
