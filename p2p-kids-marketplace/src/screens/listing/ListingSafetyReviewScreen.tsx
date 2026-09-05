@@ -228,9 +228,12 @@ export default function ListingSafetyReviewScreen() {
   const appealsSubmitted = Number.isFinite(Number(listing.appeal_count))
     ? Number(listing.appeal_count)
     : 0;
-  const lastFlaggedAt = listing.flagged_at ?? (needsEdits ? listing.updated_at : null);
-  const lastRejectedAt =
-    listing.rejected_at ?? (needsEdits ? (listing.flagged_at ?? listing.updated_at) : null);
+  // Show ONLY timestamps that genuinely apply to the current state. A
+  // needs-edits item that was never rejected must NOT mirror flagged_at /
+  // updated_at into "Last rejected at" (or "Last flagged at") — that reads
+  // oddly to a seller. When the field is unset the row renders N/A.
+  const lastFlaggedAt = listing.flagged_at ?? null;
+  const lastRejectedAt = listing.rejected_at ?? null;
   const adminNeedsEditsNote =
     listing.moderation_note?.trim() || listing.rejection_reason?.trim() || null;
   const alertMessage = isRejected

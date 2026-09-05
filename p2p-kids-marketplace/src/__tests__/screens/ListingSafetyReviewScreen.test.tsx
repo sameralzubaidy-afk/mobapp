@@ -311,7 +311,7 @@ describe('ListingSafetyReviewScreen', () => {
     });
   });
 
-  it('uses fallback timestamps for needs_edits listings with legacy null moderation dates', async () => {
+  it('shows N/A (not mirrored timestamps) for needs_edits listings with legacy null moderation dates', async () => {
     mockGetListingById.mockResolvedValue(mockNeedsEditsLegacyListing as any);
 
     render(<ListingSafetyReviewScreen />);
@@ -322,9 +322,11 @@ describe('ListingSafetyReviewScreen', () => {
       expect(screen.getByText('0')).toBeTruthy();
     });
 
-    expect(screen.queryByText('N/A')).toBeNull();
+    // A needs-edits item that was never flagged or rejected must show N/A on
+    // BOTH timestamp rows — never the seller's updated_at as a fallback.
+    expect(screen.getAllByText('N/A').length).toBeGreaterThanOrEqual(2);
     expect(
-      screen.getAllByText(new Date('2026-03-04T12:00:00Z').toLocaleString()).length
-    ).toBeGreaterThan(0);
+      screen.queryByText(new Date('2026-03-04T12:00:00Z').toLocaleString())
+    ).toBeNull();
   });
 });
