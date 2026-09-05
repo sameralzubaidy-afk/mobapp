@@ -18,6 +18,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Animated,
   AppState,
   Pressable,
   Image,
@@ -50,6 +51,7 @@ import {
   GENERIC_CANCELLATION_COPY,
 } from '@/utils/tradeCancellationCopy';
 import {
+  ArrowsClockwise,
   Clock,
   CheckCircle,
   XCircle,
@@ -195,6 +197,16 @@ export default function TradeTimelineScreen() {
   >(null);
   // Track previous trade status to detect transitions to 'completed'
   const previousStatusRef = useRef<string | null>(null);
+
+  // DEV-TASK-114 (2026-09-05) item 1: subtle "updated" indicator shown when a
+  // realtime UPDATE refreshes the displayed trade state in place (DT113 proved
+  // the in-place refresh; this adds the visual cue so the change is noticeable
+  // rather than silent). Non-blocking, auto-dismisses — never a modal. Only
+  // realtime events trigger it; mount/focus/AppState fetches stay silent (those
+  // are not "something changed while you were watching").
+  const [updatedFlashVisible, setUpdatedFlashVisible] = useState(false);
+  const updatedFlashOpacity = useRef(new Animated.Value(0)).current;
+  const updatedFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // R15 — Trade Extension (one-time, pickup window only)
   const [extensionSubmitting, setExtensionSubmitting] = useState(false);
@@ -439,6 +451,29 @@ export default function TradeTimelineScreen() {
     setRefreshing(false);
   }, [fetchTrade]);
 
+  // DEV-TASK-114 (2026-09-05) item 1: brief, non-blocking "Trade updated" cue.
+  // Fades in on a realtime UPDATE and auto-dismisses; re-triggering while
+  // visible restarts the timer so a burst of updates shows one pill.
+  const flashTradeUpdated = useCallback(() => {
+    setUpdatedFlashVisible(true);
+    updatedFlashOpacity.setValue(0);
+    Animated.timing(updatedFlashOpacity, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+    if (updatedFlashTimerRef.current) clearTimeout(updatedFlashTimerRef.current);
+    updatedFlashTimerRef.current = setTimeout(() => {
+      Animated.timing(updatedFlashOpacity, {
+        toValue: 0,
+        duration: 450,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setUpdatedFlashVisible(false);
+      });
+    }, 2200);
+  }, [updatedFlashOpacity]);
+
   useEffect(() => {
     fetchTrade();
 
@@ -454,14 +489,17 @@ export default function TradeTimelineScreen() {
         },
         () => {
           fetchTrade();
+          flashTradeUpdated();
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      if (updatedFlashTimerRef.current) clearTimeout(updatedFlashTimerRef.current);
+      updatedFlashTimerRef.current = null;
     };
-  }, [tradeId, fetchTrade]);
+  }, [tradeId, fetchTrade, flashTradeUpdated]);
 
   // R15: live countdown while an extension request is pending (re-tick every 30s)
   useEffect(() => {
@@ -980,6 +1018,7 @@ export default function TradeTimelineScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Trade Timeline">
+      <View style={styles.screenContainer}>
       <ScrollView
         ref={timelineScrollRef}
         style={styles.scrollView}
@@ -2143,6 +2182,28 @@ export default function TradeTimelineScreen() {
         )}
       </ScrollView>
 
+      {/* DEV-TASK-114 (2026-09-05) item 1: subtle "updated" indicator shown when
+          a realtime UPDATE refreshes the trade in place. Overlays the top of the
+          timeline content (below the header), auto-dismisses, and never blocks
+          taps (pointerEvents="none"). testID surfaces it for QA. */}
+      {updatedFlashVisible && (
+        <Animated.View
+          style={[styles.updatedToastOverlay, { opacity: updatedFlashOpacity }]}
+          testID="trade-updated-toast"
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          pointerEvents="none"
+        >
+          <View style={styles.updatedToast}>
+            <View style={styles.updatedToastIconWrap}>
+              <ArrowsClockwise size={16} color="#5DBB8E" weight="bold" />
+            </View>
+            <Text style={styles.updatedToastText}>Trade updated</Text>
+          </View>
+        </Animated.View>
+      )}
+      </View>
+
       <TradeConfirmationModal
         visible={showCompleteConfirm}
         title="Complete Trade"
@@ -2520,6 +2581,50 @@ const styles = StyleSheet.create({
     // Cancel Trade) must scroll fully above it to be reachable — QA E01 was
     // blocked because the report button sat behind the pill (BP-58).
     paddingBottom: 100,
+  },
+  // DEV-TASK-114 (2026-09-05) item 1: content wrapper so the realtime
+  // "updated" pill overlays the area below the header (top:8 sits just above
+  // the timeline content) instead of floating over the AppHeader.
+  screenContainer: {
+    flex: 1,
+  },
+  updatedToastOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
+    elevation: 8,
+  },
+  updatedToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#C8E6D9',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  updatedToastIconWrap: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EEF9F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  updatedToastText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2D6A4F',
   },
   // Addendum C + TC-L09: bundle context banner with expandable item list
   bundleBanner: {
