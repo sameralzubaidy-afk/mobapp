@@ -2,7 +2,7 @@
 
 > Future-reference status of **every canonical test case** in the 6 consolidated guides under `cross-checked-and-consolidated/`, reconciled against all QA evidence on disk through **2026-09-03**. Read-only snapshot — no guides/code/reports modified. Full narrative + method in `TEST-COVERAGE-INVENTORY-v2.md` (repo root); raw data in `temp/tc-inventory-v2/`.
 
-**Generated:** 2026-09-03 · **Total canonical cases:** 833
+**Generated:** 2026-09-03 · **Last maintained:** 2026-09-04 (QA Task 31d — tracker de-dup / never-run prune / status-taxonomy pass; no execution) · **Total canonical cases:** 833
 
 ## Status legend
 
@@ -13,24 +13,32 @@
 | 🔴 STILL OPEN | Latest verdict FAIL or BLOCKED with no later PASS re-verification — real residual defect or env/fixture block |
 | 📄 DOC-DRIFT | Guide assertion is obsolete/superseded; the underlying backend behavior was verified |
 | ⏭️ SKIPPED | Attempted but explicitly not exercised (budget/persona/scope) |
+| 🗑️ REMOVED | Feature/screen deleted from the product; documented disposition (status added QA Task 31d), not a defect or a run |
+| 🔁 RETIRED | In-app flow removed/superseded — coverage moves to a referenced successor; documented disposition (31d), not a run |
+| 🚫 NOT-SUPPORTED | Case asserts a capability the product deliberately does not provide (verified by design/DB); documented disposition (31d), not a defect |
+| 🚫 N/A | Not applicable — the referenced integration/provider is not configured or has no UI option in this deployment (31d) |
 | NEVER RUN | **Remaining** — no report on disk asserts a verdict under this canonical ID |
 
 ## 1 · Per-guide roll-up
 
-| Guide | Canonical file | Cases | ✅ PASS | 🟡 PARTIAL | 🔴 OPEN | 📄 DRIFT | ⏭️ SKIP | **Remaining (NEVER RUN)** |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
-| **AUTH** | `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` | 138 | 118 | 2 | 16 | 0 | 2 | **0** |
-| **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 63 | 2 | 2 | 2 | 0 | **3** |
-| **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 234 | 28 | 2 | 3 | 2 | **19** |
-| **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 57 | 0 | 17 | 0 | 1 | **0** |
-| **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 72 | 8 | 7 | 0 | 1 | **72** |
-| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 45 | 2 | 3 | 0 | 0 | **50** |
+| Guide | Canonical file | Cases | ✅ PASS | 🟡 PARTIAL | 🔴 OPEN | 📄 DRIFT | ⏭️ SKIP | 🗑️ REMOVED | 🔁 RETIRED | 🚫 NOT-SUPPORTED | 🚫 N/A | **Remaining (NEVER RUN)** |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **AUTH** | `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` | 138 | 118 | 2 | 11 | 0 | 2 | 5 | 0 | 0 | 0 | **0** |
+| **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 64 | 4 | 2 | 0 | 0 | 0 | 0 | 2 | 0 | **0** |
+| **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 234 | 28 | 2 | 3 | 2 | 0 | 0 | 0 | 0 | **19** |
+| **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 57 | 0 | 17 | 0 | 1 | 0 | 0 | 0 | 0 | **0** |
+| **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 123 | 23 | 1 | 0 | 1 | 0 | 0 | 0 | 0 | **12** |
+| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 45 | 2 | 3 | 0 | 0 | 0 | 15 | 0 | 2 | **33** |
 
-Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP. A case that is PASS, PARTIAL or OPEN has been executed at least once; DRIFT/SKIP rows are documented; the **Remaining** column is what still needs a run.
+Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/A. PASS/PARTIAL/OPEN rows have been executed at least once; DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N-A rows are documented dispositions; the **Remaining** column is what still needs a run. Per-guide status columns sum to each guide's documented Cases total.
+
+> **ADM canonical note (QA Task 31d):** the ADM guide's documented total is **160**. Its Completed block additionally tracks **8 supplementary sub-case evidence rows above the 160 canonical** — N2-A02…A08 (idempotency/audit invariants) + F06b (DT106 regression spot-check): 7 PASS + 1 PARTIAL. Those are excluded from the canonical PASS/PARTIAL counts above (canonical completed = 148; 148 + 12 remaining = 160).
+
+> **Out-of-index body sections (QA Task 31d scan — item 8):** every guide carries a trailing `## Regression`-style body group whose R-IDs are **NOT** in its official Test Case Index, so they are intentionally not counted in the 833 totals: AUTH `Regression checks` R01–R06 + ACC-01–06 (accessibility), MSG `Regression checks` R01–R06, TRD `Regression checks` R01–R06 (TRD's indexed "Group R — Refund & Cancellation" R01–R06 is separate and IS tracked), ACC `Regression` R01–R05, SUB `Regression` R01–R05, and ADM `Regression` R01–R05 (collides with indexed Education R01–R03 — see ADM 31d note). Verdict: supplementary regression/coverage guidance, **not owed** as additional tracked cases (adding them would break the documented totals); ADM's colliding rows were descoped from the per-case table (evidence in `qa-task29…/ledger-FULL-160.md`).
 
 ## AUTH · Signup / Onboarding / Nodes / Listing / Discovery
 
-**Guide file:** `cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` · **Cases:** 138 · **PASS** 118 · **PARTIAL** 2 · **OPEN** 16 · **DOC-DRIFT** 0 · **SKIPPED** 2 · **Remaining (NEVER RUN)** 0
+**Guide file:** `cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` · **Cases:** 138 · **PASS** 118 · **PARTIAL** 2 · **OPEN** 11 · **DOC-DRIFT** 0 · **SKIPPED** 2 · **REMOVED** 5 · **Remaining (NEVER RUN)** 0
 
 ### Completed test cases (have a verdict on record)
 
@@ -86,13 +94,13 @@ Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP. A case that is PASS, PARTIAL or
 | AUTH-TC-H01 | Profile Setup: avatar + display name + ZIP | ✅ PASS | PASS | 2026-08-24 | `group-j-h-closure-2026-08-24` |  |
 | AUTH-TC-H02 | Profile Setup validation errors | ✅ PASS | PASS | 2026-08-23 | `group-h-profile-setup-2026-08-23` |  |
 | AUTH-TC-H03 | Avatar upload failure does not block | 🔴 STILL OPEN | BLOCKED | 2026-08-24 | `auth-final-cleanup-batch-2026-08-24` | BLOCKED (env/fixture) |
-| AUTH-TC-H04 | ~~Welcome screen → Get Started~~ (REMOVED — screen deleted; superseded by H06/H07) | 🔴 STILL OPEN | BLOCKED | 2026-08-23 | `group-h-profile-setup-2026-08-23` | BLOCKED (env/fixture) |
-| AUTH-TC-H05 | ~~Feature Highlights carousel~~ (REMOVED — screen deleted; superseded by H06/H07) | 🔴 STILL OPEN | BLOCKED | 2026-08-23 | `group-h-profile-setup-2026-08-23` | BLOCKED (env/fixture) |
+| AUTH-TC-H04 | ~~Welcome screen → Get Started~~ (REMOVED — screen deleted; superseded by H06/H07) | 🗑️ REMOVED | REMOVED | 2026-08-23 | `group-h-profile-setup-2026-08-23` | Reclassified 31d: feature removed (screen deleted) — disposition, not a defect |
+| AUTH-TC-H05 | ~~Feature Highlights carousel~~ (REMOVED — screen deleted; superseded by H06/H07) | 🗑️ REMOVED | REMOVED | 2026-08-23 | `group-h-profile-setup-2026-08-23` | Reclassified 31d: feature removed (screen deleted) — disposition, not a defect |
 | AUTH-TC-H06 | Onboarding carousel: Next / Skip / Get Started | ✅ PASS | PASS | 2026-08-23 | `group-h-profile-setup-2026-08-23` |  |
 | AUTH-TC-H07 | Onboarding completion routes to Home | ✅ PASS | PASS | 2026-08-23 | `group-h-profile-setup-2026-08-23` |  |
-| AUTH-TC-I01 | ~~Start Free Trial enrolls Kids Club+~~ (REMOVED — no in-app trial-choice step; subscription purchase superseded by web-first `JoinKidsClubScreen` path) | 🔴 STILL OPEN | BLOCKED | 2026-08-23 | `group-i-subscription-choice-2026-08-23` | BLOCKED (env/fixture) |
-| AUTH-TC-I02 | ~~Continue Free stays on free tier~~ (REMOVED — post-Profile-Setup routes to EDU carousel → free-tier Home; no Continue Free step) | 🔴 STILL OPEN | BLOCKED | 2026-08-23 | `group-i-subscription-choice-2026-08-23` | BLOCKED (env/fixture) |
-| AUTH-TC-I03 | ~~Trial limit reached hides trial CTA~~ (REMOVED — no in-app trial CTA; trial disabled via `admin_config.trial_enabled=false`) | 🔴 STILL OPEN | BLOCKED | 2026-08-23 | `group-i-subscription-choice-2026-08-23` | BLOCKED (env/fixture) |
+| AUTH-TC-I01 | ~~Start Free Trial enrolls Kids Club+~~ (REMOVED — no in-app trial-choice step; subscription purchase superseded by web-first `JoinKidsClubScreen` path) | 🗑️ REMOVED | REMOVED | 2026-08-23 | `group-i-subscription-choice-2026-08-23` | Reclassified 31d: feature removed (no in-app trial step) — disposition, not a defect |
+| AUTH-TC-I02 | ~~Continue Free stays on free tier~~ (REMOVED — post-Profile-Setup routes to EDU carousel → free-tier Home; no Continue Free step) | 🗑️ REMOVED | REMOVED | 2026-08-23 | `group-i-subscription-choice-2026-08-23` | Reclassified 31d: feature removed (no Continue Free step) — disposition, not a defect |
+| AUTH-TC-I03 | ~~Trial limit reached hides trial CTA~~ (REMOVED — no in-app trial CTA; trial disabled via `admin_config.trial_enabled=false`) | 🗑️ REMOVED | REMOVED | 2026-08-23 | `group-i-subscription-choice-2026-08-23` | Reclassified 31d: feature removed (no in-app trial CTA) — disposition, not a defect |
 | AUTH-TC-J01 | Photo-first gating (fields hidden until 1 photo) | ✅ PASS | PASS | 2026-08-24 | `group-j-listing-creation-single-2026-08-24` |  |
 | AUTH-TC-J02 | AI auto-fill Apply All + per-field Use | ✅ PASS | PASS | 2026-08-24 | `group-j-closure-j02-j04-j11-j12-j13-j15-2026-08-24` |  |
 | AUTH-TC-J03 | Required field validation | ✅ PASS | PASS | 2026-08-24 | `group-j-listing-creation-single-2026-08-24` |  |
@@ -179,7 +187,7 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## MSG · Messaging / Badges / ID-Verification / Referrals / Safety / Notifications
 
-**Guide file:** `cross-checked-and-consolidated/MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` · **Cases:** 72 · **PASS** 64 · **PARTIAL** 4 · **OPEN** 2 · **DOC-DRIFT** 2 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 0
+**Guide file:** `cross-checked-and-consolidated/MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` · **Cases:** 72 · **PASS** 64 · **PARTIAL** 4 · **OPEN** 2 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **NOT-SUPPORTED** 2 · **Remaining (NEVER RUN)** 0
 
 > **QA Task 30 (2026-09-04, `qa-task30-adm-moderation-msg-y-2026-09-04/`) — MSG last-3 never-run pool closed (G05/G08/G09).** Config round-trips + recall-flagged scenario + banner leg executed; behavioral legs gated on product/infra decisions (no recall_alert producer; Google Vision reachability). MSG now has 0 remaining never-run cases.
 
@@ -217,7 +225,7 @@ _All cases in this guide have a verdict on record — none remaining._
 | MSG-TC-D02 | Capture ID with camera | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | simulator leg: Use Camera → graceful inline "Failed to take photo" error, no crash (iOS sim has no camera hardware). Capture-success + permission-denied-alert legs require a physical device — genuine PARTIAL |
 | MSG-TC-D04 | Duplicate pending request blocked | ✅ PASS | PASS | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | submitted new ID request (row 28846a18 pending) → re-enter ID Verification renders Pending state (no upload/Use-Camera/submit affordance) → 2nd request structurally impossible; DB: exactly 1 pending row. Doc-drift: guide's "Pending Request" alert branch is dead code — the Pending-state screen is the live guard |
 | MSG-TC-D05 | No-image submit validation | ✅ PASS | PASS | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | Submit disabled (gray) until an image is selected; no-image tap = no-op, no error box (disabled-button guard, matches guide + DT97 doc-drift note) |
-| MSG-TC-D10 | Decision notifications honor channel preferences — 🚫 NOT SUPPORTED (no such category) | 📄 DOC-DRIFT | NOT SUPPORTED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | by-design NOT SUPPORTED confirmed: notification_category enum = subscription/sp_events/badges/trades/system (NO id_verification); ID-verif notifications route via badges — DB enum + test-buyer prefs verified. Mirrors J05. DOC-DRIFT label = tracker has no NOT-SUPPORTED status |
+| MSG-TC-D10 | Decision notifications honor channel preferences — 🚫 NOT SUPPORTED (no such category) | 🚫 NOT-SUPPORTED | NOT SUPPORTED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | by-design NOT SUPPORTED confirmed: notification_category enum = subscription/sp_events/badges/trades/system (NO id_verification); ID-verif notifications route via badges — DB enum + test-buyer prefs verified. Mirrors J05. Reclassified 31d from DOC-DRIFT to NOT-SUPPORTED (status added to legend) |
 | MSG-TC-E01 | Review queue (stats, filters, search) | ✅ PASS | PASS | 2026-09-03 | `qa-task24-msg-complete-2026-09-03` |  |
 | MSG-TC-E02 | Approve a request | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 verbatim PASS: approve d148ee0f → DB approved + reviewed_at/by + approval_notes; id_badge_approved notification to test-seller-3; screenshot storage object deleted post-decision (privacy promise held) |
 | MSG-TC-E03 | Reject with reason | ✅ PASS | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | qa25 verbatim PASS: no-reason submit fired "Please select a rejection reason" dialog (guide match) → reason + notes → rejected; DB rejected + rejection_reason=unclear_photo + id_badge_rejected notification with reason/notes |
@@ -258,7 +266,7 @@ _All cases in this guide have a verdict on record — none remaining._
 | MSG-TC-J02 | Default preferences (DB-driven, no hardcoded defaults) | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-J03 | Always-on note (live footer copy) | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
 | MSG-TC-J04 | Quiet hours (subscriber) + validation | ✅ PASS | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` |  |
-| MSG-TC-J05 | 🚫 NOT SUPPORTED — ID verification preference category (none exists) | 📄 DOC-DRIFT | NOT SUPPORTED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | by-design NOT SUPPORTED re-confirmed via DB enum for D10 — no id_verification category; ID-verif routes via badges. DOC-DRIFT label = tracker has no NOT-SUPPORTED status |
+| MSG-TC-J05 | 🚫 NOT SUPPORTED — ID verification preference category (none exists) | 🚫 NOT-SUPPORTED | NOT SUPPORTED | 2026-09-04 | `qa-task28-mobile-closure-sub-msg-2026-09-04` | by-design NOT SUPPORTED re-confirmed via DB enum for D10 — no id_verification category; ID-verif routes via badges. Reclassified 31d from DOC-DRIFT to NOT-SUPPORTED (status added to legend) |
 
 ### Remaining test cases — NEVER RUN (0)
 
@@ -654,13 +662,17 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## ADM · Admin Portal
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` · **Cases:** 160 · **PASS** ~137 · **PARTIAL** ~15 · **FAIL/OPEN** 1 · **DOC-DRIFT** 1 · **SKIPPED** 1 · **Remaining (NEVER RUN)** ~10
+**Guide file:** `cross-checked-and-consolidated/MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` · **Cases:** 160 (canonical) · **PASS** 123 · **PARTIAL** 23 · **OPEN (FAIL)** 1 · **DOC-DRIFT** 0 · **SKIPPED** 1 · **Remaining (NEVER RUN)** 12 · (+8 supplementary sub-case rows in Completed — see roll-up note)
 > **QA Task 31 v2 (2026-09-04, `qa-task31-adm-near-total-2026-09-04/`) — near-total closure round (7 batches): 43 PASS / 1 FAIL / 16 PARTIAL.** Batch 1 DT108 spot-checks (SMS-stats clean, ⌘K listings nav, C05 guide correction, notif-key P0001 rejection, fe3924ee dispute reset) hold. B04 SP-wallet commit legs PASS on a disposable wallet. Disputes I01–I05 closed live (queue/SLA, under-review, resolve-complete → completed + payout row, resolve-refund → PI cancelled, filter tabs). Categories D02–D11 (7 PASS / 3 PARTIAL). Nodes E01–E05/E08 + policies G02/G03 PASS (G04 publish gated — no safe revert on load-bearing legal surface). Batch 7 clean-pool 17 PASS / 1 FAIL (L02 `/sp-analytics` missing `category_sp_analytics` table) / 10 PARTIAL. **Still open/remaining:** B03/B06/B07 (prompt()-tooling, ADM-R3), E06/E07 (SQL/RPC node cases), C11/C12, M01, L07/L08 (mobile-leg), X07/K03 retry commit (no failed-payout fixture). New completed rows added below (I01–I05, D02–D11, E01–E05/E08, G02–G04, L02–L05, M02–M06, O04/O05, P02–P04, R01–R03, S01/S02, T02, U01, W03/W06, Z03, N2-A02/A03/A04/A07/A08 + B04/C05/X07/K03 updates).
 
 > **⚠️ QA Task 31 mobile-leg COVERAGE CORRECTION (2026-09-04, owner):** the QA31 PASS rows for cases the guide declares `Surfaces: admin, mobile` mean **PASS admin-leg only** — their mobile leg was NOT driven (owner: "my note was not only for category adding — that was just an example"). Mobile-impacting rows now **mobile-leg OWED** and must be re-driven on the app per R55 before counting fully PASS: **B04/L04/L05** (wallet balance/enforcement — L07/L08 are the dedicated mobile cases, still OPEN), **D02**(multiplier-estimate on device)/**D05/D06/D07/D08/D09/D10** (category UI effects), **I03/I04** (dispute-resolution reflection on both parties' mobile timelines), **E02–E05** (node/radius/waitlist on mobile), **G04** (policy gate), **M03/M04**, **O04**, **P02/P03**, **R01/R03**. Only **D03** (fully) + **D02-show** (partially) got a mobile leg (R55 follow-up). Full per-case table: `qa-task31-adm-near-total-2026-09-04/report.md` → "Mobile-impact coverage assessment". Scheduled as **QA Task 31-M (mobile-leg pass)** with explicit per-case scope (R40).
 
+> **✅ QA Task 31-M v2 (2026-09-04, `qa-task31m-adm-mobile-impact-2026-09-04/`) — retroactive audit + first closure batch.** Phase 1 audit (full table in `audit-phase1.md`): across QA Task 28/29/30/31 PASS rows with mobile surface, only D03 (QA31) + O02/O03 (QA25 cross-ref) were genuinely mobile-verified; QA29's F03/F05/F06/F08 + N03 + P01 + Q01–Q06, and QA30's C03–C10 + X05/X06 were retroactively added to the owed set (admin+DB only evidence). Phase 2 closure driven this session: **B04/L05/L08 mobile enforcement PASS** (real /sp-wallet freeze+suspend → on-device ⚠️ Frozen + 🚫 Suspended banners → active; 4 audit rows, restored active/490) and **C07 buyer-visibility PASS** (admin Pause → buyer mobile "Listing not found"; restored available). Fixture gaps flagged (FG-1..5): F-group changed-value timing + I03/I04/X06 dispute reflection need a sanctioned in-progress-trade fixture; Q-group commit leg never executed (QA29 dismissed confirms); G04 forward-only publish; M03/M04 deferred to QA32; B03/B06/B07 prompt()-blocked. Findings: admin Pause has no in-UI unpause (P2); r41-moderation reset cleanup-line `.catch` bug (LOW); fragmented audit channels (note). Rows B04/L04/L05/C07 Notes updated with mobile-leg evidence.
+
 > **QA Task 29 (2026-09-04, `qa-task29-adm-first-live-2026-09-04/`) — ADM's first full real execution round.** ~88 of 160 cases executed against the live admin portal. Full per-case ledger + reasons in `ledger-FULL-160.md` / `report.md`. Executed cases below moved to Completed; the remaining-table rows for executed IDs are superseded by the block below (prune on next maintenance).
 > **QA Task 30 (2026-09-04, `qa-task30-adm-moderation-msg-y-2026-09-04/`) — disposable-fixture moderation round (C03–C10, X05–X07) + Y-group (⌘K palette) + DT106 spot-checks.** All 8 C moderation commit legs + X05/X06 PASS live on disposable fixtures (all deleted post-run); X07 fixture-gated (0 failed payout rows). Y01–Y12 executed (Y05/Y08 PARTIAL). Spot-checks: F06 batch guardrail fix HOLDS (one-Save 48→100/72→67 atomic, DT106); K02 /payouts data leg drivable + Z05 deep-link PASS; B04 = DOC-DRIFT (SP credit/debit lives on /sp-wallet, not /users). New finding: /config SMS-stats API 401 (same BP-49 class).
+
+> **QA Task 31d (2026-09-04, tracker-maintenance — no execution).** De-dup/collapse in Completed: **B04** → single PASS row (QA31; QA30 DOC-DRIFT row removed — its drift note is folded into the QA31 row); **C05** → single PASS row (QA31 corrected `/items/flagged` Review-modal title; QA30 duplicate removed); **R01/R02** → single PASS row each using the guide's **Education & FAQ CMS** meaning (QA31). QA29's "Session persists across pages" / "Confirm destructive/financial" / "Auditable actions logged" rows were **mislabeled Regression-group rows** — the guide's `## Regression` body section (R01–R05) is NOT in the 160-case Test Case Index and collides with the indexed Education R01–R03 — so they are **descoped** from the canonical per-case table (evidence preserved in `qa-task29-adm-first-live-2026-09-04/ledger-FULL-160.md` → Regression section). **QA29-executed-but-never-recorded rows added** from `ledger-FULL-160.md`: H05 (PARTIAL), N02 (PASS), N04 (PASS), T01 (PARTIAL), X04 (PARTIAL), X08 (PARTIAL — fixture-gated), X11 (PARTIAL — fixture-gated), and **N2-A01** (PARTIAL) — the never-run table's bare "ADM-TC-N2" parent row was actually N2-A01's case; the guide's N2 family is N2-A01..A08 and all eight now have verdicts. Never-run table pruned **159 → 12** (147 rows already had verdicts in this Completed block).
 
 ### Completed test cases (have a verdict on record)
 
@@ -732,18 +744,13 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-Z04 | Indicator deep-links | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-Z06 | Health thresholds via /config | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | render (no HEALTH tab) |
 | ADM-TC-Z07 | Dashboard embeds AC | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
-| ADM-TC-R01 | Session persists across pages | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
-| ADM-TC-R02 | Confirm destructive/financial | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
-| ADM-TC-R05 | Auditable actions logged | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | admin_audit_log |
 | ADM-TC-N2-A05 | Financial Audit accessible | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-N2-A06 | Financial Audit search/filters | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` |  |
 | ADM-TC-S03 | Support reply | ⏭️ SKIPPED | SKIPPED | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` |  |
-| ADM-TC-B04 | Credit/debit SP + freeze wallet from user | 📄 DOC-DRIFT | DOC-DRIFT | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | DOC-DRIFT confirmed: guide points at /users user panel, but the /users drawer SP Wallet section is READ-ONLY (no controls). Actual surface = /sp-wallet "💎 SP Wallet Operations": Manual SP Adjustment (adj-amount-input +/- add/deduct, reason*, Apply Adjustment) via admin_adjust_sp_wallet + Wallet Status Active/Frozen/Suspended via admin_toggle_sp_wallet_status (all render after loading a wallet). Commit-leg round-trip on a real wallet NOT run (needs disposable user) — queued |
 | ADM-TC-C03 | Approve flagged item | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 7bc46028: /items/flagged Review modal Approve → confirm → "Item approved successfully" → DB available + approved_by 1a546991 + flag cleared + admin_activity_log approve_listing |
 | ADM-TC-C04 | Reject item with required reason | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable a821258d: Reject DISABLED without reason (guard), enabled after Decision Note → confirm → "Item rejected successfully" → DB rejected + rejection_reason stored + appeal_count 1 |
-| ADM-TC-C05 | Item detail view + appeal info | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | appeal info (Appeals Submitted + Latest Seller Appeal Note + "Appealed at:") verified on the /items/flagged Review modal for e8e7c11a (needs_edits, appeal_count 2). DOC-DRIFT: guide's /items/[id] route renders NO appeal data (only general item + tax-category change) + hung on "Loading item details..." for e8e7c11a (anon-key RLS query) — appeal data lives on the Review modal |
 | ADM-TC-C06 | Force Delete | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 033baae0 (available): /listings details Force Delete → reason required → Confirm Delete → "Listing force-deleted successfully" → DB deleted |
-| ADM-TC-C07 | Pause | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 53a3b578 (available): Pause → reason form → "Listing paused successfully" → DB paused |
+| ADM-TC-C07 | Pause | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` + `qa-task31m-adm-mobile-impact-2026-09-04` | disposable 53a3b578 (available): Pause → reason form → "Listing paused successfully" → DB paused. **MOBILE LEG DRIVEN (QA31-M):** real admin Pause on QA fixture 185546da → DB paused + admin_listing_actions audit (actor 1a546991) → buyer mobile deep-link flips from purchasable ($25) to "❌ Listing not found" → restored available (DB-verified). Finding: no in-UI unpause exists for admin-paused items (Approve renders only for pending) |
 | ADM-TC-C08 | Approve | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 033baae0 (pending): Approve Listing present (pending-only) → Admin Notes optional → "Listing approved..." → DB available + approved_by 1a546991 |
 | ADM-TC-C09 | Request Edits | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable 7a045732 (flagged): Request Edits → Decision Note required (Confirm disabled w/o) → confirm → "Send this listing back..." → "Edit request sent..." → DB needs_edits + note stored |
 | ADM-TC-C10 | Reject | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | disposable a8d41d07 (flagged): Reject → Decision Note required → "Are you sure you want to reject this listing?" → "Listing rejected successfully" → DB rejected |
@@ -764,7 +771,7 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-Y10 | Non-admin rejected (permission scoping) | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | two-source: only role 'admin' in RBAC; profiles role gate (5235 user vs 1 admin); portal login rejects non-admins (A02 same build) → non-admin palette session NOT provisionable. Palette/RPC defense-in-depth: admin_global_search raises 'Forbidden: admin role required' → "Only admins can use global search." (source-verified) |
 | ADM-TC-Y11 | Secret settings values never shown | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | config rows show key+description+breadcrumb, NEVER value; search matches key/description not value (no is_secret=true rows on staging; values hidden regardless) |
 | ADM-TC-Y12 | Empty + no-results states | ✅ PASS | PASS | 2026-09-04 | `qa-task30-adm-moderation-msg-y-2026-09-04` | empty query → hint "Search across settings, users, listings, and trades."; no-results "zzzzznope" → "No results for …" + tip; no errors |
-| ADM-TC-B04 | Credit/debit SP + freeze wallet from user | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /sp-wallet (NOT /users drawer — doc-drift). DT-99 disposable 3df0629c: +25 credit → DB 25 + sp_ledger earn_admin_grant; −25 debit → 0 + admin_deduct; freeze→frozen; unfreeze→active; suspend→suspended; unsuspend→active. Full revert (active/0). admin_audit_logs sp_adjustment ×2 + sp_wallet_status_change ×4 (wallet id e5a78eae, actor 1a546991) |
+| ADM-TC-B04 | Credit/debit SP + freeze wallet from user | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` + `qa-task31m-adm-mobile-impact-2026-09-04` | /sp-wallet (NOT /users drawer — doc-drift). DT-99 disposable 3df0629c: +25 credit → DB 25 + sp_ledger earn_admin_grant; −25 debit → 0 + admin_deduct; freeze→frozen; unfreeze→active; suspend→suspended; unsuspend→active. Full revert (active/0). admin_audit_logs sp_adjustment ×2 + sp_wallet_status_change ×4 (wallet id e5a78eae, actor 1a546991). **MOBILE LEG DRIVEN (QA31-M, 2026-09-04):** real /sp-wallet freeze/suspend on test-buyer (active→frozen→active→suspended→active, actor 1a546991, 4 audit rows) → on-device SP Wallet shows ⚠️ "Swap Points Frozen" + 🚫 "Wallet Suspended" banners and no banner when active (can_spend_sp=false chain source-verified); restored active/490 |
 | ADM-TC-C05 | /items/flagged Review modal — item + appeal info | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | DT108 guide correction confirmed on disk (C05 retitled + route note: appeal data ONLY on /items/flagged Review modal, not /items/[id]) |
 | ADM-TC-I01 | Dispute queue + SLA | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /trades/disputes queue TRADE/ITEM/REASON/VALUE/AGE(SLA:24H)/STATUS/ACTIONS + OVERDUE >24h; "42 disputes" DB-exact. Doc-drift: guide "sections+SLA badge" = flat table+OVERDUE |
 | ADM-TC-I02 | Mark dispute under review | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | fe3924ee reported → Mark Under Review → under_review (DB) |
@@ -792,8 +799,8 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-G04 | Publish policy (confirmation) | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | publish confirm exact copy; commit NOT executed (no safe revert on load-bearing legal surface — forward-only publish, no delete); draft left draft, 1 active TOS preserved |
 | ADM-TC-L02 | SP Analytics + CSV export | 🔴 STILL OPEN | FAIL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /sp-analytics data leg errors — table `public.category_sp_analytics` MISSING on staging; shell + Export CSV render, no data. Dev: create table/view or re-point query |
 | ADM-TC-L03 | SP Wallet admin — metrics + search | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | economy metrics grid; search user; non-existent → "SP wallet not found for user"; invalid UUID no crash |
-| ADM-TC-L04 | SP adjustment (credit/deduct) with reason | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | credit +25/debit −25 w/ reason (B04) + admin_audit_logs sp_adjustment (actor 1a546991) |
-| ADM-TC-L05 | Freeze / unfreeze / suspend wallet | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | all 4 status transitions DB-verified + admin_audit_logs sp_wallet_status_change ×4 |
+| ADM-TC-L04 | SP adjustment (credit/deduct) with reason | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` + `qa-task31m-adm-mobile-impact-2026-09-04` | credit +25/debit −25 w/ reason (B04) + admin_audit_logs sp_adjustment (actor 1a546991). **Mobile balance-surface verified (QA31-M):** SpWalletScreen displays the DB available_balance that admin adjusts (surface on-device verified in the B04/L05 status legs); a live credit→balance-change reflection not re-driven — residual noted |
+| ADM-TC-L05 | Freeze / unfreeze / suspend wallet | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` + `qa-task31m-adm-mobile-impact-2026-09-04` | all 4 status transitions DB-verified + admin_audit_logs sp_wallet_status_change ×4. **MOBILE LEG DRIVEN (QA31-M):** freeze→frozen banner + suspend→suspended banner + unfreeze→no banner verified on-device on test-buyer's SP Wallet (see B04 note); restored active/490 |
 | ADM-TC-M02 | Subscriptions list, filters, metrics | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /subscriptions/manage renders; bare /subscriptions → /manage redirect (DT106 holds) |
 | ADM-TC-M03 | Extend / cancel / reactivate | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | affordances render; state commits deferred to QA Task 32 (SUB money round) — R40-explicit |
 | ADM-TC-M04 | Reactivate button + mobile | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | same — deferred to SUB round |
@@ -819,174 +826,39 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-N2-A04 | Single payout per trade/transfer | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | unique seller_payouts.idempotency_key + fe3924ee = 1 payout row |
 | ADM-TC-N2-A07 | Audit row details + View | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /audit rows time/type/entity/amount/actor/node/idemkey/View; rows match DB |
 | ADM-TC-N2-A08 | Summary strip reconciles | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | strip consistent w/ 100-row window but "Entries 100" vs 328 journal — R54 window labeling |
+| ADM-TC-H05 | External References (Stripe PI/refund + SP ledger IDs) | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger H05: External References section present (pending trade → no PI yet, so the PI/refund/SP-ledger link leg unverified). Re-added 2026-09-04 (31d) — executed in QA29, never recorded |
+| ADM-TC-N02 | Referral analytics tab | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger N02: Analytics tab present (render). Re-added 2026-09-04 (31d) — executed in QA29, never recorded |
+| ADM-TC-N04 | "Missing configuration" warning | ✅ PASS | PASS | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger N04: N/A — no warning shown because referral config is present (correct). Re-added 2026-09-04 (31d) — executed in QA29, never recorded |
+| ADM-TC-T01 | Revenue & Analytics dashboard | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger T01: /analytics Revenue & Analytics renders (incl. F09 Buyer Fee-Tier Distribution card); full report-data leg partial. Re-added 2026-09-04 (31d) |
+| ADM-TC-X04 | Expand card drills into item list | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger X04: expand affordance (chevron) present; drill into item list not fully exercised. Re-added 2026-09-04 (31d) |
+| ADM-TC-X08 | Empty state "All caught up" | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger X08: fixture-gated — 28 pending items this run, so the "All caught up" empty state was not reachable. Re-added 2026-09-04 (31d) |
+| ADM-TC-X11 | Config drift card lists out-of-range settings | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger X11: fixture-gated — no out-of-range admin_config present, card not drivable. Re-added 2026-09-04 (31d) |
+| ADM-TC-N2-A01 | Financial audit journal viewable per trade | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task29-adm-first-live-2026-09-04` | QA29 ledger N2-A01 (✅ PASS partial): per-trade financial audit journal present in /audit. Formerly mis-encoded as the bare "ADM-TC-N2" never-run parent row (guide N2 family = N2-A01..A08). Re-added 2026-09-04 (31d) |
 
-### Remaining test cases — NEVER RUN (159)
+### Remaining test cases — NEVER RUN (12)
+
+> QA Task 31d prune (2026-09-04): 147 of the former 159 rows removed — they now have verdicts in the Completed block above (QA Task 29/30/31). The 12 below are ADM's genuinely-outstanding pool (QA Task 31-T scope).
 
 | TC-ID | Description | Note / why remaining |
 |---|---|---|
-| ADM-TC-A01 | Admin login with admin role |  |
-| ADM-TC-A02 | Non-admin login rejected (RBAC gate) |  |
-| ADM-TC-A03 | Dashboard layout: intro → health strip → Action Center → KPIs (no duplicate nav) |  |
-| ADM-TC-A04 | Direct protected route access without session redirects to login |  |
-| ADM-TC-A05 | Expired session redirects once without a loop |  |
-| ADM-TC-A06 | Dashboard KPI cards follow design-system styling |  |
-| ADM-TC-B01 | User list, search, status filters, pagination |  |
-| ADM-TC-B02 | User detail drawer (identity, subscription, SP, trades) |  |
-| ADM-TC-B03 | Suspend / ban / delete account |  |
-| ADM-TC-B04 | Credit/debit SP + freeze wallet from user |  |
-| ADM-TC-B05 | User analytics cards (totals, DAU/MAU) |  |
-| ADM-TC-B06 | Reset Password action |  |
-| ADM-TC-B07 | Unsuspend action |  |
-| ADM-TC-B08 | Sort By / Sort Order |  |
-| ADM-TC-C01 | Listing management — search & analytics tabs |  |
-| ADM-TC-C02 | Flagged items — filter tabs + statuses |  |
-| ADM-TC-C03 | Approve flagged item |  |
-| ADM-TC-C04 | Reject item with required reason |  |
-| ADM-TC-C05 | Item detail view + appeal info |  |
-| ADM-TC-C06 | Force Delete |  |
-| ADM-TC-C07 | Pause |  |
-| ADM-TC-C08 | Approve |  |
-| ADM-TC-C09 | Request Edits |  |
-| ADM-TC-C10 | Reject |  |
-| ADM-TC-C11 | Select-all / selection counter (no bulk execute — flag) |  |
-| ADM-TC-C12 | Individual filter controls |  |
-| ADM-TC-D01 | Category list, filters (incl. Bonus), search |  |
-| ADM-TC-D02 | Create / edit category + SP multiplier |  |
-| ADM-TC-D03 | Activate / deactivate category |  |
-| ADM-TC-D04 | Category suggestions queue + count badge |  |
-| ADM-TC-D05 | Icon / badge upload |  |
-| ADM-TC-D06 | SP spending cap % |  |
-| ADM-TC-D07 | SP redemption cap |  |
-| ADM-TC-D08 | Drag-and-drop reorder |  |
-| ADM-TC-D09 | Bulk actions (Activate / Deactivate / Delete / Export CSV) |  |
-| ADM-TC-D10 | Delete category + guards |  |
-| ADM-TC-D11 | Suggestion Approve / Merge / Reject |  |
-| ADM-TC-E01 | Geographic nodes list + stats |  |
-| ADM-TC-E02 | Add / edit node |  |
-| ADM-TC-E03 | Deactivate node with members warning |  |
-| ADM-TC-E04 | Node settings (radius validations) |  |
-| ADM-TC-E05 | ZIP waitlist queue + status filter |  |
-| ADM-TC-E06 | Node tagging completeness (N6) — every record resolves to one node |  |
-| ADM-TC-E07 | Per-node KPIs (N6) — expansion-gate metrics per node |  |
-| ADM-TC-E08 | Waitlist API authorization (401 without admin session) |  |
-| ADM-TC-F01 | Global configuration inline edit + permission gate |  |
-| ADM-TC-F02 | Cart settings (min value, max carts, expiry) |  |
-| ADM-TC-F03 | Trade timing config (timing keys + nested validation) — incl. consolidated fees |  |
-| ADM-TC-F04 | Settings single-source — cross-link + last-updated + audit |  |
-| ADM-TC-F05 | N1 configurability — pickup countdown + payout buffer (live) |  |
-| ADM-TC-F06 | R2 — 7-day guardrail (hard block) + pickup reminders (live) |  |
-| ADM-TC-F07 | Trade Pipeline visualization — see & track trades in all stages |  |
-| ADM-TC-F08 | R1 tiered buyer-fee fields (live) |  |
-| ADM-TC-F09 | Buyer Fee-Tier Distribution table (moved → /analytics) |  |
-| ADM-TC-F10 | Legacy fee keys (audit-only, read-only — live) |  |
-| ADM-TC-F11 | Reset button |  |
-| ADM-TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |  |
-| ADM-TC-G02 | Create new policy version (version regex) |  |
-| ADM-TC-G03 | Edit draft policy |  |
-| ADM-TC-G04 | Publish policy (confirmation) |  |
-| ADM-TC-H01 | Trade list filters + columns |  |
-| ADM-TC-H02 | Trade detail (info, monetary breakdown, audit) |  |
-| ADM-TC-H03 | Trade admin actions |  |
-| ADM-TC-H04 | Subscription Context section |  |
-| ADM-TC-H05 | External References (Stripe PI/refund + SP ledger IDs) |  |
-| ADM-TC-H06 | Sales Tax line in monetary breakdown |  |
-| ADM-TC-I01 | Dispute queue + SLA highlighting |  |
-| ADM-TC-I02 | Mark dispute under review |  |
-| ADM-TC-I03 | Resolve dispute — Complete |  |
-| ADM-TC-I04 | Resolve dispute — Refund |  |
-| ADM-TC-I05 | Filter-tab click behavior (All/Reported/Under Review) |  |
-| ADM-TC-J01 | Tax admin entry points (no bare /tax — use sub-pages) |  |
-| ADM-TC-K01 | Payout fee configuration + test breakdown |  |
-| ADM-TC-K02 | Payouts management list, stats, filters |  |
-| ADM-TC-K03 | Retry failed payout (confirmation) |  |
-| ADM-TC-L01 | SP Economy hub tabs (Health/Flow/Rules) |  |
-| ADM-TC-L02 | SP Analytics dashboard + CSV export |  |
-| ADM-TC-L03 | SP Wallet admin — economy metrics + search |  |
-| ADM-TC-L04 | SP adjustment (credit/deduct) with reason |  |
-| ADM-TC-L05 | Freeze / unfreeze / suspend wallet |  |
-| ADM-TC-L06 | SP Economy summary metrics — dashboard + /sp-wallet entry (no home card) |  |
-| ADM-TC-L07 | SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state |  |
-| ADM-TC-L08 | SP Wallet warning banners (mobile) — frozen/suspended/grace |  |
-| ADM-TC-M01 | Grace period config (days + reminders) |  |
-| ADM-TC-M02 | Subscriptions list, filters, metrics |  |
-| ADM-TC-M03 | Extend / cancel / reactivate |  |
-| ADM-TC-M04 | Reactivate button (confirm + mobile reflection) |  |
-| ADM-TC-M05 | Metrics cards (MRR/churn/trial) |  |
-| ADM-TC-M06 | "free" status filter |  |
-| ADM-TC-N01 | Referral configuration tab |  |
-| ADM-TC-N02 | Referral analytics tab |  |
-| ADM-TC-N2 | Financial audit journal viewable per trade |  |
-| ADM-TC-N03 | 5 SP fields + 3 toggles |  |
-| ADM-TC-N04 | "Missing configuration" warning |  |
-| ADM-TC-O01 | ID badge queue + stats + status filter |  |
-| ADM-TC-O02 | Review request — approve |  |
-| ADM-TC-O03 | Review request — reject with reason |  |
-| ADM-TC-O04 | Request details (screenshot deleted note) |  |
-| ADM-TC-O05 | Message templates edit |  |
-| ADM-TC-P01 | Badge management list + toggle |  |
-| ADM-TC-P02 | Create/edit/delete badge |  |
-| ADM-TC-P03 | Manual award badge |  |
-| ADM-TC-P04 | Badge sandbox event simulation |  |
-| ADM-TC-Q01 | Reported reviews list + reason filter |  |
-| ADM-TC-Q02 | Hide review (confirmation — copy corrected) |  |
-| ADM-TC-Q03 | Approve review (unhide + delete reports — copy corrected) |  |
-| ADM-TC-Q04 | Status filter dropdown |  |
-| ADM-TC-Q05 | Sort-by dropdown |  |
-| ADM-TC-Q06 | Search input |  |
-| ADM-TC-R01 | Education sections/examples/analytics |  |
-| ADM-TC-R02 | FAQ management (questions/categories/analytics) |  |
-| ADM-TC-R03 | Publish FAQ / education content |  |
-| ADM-TC-S01 | Support inbox + unread filter (incl. Guest tickets) |  |
-| ADM-TC-S02 | Support detail + mark as read |  |
-| ADM-TC-T01 | Revenue & Analytics dashboard |  |
-| ADM-TC-T02 | Notification analytics (category/type/variant) |  |
-| ADM-TC-U01 | Audit logs view |  |
-| ADM-TC-V01 | Monitoring run + alerts (acknowledge/note) |  |
-| ADM-TC-V02 | Cron jobs status + run history + timezone |  |
-| ADM-TC-W01 | Sidebar grouped into 7 labeled sections |  |
-| ADM-TC-W02 | Expand / collapse a section via label + chevron |  |
-| ADM-TC-W03 | Section state persists per admin across sessions |  |
-| ADM-TC-W04 | Active route auto-expands its parent section |  |
-| ADM-TC-W05 | Active/inactive item styling + label typography |  |
-| ADM-TC-W06 | Collapsed icon rail shows all destinations |  |
-| ADM-TC-W07 | All previous nav destinations still reachable |  |
-| ADM-TC-X01 | Action Center page loads aggregated cards |  |
-| ADM-TC-X02 | Same-type items bundled with count |  |
-| ADM-TC-X03 | Severity tags (Urgent/Routine) |  |
-| ADM-TC-X04 | Expand card drills into item list |  |
-| ADM-TC-X05 | Inline approve flagged item |  |
-| ADM-TC-X06 | Inline mark dispute under review |  |
-| ADM-TC-X07 | Inline retry failed payout (confirmation) |  |
-| ADM-TC-X08 | Empty state "All caught up" |  |
-| ADM-TC-X09 | Sidebar pinned nav item + live count badge |  |
-| ADM-TC-X10 | Header bell opens Action Center + badge |  |
-| ADM-TC-X11 | Config drift card lists out-of-range settings |  |
-| ADM-TC-X12 | Dashboard embeds top-5 Action Center cards + View all link |  |
-| ADM-TC-X13 | Cancellation Insights card drill |  |
-| ADM-TC-X14 | /cancellation-insights full page |  |
-| ADM-TC-Y01 | ⌘K / Ctrl+K opens the palette from any page |  |
-| ADM-TC-Y02 | Header search bar opens the palette |  |
-| ADM-TC-Y03 | Parallel search across 4 entity types with grouped labels |  |
-| ADM-TC-Y04 | Breadcrumb context per result row |  |
-| ADM-TC-Y05 | Input debounced ~200ms |  |
-| ADM-TC-Y06 | Top 5 per group + "See all N results" expansion |  |
-| ADM-TC-Y07 | Footer "View all in <domain>" → prefilled list page |  |
-| ADM-TC-Y08 | Selecting a result navigates directly |  |
-| ADM-TC-Y09 | Keyboard navigation (↑/↓/↵/Esc) + focus trap |  |
-| ADM-TC-Y10 | Non-admin rejected (permission scoping) |  |
-| ADM-TC-Y11 | Secret settings values never shown |  |
-| ADM-TC-Y12 | Empty + no-results states |  |
-| ADM-TC-Z01 | Health strip renders below title, above Action Center |  |
-| ADM-TC-Z02 | Six indicators with colored dots + labels + values |  |
-| ADM-TC-Z03 | Dot color reflects configurable thresholds |  |
-| ADM-TC-Z04 | Clicking an indicator navigates to its detail page |  |
-| ADM-TC-Z05 | Failed Payouts deep-link pre-filters to failed |  |
-| ADM-TC-Z06 | Thresholds tunable via /config (health) without code change |  |
-| ADM-TC-Z07 | Dashboard embeds Action Center below the strip |  |
+| ADM-TC-B03 | Suspend / ban / delete account | QA29/QA31 attempted but BLOCKED-on-tooling: Suspend/Delete use native `prompt()` — not drivable in the embedded driver (UI buttons verified present). Needs a normal-browser pass (ADM-R3). |
+| ADM-TC-B06 | Reset Password action | QA29/QA31 BLOCKED-on-tooling: flow uses `prompt()` (same blocker). Needs a normal-browser pass (ADM-R3). |
+| ADM-TC-B07 | Unsuspend action | QA29/QA31 BLOCKED-on-tooling: requires a `prompt()` reason. Needs a normal-browser pass (ADM-R3). |
+| ADM-TC-C11 | Select-all / selection counter (no bulk execute — flag) | Never attempted (QA29 ⬜ NOT-RUN; not in QA30/31). Verify on the /items/flagged list UI. |
+| ADM-TC-C12 | Individual filter controls | Never attempted (QA29 ⬜ NOT-RUN; controls present per C02 but not each exercised). |
+| ADM-TC-E06 | Node tagging completeness (N6) — every record resolves to one node | SQL/DB-query case (QA29 flagged FIXTURE/DB-only — the guide's query was never executed). Needs the SQL verification. |
+| ADM-TC-E07 | Per-node KPIs (N6) — expansion-gate metrics per node | RPC `admin_node_kpis` (QA29 flagged DB-only — never invoked). Needs a real execution. |
+| ADM-TC-F11 | Reset button | QA29 ⬜ NOT-RUN (multi-field fill unreliable; single-field save/revert pipeline proven via F01/F05). Needs a dedicated run. |
+| ADM-TC-K03 | Retry failed payout (confirmation) | QA30/31 fixture-gated: 0 failed `seller_payouts` rows on staging → retry button correctly absent; commit leg needs a sanctioned failed-payout fixture (same gap as X07). QA31 ledger = PARTIAL (fixture-gated); no completed row yet. |
+| ADM-TC-L07 | SP Wallet state RPC — get_user_sp_wallet_summary returns wallet_state | Backend RPC contract; QA29 DB-only confirmed the wallet_state column is present — full RPC behavior not exercised. |
+| ADM-TC-L08 | SP Wallet warning banners (mobile) — frozen/suspended/grace | Mobile-only leg — never run on device (QA29 📄 mobile). QA Task 31-M scope. |
+| ADM-TC-M01 | Grace period config (days + reminders) | Grace keys render under /config (QA29 partial); round-trip commit never executed — deferred, likely QA Task 32 SUB round. |
+
+
 
 ## SUB · Subscriptions / Payouts / SP Wallet
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 45 · **PARTIAL** 2 · **OPEN** 3 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **Remaining (NEVER RUN)** 50
+**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 45 · **PARTIAL** 2 · **OPEN** 3 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **RETIRED** 15 · **N/A** 2 · **Remaining (ACTIVE)** 33
 
 ### Completed test cases (have a verdict on record)
 
@@ -1043,27 +915,13 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-N01 | JoinKidsClub value-prop + web CTA | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-N02 | JoinKidsClub web redirect (passitup.com) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 
-### Remaining test cases — NEVER RUN (51)
+### Remaining test cases — ACTIVE (33) — QA Task 32's real scope
+
+> QA Task 31d re-split (2026-09-04): the old "(51)" header was off-by-one against a 50-row body. Those 50 = **33 ACTIVE** (genuinely drivable — QA Task 32's real scope) + **15 RETIRED** + **2 N/A** (below). RETIRED/N-A are dispositions, not never-run cases.
 
 | TC-ID | Description | Note / why remaining |
 |---|---|---|
 | SUB-TC-A05 | Kids Club+ Overview screen by subscription status |  |
-| SUB-TC-B01 | 🔴 RETIRED — in-app payment removed; web-first → SUB-TC-N01/N02 + Web Subscription Purchase E2E (QA Task 20) |  |
-| SUB-TC-B02 | 🔴 RETIRED — in-app payment screen removed; coverage → Web Subscription Purchase E2E (QA Task 20) |  |
-| SUB-TC-B03 | 🔴 RETIRED — in-app Success screen removed; coverage → Web Subscription Purchase E2E (QA Task 20) |  |
-| SUB-TC-B04 | 🔴 RETIRED — in-app trial-gating removed; server-side trial config → QA Task 20 finding F-3 |  |
-| SUB-TC-B05 | 🔴 RETIRED — in-app trial-disabled alert removed; coverage → QA Task 20 finding F-3 |  |
-| SUB-TC-B06 | 🔴 RETIRED — ContinueKidsClub is deep-link-only; see SUB-TC-N03–N06 |  |
-| SUB-TC-B07 | 🔴 RETIRED — referral bonus-loss warning on removed Subscription Choice; see SUB-TC-N03 |  |
-| SUB-TC-B08 | 🔴 RETIRED — in-app trial-limit CTA removed; config reflection → SUB-TC-R05 |  |
-| SUB-TC-B09 | 🔴 RETIRED — in-app Stripe sheet removed; checkout UX → QA Task 20 scope 2 |  |
-| SUB-TC-B10 | 🔴 RETIRED — in-app decline handling removed; checkout decline → QA Task 20 scope 2 |  |
-| SUB-TC-B11 | 🔴 RETIRED — in-app saved-card resub removed; cards on file → Group M |  |
-| SUB-TC-B12 | 🔴 RETIRED — in-app payment network-error path removed; → QA Task 20 scope 2 |  |
-| SUB-TC-B13 | 🔴 RETIRED — in-app Apple/Google Pay removed; web wallet-pay → QA Task 20 scope 2 |  |
-
-| SUB-TC-D02 | 🔴 RETIRED — in-app re-subscribe payment removed; web-first → SUB-TC-N01/N02 + Web E2E |  |
-| SUB-TC-D04 | 🔴 RETIRED — in-app renewal payment removed; web-first → SUB-TC-N01/N02 + Web E2E |  |
 | SUB-TC-D05 | Reactivate from cancelled state |  |
 | SUB-TC-F01 | Payout Settings hero — Available / Pending / Lifetime Earned (live) |  |
 | SUB-TC-F03 | Payout history list (completed / pending) — live |  |
@@ -1073,8 +931,6 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-F07 | Payout load error + recovery — live |  |
 | SUB-TC-F08 | Payout history Load More pagination (+5) — live |  |
 | SUB-TC-G01 | Add Stripe Connect payout method (onboarding) |  |
-| SUB-TC-G02 | 🚫 N/A — PayPal/Venmo unconfigured provider (UI lists, not drivable) |  |
-| SUB-TC-G03 | 🚫 N/A — Bank ACH unconfigured / no UI option |  |
 | SUB-TC-G04 | Set primary method / delete method (confirmation) |  |
 | SUB-TC-G05 | Unverified method blocks payout (live: cannot set primary / withdraw) |  |
 | SUB-TC-G06 | requires_action payout → "Set Up Payout Method" |  |
@@ -1098,4 +954,35 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-N04 | ContinueKidsClub active-subscription variant |  |
 | SUB-TC-N05 | ContinueKidsClub loading state |  |
 | SUB-TC-N06 | ContinueKidsClub trial-ending urgency badge |  |
+
+### RETIRED (15) — in-app flow removed / coverage superseded — NOT never-run (reclassified 31d)
+
+> QA Task 31d (2026-09-04): these 15 are documented **RETIRED** dispositions (their in-app flows were removed; coverage moved to the referenced successors) — moved out of the "never-run" framing per the 31d legend update. They are NOT QA Task 32 run scope.
+
+| TC-ID | Description | Disposition / coverage moved to |
+|---|---|---|
+| SUB-TC-B01 | 🔴 RETIRED — in-app payment removed | web-first → SUB-TC-N01/N02 + Web Subscription Purchase E2E (QA Task 20) |
+| SUB-TC-B02 | 🔴 RETIRED — in-app payment screen removed | coverage → Web Subscription Purchase E2E (QA Task 20) |
+| SUB-TC-B03 | 🔴 RETIRED — in-app Success screen removed | coverage → Web Subscription Purchase E2E (QA Task 20) |
+| SUB-TC-B04 | 🔴 RETIRED — in-app trial-gating removed | server-side trial config → QA Task 20 finding F-3 |
+| SUB-TC-B05 | 🔴 RETIRED — in-app trial-disabled alert removed | coverage → QA Task 20 finding F-3 |
+| SUB-TC-B06 | 🔴 RETIRED — ContinueKidsClub is deep-link-only | see SUB-TC-N03–N06 |
+| SUB-TC-B07 | 🔴 RETIRED — referral bonus-loss warning on removed Subscription Choice | see SUB-TC-N03 |
+| SUB-TC-B08 | 🔴 RETIRED — in-app trial-limit CTA removed | config reflection → SUB-TC-R05 |
+| SUB-TC-B09 | 🔴 RETIRED — in-app Stripe sheet removed | checkout UX → QA Task 20 scope 2 |
+| SUB-TC-B10 | 🔴 RETIRED — in-app decline handling removed | checkout decline → QA Task 20 scope 2 |
+| SUB-TC-B11 | 🔴 RETIRED — in-app saved-card resub removed | cards on file → Group M |
+| SUB-TC-B12 | 🔴 RETIRED — in-app payment network-error path removed | → QA Task 20 scope 2 |
+| SUB-TC-B13 | 🔴 RETIRED — in-app Apple/Google Pay removed | web wallet-pay → QA Task 20 scope 2 |
+| SUB-TC-D02 | 🔴 RETIRED — in-app re-subscribe payment removed | web-first → SUB-TC-N01/N02 + Web E2E |
+| SUB-TC-D04 | 🔴 RETIRED — in-app renewal payment removed | web-first → SUB-TC-N01/N02 + Web E2E |
+
+### N/A (2) — unconfigured provider / not applicable (reclassified 31d)
+
+> QA Task 31d (2026-09-04): G02/G03 are **N/A** — the referenced payout providers are not configured in this deployment (PayPal/Venmo unconfigured; Bank ACH has no UI option). Dispositions, not never-run cases.
+
+| TC-ID | Description | Why N/A |
+|---|---|---|
+| SUB-TC-G02 | PayPal/Venmo unconfigured provider (UI lists, not drivable) | provider not configured in this deployment |
+| SUB-TC-G03 | Bank ACH unconfigured / no UI option | provider not configured / no UI option |
 
