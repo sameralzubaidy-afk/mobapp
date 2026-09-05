@@ -51,6 +51,9 @@ interface SearchFilterModalProps {
   radiusMiles: number;
   minRadiusMiles: number;
   maxRadiusMiles: number;
+  /** Admin-configured default search radius — lets the slider label whether the
+   *  starting value is the user's saved preference or the config default. */
+  defaultRadiusMiles?: number;
   locationLoading: boolean;
   inactiveZipMessage: string | null;
   waitlistMessage: string | null;
@@ -100,6 +103,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
   radiusMiles,
   minRadiusMiles,
   maxRadiusMiles,
+  defaultRadiusMiles,
   locationLoading,
   inactiveZipMessage: _inactiveZipMessage,
   waitlistMessage: _waitlistMessage,
@@ -407,6 +411,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                 value={radiusMiles}
                 minRadius={minRadiusMiles}
                 maxRadius={maxRadiusMiles}
+                defaultRadiusMiles={defaultRadiusMiles}
                 onValueChange={onRadiusChange}
                 onSlidingComplete={onRadiusComplete}
                 loading={locationLoading}

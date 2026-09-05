@@ -187,6 +187,10 @@ export default function DiscoverScreen({ navigation }: Props) {
   const [radiusMiles, setRadiusMiles] = useState(FALLBACK_DEFAULT_RADIUS_MILES);
   const [minRadiusMiles, setMinRadiusMiles] = useState(FALLBACK_MIN_RADIUS_MILES);
   const [maxRadiusMiles, setMaxRadiusMiles] = useState(FALLBACK_MAX_RADIUS_MILES);
+  // DEV-TASK-115 item 3: the admin-configured default_radius_miles, so the
+  // filter modal can label whether the slider's starting value is the user's
+  // saved preference or the config default.
+  const [defaultRadiusMiles, setDefaultRadiusMiles] = useState(FALLBACK_DEFAULT_RADIUS_MILES);
   const [nodeIdsInScope, setNodeIdsInScope] = useState<string[]>([]);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationFilterUnavailable, setLocationFilterUnavailable] = useState(false);
@@ -641,7 +645,9 @@ export default function DiscoverScreen({ navigation }: Props) {
           setMaxRadiusMiles(radiusCfg.max_user_radius_miles);
         }
         if (radiusCfg.default_radius_miles !== undefined) {
-          // Only set default if the user has no saved preference yet
+          setDefaultRadiusMiles(radiusCfg.default_radius_miles);
+          // Only apply the configured default as the starting radius if the
+          // user has no saved preference yet (still at the module fallback).
           setRadiusMiles((prev) =>
             prev === FALLBACK_DEFAULT_RADIUS_MILES ? radiusCfg.default_radius_miles : prev
           );
@@ -1794,6 +1800,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         radiusMiles={radiusMiles}
         minRadiusMiles={minRadiusMiles}
         maxRadiusMiles={maxRadiusMiles}
+        defaultRadiusMiles={defaultRadiusMiles}
         locationLoading={locationLoading}
         inactiveZipMessage={inactiveZipMessage}
         waitlistMessage={waitlistMessage}

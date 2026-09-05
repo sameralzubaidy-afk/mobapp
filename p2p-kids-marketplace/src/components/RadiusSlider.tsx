@@ -25,6 +25,9 @@ interface RadiusSliderProps {
   value: number;
   minRadius: number;
   maxRadius: number;
+  /** Admin-configured default search radius — used to label whether the current
+   *  value is the user's saved preference or the config default. Optional. */
+  defaultRadiusMiles?: number;
   onValueChange: (newRadius: number) => void;
   onSlidingComplete?: (newRadius: number) => void;
   disabled?: boolean;
@@ -35,6 +38,7 @@ export default function RadiusSlider({
   value,
   minRadius,
   maxRadius,
+  defaultRadiusMiles,
   onValueChange: _onValueChange,
   onSlidingComplete,
   disabled = false,
@@ -70,6 +74,23 @@ export default function RadiusSlider({
   const percentage = (localValue - minRadius) / (maxRadius - minRadius);
   const thumbPosition = trackWidth > 0 ? percentage * trackWidth : 0;
 
+  // DEV-TASK-115 item 3: label the SOURCE of the current value — the user's
+  // saved preference (value differs from the configured default) vs. the config
+  // default itself — so a starting radius like 15 mi isn't confusing when Pass
+  // It Up's default is 10 mi.
+  const resolvedDefaultMiles =
+    typeof defaultRadiusMiles === 'number' && Number.isFinite(defaultRadiusMiles)
+      ? Math.round(defaultRadiusMiles)
+      : null;
+  const resolvedCurrentMiles =
+    typeof localValue === 'number' && Number.isFinite(localValue)
+      ? Math.round(localValue)
+      : null;
+  const isAtDefaultRadius =
+    resolvedDefaultMiles !== null &&
+    resolvedCurrentMiles !== null &&
+    resolvedCurrentMiles === resolvedDefaultMiles;
+
   const handleDecrement = () => {
     const newValue = Math.max(minRadius, localValue - 1);
     setLocalValue(newValue);
@@ -97,6 +118,15 @@ export default function RadiusSlider({
           )}
         </View>
       </View>
+
+      {/* DEV-TASK-115 item 3: source of the starting value (saved preference vs default) */}
+      {resolvedDefaultMiles !== null && resolvedCurrentMiles !== null && (
+        <Text style={styles.valueSource} testID="radius-value-source">
+          {isAtDefaultRadius
+            ? 'Default radius — slide to set your saved preference'
+            : `Your saved preference — Pass It Up's default is ${resolvedDefaultMiles} mi`}
+        </Text>
+      )}
 
       {/* Slider + Arrow Buttons Row */}
       <View style={styles.sliderRow}>
@@ -199,6 +229,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  valueSource: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: -6,
+    marginBottom: 8,
   },
   title: {
     fontSize: 15,

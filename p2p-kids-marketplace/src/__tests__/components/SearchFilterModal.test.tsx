@@ -774,4 +774,65 @@ describe('SearchFilterModal', () => {
       expect(toggle.props.accessibilityLabel).toContain('Accepts Swap Points');
     });
   });
+
+  // DEV-TASK-115 item 3: the radius slider labels the SOURCE of its starting
+  // value — the user's saved preference (when it differs from the configured
+  // default) vs. the config default — so a value like 15 mi isn't confusing
+  // when Pass It Up's default is 10 mi.
+  describe('Radius slider source label', () => {
+    const renderWithRadius = (radiusMiles: number, defaultRadiusMiles: number) =>
+      render(
+        <SearchFilterModal
+          visible={true}
+          filters={getDefaultFilters()}
+          categories={mockCategories}
+          zipCodeInput="06850"
+          appliedZipCode="06850"
+          radiusMiles={radiusMiles}
+          minRadiusMiles={5}
+          maxRadiusMiles={100}
+          defaultRadiusMiles={defaultRadiusMiles}
+          locationLoading={false}
+          inactiveZipMessage={null}
+          waitlistMessage={null}
+          userProfileZip="06850"
+          onZipCodeInputChange={jest.fn()}
+          onRadiusChange={jest.fn()}
+          onRadiusComplete={jest.fn(async () => undefined)}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+
+    it('labels a value that differs from the default as the saved preference', () => {
+      const { getByTestId } = renderWithRadius(15, 10);
+      // "Your saved preference — Pass It Up's default is 10 mi"
+      expect(getByTestId('radius-value-source').props.children).toContain(
+        'Your saved preference'
+      );
+      expect(getByTestId('radius-value-source').props.children).toContain(
+        "default is 10 mi"
+      );
+    });
+
+    it('labels a value equal to the default as the default radius', () => {
+      const { getByTestId } = renderWithRadius(10, 10);
+      expect(getByTestId('radius-value-source').props.children).toContain(
+        'Default radius'
+      );
+    });
+
+    it('renders no source label when no default is provided', () => {
+      const { queryByTestId } = render(
+        <SearchFilterModal
+          visible={true}
+          filters={getDefaultFilters()}
+          categories={mockCategories}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+      expect(queryByTestId('radius-value-source')).toBeNull();
+    });
+  });
 });
