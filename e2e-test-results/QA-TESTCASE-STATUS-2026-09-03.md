@@ -2,7 +2,7 @@
 
 > Future-reference status of **every canonical test case** in the 6 consolidated guides under `cross-checked-and-consolidated/`, reconciled against all QA evidence on disk through **2026-09-03**. Read-only snapshot — no guides/code/reports modified. Full narrative + method in `TEST-COVERAGE-INVENTORY-v2.md` (repo root); raw data in `temp/tc-inventory-v2/`.
 
-**Generated:** 2026-09-03 · **Last maintained:** 2026-09-04 (QA Task 31d — tracker de-dup / never-run prune / status-taxonomy pass; no execution) · **Total canonical cases:** 833
+**Generated:** 2026-09-03 · **Last maintained:** 2026-09-05 (QA Task 32 Part 2 — ADM M03/M04 + P02 + R03 → PASS, E05 note closed; SUB A05/N03 → PASS, I06 → DOC-DRIFT; SUB ACTIVE remaining 33→30) · **Total canonical cases:** 833
 
 ## Status legend
 
@@ -27,8 +27,8 @@
 | **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 64 | 4 | 2 | 0 | 0 | 0 | 0 | 2 | 0 | **0** |
 | **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 234 | 28 | 2 | 3 | 2 | 0 | 0 | 0 | 0 | **19** |
 | **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 57 | 0 | 17 | 0 | 1 | 0 | 0 | 0 | 0 | **0** |
-| **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 139 | 16 | 1 | 0 | 1 | 0 | 0 | 0 | 0 | **3** |
-| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 45 | 2 | 3 | 0 | 0 | 0 | 15 | 0 | 2 | **33** |
+| **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 143 | 12 | 1 | 0 | 1 | 0 | 0 | 0 | 0 | **3** |
+| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 47 | 2 | 3 | 1 | 0 | 0 | 15 | 0 | 2 | **30** |
 
 Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/A. PASS/PARTIAL/OPEN rows have been executed at least once; DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N-A rows are documented dispositions; the **Remaining** column is what still needs a run. Per-guide status columns sum to each guide's documented Cases total.
 
@@ -795,7 +795,7 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-E02 | Add / edit node | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` (+QA31) | **R6 (2026-09-05) mobile leg DRIVEN:** admin /nodes add "QA R6 Node Chicago" (60601, auto Chicago/IL/41.8858,-87.6181) radius 15 + edit → "QA R6 Chicago Edited" radius 20 (DB 152b57ae, reload-verified). Fresh signup (Charlie, 60601) → **direct profile creation, NO waitlist** → Home node chip "QA R6 Chicago Edited" (DB node_id 152b57ae, 0 waitlist rows). Node deactivated at cleanup |
 | ADM-TC-E03 | Deactivate node w/ members warning | ✅ PASS | PASS | 2026-09-05 | `qa-task31m-r5-mobile-owed-2026-09-05` | Diag Test Node members-warning exact (10 members) → deactivate (DB) → reactivate (DB) (QA31); mobile leg: deactivated-node ZIP 90210 (QA Auto G02 inactive) via Discover filter → "Not Available in Your Area / We're not live in ZIP 90210 yet" waitlist modal (cannot-join); no waitlist row created on No-thanks |
 | ADM-TC-E04 | Node settings radius validations | ✅ PASS | PASS | 2026-09-05 | `qa-task31m-r5-mobile-owed-2026-09-05` | valid 10→12→10 (DB) + invalid 150 blocked (QA31); mobile leg: min_user_radius_miles 5→10 (qa:admin-config-set, DB) → Discover radius slider min label "5 mi"→"10 mi" (max 25 held) → reverted 5 (DB read-back) — live propagation to mobile Discover proven |
-| ADM-TC-E05 | ZIP waitlist queue + filter | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` (+QA31) | **R6 (2026-09-05) fresh-signup mobile leg + admin re-verify:** fresh Alice (90210) → "We're Coming Soon" → Join Waitlist → "Waitlist Confirmed" → assigned fallback Buffalo (DB row 6390e6d4). Admin /waitlist on the fresh row: title+cards Total 10/Pending 10, email-substring + ZIP search = 1 fresh row, status filters (Pending 10 / Notified+Joined empty states), combine, "Page 1 of 1". **NEW MOD DEFECT: User column always "Unknown user"** — /api/admin/waitlist selects nonexistent `profiles.display_name` (actual col `name`) |
+| ADM-TC-E05 | ZIP waitlist queue + filter | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` (+QA31) | **R6 (2026-09-05) fresh-signup mobile leg + admin re-verify:** fresh Alice (90210) → "We're Coming Soon" → Join Waitlist → "Waitlist Confirmed" → assigned fallback Buffalo (DB row 6390e6d4). Admin /waitlist on the fresh row: title+cards Total 10/Pending 10, email-substring + ZIP search = 1 fresh row, status filters (Pending 10 / Notified+Joined empty states), combine, "Page 1 of 1". **R6 defect CLOSED (QA32-P2 2026-09-05): DT116 waitlist fix verified live — real profile names render (Samer Test Update 10 ×4, Test Out Of Active Node, Test); remaining 3 "Unknown user" rows DB-verified as orphans with NO profiles row (correct no-profile fallback).** (ADMIN-B0-waitlist-real-names.png) |
 | ADM-TC-E08 | Waitlist API authorization | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /api/admin/waitlist 401 {"error":"Unauthorized"}; logged-out /waitlist → /auth/login redirect |
 | ADM-TC-G02 | Create new policy version (regex) | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | "v1" blocked (exact msg); v9.9.8 draft 2e379682 created (DB) |
 | ADM-TC-G03 | Edit draft policy | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | draft content edited (DB verified) |
@@ -805,18 +805,18 @@ _All cases in this guide have a verdict on record — none remaining._
 | ADM-TC-L04 | SP adjustment (credit/deduct) with reason | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` + `qa-task31m-adm-mobile-impact-2026-09-04` | credit +25/debit −25 w/ reason (B04) + admin_audit_logs sp_adjustment (actor 1a546991). **Mobile balance-surface verified (QA31-M):** SpWalletScreen displays the DB available_balance that admin adjusts (surface on-device verified in the B04/L05 status legs); a live credit→balance-change reflection not re-driven — residual noted. **QA31-M R4 (2026-09-05): residual CLOSED — live credit→balance mobile reflection driven.** Admin /sp-wallet +25 credit (reason) → mobile SP Wallet 490→**515** (MOBILE-L04-wallet-515-after-credit.png) → −25 deduct → mobile 490; sp_ledger `earn_admin_grant` +25/515 + `admin_deduct` −25/490 rows, admin_id 1a546991 (R35 ✓); wallet restored active/490. (`qa-task31m-r4-dt113-f08-batchc-2026-09-05`)
 | ADM-TC-L05 | Freeze / unfreeze / suspend wallet | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` + `qa-task31m-adm-mobile-impact-2026-09-04` | all 4 status transitions DB-verified + admin_audit_logs sp_wallet_status_change ×4. **MOBILE LEG DRIVEN (QA31-M):** freeze→frozen banner + suspend→suspended banner + unfreeze→no banner verified on-device on test-buyer's SP Wallet (see B04 note); restored active/490 |
 | ADM-TC-M02 | Subscriptions list, filters, metrics | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /subscriptions/manage renders; bare /subscriptions → /manage redirect (DT106 holds) |
-| ADM-TC-M03 | Extend / cancel / reactivate | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | affordances render; state commits deferred to QA Task 32 (SUB money round) — R40-explicit |
-| ADM-TC-M04 | Reactivate button + mobile | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | same — deferred to SUB round |
+| ADM-TC-M03 | Extend / cancel / reactivate | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | **QA32-P2 (2026-09-05) PARTIAL→PASS on disposable real sub fbada8e7 (user bb862192, QA Sub32 Parent):** Cancel active→grace_period (DB + mobile Manage Grace Period/SP-frozen warning MOBILE-M03-after-admin-cancel-grace.png) — **DOC-DRIFT: guide Assert says Cancel→'cancelled'; implementation intentionally moves active/trial→grace_period (benefits-until-period-end, source handleManualCancel);** Reactivate grace_period→active (DB + mobile Active MOBILE-M04-after-reactivate-active.png); Extend Trial +7d on disposable trial row cd4b766b (trial_end 09-07→09-14 DB; window.prompt override ADM-R6 needed). **MED finding: audit inserts into admin_audit_logs with wrong cols (admin_user_id/action/target_user_id/changes vs live actor_id/action_type/entity_id/payload) — 42703 swallowed, NO audit/actor row for any action; actor hardcoded 'system' (R35 fail)** |
+| ADM-TC-M04 | Reactivate button + mobile | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | **QA32-P2 (2026-09-05) PARTIAL→PASS:** Reactivate confirm copy EXACT ("…manually reactivate subscription for QA Sub32 Parent? This will set status to active.") → status active → mobile Manage Kids Club+ reflects Active same-session (MOBILE-M04-after-reactivate-active.png). Same audit-attribution gap as M03 |
 | ADM-TC-M05 | Metrics cards (MRR/churn/trial) | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | 5 cards render but page-window-scoped-unlabeled (R54: Active 6 vs DB 30; Trial 10 vs 227; Grace 89 vs 403) |
 | ADM-TC-M06 | "free" status filter | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | Free filter present + filters free users |
 | ADM-TC-O04 | Request details (screenshot deleted note) | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` (+QA31 surface) | **R6 (2026-09-05):** /id-badges/76592772/details (reviewed rejected request) renders user (Test Seller), Status & Decision (Rejected), Submitted/Reviewed timestamps, Rejection Reason/notes + note "The ID screenshot was permanently deleted following the review decision to protect user privacy." DB: screenshot_path null on all reviewed rows (deletion confirmed). **PARTIAL→PASS** |
 | ADM-TC-O05 | Message templates edit | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /id-badges/messages renders + Edit; template edit commit not driven |
-| ADM-TC-P02 | Edit badge / toggle | 🟡 PARTIAL | PARTIAL | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` (+QA31) | /badges list + Edit affordance (QA29 toggles). **R6 (2026-09-05):** Badge Editor for 50 Trades — description edit → saved + DB → reverted. **NEW MED DEFECT: badge icon upload FAILS** — favicon.png → "Error uploading icon: StorageApiError: new row violates row-level security policy" (400, storage `badge-icons` bucket RLS blocks the admin-client insert; category-icon path works). P02's icon-upload leg blocked on the defect |
+| ADM-TC-P02 | Edit badge / toggle | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` (+QA31) | /badges list + Edit affordance (QA29 toggles). **QA32-P2 (2026-09-05) PARTIAL→PASS — DT116 icon-upload fix verified end-to-end:** Badge Editor (50 Trades 3ac79591) → Upload New Icon → saved → DB icon_url set (…/badge-icons/icons/3ac79591-…1788645898583.png) + public URL HTTP 200 + /badges row renders the <img> (ADMIN-B0-P02-icon-uploaded.png). RLS-400 defect gone. Residue: badge 3ac79591 icon remains (no remove affordance) — flagged |
 | ADM-TC-P03 | Manual award badge | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | **R6 (2026-09-05):** Manual Award modal → search test-buyer@ → found → select badge **50 Trades** + reason → "Badge awarded successfully" → DB user_badges baa7a2ee (test-buyer, 3ac79591). **Mobile leg DRIVEN:** profile open fired "🎉 New Badge Earned! — 50 Trades / Completed 50 trades" celebration modal; My Badges 11→12; AX `badge-showcase-50-trades` present. Award on shared persona = residue (flagged for dev). **PARTIAL→PASS** |
 | ADM-TC-P04 | Badge sandbox simulation | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | sandbox surface not on list view; not driven |
 | ADM-TC-R01 | Education sections/examples/analytics | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /education Sections(4)+Examples(3)+Analytics render |
 | ADM-TC-R02 | FAQ management | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | FAQ = /education/faq (bare /faq 404 — route note) |
-| ADM-TC-R03 | Publish FAQ/education content | 🟡 PARTIAL | PARTIAL | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | **R6 (2026-09-05):** FAQ publish leg FULLY PASS — created a draft FAQ (hidden on mobile) + a published FAQ → mobile FAQ list shows the published one, NOT the draft; both fixtures deleted. **NEW MED DEFECT: education-section Publish FAILS** — PGRST202 "Could not find the function public.publish_section(section_id)"; DB function is `publish_section(p_section_id uuid)` (admin .rpc() arg-name mismatch) → education publish leg blocked on the defect; draft section remains (residue flagged) |
+| ADM-TC-R03 | Publish FAQ/education content | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | **QA32-P2 (2026-09-05) PARTIAL→PASS — DT116 edu-publish fix verified end-to-end:** disposable "QA B0 R03 Disposable Section" (general) → Publish (confirm modal) → is_published=true (535c06d2) → **mobile Help shows help-section-general-header on fresh mount AND after pull-to-refresh** (MOBILE-B0-R03-help-general-section.png) → fixture unpublished + deleted (education_sections 4). PGRST202 defect gone. FAQ publish leg PASS carried from R6 |
 | ADM-TC-S01 | Support inbox + unread filter | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /support renders + Unread filter |
 | ADM-TC-S02 | Support detail + mark read | 🟡 PARTIAL | PARTIAL | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | detail surface; mark-read not driven |
 | ADM-TC-T02 | Notification analytics | ✅ PASS | PASS | 2026-09-04 | `qa-task31-adm-near-total-2026-09-04` | /analytics/notifications renders (ranges/category/type/channels/overview) |
@@ -863,7 +863,7 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## SUB · Subscriptions / Payouts / SP Wallet
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 45 · **PARTIAL** 2 · **OPEN** 3 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **RETIRED** 15 · **N/A** 2 · **Remaining (ACTIVE)** 33
+**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 47 · **PARTIAL** 2 · **OPEN** 3 · **DOC-DRIFT** 1 · **SKIPPED** 0 · **RETIRED** 15 · **N/A** 2 · **Remaining (ACTIVE)** 30
 
 ### Completed test cases (have a verdict on record)
 
@@ -919,10 +919,13 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-M05 | Remove This Card (confirm + success) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-N01 | JoinKidsClub value-prop + web CTA | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-N02 | JoinKidsClub web redirect (passitup.com) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
+| SUB-TC-A05 | Kids Club+ Overview screen by subscription status | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | QA32-P2 first execution: free leg on-device (test-free JoinKidsClub value-prop + web-managed card + Join-on-the-web CTA, SUB-A05-free-joinkidsclub.png); active leg = disposable real sub Manage (Active badge + Next Billing + Cancel + Auto-Renew, verified 2× this session); grace leg = D01 test-grace on-device cross-ref + disposable post-cancel grace observation. **PASS** |
+| SUB-TC-I06 | Free user SP wallet inactive state | 📄 DOC-DRIFT | DOC-DRIFT | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | test-free SP Wallet renders a normal 0-SP wallet — NO inactive/subscribe-lock state on the wallet surface (WalletWarningBanner returns null for 'inactive'; no free gate in SpWalletScreen). Free SP gating lives on Home SP strip + offer/checkout SP gate. Guide assertion stale (product note: whether the wallet should show a free lock is a product decision) |
+| SUB-TC-N03 | Route-alias reachability (JoinKidsClub vs deep-link-only aliases) | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | source-confirmed + on-device: JoinKidsClub navigable via SP strip; SubscriptionChoice/KidsClubOverview/SubscriptionPlans registered aliases with ZERO navigate() call sites (deep-link only). Matches guide flag |
 
-### Remaining test cases — ACTIVE (33) — QA Task 32's real scope
+### Remaining test cases — ACTIVE (30) — QA Task 32's real scope
 
-> QA Task 31d re-split (2026-09-04): the old "(51)" header was off-by-one against a 50-row body. Those 50 = **33 ACTIVE** (genuinely drivable — QA Task 32's real scope) + **15 RETIRED** + **2 N/A** (below). RETIRED/N-A are dispositions, not never-run cases.
+> QA Task 31d re-split (2026-09-04): the old "(51)" header was off-by-one against a 50-row body. Those 50 = **30 ACTIVE** (genuinely drivable — QA Task 32's real scope; 3 executed in QA32-P2 2026-09-05) + **15 RETIRED** + **2 N/A** (below). RETIRED/N-A are dispositions, not never-run cases.
 
 | TC-ID | Description | Note / why remaining |
 |---|---|---|
@@ -950,12 +953,10 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-H04 | Withdraw blocked when no verified primary method |  |
 | SUB-TC-H06 | Admin minimum withdrawal blocks full-balance requests below the floor |  |
 | SUB-TC-H07 | Minimum withdrawal disabled when config = 0 |  |
-| SUB-TC-I06 | Free user SP wallet inactive state |  |
 | SUB-TC-K02 | Transaction History empty + error/retry |  |
 | SUB-TC-M01 | Payment Methods — loading state |  |
 | SUB-TC-M06 | Go Back |  |
 | SUB-TC-M07 | Backend contract — attach / detach / retryFailedPayment branches |  |
-| SUB-TC-N03 | Route-alias reachability (JoinKidsClub vs deep-link-only aliases) |  |
 | SUB-TC-N04 | ContinueKidsClub active-subscription variant |  |
 | SUB-TC-N05 | ContinueKidsClub loading state |  |
 | SUB-TC-N06 | ContinueKidsClub trial-ending urgency badge |  |

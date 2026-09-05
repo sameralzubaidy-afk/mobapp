@@ -750,6 +750,21 @@ Zero-dev-cost rule from the QA Task 31b repo reconciliation audit — evidence s
 
 *Evidence / origin: QA Task 31b — AUTH body-vs-index delta (~150 body `###` headings incl. R01–R06 + ACC-01–06 vs 138 canonical index cases); ADM duplicate completed rows (B04/C05/R01/R02) and the N2/F06b sub-case scheme with no `N2-A01`; QA Task 29's non-canonical R01/R02/R05 assignments. Report: `e2e-test-results/qa-task31b-repo-reconcile-2026-09-04/report.md`.*
 
+### 5.62 Standing rule — QA Task 32 Part 2 (2026-09-05) — R61 (audit-write schema verification + the three-audit-table map)
+
+Zero-dev-cost rule from the QA Task 32 Part 2 SUB round — evidence source: `e2e-test-results/qa-task32-adm-r6-sub-2026-09-05/Part2-SUB/report.md` (Batch 2 finding). Where it restates an existing section (R-NEW-3/§5.47 schema-consult, R7/§5.34 schema-first, R35/§5.43 audit-actor attribution), the earlier section remains canonical and this entry adds the sharper trigger + the measured evidence for **audit-log WRITE targets** specifically.
+
+**R61 — Before executing any admin route/EF whose code WRITES an audit row (or before asserting an audit row was written), verify the WRITE target's live columns — never trust the writer's source column names.** An audit insert that references columns missing from the live table (e.g. `admin_user_id`/`action`/`target_user_id`/`changes` on a table whose live columns are `actor_id`/`action_type`/`entity_id`/`payload`/`reason`) fails with a **silently-swallowed 42703** (the insert's `.error` is unchecked) that leaves **NO audit/actor row** while the state change still commits. QA Task 32 Part 2 evidence: `p2p-kids-admin/src/app/api/admin/subscriptions/actions/route.ts` — `handleManualCancel`/`handleExtendTrial`/`handleReactivate` insert into `admin_audit_logs` with four non-existent columns and actor hardcoded `'system'`; every admin Cancel/Extend-Trial/Reactivate this round changed state with **zero audit rows** (R35 fail), caught only by DB read-back after the fact. An up-front `information_schema.columns` on the audit table (one query) predicts the failure before any device time. Extends R-NEW-3 (schema-consult before SQL) and R7 (schema-first) to audit-WRITE targets; complements R35 (assert the actor/audit row, not just the state change).
+
+**Audit-table map (three distinct tables — record in the QA schema cheat-sheet, R-NEW-3 standing duty):**
+- `admin_activity_log` — `id, admin_id, action_type, entity_type, entity_id, details, notes, created_at`
+- `admin_audit_log` (singular) — `id, admin_id, action, entity_type, entity_id, changes, created_at`
+- `admin_audit_logs` (plural) — `id, actor_id, action_type, entity_type, entity_id, payload, reason, created_at`
+
+Do not guess which table a writer targets or which columns it has — read the live table's columns (or the cheat-sheet) before asserting an audit row exists (R11/R24) or executing a writer.
+
+*Evidence / origin: QA Task 32 Part 2 (2026-09-05) — Batch 2 M03/M04: admin Cancel/Reactivate/Extend-Trial all committed state (active↔grace_period, trial +7d) but wrote zero audit rows; source read of the route + `information_schema` on `admin_audit_logs` confirmed the 42703 insert. Report: `e2e-test-results/qa-task32-adm-r6-sub-2026-09-05/Part2-SUB/report.md`.*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
