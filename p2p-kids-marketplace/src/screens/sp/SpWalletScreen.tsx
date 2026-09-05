@@ -122,6 +122,14 @@ export default function SpWalletScreen() {
     (wallet.state as WalletState) ??
     'inactive') as WalletState;
 
+  // DEV-TASK-117 (item 7): a free (non-subscriber) user has no lock signal on
+  // this screen today — they see a normal 0-SP wallet plus an unconditional
+  // "How to Earn SP" list. Show an inline upsell card so earning is clearly
+  // gated on Kids Club+. Gate on subscription_status === 'free' only (a
+  // cancelled/grace user mid-benefit-period keeps their own status surfaces,
+  // e.g. the WalletWarningBanner, not this card).
+  const isFreeUser = session?.subscription_status === 'free';
+
   return (
     <ScreenLayout variant="detail" title="Swap Points">
       <View style={styles.container}>
@@ -139,6 +147,34 @@ export default function SpWalletScreen() {
             </Text>
             <Text style={styles.balanceLabel}>Swap Points</Text>
           </View>
+
+          {/* Free-user upsell card — SP earning is Kids Club+ gated (DEV-TASK-117 item 7) */}
+          {isFreeUser && (
+            <TouchableOpacity
+              style={styles.joinCard}
+              testID="sp-wallet-join-kids-club-card"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Join Kids Club Plus to start earning Swap Points"
+              onPress={() => navigation.navigate('JoinKidsClub')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.joinCardRow}>
+                <View style={styles.joinCardIconCircle}>
+                  <Coins size={22} color="#5DBB8E" weight="fill" />
+                </View>
+                <View style={styles.joinCardContent}>
+                  <Text style={styles.joinCardTitle}>
+                    Join Kids Club+ to start earning Swap Points
+                  </Text>
+                  <Text style={styles.joinCardSubtext}>
+                    Kids Club+ members earn SP on every sale and referral.
+                  </Text>
+                </View>
+                <CaretRight size={20} color="#5DBB8E" weight="bold" />
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Reserved SP Card — visible only when SP is reserved in pending trades */}
           {wallet.reserved_sp > 0 && (
@@ -417,6 +453,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
+  },
+  // Free-user Join Kids Club+ upsell card (DEV-TASK-117 item 7)
+  joinCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#F0FBF5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  joinCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  joinCardIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  joinCardContent: {
+    flex: 1,
+  },
+  joinCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    lineHeight: 20,
+  },
+  joinCardSubtext: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    marginTop: 2,
+    lineHeight: 16,
   },
   // Reserved SP Card
   reservedCard: {

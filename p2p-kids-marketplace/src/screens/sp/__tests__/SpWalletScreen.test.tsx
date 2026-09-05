@@ -159,4 +159,49 @@ describe('SpWalletScreen', () => {
       expect(walletService.getWallet).toHaveBeenCalledTimes(1);
     });
   });
+
+  // DEV-TASK-117 (item 7): free-user upsell card on the wallet
+  it('should show the Join Kids Club+ upsell card for a free user', async () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      session: { wallet_state: 'active', subscription_status: 'free' },
+    });
+
+    const { getByTestId, getByText } = render(<SpWalletScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('sp-wallet-balance-card')).toBeTruthy();
+    });
+
+    expect(getByTestId('sp-wallet-join-kids-club-card')).toBeTruthy();
+    expect(
+      getByText('Join Kids Club+ to start earning Swap Points'),
+    ).toBeTruthy();
+  });
+
+  it('should navigate to JoinKidsClub when the upsell card is tapped', async () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      session: { wallet_state: 'active', subscription_status: 'free' },
+    });
+
+    const { getByTestId } = render(<SpWalletScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('sp-wallet-join-kids-club-card')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('sp-wallet-join-kids-club-card'));
+    expect(mockNavigate).toHaveBeenCalledWith('JoinKidsClub');
+  });
+
+  it('should not show the upsell card for an active subscriber', async () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      session: { wallet_state: 'active', subscription_status: 'active' },
+    });
+
+    const { queryByTestId } = render(<SpWalletScreen />);
+
+    await waitFor(() => {
+      expect(queryByTestId('sp-wallet-join-kids-club-card')).toBeNull();
+    });
+  });
 });

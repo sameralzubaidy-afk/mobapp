@@ -1721,6 +1721,7 @@ HTML5 drag-and-drop is not reliably drivable by the embedded browser driver (QA 
 
 **Ref:** FLOW-12 · /subscriptions/manage
 **Actors:** test-admin
+**Surfaces:** admin, mobile
 
 **Objective:** Verify per-subscription admin actions.
 
@@ -1728,7 +1729,9 @@ HTML5 drag-and-drop is not reliably drivable by the embedded browser driver (QA 
 1. On a subscription row, **Extend Trial** (trial rows), **Cancel** (active/trial rows, with confirmation), and **Reactivate** (cancelled/grace/expired rows).
 
 **Expected Result:**
-- Extend Trial updates the trial end; Cancel (after confirmation) sets the subscription to cancelled; Reactivate restores it.
+- Extend Trial updates the trial end; Reactivate restores an active status.
+- **Cancel on an active/trial row moves the subscription to `grace_period`** (not `cancelled`): benefits continue until the period end, then a grace window (`grace_ends_at` ≈ now + `grace_period_days`, default 90) before expiry. `status='cancelled'` is only written when the row is already in a non-active/trial status. `cancelled_at` and `cancel_reason` (`admin_manual_cancellation` unless a reason is passed) are recorded. (DEV-TASK-117 doc-sync: the guide previously asserted Cancel → `cancelled`; the actual, intentional implementation is active/trial → `grace_period`.)
+- **Audit trail (DEV-TASK-117):** each Cancel / Extend-Trial / Reactivate now writes an `admin_audit_logs` row — `action_type` `subscription_manually_cancelled` / `trial_extended` / `subscription_reactivated`, `entity_type='subscription'`, `entity_id` = user_id, `actor_id` = the signed-in admin (previously hardcoded `'system'` with no row written) — assert via `/audit-logs` or a DB read-back.
 - Note: there is **no per-subscription "send a reminder" button**. Reminders are configured globally via the **Reminder Thresholds** field (days before expiry, default `60, 30, 7, 1`) and are sent automatically; a manual send-reminder action does not exist.
 
 **Setup:**
@@ -1743,7 +1746,7 @@ HTML5 drag-and-drop is not reliably drivable by the embedded browser driver (QA 
 
 **Assert:**
 1. Extend Trial (on a trial row) updates the trial end date.
-2. Cancel (active/trial row, after confirmation) sets status to "cancelled".
+2. Cancel (active/trial row, after confirmation) moves status to `grace_period` with `grace_ends_at` set (≈ period end + grace window); `cancelled` is written only when the row is already outside active/trial.
 3. Reactivate (cancelled/grace/expired row) restores status to "active".
 
 **Dependencies:**

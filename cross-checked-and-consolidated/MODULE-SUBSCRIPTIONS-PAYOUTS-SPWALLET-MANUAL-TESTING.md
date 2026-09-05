@@ -2,9 +2,11 @@
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-10 SP Wallet Read · FLOW-11 SP Earn/Spend/Cap · FLOW-12 Subscriptions · FLOW-12A Subscription Payment (Stripe) · FLOW-17 Subscription Event Notifications · FLOW-22 Seller Payouts · FLOW-23 Payout Method Verification · FLOW-25 Manual Payout Admin · FLOW-26 Webhook Processing & Verification · FLOW-30 SP Wallet Admin Ops)
 **Tasks covered:** Subscription Lifecycle (plans, comparison, trial, payment, manage, cancel, renew, grace, expiry, billing history) · Seller Payouts & Withdrawals (dashboard, methods, verification, request, earnings) · SP Wallet & Transaction History (balance, earn, expiry, ledger, billing) · Provider webhook reconciliation for subscription and payout state changes
-**Last updated:** 2026-09-03 (guide-currency audit v4 — DEV-TASK-94 doc-sync: E01/E02/E03 `BillingHistoryScreen`→live `TransactionHistoryScreen` + live E02 empty copy; A05 `KidsClubOverview`→`JoinKidsClubScreen` alias with per-status coverage on `ManageKidsClubScreen`; Groups F/G/H already live on `PayoutSettingsScreen` since v3; v3 = 2026-09-02 webhook Group L refreshed to QA Task 21's live full-lifecycle verification — L01 renewal + L04 idempotency now **LIVE PASS**, L02/L03 remain PARTIAL with exact fixture needs; v2 retired the removed in-app subscription-purchase Group B and renewal D02/D04 to the web-first Web Subscription Purchase E2E; rewrote Groups F/G05/H to the live PayoutSettingsScreen; re-homed D06/D07 + flagged E04 fixture-gated)
+**Last updated:** 2026-09-05 (DEV-TASK-117 — added per-case `**Surfaces:**` field mirroring the ADM guide so SUB rounds no longer re-derive mobile/admin scope; I05 doc-synced to the live wallet-state banner mapping; I06 rewritten to the live free-user 0-SP wallet + Join Kids Club+ upsell card (item-7 product change); ADM M03 grace behavior cross-referenced). Prior: 2026-09-03 guide-currency audit v4 — DEV-TASK-94 doc-sync: E01/E02/E03 `BillingHistoryScreen`→live `TransactionHistoryScreen` + live E02 empty copy; A05 `KidsClubOverview`→`JoinKidsClubScreen` alias with per-status coverage on `ManageKidsClubScreen`; Groups F/G/H already live on `PayoutSettingsScreen` since v3; v3 = 2026-09-02 webhook Group L refreshed to QA Task 21's live full-lifecycle verification — L01 renewal + L04 idempotency now **LIVE PASS**, L02/L03 remain PARTIAL with exact fixture needs; v2 retired the removed in-app subscription-purchase Group B and renewal D02/D04 to the web-first Web Subscription Purchase E2E; rewrote Groups F/G05/H to the live PayoutSettingsScreen; re-homed D06/D07 + flagged E04 fixture-gated)
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
+
+**Surfaces legend (DEV-TASK-117):** every runnable case body carries a `**Surfaces:**` field after `**Actors:**` (mirroring the ADM guide): `mobile` = app only; `admin, mobile` = needs an admin-portal config/action and a mobile verification leg; `n/a (…retired / …unconfigured / …server-webhook)` = non-runnable stub (retired Group B + D02/D04, unconfigured G02/G03, server-side L03) — those are never executed so they carry no runnable surface.
 
 ---
 
@@ -83,8 +85,8 @@
 | | SUB-TC-I02 | Quick actions (Shop / Sell / History) |
 | | SUB-TC-I03 | How to Earn SP section + Learn More |
 | | SUB-TC-I04 | SP expiration info + expiring-soon alert |
-| | SUB-TC-I05 | Wallet warning banner by state (active/grace/expired) |
-| | SUB-TC-I06 | Free user SP wallet inactive state |
+| | SUB-TC-I05 | Wallet warning banner by wallet state (active/grace/expired/frozen) |
+| | SUB-TC-I06 | Free user SP wallet — 0-SP wallet + Join Kids Club+ upsell card |
 | | SUB-TC-I07 | SP Wallet — "Reserved in trades" card |
 | | SUB-TC-I08 | SP Wallet — "Wallet Not Found" error |
 | | SUB-TC-I09 | SP Wallet — pending-release summary note |
@@ -149,6 +151,7 @@
 
 **Ref:** FLOW-12 · SubscriptionPlansScreen
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the Plans screen renders both tiers with correct icons, pricing, and CTAs.
 
@@ -169,6 +172,7 @@
 
 **Ref:** FLOW-12 · PlanComparisonScreen
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the comparison table lays out Free vs Kids Club+ across all feature rows.
 
@@ -189,6 +193,7 @@
 
 **Ref:** FLOW-12 · FLOW-18 admin config
 **Actors:** test-admin + test-free
+**Surfaces:** admin, mobile
 
 **Objective:** Verify prices/fees shown in app come from admin config, not hardcoded.
 
@@ -207,6 +212,7 @@
 
 **Ref:** FLOW-12 · UpgradePlanScreen / SubscriptionPlansScreen
 **Actors:** test-buyer (subscriber)
+**Surfaces:** mobile
 
 **Objective:** Verify a current subscriber sees their active tier marked, with the upgrade CTA disabled.
 
@@ -223,6 +229,7 @@
 
 **Ref:** FLOW-12 · `JoinKidsClubScreen` (alias) + `ManageKidsClubScreen` (per-status) — DEV-TASK-94 doc-sync: `KidsClubOverviewScreen` is **dead/aliased** — the `KidsClubOverview` and `SubscriptionPlans` routes both render `JoinKidsClubScreen` (no distinct Overview/Plans screen; AppNavigator L771/L775; see the N-group aliasing note). Per-status CTA coverage lives on **Manage Kids Club+** (`ManageKidsClubScreen`), verified live in QA Task 22 §0.3 (active / grace / cancelled / free all PASS).
 **Actors:** test-free, test-buyer, test-grace
+**Surfaces:** mobile
 
 **Objective:** Verify the Kids Club+ surface shows the correct primary CTA per subscription status.
 
@@ -350,6 +357,7 @@
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer (active)
+**Surfaces:** mobile
 
 **Objective:** Verify the My Subscription screen for an active member.
 
@@ -367,6 +375,7 @@
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the quick menu rows route correctly.
 
@@ -386,6 +395,7 @@
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (active)
+**Surfaces:** mobile
 
 **Objective:** Verify the manage screen shows current status and billing details.
 
@@ -403,6 +413,7 @@
 
 **Ref:** FLOW-12 · CancelSubscriptionScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the retention screen and that "Keep My Benefits" aborts cancellation.
 
@@ -420,6 +431,7 @@
 
 **Ref:** FLOW-12 · ManageKidsClubScreen (reason modal) — the retention screen (CancelSubscriptionScreen) does not collect a reason.
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify cancellation requires a reason and a final confirmation.
 
@@ -461,6 +473,7 @@
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (just cancelled)
+**Surfaces:** mobile
 
 **Objective:** Verify benefits persist until the end of the billing period after cancellation.
 
@@ -477,6 +490,7 @@
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the auto-renew toggle and payment-method update entry points.
 
@@ -492,6 +506,7 @@
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the free state and its subscribe CTA.
 
@@ -505,6 +520,7 @@
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (expired)
+**Surfaces:** mobile
 
 **Objective:** Verify the expired info box and re-subscribe CTA.
 
@@ -519,6 +535,7 @@
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the free plan view and upgrade CTA.
 
@@ -533,6 +550,7 @@
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the benefits "Learn More" link routes to the SP-definition help section.
 
@@ -546,6 +564,7 @@
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Document the hardcoded "Member Since" value as a latent bug to verify.
 
@@ -564,6 +583,7 @@
 
 **Ref:** FLOW-12 · FLOW-10 · ManageKidsClubScreen
 **Actors:** test-grace
+**Surfaces:** mobile
 
 **Objective:** Verify grace-period messaging and the SP-freeze warning.
 
@@ -590,6 +610,7 @@
 
 **Ref:** FLOW-12 · SubscriptionExpiredScreen
 **Actors:** A user whose grace period has fully expired
+**Surfaces:** mobile
 
 **Objective:** Verify the expired screen content and CTAs.
 
@@ -615,6 +636,7 @@
 
 **Ref:** FLOW-12 · ManageKidsClubScreen — DEV-TASK-94 doc-sync: dropped the dangling `KidsClubOverviewScreen` alias (dead; reactivation lives on **Manage Kids Club+**)
 **Actors:** A cancelled (not yet expired) user
+**Surfaces:** mobile
 
 **Objective:** Verify reactivation before expiry restores active status.
 
@@ -634,6 +656,7 @@
 
 **Ref:** FLOW-12 · `TransactionHistoryScreen` (route `TransactionHistory`) — DEV-TASK-94 doc-sync: the former `BillingHistoryScreen` is **dead/aliased** (DT-93); Profile's **"Billing History"** row opens the live `TransactionHistoryScreen` (QA Task 22 E01 PASS live)
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify billing records render with date, status, description, amount.
 
@@ -650,6 +673,7 @@
 
 **Ref:** FLOW-12 · `TransactionHistoryScreen` (route `TransactionHistory`) — DEV-TASK-94 doc-sync: `BillingHistoryScreen` is **dead/aliased** (DT-93); live surface is `TransactionHistory` (Profile → **Billing History** row). QA Task 22 E02 PASS live.
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the empty state for a user who's never been charged.
 
@@ -665,6 +689,7 @@
 
 **Ref:** FLOW-12 · `TransactionHistoryScreen` (route `TransactionHistory`) — DEV-TASK-94 doc-sync: `BillingHistoryScreen` is **dead/aliased** (DT-93); live surface is `TransactionHistory` (Profile → **Billing History** row).
 **Actors:** A user with a failed charge record
+**Surfaces:** mobile
 
 **Objective:** Verify failed billing records surface the error.
 
@@ -682,6 +707,7 @@
 
 **Ref:** FLOW-12 · SubscriptionStatusScreen (push-payload only)
 **Actors:** test-admin / QA (requires push-payload fixture)
+**Surfaces:** mobile
 
 **Objective:** Verify the diagnostic status screen surfaces billing internals.
 
@@ -702,6 +728,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen (route `PayoutSettings`, Dashboard → **Payouts** tile)
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify the live balance hero shows the three seller-balance figures and the Withdraw Now CTA.
 
@@ -719,6 +746,7 @@
 
 **Ref:** FLOW-22 / FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller (with a method) + a seller without a method
+**Surfaces:** mobile
 
 **Objective:** Verify the PAYOUT METHOD section reflects whether a method exists.
 
@@ -737,6 +765,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify the PAYOUT HISTORY rows render with status.
 
@@ -756,6 +785,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen — replaces the unreachable `SellerEarningsScreen`
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify the earnings totals and the per-payout net/fee figures on the live surface.
 
@@ -775,6 +805,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** A seller with no payouts
+**Surfaces:** mobile
 
 **Objective:** Verify the history empty state on the live surface.
 
@@ -788,6 +819,7 @@
 
 **Ref:** FLOW-22 × admin `pending_sp_release_days` · PayoutSettingsScreen hero Pending stat
 **Actors:** test-admin + test-seller
+**Surfaces:** admin, mobile
 
 **Objective:** Verify the hero **Pending** figure reflects the release delay before earnings move to Available.
 
@@ -806,6 +838,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen (Alert + pull-to-refresh recovery)
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify a payout-data load failure surfaces an error and can be recovered.
 
@@ -822,6 +855,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify payout-history pagination on the live surface.
 
@@ -839,6 +873,7 @@
 
 **Ref:** FLOW-23 · PayoutSettingsScreen / payoutMethods
 **Actors:** test-seller (no Stripe method)
+**Surfaces:** mobile
 
 **Objective:** Verify the Stripe Connect onboarding entry.
 
@@ -867,6 +902,7 @@
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller (≥2 methods)
+**Surfaces:** mobile
 
 **Objective:** Verify primary selection and deletion with confirmation.
 
@@ -884,6 +920,7 @@
 
 **Ref:** FLOW-23 · PayoutSettingsScreen (radio + Withdraw Now guard) — replaces the unreachable `RequestPayoutScreen` variant
 **Actors:** test-seller (unverified method only)
+**Surfaces:** mobile
 
 **Objective:** Verify an unverified method cannot be made primary and therefore cannot be the withdrawal method.
 
@@ -902,6 +939,7 @@
 
 **Ref:** FLOW-22 · SellerEarningsScreen / PayoutSettingsScreen
 **Actors:** A seller with a requires_action payout
+**Surfaces:** mobile
 
 **Objective:** Verify the requires_action CTA routes to setup.
 
@@ -915,6 +953,7 @@
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify the bottom-sheet "Edit Details" option.
 
@@ -928,6 +967,7 @@
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify the delete guards for a primary and for an only method.
 
@@ -943,6 +983,7 @@
 
 **Ref:** FLOW-23 · PayoutSettingsScreen
 **Actors:** test-seller (with an unverified method)
+**Surfaces:** mobile
 
 **Objective:** Verify an unverified method cannot be set primary.
 
@@ -957,6 +998,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify payout-history pagination.
 
@@ -970,6 +1012,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller (no payout method)
+**Surfaces:** mobile
 
 **Objective:** Verify the no-method withdrawal guard modal.
 
@@ -989,6 +1032,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal) — replaces the unreachable `RequestPayoutScreen` amount-entry flow
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify the Withdraw path guards against a zero balance. (The live surface withdraws the **full available balance** — there is no manual amount-entry field, so old "over-balance amount" validation does not exist.)
 
@@ -1005,6 +1049,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal, `calculatePayoutFee`)
 **Actors:** test-seller (verified method + balance > 0)
+**Surfaces:** mobile
 
 **Objective:** Verify the fee and net calculation shown for the full-balance withdrawal.
 
@@ -1022,6 +1067,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal → `requestFullWithdrawal`) · `request_seller_payout` RPC
 **Actors:** test-seller (verified method)
+**Surfaces:** mobile
 
 **Objective:** Verify a successful full-balance withdrawal request.
 
@@ -1039,6 +1085,7 @@
 
 **Ref:** FLOW-22 / FLOW-23 · PayoutSettingsScreen (handleWithdrawClick → NoMethodModal)
 **Actors:** test-seller (no primary method)
+**Surfaces:** mobile
 
 **Objective:** Verify the no-method guard on Withdraw Now.
 
@@ -1055,6 +1102,7 @@
 
 **Ref:** FLOW-22 · PayoutSettingsScreen
 **Actors:** test-seller (balance > 0)
+**Surfaces:** mobile
 
 **Objective:** Verify the Withdraw Now hero path.
 
@@ -1069,6 +1117,7 @@
 
 **Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents` · PayoutSettingsScreen WithdrawModal → `request_seller_payout`
 **Actors:** test-admin + test-seller
+**Surfaces:** admin, mobile
 
 **Objective:** Verify the configured minimum withdrawal amount is enforced on the full-balance withdrawal request.
 
@@ -1084,6 +1133,7 @@
 
 **Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents` · PayoutSettingsScreen WithdrawModal
 **Actors:** test-admin + test-seller
+**Surfaces:** admin, mobile
 
 **Objective:** Verify a zero minimum disables the withdrawal floor entirely.
 
@@ -1103,6 +1153,7 @@
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the wallet hero and lifetime stats.
 
@@ -1120,6 +1171,7 @@
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the three quick-action buttons navigate correctly.
 
@@ -1135,6 +1187,7 @@
 
 **Ref:** FLOW-11 · SpWalletScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the earn section and learn link.
 
@@ -1151,6 +1204,7 @@
 
 **Ref:** FLOW-11 · SpWalletScreen
 **Actors:** test-buyer (batch expiring ≤30 days)
+**Surfaces:** mobile
 
 **Objective:** Verify expiration messaging.
 
@@ -1163,38 +1217,49 @@
 
 ---
 
-### SUB-TC-I05 · Wallet warning banner by state (active/grace/expired)
+### SUB-TC-I05 · Wallet warning banner by wallet state (active/grace/expired/frozen)
 
-**Ref:** FLOW-10 · WalletWarningBanner
-**Actors:** test-buyer (active), test-grace (grace), an expired user
+**Ref:** FLOW-10 · WalletWarningBanner (`src/components/molecules/WalletWarningBanner.tsx`) — DEV-TASK-117 doc-sync: the banner keys off the **wallet `state`** (not the subscription), and `active`/`inactive` return **no banner**
+**Actors:** test-buyer (active), test-grace (grace), an expired user (frozen)
+**Surfaces:** mobile
 
-**Objective:** Verify the wallet state banner changes by subscription/wallet state.
+**Objective:** Verify the wallet state banner changes by wallet state.
 
 **Steps:**
 1. Open the wallet as active, grace, and expired users.
 
 **Expected Result:**
-- Active: green / no warning. Grace period: red banner indicating SP frozen. Expired: red banner indicating SP deleted/unavailable.
+- Active: no banner (WalletWarningBanner returns null for `active`).
+- Grace period (`wallet.state='grace_period'`): amber **"Grace Period Active"** banner — "You can keep spending existing Swap Points, but you won't earn new ones until you renew." (warning tint `#FFF3E0`/`#FFA726`, NOT red).
+- Expired (wallet becomes `frozen`): info-blue **"Swap Points Frozen"** banner — "Your Swap Points are frozen. Renew your subscription to use them again." (info tint `#EBF4F9`/`#5B8FB9`, NOT red/deleted).
+- A `suspended` wallet shows the red **"Wallet Suspended"** error banner (contact support).
 
 ---
 
-### SUB-TC-I06 · Free user SP wallet inactive state
+### SUB-TC-I06 · Free user SP wallet — earning is gated behind Kids Club+ (0-SP wallet + upsell card)
 
-**Ref:** FLOW-10 / FLOW-11
+**Ref:** FLOW-10 / FLOW-11 · SpWalletScreen — DEV-TASK-117 doc-sync: the guide previously described an "inactive, subscribe-to-unlock" lock state that does not exist. The live wallet renders a **normal 0-SP wallet with no lock** — free SP gating happens at Home's SP strip, the offer/checkout "Accept SP" gate, and now an inline Join Kids Club+ upsell card on the wallet itself (item-7 product change, 2026-09-05)
 **Actors:** test-free
+**Surfaces:** mobile
 
-**Objective:** Verify a free (non-subscriber) user's wallet is inactive.
+**Objective:** Verify a free (non-subscriber) user's wallet renders normally at 0 SP with the Join Kids Club+ upsell card; SP gating stays enforced at the earn/spend surfaces.
 
 **Steps:**
 1. As **test-free**, open the wallet.
+2. Confirm the 0-SP hero, the quick actions, and the upsell card.
+3. (Optional) Tap the upsell card → **Join Kids Club+**.
 
 **Expected Result:**
-- The wallet shows an inactive state (cannot earn/spend SP) with messaging directing to subscribe; balance actions are gated.
+- The wallet renders a **normal 0-SP wallet**: hero shows `0` Swap Points; **Shop / Sell / History** quick actions all work; no lock overlay and no gated balance actions.
+- An inline **"Join Kids Club+ to start earning Swap Points"** card (`testID="sp-wallet-join-kids-club-card"`) appears under the hero; tapping it navigates to **Join Kids Club+** (web-first join surface).
+- `WalletWarningBanner` shows nothing for this state (returns null for `active`/`inactive`) — there is deliberately no lock banner on the wallet itself.
+- Earning is genuinely Kids Club+-gated **elsewhere** (Home's SP strip upsell, the offer/checkout Accept-SP gate), so the wallet's "How to Earn SP" list is read alongside the card that makes the gate explicit.
 
 ### SUB-TC-I07 · SP Wallet — "Reserved in trades" card
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the reserved-SP card appears only when SP is reserved in pending offers.
 
@@ -1209,6 +1274,7 @@
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the wallet-not-found error state.
 
@@ -1223,6 +1289,7 @@
 
 **Ref:** FLOW-10 · SpWalletScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the pending-release summary when SP releases are scheduled.
 
@@ -1240,6 +1307,7 @@
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the three filter tabs.
 
@@ -1256,6 +1324,7 @@
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify each ledger row's icon, label, and color.
 
@@ -1271,6 +1340,7 @@
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** A user with no spent entries
+**Surfaces:** mobile
 
 **Objective:** Verify the per-tab empty state.
 
@@ -1286,6 +1356,7 @@
 
 **Ref:** FLOW-10 · SpTransactionHistoryScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify refresh reloads recent ledger entries.
 
@@ -1303,6 +1374,7 @@
 
 **Ref:** FLOW-12 · TransactionHistoryScreen (profile)
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the profile-level billing/transaction history.
 
@@ -1319,6 +1391,7 @@
 
 **Ref:** FLOW-12 · TransactionHistoryScreen
 **Actors:** test-free / forced error
+**Surfaces:** mobile
 
 **Objective:** Verify empty and error states.
 
@@ -1337,6 +1410,7 @@
 
 **Ref:** FLOW-26 · subscription webhook (`stripe-webhook-subscriptions`) — **LIVE PASS in QA Task 21** (2026-09-02, Section A7 + F/L01)
 **Actors:** disposable user (QA Task 21 recipe) — NOT test-buyer (stale-active sub — see note)
+**Surfaces:** mobile
 
 **Objective:** Verify a valid renewal webhook reconciles the subscription state and billing history.
 
@@ -1353,6 +1427,7 @@
 
 **Ref:** FLOW-26 · payment failure webhook — **PARTIAL** (mechanism verified; live failing-renewal not driven)
 **Actors:** disposable user with an active subscription and NO saved payment method
+**Surfaces:** mobile
 
 **Objective:** Verify a payment-failed webhook updates the user-visible subscription state.
 
@@ -1368,6 +1443,7 @@
 
 **Ref:** FLOW-26 · signature verification — **PARTIAL** (source + deployed parity verified; live negative POST not driven)
 **Actors:** QA
+**Surfaces:** n/a (server/webhook; QA-driven)
 
 **Objective:** Verify an invalid webhook payload is rejected and does not mutate user-visible state.
 
@@ -1381,6 +1457,7 @@
 
 **Ref:** FLOW-26 · idempotent processing — **LIVE PASS in QA Task 21** (2026-09-02, Section A2 + F/L04)
 **Actors:** QA
+**Surfaces:** mobile
 
 **Objective:** Verify replaying the same valid webhook does not create duplicate side effects.
 
@@ -1394,6 +1471,7 @@
 
 **Ref:** FLOW-26 · payout provider webhooks (`stripe-webhook`/payout EFs, not `stripe-webhook-subscriptions`)
 **Actors:** test-seller
+**Surfaces:** mobile
 
 **Objective:** Verify provider payout webhooks reconcile seller payout status in the app.
 
@@ -1415,6 +1493,7 @@
 
 **Ref:** FLOW-12A · PaymentMethodsScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the loading state while the saved card is fetched.
 
@@ -1434,6 +1513,7 @@
 
 **Ref:** FLOW-12A · PaymentMethodsScreen · `create-payment-setup-intent` + `attach-payment-method`
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the no-card empty state and the Stripe Payment Sheet add flow.
 
@@ -1458,6 +1538,7 @@
 
 **Ref:** FLOW-12A · PaymentMethodsScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the saved card renders brand/last4/expiry and the security banner.
 
@@ -1477,6 +1558,7 @@
 
 **Ref:** FLOW-12A · PaymentMethodsScreen · `attach-payment-method`
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify updating the saved card reuses the Stripe sheet and refreshes the card.
 
@@ -1496,6 +1578,7 @@
 
 **Ref:** FLOW-12A · PaymentMethodsScreen · `detach-payment-method`
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify card removal requires confirmation and invokes detach.
 
@@ -1519,6 +1602,7 @@
 
 **Ref:** FLOW-12A · PaymentMethodsScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the Go Back link returns to the previous screen.
 
@@ -1535,6 +1619,7 @@
 
 **Ref:** FLOW-12A · `attach-payment-method` · `detach-payment-method` · `retry-failed-payment`
 **Actors:** test-free, test-buyer
+**Surfaces:** mobile
 
 **Objective:** Document and verify the three backend paths and the retry-result alert variants.
 
@@ -1560,6 +1645,7 @@
 
 **Ref:** FLOW-12 · JoinKidsClubScreen · JoinKidsClubButton
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the static value-prop, web-managed card, footnote, and CTA.
 
@@ -1578,6 +1664,7 @@
 
 **Ref:** FLOW-12 · `subscriptionWeb.openJoinKidsClubWeb`
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the CTA opens the external membership page with the user's email.
 
@@ -1593,6 +1680,7 @@
 
 **Ref:** FLOW-12 · AppNavigator route registration
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Document which Kids Club routes are reachable by navigation and flag the orphan aliases.
 
@@ -1609,6 +1697,7 @@
 
 **Ref:** FLOW-12 · ContinueKidsClubScreen
 **Actors:** test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify the active-subscription early-return view.
 
@@ -1623,6 +1712,7 @@
 
 **Ref:** FLOW-12 · ContinueKidsClubScreen
 **Actors:** test-free
+**Surfaces:** mobile
 
 **Objective:** Verify the loading state while trial status loads.
 
@@ -1636,6 +1726,7 @@
 
 **Ref:** FLOW-12 · ContinueKidsClubScreen
 **Actors:** test-trial
+**Surfaces:** mobile
 
 **Objective:** Verify the urgency badge copy when 7 or fewer trial days remain.
 
@@ -1658,6 +1749,7 @@
 
 **Ref:** FLOW-17 subscription event notifications
 **Actors:** test-trial, test-buyer
+**Surfaces:** mobile
 
 **Objective:** Verify subscription lifecycle notifications fire at the right moments.
 
@@ -1676,6 +1768,7 @@
 
 **Ref:** FLOW-17 × admin `grace_reminder_thresholds`
 **Actors:** test-admin + test-grace
+**Surfaces:** mobile
 
 **Objective:** Verify grace reminder timing uses the admin-configured threshold array.
 
@@ -1693,26 +1786,31 @@
 ## Regression
 
 ### SUB-TC-R01 · Subscriber fee applied in trade checkout
+**Surfaces:** mobile
 **Objective:** Confirm an active subscriber is charged the subscriber transaction fee in a real trade checkout.
 **Steps:** 1. As a subscriber, start a trade checkout and view the fee line.
 **Expected Result:** The subscriber fee (config value) is shown, not the non-subscriber fee.
 
 ### SUB-TC-R02 · SP balance consistent across wallet, trade, and history
+**Surfaces:** mobile
 **Objective:** Confirm the SP available balance matches across the wallet hero, an SP offer slider max, and the ledger sum.
 **Steps:** 1. Compare the wallet balance, the max SP usable on an Accept SP listing, and the running ledger.
 **Expected Result:** All three reconcile.
 
 ### SUB-TC-R03 · Payout available balance matches earnings
+**Surfaces:** mobile
 **Objective:** Confirm the Payout Dashboard available balance equals the Seller Earnings available figure.
 **Steps:** 1. Compare Payout Dashboard hero vs My Earnings totals.
 **Expected Result:** Available balances reconcile (Lifetime − Pending − Withdrawn).
 
 ### SUB-TC-R04 · Cancel then reactivate restores SP access
+**Surfaces:** mobile
 **Objective:** Confirm cancel-before-period-end keeps SP usable and reactivation restores active status.
 **Steps:** 1. Cancel, confirm SP still usable, reactivate.
 **Expected Result:** SP remains usable through the period; reactivation returns Active.
 
 ### SUB-TC-R05 · Config change reflects without app rebuild
+**Surfaces:** admin, mobile
 **Objective:** Confirm changing `subscription_price`, `trial_days`, `transaction_fee_subscriber_cents`, `transaction_fee_non_subscriber_cents`, `grace_period_days`, and `sp_expiration_days` in admin reflects in the app on next load.
 **Steps:** 1. Change one or more of those config values to distinct numbers. 2. Reload Plans, Compare Plans, Manage Kids Club+, Subscription Payment, and SP Wallet.
 **Expected Result:** The new monthly price, trial length, fee comparison, grace countdown, and SP expiration messaging all render without requiring reinstall or rebuild.
@@ -1778,8 +1876,8 @@
 | SP wallet quick actions | SUB-TC-I02 |
 | How to Earn SP + Learn More (FLOW-11) | SUB-TC-I03 |
 | SP expiration info + expiring-soon alert | SUB-TC-I04 |
-| Wallet warning banner by state | SUB-TC-I05 |
-| Free user SP wallet inactive | SUB-TC-I06 |
+| Wallet warning banner by wallet state | SUB-TC-I05 |
+| Free user SP wallet — 0-SP wallet + Join Kids Club+ upsell card | SUB-TC-I06 |
 | SP history tabs All/Earned/Spent | SUB-TC-J01 |
 | SP history rows icon/label/amount | SUB-TC-J02 |
 | SP history empty per tab | SUB-TC-J03 |
