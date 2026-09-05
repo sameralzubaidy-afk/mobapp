@@ -2,7 +2,7 @@
 
 > Future-reference status of **every canonical test case** in the 6 consolidated guides under `cross-checked-and-consolidated/`, reconciled against all QA evidence on disk through **2026-09-03**. Read-only snapshot — no guides/code/reports modified. Full narrative + method in `TEST-COVERAGE-INVENTORY-v2.md` (repo root); raw data in `temp/tc-inventory-v2/`.
 
-**Generated:** 2026-09-03 · **Last maintained:** 2026-09-05 (QA Task 32 Part 2 — ADM M03/M04 + P02 + R03 → PASS, E05 note closed; SUB A05/N03 → PASS, I06 → DOC-DRIFT; SUB ACTIVE remaining 33→30) · **Total canonical cases:** 833
+**Generated:** 2026-09-03 · **Last maintained:** 2026-09-05 (QA Task 33 — DT117 visual confirm + SUB 30-closure partial: SUB D05/F01/F03/F04/G07/G08/H02/N04 → PASS, F08/G10 → PARTIAL, I06 DOC-DRIFT→PASS; SUB ACTIVE remaining 30→20) · **Total canonical cases:** 833
 
 ## Status legend
 
@@ -28,7 +28,7 @@
 | **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 234 | 28 | 2 | 3 | 2 | 0 | 0 | 0 | 0 | **19** |
 | **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 57 | 0 | 17 | 0 | 1 | 0 | 0 | 0 | 0 | **0** |
 | **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 143 | 12 | 1 | 0 | 1 | 0 | 0 | 0 | 0 | **3** |
-| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 47 | 2 | 3 | 1 | 0 | 0 | 15 | 0 | 2 | **30** |
+| **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 56 | 4 | 3 | 0 | 0 | 0 | 15 | 0 | 2 | **20** |
 
 Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/A. PASS/PARTIAL/OPEN rows have been executed at least once; DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N-A rows are documented dispositions; the **Remaining** column is what still needs a run. Per-guide status columns sum to each guide's documented Cases total.
 
@@ -863,7 +863,7 @@ _All cases in this guide have a verdict on record — none remaining._
 
 ## SUB · Subscriptions / Payouts / SP Wallet
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 47 · **PARTIAL** 2 · **OPEN** 3 · **DOC-DRIFT** 1 · **SKIPPED** 0 · **RETIRED** 15 · **N/A** 2 · **Remaining (ACTIVE)** 30
+**Guide file:** `cross-checked-and-consolidated/MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` · **Cases:** 100 · **PASS** 56 · **PARTIAL** 4 · **OPEN** 3 · **DOC-DRIFT** 0 · **SKIPPED** 0 · **RETIRED** 15 · **N/A** 2 · **Remaining (ACTIVE)** 20
 
 ### Completed test cases (have a verdict on record)
 
@@ -920,46 +920,45 @@ _All cases in this guide have a verdict on record — none remaining._
 | SUB-TC-N01 | JoinKidsClub value-prop + web CTA | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-N02 | JoinKidsClub web redirect (passitup.com) | ✅ PASS | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` |  |
 | SUB-TC-A05 | Kids Club+ Overview screen by subscription status | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | QA32-P2 first execution: free leg on-device (test-free JoinKidsClub value-prop + web-managed card + Join-on-the-web CTA, SUB-A05-free-joinkidsclub.png); active leg = disposable real sub Manage (Active badge + Next Billing + Cancel + Auto-Renew, verified 2× this session); grace leg = D01 test-grace on-device cross-ref + disposable post-cancel grace observation. **PASS** |
-| SUB-TC-I06 | Free user SP wallet inactive state | 📄 DOC-DRIFT | DOC-DRIFT | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | test-free SP Wallet renders a normal 0-SP wallet — NO inactive/subscribe-lock state on the wallet surface (WalletWarningBanner returns null for 'inactive'; no free gate in SpWalletScreen). Free SP gating lives on Home SP strip + offer/checkout SP gate. Guide assertion stale (product note: whether the wallet should show a free lock is a product decision) |
+| SUB-TC-I06 | Free user SP wallet — 0-SP wallet + Join Kids Club+ upsell card | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | DOC-DRIFT RESOLVED: DEV-TASK-117 rewrote the case (2026-09-05) to the live 0-SP wallet + `sp-wallet-join-kids-club-card` upsell. Verified on-device (test-free): 0-SP hero + "Join Kids Club+ to start earning Swap Points" card (renders + navigates to JoinKidsClub), no lock overlay, no WalletWarningBanner. **PASS** |
 | SUB-TC-N03 | Route-alias reachability (JoinKidsClub vs deep-link-only aliases) | ✅ PASS | PASS | 2026-09-05 | `qa-task32-adm-r6-sub-2026-09-05` | source-confirmed + on-device: JoinKidsClub navigable via SP strip; SubscriptionChoice/KidsClubOverview/SubscriptionPlans registered aliases with ZERO navigate() call sites (deep-link only). Matches guide flag |
+| SUB-TC-D05 | Reactivate from cancelled state | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | In-app reactivate on retained disposable real sub: admin-cancel → grace → mobile Manage "Re-subscribe to Kids Club+" → renew-subscription EF → Active + "Subscription Renewed" + NEW Stripe sub + cancel_reason cleared. **NEW MED**: sp_wallets left in grace_period after reactivation (alert claims SP available) — report finding #1 |
+| SUB-TC-F01 | Payout Settings hero — Available / Pending / Lifetime Earned (live) | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | hero renders $15,603 avail / $393 pending / $15,996 lifetime + Withdraw Now (test-seller). NOTE: figures from inflated seller_balance row (data-integrity finding) |
+| SUB-TC-F03 | Payout history list (completed / pending) — live | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | 5 rows render amount+status(Pending)+date+Fee (test-seller). Data has no completed/failed rows to demo those icon variants |
+| SUB-TC-F04 | Earnings figures (Available/Pending/Lifetime) + history net/fee — live | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | hero 3 figures + per-row net + Fee lines (test-seller) |
+| SUB-TC-F08 | Payout history Load More pagination (+5) — live | 🟡 PARTIAL | PARTIAL | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | 25 payouts in DB (precondition ✓) + first-5 render; Load More tap NOT drivable — **owner-confirmed defect: Load More renders in the floating-tab-bar band (occluded by nav bar; no pill-clear inset)** + Load More has no testID (fix records in report) |
+| SUB-TC-G07 | Payout Settings — "Edit Details" sheet | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | method kebab → Edit Details → "Editing payout method details is not yet available. Contact support for changes." (exact guide copy) |
+| SUB-TC-G08 | "Cannot Delete Primary/Only Method" guard | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | single primary method Delete → "Cannot Delete Primary Method" (primary guard fires first; the "Only Method" copy is unreachable when the only method is primary — source-verified guard order) |
+| SUB-TC-G10 | Payout history Load More | 🟡 PARTIAL | PARTIAL | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | same as F08 (Load More occluded by floating nav bar — owner-confirmed fix record; no testID) |
+| SUB-TC-H02 | WithdrawModal summary — Available / Payout Fee / You'll Receive | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | WithdrawModal math verified: avail $15,603 / fee -$39.26 (= $0.25 + 0.25% = Stripe processor fee) / net $15,563.74 / Stripe method; no amount field; Cancel clean (no withdrawal created). **Owner finding (fix record): "Payout Fee" label does not say it's the payment-METHOD/Stripe fee, not a platform fee** |
+| SUB-TC-N04 | ContinueKidsClub active-subscription variant | ✅ PASS | PASS | 2026-09-05 | `qa-task33-sub-30-closure-dt117-2026-09-05` | test-buyer continue-kids-club deep link → "✅ Kids Club+ Active / Your subscription is already active…" + Go Back |
 
-### Remaining test cases — ACTIVE (30) — QA Task 32's real scope
+### Remaining test cases — ACTIVE (20) — QA Task 33's scope
 
 > QA Task 31d re-split (2026-09-04): the old "(51)" header was off-by-one against a 50-row body. Those 50 = **30 ACTIVE** (genuinely drivable — QA Task 32's real scope; 3 executed in QA32-P2 2026-09-05) + **15 RETIRED** + **2 N/A** (below). RETIRED/N-A are dispositions, not never-run cases.
 
 | TC-ID | Description | Note / why remaining |
 |---|---|---|
-| SUB-TC-A05 | Kids Club+ Overview screen by subscription status |  |
-| SUB-TC-D05 | Reactivate from cancelled state |  |
-| SUB-TC-F01 | Payout Settings hero — Available / Pending / Lifetime Earned (live) |  |
-| SUB-TC-F03 | Payout history list (completed / pending) — live |  |
-| SUB-TC-F04 | Earnings figures (Available/Pending/Lifetime) + history net/fee — live |  |
-| SUB-TC-F05 | Payout history empty state — live |  |
-| SUB-TC-F06 | Pending earnings figure follows admin release timing — live |  |
-| SUB-TC-F07 | Payout load error + recovery — live |  |
-| SUB-TC-F08 | Payout history Load More pagination (+5) — live |  |
-| SUB-TC-G01 | Add Stripe Connect payout method (onboarding) |  |
-| SUB-TC-G04 | Set primary method / delete method (confirmation) |  |
-| SUB-TC-G05 | Unverified method blocks payout (live: cannot set primary / withdraw) |  |
-| SUB-TC-G06 | requires_action payout → "Set Up Payout Method" |  |
-| SUB-TC-G07 | Payout Settings — "Edit Details" sheet |  |
-| SUB-TC-G08 | "Cannot Delete Primary/Only Method" guard |  |
-| SUB-TC-G09 | "Cannot Set as Primary" (unverified) guard |  |
-| SUB-TC-G10 | Payout history Load More |  |
-| SUB-TC-G11 | NoMethodModal flow |  |
-| SUB-TC-H01 | Withdraw Now — no-balance guard (amount entry removed) |  |
-| SUB-TC-H02 | WithdrawModal summary — Available / Payout Fee / You'll Receive |  |
-| SUB-TC-H03 | Confirm Withdrawal success |  |
-| SUB-TC-H04 | Withdraw blocked when no verified primary method |  |
-| SUB-TC-H06 | Admin minimum withdrawal blocks full-balance requests below the floor |  |
-| SUB-TC-H07 | Minimum withdrawal disabled when config = 0 |  |
-| SUB-TC-K02 | Transaction History empty + error/retry |  |
-| SUB-TC-M01 | Payment Methods — loading state |  |
-| SUB-TC-M06 | Go Back |  |
-| SUB-TC-M07 | Backend contract — attach / detach / retryFailedPayment branches |  |
-| SUB-TC-N04 | ContinueKidsClub active-subscription variant |  |
-| SUB-TC-N05 | ContinueKidsClub loading state |  |
-| SUB-TC-N06 | ContinueKidsClub trial-ending urgency badge |  |
+| SUB-TC-F05 | Payout history empty state — live | needs a no-payout seller fixture |
+| SUB-TC-F06 | Pending earnings figure follows admin release timing — live | needs a fresh completed-trade→payout fixture + pending_sp_release_days write on a controlled balance |
+| SUB-TC-F07 | Payout load error + recovery — live | forced-offline load failure not cleanly drivable |
+| SUB-TC-G01 | Add Stripe Connect payout method (onboarding) | real Stripe Connect onboarding flow |
+| SUB-TC-G04 | Set primary method / delete method (confirmation) | needs a 2-method seller fixture |
+| SUB-TC-G05 | Unverified method blocks payout (live: cannot set primary / withdraw) | needs an unverified-method seller fixture |
+| SUB-TC-G06 | requires_action payout → "Set Up Payout Method" | requires_action row deep in list (scroll-blocked this session) |
+| SUB-TC-G09 | "Cannot Set as Primary" (unverified) guard | needs an unverified-method seller fixture |
+| SUB-TC-G11 | NoMethodModal flow | needs a no-method seller with balance fixture |
+| SUB-TC-H01 | Withdraw Now — no-balance guard (amount entry removed) | needs a $0-available seller |
+| SUB-TC-H03 | Confirm Withdrawal success | needs a controlled small balance (real transfer); test-seller inflated to $15,603 |
+| SUB-TC-H04 | Withdraw blocked when no verified primary method | needs a no-method seller with balance fixture |
+| SUB-TC-H06 | Admin minimum withdrawal blocks full-balance requests below the floor | needs a small-balance fixture + min_withdrawal config write |
+| SUB-TC-H07 | Minimum withdrawal disabled when config = 0 | needs a small-balance fixture + min_withdrawal config write |
+| SUB-TC-K02 | Transaction History empty + error/retry | empty = test-free (E02 PASS surface); error/retry leg needs a forced fetch failure |
+| SUB-TC-M01 | Payment Methods — loading state | transient spinner (source-confirmed); not separately captured |
+| SUB-TC-M06 | Go Back | pm-back-button AX-verified; return-to-Settings drive deferred |
+| SUB-TC-M07 | Backend contract — attach / detach / retryFailedPayment branches | attach branch driven on disposable (PASS); detach branch not driven |
+| SUB-TC-N05 | ContinueKidsClub loading state | transient spinner (source-confirmed); not separately captured |
+| SUB-TC-N06 | ContinueKidsClub trial-ending urgency badge | needs a ≤7-day-trial mobile persona (none on staging) |
 
 ### RETIRED (15) — in-app flow removed / coverage superseded — NOT never-run (reclassified 31d)
 
