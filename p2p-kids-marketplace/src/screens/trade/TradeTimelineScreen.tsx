@@ -18,6 +18,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  AppState,
   Pressable,
   Image,
   TouchableOpacity,
@@ -43,6 +44,11 @@ import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmation
 import { AutoCompleteBanner, createCountdownModel, formatCountdownLabel } from '@/components/trade';
 import { SafeMeetupCard } from '@/components/trade/SafeMeetupCard';
 import { IssueReportModal } from './IssueReportModal';
+import {
+  getFriendlyCancellationReason,
+  isDisputeRefundCancelled,
+  GENERIC_CANCELLATION_COPY,
+} from '@/utils/tradeCancellationCopy';
 import {
   Clock,
   CheckCircle,
@@ -314,34 +320,33 @@ export default function TradeTimelineScreen() {
       // Attach listing to trade for downstream consumption
       const enrichedTrade = { ...tradeData, listing: listingData };
 
-      // SEL-005-FALLBACK (2026-07-27): For trades where seller_transaction_fee_cents
-      // is 0, null, or undefined (column doesn't exist on DB yet, or trade was created
-      // before create-trade-offer populated it), calculate dynamically from admin_config.
-      // SEL-FEE-BASE (2026-07-27): Fee is based on cash amount (after SP), not listing price.
-      // SEL-FEE-SEMANTICS (2026-07-27): Config fields are absolute percentages per tier:
-      // - platform_fee_seller_percentage = % for FREE users
-      // - platform_fee_seller_discount_percentage_kids_club_plus = % for SUBSCRIBED users
+      // DEV-TASK-113 (2026-09-05) item 3: the seller's displayed platform fee must
+      // come from a STORED value — never re-derived from the CURRENT admin_config.
+      // Real trades store seller_transaction_fee_cents at offer time (create-trade-offer),
+      // which is preferred. When it is missing (0/null on legacy or synthetic trades),
+      // the authoritative stored value is the seller_payouts.platform_fee_cents recorded
+      // when the payout row was created. The old SEL-005 live-config fallback was removed
+      // because it diverges from what was actually charged if config changes between an
+      // offer and its completion. (qa-task31m-r3 finding #3 — fixture-artifact divergence:
+      // display -$3.60 vs payout row $0.)
       if ((enrichedTrade.seller_transaction_fee_cents ?? 0) === 0) {
         try {
-          const config = await getAdminConfig();
-          // Always use cash amount — fee is on what the seller actually receives in cash
-          const cashAmountCents = tradeData.cash_amount_cents ?? 0;
-          const subStatus = session?.subscription_status;
-          // DEV-TASK-66 item 1: grace users keep the member seller-fee tier (R6-consistent).
-          const isSubscriber =
-            subStatus === 'active' ||
-            subStatus === 'trial' ||
-            subStatus === 'grace' ||
-            subStatus === 'grace_period';
-          // Use absolute percentage for the seller's tier
-          const effectivePct = isSubscriber
-            ? config.platform_fee_seller_discount_percentage_kids_club_plus
-            : config.platform_fee_seller_percentage;
-          enrichedTrade.seller_transaction_fee_cents = Math.round(
-            (cashAmountCents * effectivePct) / 100
-          );
+          const viewerIsSeller = user?.id === tradeData.seller_id;
+          if (viewerIsSeller) {
+            const { data: payoutRow } = await supabase
+              .from('seller_payouts')
+              .select('platform_fee_cents')
+              .eq('trade_id', tradeId)
+              .limit(1)
+              .maybeSingle();
+            const storedFeeCents = (payoutRow as { platform_fee_cents?: number } | null)
+              ?.platform_fee_cents;
+            if (typeof storedFeeCents === 'number' && storedFeeCents > 0) {
+              enrichedTrade.seller_transaction_fee_cents = storedFeeCents;
+            }
+          }
         } catch (e) {
-          console.warn('[TradeTimeline] Failed to calculate fallback seller fee:', e);
+          console.warn('[TradeTimeline] Failed to load stored seller payout fee:', e);
           // Keep 0 — display shows -$0.00, avoids crash
         }
       }
@@ -470,6 +475,22 @@ export default function TradeTimelineScreen() {
       fetchTrade();
     }, [fetchTrade])
   );
+
+  // DEV-TASK-113 (2026-09-05) item 2: refetch when the app returns to the
+  // foreground. A trade can be resolved by the other party or by admin while
+  // this screen is backgrounded — React Navigation focus does not fire on app
+  // foreground (R59 / QA Task 31-M R3 finding #2), and realtime only delivers
+  // while the channel is live, so this covers the background->foreground gap
+  // without a full relaunch. Mirrors the AppState-active pattern in
+  // src/hooks/useSubscription.ts.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        fetchTrade();
+      }
+    });
+    return () => sub.remove();
+  }, [fetchTrade]);
 
   // Addendum C + TC-L09: fetch bundle sibling count AND sibling listing data for expandable item list.
   useEffect(() => {
@@ -928,6 +949,20 @@ export default function TradeTimelineScreen() {
     const model = createCountdownModel(trade.auto_complete_at, startIso);
     return formatCountdownLabel(model);
   })();
+  // DEV-TASK-113 (2026-09-05) item 1: friendly, role-appropriate copy for a
+  // cancelled trade's reason. NEVER render the raw cancellation_reason code.
+  // Refund context is only meaningful here (real refund rows via O07); Trade
+  // Detail (no refund data) stays neutral by not passing a context. When the
+  // reason is unknown the util returns GENERIC_CANCELLATION_COPY and the
+  // sub-line is dropped (the banner already reads "Cancelled").
+  const cancellationFriendlyCopy =
+    trade.status === 'cancelled' && trade.cancellation_reason
+      ? getFriendlyCancellationReason(
+          trade.cancellation_reason,
+          isSeller ? 'seller' : 'buyer',
+          { refunded: showRefundSection }
+        )
+      : null;
   const completeConfirmMessage =
     'Confirm you received the item as expected? This final step releases Swap Points or cash to the seller.';
   const listing = (trade as any).listing;
@@ -1074,13 +1109,31 @@ export default function TradeTimelineScreen() {
             <Text style={[styles.statusBannerLabel, getStatusTextStyle(trade.status)]}>
               {getStatusDisplay(trade.status)}
             </Text>
-            {trade.status === 'cancelled' && trade.cancellation_reason && (
-              <Text style={[styles.statusBannerSubtext, getStatusTextStyle(trade.status)]}>
-                Reason: {trade.cancellation_reason}
-              </Text>
-            )}
+            {trade.status === 'cancelled' &&
+              cancellationFriendlyCopy &&
+              cancellationFriendlyCopy !== GENERIC_CANCELLATION_COPY && (
+                <Text style={[styles.statusBannerSubtext, getStatusTextStyle(trade.status)]}>
+                  {cancellationFriendlyCopy}
+                </Text>
+              )}
           </View>
         </View>
+
+        {/* DEV-TASK-113 (2026-09-05) item 5: buyer closing summary for a dispute
+            resolved in the buyer's favor when there is NO real refund (the
+            payment was never captured — nothing was taken). The captured case
+            (real trade_refunds rows) is covered by the O07 "Refund" card lower
+            on this screen, so this card only appears when showRefundSection is
+            false. testID: timeline-dispute-closed-summary */}
+        {isBuyer && isDisputeRefundCancelled(trade) && !showRefundSection && (
+          <View style={styles.disputeClosedCard} testID="timeline-dispute-closed-summary">
+            <CheckCircle size={20} color="#2D6A4F" weight="fill" style={{ marginRight: 8 }} />
+            <Text style={styles.disputeClosedText}>
+              This dispute was resolved in your favor. This trade is closed and no payment was
+              taken from your account.
+            </Text>
+          </View>
+        )}
 
         <Pressable style={styles.listingCard} onPress={handleItemDetailsPress}>
           <View style={styles.imageContainer}>
@@ -2872,6 +2925,27 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#92400E',
+    lineHeight: 20,
+  },
+  // DEV-TASK-113 (2026-09-05) item 5: success-tinted buyer closing summary for
+  // a dispute resolved in the buyer's favor on an uncaptured trade. Tints reuse
+  // the existing refundCard palette (#E8F5F0 border / #2D6A4F text) so no new
+  // design tokens are introduced.
+  disputeClosedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5F0',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#B7E4CD',
+  },
+  disputeClosedText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#2D6A4F',
+    fontWeight: '500',
     lineHeight: 20,
   },
   messageButton: {

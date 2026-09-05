@@ -65,18 +65,29 @@ export function createCountdownModel(
   };
 }
 
-export function formatCountdownLabel(model: CountdownModel): string {
+export interface CountdownLabelOptions {
+  /** DEV-TASK-113 (2026-09-05) item 7: omit the trailing " left" suffix for
+   *  mid-sentence contexts ("Auto-completes in 48h") where "left" reads
+   *  redundant. Standalone contexts (OfferCountdownPill) keep the default. */
+  omitSuffix?: boolean;
+}
+
+export function formatCountdownLabel(
+  model: CountdownModel,
+  options: CountdownLabelOptions = {}
+): string {
   if (model.expired) {
     return 'Expired';
   }
 
+  const suffix = options.omitSuffix ? '' : ' left';
   if (model.hoursLeft >= 1) {
     const mins = model.minutesLeft % 60;
     if (mins === 0) {
-      return `${model.hoursLeft}h left`;
+      return `${model.hoursLeft}h${suffix}`;
     }
-    return `${model.hoursLeft}h ${mins}m left`;
+    return `${model.hoursLeft}h ${mins}m${suffix}`;
   }
 
-  return `${model.minutesLeft}m left`;
+  return `${model.minutesLeft}m${suffix}`;
 }

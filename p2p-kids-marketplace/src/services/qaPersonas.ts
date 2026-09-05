@@ -42,6 +42,10 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   'test-noconvo': { email: 'test-noconvo@kidsmarketplace.test', password: 'TestNoConvo123!' },
   'test-suspended': { email: 'test-suspended@kidsmarketplace.test', password: 'TestSuspended123!' },
   'test-admin': { email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
+  // DEV-TASK-113 (item 4): free genuinely-first-trade persona for F08's remaining
+  // leg — created on demand (zero trade history, NO trial/active sub). Provision
+  // via `npm run qa:r41-first-trade -- create`; reset via `-- reset`.
+  'qa-first-trade': { email: 'qa-first-trade@kidsmarketplace.test', password: 'TestFirstTrade123!' },
   'qa-deleted': { email: 'qa-deleted@kidsmarketplace.test', password: 'TestDeleted123!' },
   'qa-no-profile': { email: 'qa-no-profile@kidsmarketplace.test', password: 'TestNoProfile123!' },
   'qa-linked-provider': {

@@ -26,12 +26,22 @@ separately approval-gated; nothing here was run on staging in this session.
 | `scripts/qa/r41-dispute-fixture.mjs` | MSG H05/H06: `find` / `open` (real open-dispute EF) / `reset` a trade dispute |
 | `scripts/qa/r41-in-progress-trade.mjs` | QA 31-M FG-1 (DEV-TASK-110): `find` / `create` / `reset` a sanctioned in_progress single trade (dispute + changed-value timing legs) |
 | `scripts/qa/r41-reported-review-fixture.mjs` | QA 31-M FG-2 (DEV-TASK-110): `find` / `create` / `reset` a reported review (Q01–Q06 + mobile display leg) |
+| `scripts/qa/r41-first-trade-free.mjs` | DEV-TASK-113 (F08 leg): standing FREE genuinely-first-trade persona `qa-first-trade` — `create` (persona + saved card + tagged item) · `verify-fee` (headless fn_get_buyer_fee_for_checkout) · `drive-offer` (headless real create-trade-offer) · `reset` (BP-70 full persona cleanup) |
 | `scripts/qa/dev-task-r41-l02-failing-renewal.mjs` | SUB-TC-L02: real test-clock 3-failure renewal cycle on a disposable user |
-| `package.json` | `qa:r41-sub`, `qa:r41-moderation`, `qa:r41-dispute`, `qa:r41-l02-failing-renewal`, `qa:r41-in-progress-trade`, `qa:r41-review` |
+| `package.json` | `qa:r41-sub`, `qa:r41-moderation`, `qa:r41-dispute`, `qa:r41-l02-failing-renewal`, `qa:r41-in-progress-trade`, `qa:r41-review`, `qa:r41-first-trade` |
 
 All commands run from `p2p-kids-marketplace/`. All writes are service-role against
 **staging** — dev-team run, one call at a time, with Samer's approval. `--dry-run`
 on every script is read-only.
+
+---
+
+## PART 0 — DEV-TASK-113 (2026-09-05) — genuinely-first-trade FREE persona fixture (F08 remaining leg)
+
+- **Fixture built (Phase 1 code):** `npm run qa:r41-first-trade -- create` provisions a standing free persona `qa-first-trade` (`a1234567-…-000000000014`, `qa-first-trade@kidsmarketplace.test`, `TestFirstTrade123!`, registered in `r41-common.mjs PERSONAS` + `qaPersonas.ts`) with a saved Stripe test card (MASTERCARD •••• 4444, `tok_mastercard`) and NO `trial|active` subscription (signup trigger `status='free'` row only), so `profiles.fee_state` stays `no_completed_trade` / `completed_trade_count` 0 — plus one tagged Accept-SP item on test-seller.
+- **Phase 2 — EXECUTED (owner-approved 2026-09-05, this run):** `create` ✅ (persona `a1234567-0000-0000-0000-000000000014`, card `pm_1UCIuV4I6kCJlvXoSovEnPNm` / customer `cus_VCiLNyxeb4WDix`, item `89a6573a-ae66-488e-9805-6979dc6e5c27` $25 Accept-SP on test-seller) → `verify-fee` ✅ (`profiles.fee_state=no_completed_trade` `completed_trade_count=0`; `fn_get_buyer_fee_for_checkout` → **fee_cents=149** = `buyer_fee_first_trade_cents`). **Persona + item left STAGED for the QA on-device F08 leg (do NOT reset yet).**
+- **Remaining Phase 2 (QA on-device):** make a real offer as `qa-first-trade` (offer fee snapshot 149 + `buyer_fee_state`) → complete the FIRST trade → second offer on the same persona must revert to the normal fee → `reset` (0 residue). `drive-offer` offers a headless real create-trade-offer leg (voids its own auth hold) if wanted.
+- **Registration:** persona registry `/memories/repo/qa-test-accounts.md` updated.
 
 ---
 

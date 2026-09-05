@@ -31,6 +31,10 @@ import { Info, CheckCircle, CircleDashed, Star } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import {
+  getFriendlyCancellationReason,
+  GENERIC_CANCELLATION_COPY,
+} from '@/utils/tradeCancellationCopy';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
 type TradeDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'TradeDetail'>;
@@ -556,9 +560,21 @@ export default function TradeDetailScreen() {
         {trade.status === 'cancelled' && (
           <View style={[styles.infoBox, styles.errorBox]}>
             <Text style={styles.errorText}>This trade was cancelled.</Text>
-            {trade.cancellation_reason && (
-              <Text style={styles.reasonText}>Reason: {trade.cancellation_reason}</Text>
-            )}
+            {trade.cancellation_reason &&
+              (() => {
+                // DEV-TASK-113 (2026-09-05) item 1: friendly, role-appropriate
+                // copy — never the raw cancellation_reason code. No refund
+                // context here (TradeDetail does not fetch refund rows), so the
+                // util stays neutral for dispute-refund states. The generic
+                // fallback is dropped to avoid duplicating the header line.
+                const friendly = getFriendlyCancellationReason(
+                  trade.cancellation_reason,
+                  trade.seller_id === user?.id ? 'seller' : 'buyer'
+                );
+                return friendly && friendly !== GENERIC_CANCELLATION_COPY ? (
+                  <Text style={styles.reasonText}>{friendly}</Text>
+                ) : null;
+              })()}
           </View>
         )}
       </ScrollView>

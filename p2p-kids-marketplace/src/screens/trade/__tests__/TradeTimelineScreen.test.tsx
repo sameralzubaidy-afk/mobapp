@@ -488,4 +488,155 @@ describe('TradeTimelineScreen', () => {
       });
     });
   });
+
+  describe('Cancelled reason copy — DEV-TASK-113 / item 1 (no raw codes)', () => {
+    const cancelledBuyerTrade = (reason: string) => ({
+      ...mockTrade,
+      status: 'cancelled',
+      cancellation_reason: reason,
+    });
+
+    it('buyer + dispute_refund + NO refund rows (uncaptured) -> "no payment was taken" + closing summary, no raw code', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock(cancelledBuyerTrade('dispute_resolved_refund')) as any;
+      // beforeEach default rpc -> empty refund rows (uncaptured case).
+
+      const { getByTestId, queryByText, queryByTestId } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        const banner = getByTestId('status-banner');
+        expect(within(banner).getByText(/no payment was taken/i)).toBeTruthy();
+        // Item 5: buyer closing summary appears only when no O07 refund card exists.
+        expect(getByTestId('timeline-dispute-closed-summary')).toBeTruthy();
+        expect(queryByTestId('timeline-refund-detail')).toBeNull();
+      });
+      expect(queryByText(/dispute_resolved_refund/)).toBeNull();
+    });
+
+    it('buyer + dispute_refund + refund rows (captured) -> "your payment was refunded" + O07 card, no raw code', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock(cancelledBuyerTrade('dispute_resolved_refund')) as any;
+      mockSupabase.rpc = jest.fn().mockResolvedValue({
+        data: {
+          success: true,
+          data: [
+            {
+              id: 'refund-1',
+              refund_amount_cents: 8100,
+              refund_price_cents: 7500,
+              refund_fee_cents: 500,
+              refund_tax_cents: 100,
+              reason: 'dispute_refund',
+              status: 'succeeded',
+              created_at: '2026-08-31T10:00:00.000Z',
+            },
+          ],
+        },
+        error: null,
+      });
+
+      const { getByTestId, queryByText, queryByTestId } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        const banner = getByTestId('status-banner');
+        expect(within(banner).getByText(/your payment was refunded/i)).toBeTruthy();
+        // O07 card covers the captured-refund summary; the closing card is not shown.
+        expect(getByTestId('timeline-refund-detail')).toBeTruthy();
+        expect(queryByTestId('timeline-dispute-closed-summary')).toBeNull();
+      });
+      expect(queryByText(/dispute_resolved_refund/)).toBeNull();
+    });
+
+    it('seller + dispute_refund -> support-team copy, no closing summary, no raw code', async () => {
+      mockUseAuth.mockReturnValue({ session: mockSellerSession } as any);
+      mockSupabase.from = createFromMock(cancelledBuyerTrade('dispute_resolved_refund')) as any;
+
+      const { getByTestId, queryByText, queryByTestId } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        const banner = getByTestId('status-banner');
+        expect(within(banner).getByText(/by our support team/i)).toBeTruthy();
+        expect(queryByTestId('timeline-dispute-closed-summary')).toBeNull();
+      });
+      expect(queryByText(/dispute_resolved_refund/)).toBeNull();
+    });
+
+    it('an unknown reason code never leaks to the UI (generic sub-line is dropped)', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock(cancelledBuyerTrade('future_mystery_code')) as any;
+
+      const { getByTestId, queryByText } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        const banner = getByTestId('status-banner');
+        expect(within(banner).getByText('Cancelled')).toBeTruthy();
+      });
+      // Raw code never renders; the generic "This trade was cancelled." sub-line is
+      // dropped (banner already reads "Cancelled"), so neither appears.
+      expect(queryByText(/future_mystery_code/)).toBeNull();
+      expect(queryByText('This trade was cancelled.')).toBeNull();
+    });
+
+    it('seller_declined maps to friendly role-appropriate copy, no raw code', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock(cancelledBuyerTrade('seller_declined')) as any;
+
+      const { getByTestId, queryByText } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        const banner = getByTestId('status-banner');
+        expect(within(banner).getByText(/the seller declined this offer/i)).toBeTruthy();
+      });
+      expect(queryByText(/seller_declined/)).toBeNull();
+    });
+  });
+
+  describe('Seller fee display — DEV-TASK-113 / item 3 (stored value, not live config)', () => {
+    it('reads seller_payouts.platform_fee_cents when the trade fee is missing (no live-config re-derivation)', async () => {
+      mockUseAuth.mockReturnValue({ session: mockSellerSession } as any);
+      // No stored trade fee -> legacy/synthetic case that used to re-derive from config.
+      const sellerTrade = { ...mockTrade, status: 'in_progress', seller_transaction_fee_cents: 0 };
+      const baseFrom = createFromMock(sellerTrade);
+      mockSupabase.from = jest.fn((table: string) => {
+        if (table === 'seller_payouts') {
+          return {
+            select: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                limit: jest.fn().mockReturnValue({
+                  maybeSingle: jest.fn().mockResolvedValue({
+                    data: { platform_fee_cents: 750 },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return (baseFrom as any)(table);
+      }) as any;
+
+      const { getByText } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        // Payout row stored 750 cents -> display -$7.50 (NOT a config-derived % of $75).
+        expect(getByText(/-\$7\.50/)).toBeTruthy();
+      });
+    });
+
+    it('keeps a stored trade fee when present (never overwrites with payout or config)', async () => {
+      mockUseAuth.mockReturnValue({ session: mockSellerSession } as any);
+      const sellerTrade = {
+        ...mockTrade,
+        status: 'in_progress',
+        seller_transaction_fee_cents: 1500,
+      };
+      mockSupabase.from = createFromMock(sellerTrade) as any;
+
+      const { getByText } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        expect(getByText(/-\$15\.00/)).toBeTruthy();
+      });
+    });
+  });
 });

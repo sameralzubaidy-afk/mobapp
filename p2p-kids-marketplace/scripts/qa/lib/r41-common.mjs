@@ -42,6 +42,7 @@ export const PERSONAS = {
   'test-grace': { id: 'a1234567-0000-0000-0000-000000000011', email: 'test-grace@kidsmarketplace.test', password: 'TestGrace123!' },
   'test-expired': { id: 'a1234567-0000-0000-0000-000000000013', email: 'test-expired@kidsmarketplace.test', password: 'TestExpired123!' },
   'test-suspended': { id: 'a1234567-0000-0000-0000-00000000000f', email: 'test-suspended@kidsmarketplace.test', password: 'TestSuspended123!' },
+  'qa-first-trade': { id: 'a1234567-0000-0000-0000-000000000014', email: 'qa-first-trade@kidsmarketplace.test', password: 'TestFirstTrade123!' },
   'test-admin': { id: 'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
 };
 

@@ -53,8 +53,8 @@ export default function AutoCompleteBanner({
   const title = model.expired
     ? 'Trade is ready for auto-completion'
     : isSeller
-      ? `Auto-completes in ${formatCountdownLabel(model)} — payout releases then`
-      : `Confirm pickup — auto-completes in ${formatCountdownLabel(model)}`;
+      ? `Auto-completes in ${formatCountdownLabel(model, { omitSuffix: true })} — payout releases then`
+      : `Confirm pickup — auto-completes in ${formatCountdownLabel(model, { omitSuffix: true })}`;
 
   const subtitle = model.expired
     ? 'Complete the trade now or contact support if there is an issue.'

@@ -37,4 +37,15 @@ describe('trade countdown helpers', () => {
     expect(model.percentLeft).toBe(0);
     expect(formatCountdownLabel(model)).toBe('Expired');
   });
+
+  it('omitSuffix drops the trailing " left" (DEV-TASK-113 item 7)', () => {
+    const model = createCountdownModel(
+      '2026-01-01T12:00:00.000Z',
+      '2026-01-01T08:00:00.000Z',
+      now
+    );
+
+    expect(formatCountdownLabel(model)).toBe('2h left');
+    expect(formatCountdownLabel(model, { omitSuffix: true })).toBe('2h');
+  });
 });
