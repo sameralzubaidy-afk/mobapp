@@ -891,6 +891,24 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
 }
 
 /**
+ * DEV-TASK-127 (QA Task 39 F-1): clear the in-memory payment-method cache.
+ *
+ * Mirrors the DT-81 attach-side fix on the DESTRUCTIVE path: after a successful
+ * `detach-payment-method` (or any remove/delete of the saved card) the caller
+ * must invalidate the module-level `_pmCache`/`_pmPromise` — otherwise the next
+ * same-session `getPaymentMethod()` (Payment Methods remount, Manage Kids Club+
+ * PaymentMethodSection, CartCheckout, TradeOffer) returns the removed card until
+ * the app relaunches (fresh module state).
+ *
+ * Call this right after the backend confirms removal; the next read will
+ * re-fetch from the Edge Function and see the true empty state.
+ */
+export function invalidatePaymentMethodCache(): void {
+  _pmCache = undefined;
+  _pmPromise = null;
+}
+
+/**
  * MODULE-11 TASK SUB-017: Update Auto-Renew Setting
  *
  * Toggles auto-renewal for active subscriptions.

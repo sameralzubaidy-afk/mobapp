@@ -63,9 +63,12 @@ const PASSWORD = 'TestTrial123!';
 const FIXED_ID = 'a1234567-0000-0000-0000-000000000015';
 const NAME = 'Test Trial User';
 
-// Canonical trial length (days) used to backdate trial_started_at so the row
+// Canonical trial length (days) used to backdate trial_start_date so the row
 // reads as a mid-trial membership; the rendered branch only depends on
 // trial_end_date. Matches admin_config trial_days baseline (30).
+// DEV-TASK-127 (QA Task 39 F-2): the `subscriptions` column is `trial_start_date`
+// (staging-verified) — NOT `trial_started_at` (that name only exists in old
+// SUB-002-era docs; using it fails the upsert with a schema-cache error).
 const TRIAL_LENGTH_DAYS = 30;
 
 function usage() {
@@ -212,7 +215,7 @@ async function ensurePersona(daysRemaining) {
     {
       user_id: userId,
       status: 'trial',
-      trial_started_at: trialStartIso,
+      trial_start_date: trialStartIso,
       trial_end_date: trialEndIso,
       current_period_start: trialStartIso,
       current_period_end: trialEndIso,
@@ -255,7 +258,7 @@ async function printStatus(userId) {
   }
   const { data: subRow } = await admin
     .from('subscriptions')
-    .select('status, trial_started_at, trial_end_date, current_period_end, auto_renew_enabled')
+    .select('status, trial_start_date, trial_end_date, current_period_end, auto_renew_enabled')
     .eq('user_id', userId)
     .maybeSingle();
   console.log(`\ntest-trial persona (${EMAIL} / ${PASSWORD}) — auth user id ${userId}`);
@@ -269,7 +272,7 @@ async function printStatus(userId) {
     days = Math.ceil((new Date(subRow.trial_end_date).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
     branch = branchLabel(days);
   }
-  console.log(`  subscription.status=${subRow.status} trial_started_at=${subRow.trial_started_at ?? '—'} trial_end_date=${subRow.trial_end_date ?? '—'}`);
+  console.log(`  subscription.status=${subRow.status} trial_start_date=${subRow.trial_start_date ?? '—'} trial_end_date=${subRow.trial_end_date ?? '—'}`);
   console.log(`  days_remaining=${days} → ContinueKidsClub renders: ${branch}`);
   console.log('  Mobile:');
   console.log('    xcrun simctl openurl booted "p2pkidsmarketplace://qa-login-as?persona=test-trial"');

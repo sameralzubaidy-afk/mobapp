@@ -381,7 +381,9 @@ export default function ManageKidsClubScreen() {
                       ? 'Cancelled'
                       : subscription.status === 'grace_period'
                         ? 'Grace Period'
-                        : subscription.status}
+                        : subscription.status === 'expired'
+                          ? 'Expired'
+                          : subscription.status}
               </Text>
             </View>
           </View>
@@ -520,7 +522,15 @@ export default function ManageKidsClubScreen() {
               <Text style={styles.primaryButtonText}>Re-subscribe to Kids Club+</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            style={[styles.backButton, styles.footerBackButton]}
+            onPress={() => navigation.goBack()}
+            testID="grace-footer-back-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Go Back"
+            hitSlop={{ top: 8, bottom: 8, left: 24, right: 24 }}
+          >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -717,10 +727,13 @@ const styles = StyleSheet.create({
   badge_grace_period: {
     backgroundColor: '#E85D75',
   },
-  // DT-119 (item 1): neutral/inactive statuses — canonical neutral fill (#6B6B6B)
-  // keeps the white statusBadgeText legible (matches the sibling filled pills).
+  // DEV-TASK-127 (QA Task 39 F-3): 'expired' is a lost-access problem state on
+  // the same screen family as grace — treat it consistently with the grace
+  // branch's semantic error pill (#E85D75), not the neutral-gray fill it got in
+  // the DT-119 sweep. Revert to a neutral fill if a terminal/inactive reading is
+  // preferred (one-line change here).
   badge_expired: {
-    backgroundColor: '#6B6B6B',
+    backgroundColor: '#E85D75',
   },
   statusBadgeText: {
     fontSize: 14,
@@ -840,6 +853,17 @@ const styles = StyleSheet.create({
   backButton: {
     marginTop: 24,
     alignItems: 'center',
+  },
+  // DEV-TASK-127 (QA Task 39 UX): grace/expired footer Go Back gets the standard
+  // ≥44pt touch target (the shared backButton has no minHeight, so its hit area
+  // was just the text line) + hitSlop set on the TouchableOpacity for reliable
+  // taps on all device sizes.
+  footerBackButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    marginTop: 12,
+    paddingHorizontal: 8,
   },
   backButtonText: {
     fontSize: 16,

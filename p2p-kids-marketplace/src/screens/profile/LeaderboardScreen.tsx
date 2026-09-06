@@ -130,7 +130,7 @@ const LeaderboardScreen = ({ navigation: _navigation }: any) => {
           keyExtractor={(item, index) => `${item.user_id}-${index}`}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A7C59" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
           }
         />
       )}
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#808080',
+    color: '#6B6B6B',
   },
   header: {
     flexDirection: 'row',
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   backButtonText: {
-    color: '#4A7C59',
+    color: '#5DBB8E',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: '#4A7C59',
+    color: '#5DBB8E',
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     padding: 8,
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E',
     borderRadius: 8,
     alignSelf: 'flex-start',
     paddingHorizontal: 16,
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#808080',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E',
     borderRadius: 12,
   },
   refreshButtonText: {
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   rankText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#808080',
+    color: '#6B6B6B',
   },
   topThreeRank: {
     fontSize: 18,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   },
   badgeCount: {
     fontSize: 14,
-    color: '#4A7C59',
+    color: '#5DBB8E',
     fontWeight: '500',
   },
 });

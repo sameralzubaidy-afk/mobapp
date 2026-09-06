@@ -22,6 +22,7 @@ import {
   getTransactionFee,
   getSubscriptionDetails,
   getPaymentMethod,
+  invalidatePaymentMethodCache,
 } from '../subscription';
 import { getSimulatedPaymentCardPreference } from '../devTestingService';
 
@@ -584,6 +585,63 @@ describe('Subscription Service - TASK SUB-002', () => {
       // forceRefresh=true MUST bypass the cache and return the newly-added card.
       const fresh = await getPaymentMethod(true);
       expect(fresh?.id).toBe('pm_new');
+    });
+  });
+
+  describe('invalidatePaymentMethodCache — destructive-path cache clear (DEV-TASK-127 / QA Task 39 F-1)', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // QA forced-card toggle disarmed — production path.
+      mockGetPaymentCardPreference.mockResolvedValue(null);
+      mockGetSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'test-token',
+            // Far-future expiry so the refresh branch is never hit in these tests.
+            expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+          },
+        },
+        error: null,
+      });
+    });
+
+    it('forces the next read to re-fetch after a remove (no stale removed card in cache)', async () => {
+      // Seed the shared in-memory cache with the SAVED card via a forced read.
+      mockInvoke.mockResolvedValueOnce({
+        data: {
+          payment_method: {
+            id: 'pm_old',
+            brand: 'visa',
+            last4: '4242',
+            exp_month: 12,
+            exp_year: 2030,
+          },
+        },
+        error: null,
+      });
+      const seeded = await getPaymentMethod(true);
+      expect(seeded?.id).toBe('pm_old');
+
+      // A non-forced read returns the cached card (no network call) — this is the
+      // stale state QA hit on a same-session remount after remove.
+      const stale = await getPaymentMethod();
+      expect(stale?.id).toBe('pm_old');
+      expect(mockInvoke).toHaveBeenCalledTimes(1);
+
+      // Successful detach → the screen calls invalidatePaymentMethodCache().
+      invalidatePaymentMethodCache();
+
+      // The server now reports NO saved card (detach-payment-method cleared it).
+      mockInvoke.mockResolvedValueOnce({
+        data: { payment_method: null },
+        error: null,
+      });
+
+      // The next non-forced read MUST re-fetch (cache was cleared) and see the
+      // true empty state instead of the removed card.
+      const after = await getPaymentMethod();
+      expect(after).toBeNull();
+      expect(mockInvoke).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -184,6 +184,10 @@ export default function ContinueKidsClubScreen() {
   const showDefaultTrialBadge = !isTrialSubscription;
 
   const priceFormatted = formatDollarAmount(monthlyPrice);
+  // DEV-TASK-127 (item 7): the dated "Trial ends …" line under the CTA uses the
+  // real trial_end_date already returned by getTrialStatus (TrialStatus.trial_ends_at),
+  // so trial users always see WHEN the trial ends — not just the ≤7d urgency badge.
+  const trialEndDate = isTrialSubscription ? formatTrialEndDate(trialStatus?.trial_ends_at) : '';
 
   return (
     <ScrollView style={styles.container} testID="kids-club-overview-screen">
@@ -253,6 +257,16 @@ export default function ContinueKidsClubScreen() {
           )}
         </TouchableOpacity>
 
+        {/* DEV-TASK-127 (item 7): persistent, non-transient trial end date under
+            the CTA for trial users — always visible (not only the brief ≤7d
+            urgency badge at the top) so parents always see when the free trial
+            ends, reducing surprise renewals. Semantic secondary text. */}
+        {isTrialSubscription && trialEndDate !== '' && (
+          <Text style={styles.trialEndLine} testID="trial-end-line">
+            Trial ends {trialEndDate}
+          </Text>
+        )}
+
         {/* Secondary Actions */}
         <TouchableOpacity
           style={styles.textButton}
@@ -276,6 +290,26 @@ export default function ContinueKidsClubScreen() {
 interface BenefitItemProps {
   icon: string;
   text: string;
+}
+
+/**
+ * DEV-TASK-127 (item 7): format the subscription's trial_end_date for the
+ * persistent "Trial ends …" line (en-US long date, e.g. "September 11, 2026").
+ * Returns '' when absent/unparseable so the caller can hide the line.
+ */
+function formatTrialEndDate(dateString: string | null | undefined): string {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
 }
 
 function BenefitItem({ icon, text }: BenefitItemProps) {
@@ -427,6 +461,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // DEV-TASK-127 (item 7): persistent trial end-date line (semantic secondary
+  // text) — non-transient, unlike the ≤7d urgency badge; sits under the CTA.
+  trialEndLine: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.textColors.secondary,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 12,
   },
   secondaryButton: {
     backgroundColor: '#FFFFFF',

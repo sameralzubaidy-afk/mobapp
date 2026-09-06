@@ -26,7 +26,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { CreditCard, CheckCircle, Lock } from 'phosphor-react-native';
-import { getPaymentMethod, PaymentMethodInfo } from '@/services/subscription';
+import { getPaymentMethod, invalidatePaymentMethodCache, PaymentMethodInfo } from '@/services/subscription';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { supabase } from '@/config/supabase';
 import { retryFailedPayment } from '@/services/paymentRetry';
@@ -231,6 +231,12 @@ export default function PaymentMethodsScreen() {
                 return;
               }
 
+              // DEV-TASK-127 (QA Task 39 F-1): the backend confirmed the card is
+              // detached — invalidate the shared in-memory PM cache so a same-session
+              // remount (Payment Methods or any getPaymentMethod() consumer) shows the
+              // true empty state instead of the removed card until app relaunch.
+              // Mirrors the DT-81 attach-side cache-bypass on the destructive path.
+              invalidatePaymentMethodCache();
               setPaymentMethod(null);
               Alert.alert('Removed', 'Your payment method has been removed.');
             } catch (error) {
