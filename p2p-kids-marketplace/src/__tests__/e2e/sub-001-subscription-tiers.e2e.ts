@@ -45,14 +45,15 @@ describe('E2E: SUB-001 Subscription Tiers', () => {
       expect(tiers?.is_default).toBe(true);
     }, 10000);
 
-    it('should have price set to $4.99 (499 cents)', async () => {
+    it('should have price set to $5.99 (599 cents)', async () => {
       const { data: tier } = await supabase
         .from('subscription_tiers')
         .select('price_cents')
         .eq('name', SubscriptionTierName.KIDS_CLUB_PLUS)
         .single();
 
-      expect(tier?.price_cents).toBe(499);
+      // 2026-09-02 authority (migration 20260902120000): Kids Club+ = $5.99 / 599¢.
+      expect(tier?.price_cents).toBe(599);
     }, 10000);
 
     it('should have 30-day trial period', async () => {
@@ -177,12 +178,23 @@ describe('E2E: SUB-001 Subscription Tiers', () => {
    */
   describe('RLS Policy Validation', () => {
     it('should allow public read access to active tiers', async () => {
-      const { data, error } = await getActiveSubscriptionTiers();
+      // Retry on transient DB load: the shared staging DB occasionally aborts
+      // this read with a statement-timeout under full-suite load (passes in
+      // isolation; observed in `npm run test:all`).
+      let data: Awaited<ReturnType<typeof getActiveSubscriptionTiers>>['data'];
+      let error: Awaited<ReturnType<typeof getActiveSubscriptionTiers>>['error'];
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const res = await getActiveSubscriptionTiers();
+        data = res.data;
+        error = res.error;
+        if (!error) break;
+        await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+      }
 
       expect(error).toBeNull();
       expect(data).toBeDefined();
-      expect(data.length).toBeGreaterThan(0);
-    }, 10000);
+      expect(data!.length).toBeGreaterThan(0);
+    }, 30000);
 
     it('should fetch Kids Club+ via service layer', async () => {
       const { data, error } = await getKidsClubPlusTier();

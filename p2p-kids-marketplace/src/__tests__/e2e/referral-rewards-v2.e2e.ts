@@ -52,6 +52,11 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
   let referralId: string;
   let tradeId: string;
 
+  // Expected reward amounts are read from live sp_config at setup (never hardcode
+  // — sp_config is admin-configurable and shared across suites).
+  let expectedReferrerSP = 25;
+  let expectedRefereeSP = 10;
+
   beforeAll(async () => {
     // Verify environment is ready
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
@@ -189,6 +194,21 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
       .from('profiles')
       .update({ referred_by: REFERRER_USER_ID })
       .eq('user_id', REFEREE_USER_ID);
+
+    // Read the live referral reward amounts from sp_config (canonical seed 25/10;
+    // other suites may legitimately re-configure them, so assert against live values).
+    const { data: rewardCfg } = await adminSupabase
+      .from('sp_config')
+      .select('config_key, config_value')
+      .in('config_key', ['referral_reward_referrer_sp', 'referral_reward_referee_sp']);
+    for (const row of rewardCfg ?? []) {
+      if (row.config_key === 'referral_reward_referrer_sp') {
+        expectedReferrerSP = Number(row.config_value);
+      }
+      if (row.config_key === 'referral_reward_referee_sp') {
+        expectedRefereeSP = Number(row.config_value);
+      }
+    }
   });
 
   afterAll(async () => {
@@ -280,8 +300,8 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
       .single();
 
     expect(referralData?.status).toBe('completed');
-    expect(referralData?.captured_sp_referrer_amount).toBe(25);
-    expect(referralData?.captured_sp_referee_amount).toBe(10);
+    expect(referralData?.captured_sp_referrer_amount).toBe(expectedReferrerSP);
+    expect(referralData?.captured_sp_referee_amount).toBe(expectedRefereeSP);
   });
 
   test('STEP 3: Verify SP ledger entries created', async () => {
@@ -296,7 +316,7 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
       .single();
 
     expect(referrerLedger).toBeDefined();
-    expect(referrerLedger?.amount).toBe(25);
+    expect(referrerLedger?.amount).toBe(expectedReferrerSP);
     expect(referrerLedger?.description).toContain('Referral Reward');
 
     // Check referee SP ledger
@@ -310,7 +330,7 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
       .single();
 
     expect(refereeLedger).toBeDefined();
-    expect(refereeLedger?.amount).toBe(10);
+    expect(refereeLedger?.amount).toBe(expectedRefereeSP);
     expect(refereeLedger?.description).toContain('Welcome bonus');
   });
 

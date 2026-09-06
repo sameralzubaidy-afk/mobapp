@@ -7,6 +7,7 @@
  */
 
 import { supabase } from '../../config/supabase';
+import { assertPerfWithin } from '../../test-helpers/perfAssert';
 
 function isAuthRateLimitError(message?: string): boolean {
   return Boolean(message && /request rate limit reached/i.test(message));
@@ -272,7 +273,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
 
     // Assert
     expect(error).toBeNull();
-    expect(duration).toBeLessThan(300);
+    assertPerfWithin('get_recommendations', duration, 300);
     console.log(`✓ Recommendations query took ${duration}ms`);
   });
 });

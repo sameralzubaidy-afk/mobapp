@@ -1,0 +1,41 @@
+
+> p2p-kids-marketplace@1.0.0 test:all
+> RUN_SUPABASE_E2E=true jest --runInBand
+
+watchman warning:  Recrawled this watch 13 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/sameralzubaidi/Desktop/kids_marketplace_app' ; watchman watch-project '/Users/sameralzubaidi/Desktop/kids_marketplace_app'`
+
+PASS src/__tests__/e2e/subscription-sub-003.e2e.ts (7.402 s)
+PASS e2e/sp-notifications.integration.test.ts (35.261 s)
+PASS __tests__/integration/discovery-v3-002-search-rpc.integration.test.ts
+PASS src/__tests__/e2e/referral-listing-bonus.e2e.ts (17.426 s)
+PASS e2e/notification-analytics.e2e.test.ts
+PASS src/__tests__/badges/subscription-badges.test.ts
+PASS src/__tests__/e2e/badges-v2-004-leaderboard.e2e.ts
+PASS src/__tests__/e2e/badgeRealtimeIntegration.e2e.ts (6.052 s)
+PASS src/services/__tests__/profileService.integration.test.ts
+PASS src/__tests__/e2e/referral-rewards-v2.e2e.ts (16.802 s)
+PASS src/__tests__/e2e/subscription-sub-002.e2e.ts (5.89 s)
+PASS src/__tests__/e2e/pay-001-schema.test.ts
+PASS src/__tests__/e2e/ref-v2-007-admin-config.e2e.ts
+PASS src/services/__tests__/auth.integration.test.ts (8.006 s)
+PASS src/__tests__/e2e/sub-009-grace-period.e2e.ts
+PASS src/__tests__/e2e/payout-router-integration.test.ts (16.387 s)
+PASS src/__tests__/services/subscription-sub-003.unit.test.ts (30.298 s)
+PASS e2e/subscription-payment-flow.integration.test.ts (5.279 s)
+PASS e2e/notificationPreferences.e2e.test.ts
+PASS src/__tests__/integration/admin-force-cancel.integration.test.ts (6.554 s)
+PASS __tests__/integration/auth-flow-01.integration.test.ts (9.624 s)
+PASS e2e/subscriptionNotifications.integration.test.ts (5.747 s)
+PASS src/__tests__/e2e/subscription-sub-006.e2e.ts (5.33 s)
+PASS src/screens/home/__tests__/DiscoverScreen.test.tsx
+PASS src/__tests__/e2e/trade-tfv2-001-022.e2e.ts (18.112 s)
+PASS src/__tests__/e2e/discovery-v2-002-recommendations.e2e.ts
+PASS src/__tests__/integration/accountService.integration.test.ts
+PASS src/__tests__/integration/listing-v3-007-draft-resume.integration.test.ts (6.18 s)
+PASS src/__tests__/integration/safety-009-seller-appeal.e2e.test.ts
+PASS src/__tests__/e2e/idBadgeUpload.e2e.test.ts (8.157 s)
+PASS e2e/module-15.1-flow-10-11-sp-wallet.integration.test.ts

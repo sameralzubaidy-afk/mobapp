@@ -23,6 +23,10 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
   let referrerUserId: string;
   let refereeUserId: string;
   let referralId: string;
+  // Snapshot of sp_config before the test mutated it, so afterAll can always
+  // restore it — even when an assertion aborts mid-test (prevents cross-suite
+  // pollution of the shared referral reward amounts).
+  let savedConfigBefore: Array<{ config_key: string; config_value: string }> = [];
 
   beforeAll(async () => {
     if (!CAN_RUN_E2E) {
@@ -36,6 +40,15 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
   afterAll(async () => {
     if (!CAN_RUN_E2E) {
       return;
+    }
+
+    // Always restore sp_config to the pre-test values (idempotent), so this suite
+    // can never leave shared staging config polluted after a mid-test abort.
+    for (const item of savedConfigBefore) {
+      await adminSupabase
+        .from('sp_config')
+        .update({ config_value: item.config_value })
+        .eq('config_key', item.config_key);
     }
 
     await cleanup();
@@ -72,6 +85,8 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
     expect(configError).toBeNull();
     expect(configBefore).toBeDefined();
     expect(configBefore?.length).toBeGreaterThan(0);
+
+    savedConfigBefore = (configBefore ?? []) as Array<{ config_key: string; config_value: string }>;
 
     console.log('[E2E] Current config:', configBefore);
 
@@ -120,6 +135,17 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
 
     console.log(`[E2E] Created referrer: ${referrerUserId}, referee: ${refereeUserId}`);
 
+    // Provision active subscriptions + wallets for both users. award_referral_sp
+    // (DEV-TASK-66) only awards when is_earning_subscriber() is true and a wallet
+    // exists — fresh admin-created users start 'free' with no wallet, which would
+    // make the reward step write nothing.
+    for (const uid of [referrerUserId, refereeUserId]) {
+      await adminSupabase.rpc('initialize_sp_wallet', { p_user_id: uid });
+      await adminSupabase
+        .from('subscriptions')
+        .upsert({ user_id: uid, status: 'active' }, { onConflict: 'user_id' });
+    }
+
     // Step 4: Create referral code for referrer
     const { data: refCode, error: codeError } = await supabase.rpc('create_referral_code', {
       p_user_id: referrerUserId,
@@ -131,11 +157,16 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
 
     console.log(`[E2E] Referral code created: ${refCode.code}`);
 
-    // Step 5: Apply referral code for referee
-    const { data: applyResult, error: applyError } = await supabase.rpc('apply_referral_code', {
-      p_user_id: refereeUserId,
-      p_code: refCode.code,
-    });
+    // Step 5: Apply referral code for referee.
+    // apply_referral_code is granted to authenticated + service_role only
+    // (DT-59), so call via the service-role client.
+    const { data: applyResult, error: applyError } = await adminSupabase.rpc(
+      'apply_referral_code',
+      {
+        p_user_id: refereeUserId,
+        p_code: refCode.code,
+      }
+    );
 
     expect(applyError).toBeNull();
     expect(applyResult).toBeDefined();
@@ -160,7 +191,7 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
     console.log('[E2E] Referral code applied successfully');
 
     // Step 6: Get referral ID
-    const { data: referralData, error: refFetchError } = await supabase
+    const { data: referralData, error: refFetchError } = await adminSupabase
       .from('referrals')
       .select('id')
       .eq('referrer_user_id', referrerUserId)
@@ -177,7 +208,7 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
     // Step 7: Create and complete a trade (simulate referee's first trade)
     // Note: This requires a full trade flow implementation
     // For now, we'll directly call the reward function (admin action)
-    let { data: rewardResult, error: rewardError } = await supabase.rpc('award_referral_sp', {
+    let { data: rewardResult, error: rewardError } = await adminSupabase.rpc('award_referral_sp', {
       p_referrer_id: referrerUserId,
       p_referee_id: refereeUserId,
       p_referral_id: referralId,
@@ -195,7 +226,7 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
 
       if (anyItem?.id) {
         usedFallbackRpc = true;
-        const fallback = await supabase.rpc('award_listing_referral_sp', {
+        const fallback = await adminSupabase.rpc('award_listing_referral_sp', {
           p_item_id: anyItem.id,
           p_referrer_id: referrerUserId,
           p_referee_id: refereeUserId,

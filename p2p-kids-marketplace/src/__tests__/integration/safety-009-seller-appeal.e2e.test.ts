@@ -72,9 +72,12 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
     });
     if (signInError) throw signInError;
 
+    // age 13+ to bypass COPPA check; phone_verified_at stamps the profile so the
+    // AUTH-V3-008 items INSERT gate (trg_items_enforce_phone_verified) lets this
+    // fixture listing be created by the authenticated seller below.
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({ dob: '2000-01-01' }) // age 13+ to bypass COPPA check
+      .update({ dob: '2000-01-01', phone_verified_at: new Date().toISOString() })
       .eq('user_id', sellerId);
     if (profileError) throw profileError;
 

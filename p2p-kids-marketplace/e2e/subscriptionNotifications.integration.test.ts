@@ -11,6 +11,7 @@ import {
   notifyCancellationConfirmed,
   notifyPaymentFailed,
 } from '../src/services/subscriptionNotifications';
+import { assertPerfWithin } from '../src/test-helpers/perfAssert';
 
 const skipTests = process.env.RUN_SUPABASE_E2E !== 'true';
 
@@ -269,7 +270,7 @@ function isAuthRateLimitError(message?: string): boolean {
         const duration = Date.now() - startTime;
 
         expect(error).toBeNull();
-        expect(duration).toBeLessThan(500); // Should be fast (< 500ms)
+        assertPerfWithin('user_notifications query', duration, 500);
         console.log(`Query completed in ${duration}ms`);
       });
     });

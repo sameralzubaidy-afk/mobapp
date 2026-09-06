@@ -59,9 +59,12 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
     });
     if (signInError) throw signInError;
 
+    // Also stamp phone_verified_at so item inserts pass the AUTH-V3-008 phone
+    // verification gate (trg_items_enforce_phone_verified) — the gate reads
+    // profiles.phone_verified_at and blocks unverified sellers on INSERT.
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({ dob: '2000-01-01' })
+      .update({ dob: '2000-01-01', phone_verified_at: new Date().toISOString() })
       .eq('user_id', testSellerId);
     if (profileError) {
       console.warn('⚠️ Could not set DOB for test seller:', profileError.message);

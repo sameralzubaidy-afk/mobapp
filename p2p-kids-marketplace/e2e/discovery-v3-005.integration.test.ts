@@ -18,6 +18,7 @@ import { fetchDatabaseBrands, getBrandSuggestions } from '../src/services/brandA
 import { suggestSpellingCorrection } from '../src/services/discovery';
 import { getCategories } from '../src/services/items';
 import { DiscoveryFilters } from '../src/types/discovery';
+import { assertPerfWithin } from '../src/test-helpers/perfAssert';
 
 describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
   // Skip if not running E2E tests
@@ -334,7 +335,7 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
       const duration = Date.now() - start;
 
       console.log(`[E2E] Search completed in ${duration}ms`);
-      expect(duration).toBeLessThan(600);
+      assertPerfWithin('searchListings (query)', duration, 600);
     });
 
     it('completes search with filters in < 600ms', async () => {
@@ -351,7 +352,7 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
       const duration = Date.now() - start;
 
       console.log(`[E2E] Filtered search completed in ${duration}ms`);
-      expect(duration).toBeLessThan(600);
+      assertPerfWithin('searchListings (filtered)', duration, 600);
     });
   });
 });

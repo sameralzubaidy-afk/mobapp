@@ -9,9 +9,44 @@
  */
 import { supabase } from '@/config/supabase';
 import { TAX_FIXTURES, expectedTaxCents } from '@/test-data/tax-fixtures';
+import { createConfirmedTestUser, deleteTestUser } from '@/test-helpers/authTestUtils';
 
 const RUN = process.env.RUN_SUPABASE_E2E === 'true';
 const describeE2E = RUN ? describe : describe.skip;
+
+// get_tax_summary_for_period / get_tax_export_data are granted to
+// authenticated + service_role only (DT-71), and get_tax_export_data also has an
+// internal rbac-admin gate. These report RPCs must therefore be called from a
+// real signed-in (authenticated) session, never the anonymous client. Create a
+// throwaway confirmed user and sign it in on first use.
+let taxE2eUserId: string | null = null;
+let taxSignedIn = false;
+
+async function ensureTaxAuthUser(): Promise<void> {
+  if (taxSignedIn) return;
+  const email = `tax-e2e-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
+  const password = 'TestPassword123!';
+  const created = await createConfirmedTestUser({ email, password });
+  if (!created?.userId) {
+    throw new Error('Failed to create confirmed user for TAX-014 E2E');
+  }
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    throw new Error(`TAX-014 E2E sign-in failed: ${error.message}`);
+  }
+  taxE2eUserId = created.userId;
+  taxSignedIn = true;
+}
+
+// Clean up the throwaway authenticated user created for the report RPCs.
+// No-op when RUN_SUPABASE_E2E is unset (taxE2eUserId stays null).
+afterAll(async () => {
+  if (taxE2eUserId) {
+    await deleteTestUser(taxE2eUserId);
+    taxE2eUserId = null;
+    taxSignedIn = false;
+  }
+});
 
 describeE2E('TAX-014 end-to-end (read-only) [PROD]', () => {
   it('calculate_tax returns 0 when global tax disabled (with NULL node)', async () => {
@@ -54,6 +89,7 @@ describeE2E('TAX-014 end-to-end (read-only) [PROD]', () => {
   });
 
   it('get_tax_summary_for_period returns aggregated structure', async () => {
+    await ensureTaxAuthUser();
     const today = new Date().toISOString().slice(0, 10);
     const { data, error } = await supabase.rpc('get_tax_summary_for_period', {
       p_start_date: today,
@@ -95,7 +131,6 @@ describeMutating('TAX-014 mutating E2E (idempotency, refund) [PROD]', () => {
   });
 });
 
-// ── Scenario 7: Multiple partial refunds accumulate correctly ──────────────────
 const describeMutating2 = RUN && tradeId ? describe : describe.skip;
 
 describeMutating2('TAX-014 Scenario 7 — multiple partial refunds [PROD]', () => {
@@ -174,6 +209,7 @@ describeE2E('TAX-014 Scenario 8 — tax rate from node is used (not hardcoded)',
 // ── Scenario 9: CSV export — get_tax_export_data returns correct shape ─────────
 describeE2E('TAX-014 Scenario 9 — get_tax_export_data export shape', () => {
   it('get_tax_export_data returns rows with required columns', async () => {
+    await ensureTaxAuthUser();
     const today = new Date().toISOString();
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase.rpc('get_tax_export_data', {

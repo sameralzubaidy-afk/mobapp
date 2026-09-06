@@ -1,0 +1,410 @@
+
+> p2p-kids-marketplace@1.0.0 test:all
+> RUN_SUPABASE_E2E=true jest --runInBand
+
+watchman warning:  Recrawled this watch 13 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/sameralzubaidi/Desktop/kids_marketplace_app' ; watchman watch-project '/Users/sameralzubaidi/Desktop/kids_marketplace_app'`
+
+PASS e2e/sp-notifications.integration.test.ts (27.904 s)
+PASS src/__tests__/e2e/referral-listing-bonus.e2e.ts (24.906 s)
+PASS src/services/__tests__/auth.integration.test.ts (7.66 s)
+PASS src/__tests__/services/subscription-sub-003.unit.test.ts (5.957 s)
+PASS __tests__/integration/auth-flow-01.integration.test.ts (5.301 s)
+PASS src/__tests__/e2e/referral-rewards-v2.e2e.ts (9.615 s)
+PASS src/__tests__/integration/admin-force-cancel.integration.test.ts (5.496 s)
+PASS src/__tests__/integration/accountService.integration.test.ts
+PASS src/__tests__/e2e/discovery-v2-002-recommendations.e2e.ts
+PASS e2e/discovery-v3-003.integration.test.ts
+PASS e2e/notification-analytics.e2e.test.ts (23.076 s)
+PASS src/__tests__/e2e/badgeRealtimeIntegration.e2e.ts (13.84 s)
+FAIL src/__tests__/e2e/subscription-sub-003.e2e.ts (54.494 s)
+  ● MODULE-11 SUB-003 E2E: Start 30-Day Free Trial › Trial Enrollment Flow (UI Service Layer) › should enroll user in trial via enrollInTrialSubscription service
+
+    thrown: "Exceeded timeout of 15000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      152 |
+      153 |   describe('Trial Enrollment Flow (UI Service Layer)', () => {
+    > 154 |     it('should enroll user in trial via enrollInTrialSubscription service', async () => {
+          |     ^
+      155 |       if (shouldSkipCase()) return;
+      156 |
+      157 |       const isolatedUserId = await createIsolatedUserWithFreeSubscription();
+
+      at it (src/__tests__/e2e/subscription-sub-003.e2e.ts:154:5)
+      at describe (src/__tests__/e2e/subscription-sub-003.e2e.ts:153:3)
+      at Object.describe (src/__tests__/e2e/subscription-sub-003.e2e.ts:14:1)
+
+PASS src/__tests__/e2e/cpsc-recall-matching.e2e.test.ts
+PASS src/__tests__/e2e/idBadgeUpload.e2e.test.ts
+PASS e2e/subscriptionNotifications.integration.test.ts (5.298 s)
+PASS src/__tests__/tax-e2e.test.ts
+PASS e2e/subscription-payment-flow.integration.test.ts (5.782 s)
+PASS src/__tests__/e2e/trade-tfv2-023-bundle.e2e.ts
+PASS src/screens/home/__tests__/DiscoverScreen.test.tsx (5.092 s)
+PASS e2e/notif-v2-005-push-delivery.integration.test.ts
+PASS src/__tests__/e2e/subscription-sub-006.e2e.ts (5.266 s)
+PASS e2e/notificationPreferences.e2e.test.ts (5.605 s)
+PASS src/__tests__/integration/listing-v3-007-draft-resume.integration.test.ts
+PASS src/__tests__/e2e/payout-router-integration.test.ts (7.197 s)
+PASS src/__tests__/e2e/sub-009-grace-period.e2e.ts (7.419 s)
+PASS src/screens/trade/__tests__/TradeReviewScreen.test.tsx
+PASS src/screens/__tests__/ItemCreateScreen.test.tsx
+PASS src/__tests__/e2e/trade-tfv2-001-022.e2e.ts
+PASS src/__tests__/e2e/idBadgeProfileDisplay.e2e.test.ts
+PASS src/__tests__/e2e/sub-020-trial-limit.e2e.ts
+PASS src/screens/messaging/__tests__/ConversationsListScreen.test.tsx
+PASS e2e/badgeNotifications.integration.test.ts
+PASS src/__tests__/e2e/ref-v2-007-admin-config.e2e.ts (8.091 s)
+PASS __tests__/integration/discovery-v3-002-search-rpc.integration.test.ts (26.968 s)
+PASS e2e/module-15.1-flow-10-11-sp-wallet.integration.test.ts
+PASS src/__tests__/e2e/referral-analytics-admin.e2e.ts
+PASS src/screens/trade/__tests__/TradeTimelineScreen.test.tsx
+PASS src/__tests__/e2e/subscription-sub-002.e2e.ts (8.759 s)
+PASS src/__tests__/integration/flow-17-notifications.integration.test.ts
+PASS src/services/__tests__/verify_user_phone.integration.test.ts
+PASS e2e/safety-011-privacy-policy.integration.test.ts
+PASS src/__tests__/integration/safety-009-seller-appeal.e2e.test.ts
+PASS src/screens/messaging/__tests__/ChatScreen.test.tsx
+PASS src/__tests__/integration/discovery-v3-004.integration.test.ts
+PASS src/screens/profile/__tests__/EditProfileScreen.test.tsx
+PASS src/__tests__/screens/LiabilityDisclaimerScreen.test.tsx
+PASS src/__tests__/e2e/pay-001-schema.test.ts (8.251 s)
+PASS __tests__/screens/auth/LoginScreen.test.tsx
+PASS src/__tests__/services/chat-notifications.test.ts
+PASS src/services/__tests__/profileService.integration.test.ts (12.537 s)
+PASS e2e/cart-system.integration.test.ts
+PASS src/__tests__/screens/ListingSafetyReviewScreen.test.tsx
+PASS src/__tests__/badges/trade-badges.test.ts
+PASS src/__tests__/components/DisclaimerModal.test.tsx
+PASS src/screens/trade/__tests__/TradeSuccessScreen.test.tsx
+PASS src/__tests__/screens/ReferralsScreen.test.tsx
+PASS src/__tests__/components/SearchFilterModal.test.tsx
+PASS src/__tests__/discovery-v2-001.e2e.ts
+PASS src/screens/profile/__tests__/ProfileScreen.test.tsx
+PASS src/__tests__/screens/SellerEarningsScreen.test.tsx
+PASS src/__tests__/e2e/notification-center.e2e.ts
+PASS e2e/sub-018-payment-failure.integration.test.ts
+PASS src/components/auth/__tests__/SocialLoginButtons.test.tsx
+PASS src/__tests__/services/discovery-v3.test.ts
+PASS src/__tests__/screens/RequestPayoutScreen.test.tsx
+PASS src/components/__tests__/listing/PhotoUploadManager.test.tsx
+PASS src/__tests__/e2e/sub-001-subscription-tiers.e2e.ts
+PASS src/__tests__/e2e/trade-flow-v2.e2e.ts
+PASS e2e/trade-notifications.integration.test.ts
+PASS src/__tests__/integration/flow-22-payouts.integration.test.ts
+PASS e2e/discovery-v3-005.integration.test.ts
+PASS src/__tests__/badges/subscription-badges.test.ts (20.999 s)
+PASS src/__tests__/screens/NotificationCenterScreen.test.tsx
+PASS src/screens/profile/__tests__/PrivacyPolicyScreen.test.tsx
+PASS src/screens/support/__tests__/FAQDetailScreen.test.tsx
+PASS src/screens/notifications/__tests__/NotificationCenterScreen.test.tsx
+PASS src/screens/profile/__tests__/IDVerificationUploadScreen.test.tsx
+PASS src/screens/support/__tests__/HelpScreen.test.tsx
+PASS src/screens/cart/__tests__/CartScreen.test.tsx
+PASS src/navigation/__tests__/AppNavigatorOnboardingTabBar.test.tsx
+PASS src/screens/__tests__/BulkListingCreateScreen.test.tsx
+PASS src/__tests__/e2e/referrals-v2.e2e.ts
+PASS src/__tests__/e2e/badges-admin-config.e2e.ts
+PASS e2e/discovery-v3-006-filter-modal.integration.test.ts
+PASS src/__tests__/screens/PayoutDashboardScreen.test.tsx
+PASS src/screens/support/__tests__/ContactSupportScreen.test.tsx
+PASS src/__tests__/e2e/badgeIconManagement.e2e.ts
+PASS src/screens/trade/__tests__/TradeOfferScreen.test.tsx
+PASS src/screens/trade/__tests__/TradeListScreen.test.tsx
+PASS src/screens/sp/__tests__/SpTransactionHistoryScreen.test.tsx
+PASS __tests__/screens/auth/SignupScreen.test.tsx
+PASS src/screens/dashboard/__tests__/UserDashboardScreen.test.tsx
+PASS src/screens/profile/__tests__/LinkedAccountsScreen.test.tsx
+PASS src/screens/notifications/__tests__/NotificationSettingsScreen.test.tsx
+PASS src/screens/sp/__tests__/SpWalletScreen.test.tsx
+PASS src/screens/profile/__tests__/SellerProfileScreen.test.tsx
+PASS src/__tests__/e2e/chat-image-sharing.e2e.test.tsx
+PASS src/__tests__/e2e/badges-v2-004-leaderboard.e2e.ts (20.761 s)
+PASS src/screens/error/__tests__/OfflineScreen.test.tsx
+PASS src/__tests__/screens/help/HelpScreen.test.tsx
+PASS src/components/onboarding/__tests__/OnboardingCarousel.test.tsx
+PASS src/components/__tests__/listing/SPEarningsPreview.test.tsx
+PASS src/__tests__/screens/auth/ResetPasswordScreen.test.tsx
+PASS src/__tests__/discovery-v2-003.e2e.ts
+PASS e2e/edu-006-sp-calculator.integration.test.ts
+PASS src/__tests__/e2e/conversations-list.e2e.test.tsx
+PASS src/__tests__/e2e/cpsc-import.e2e.test.ts
+PASS src/__tests__/screens/MyListingsScreen.test.tsx
+PASS src/__tests__/hooks/useCategorySPCache.test.ts
+PASS src/__tests__/integration/discovery-v3.integration.test.ts
+PASS src/__tests__/integration/badge_triggers_v2_002.test.ts
+PASS src/screens/feedback/__tests__/ErrorScreen.test.tsx
+PASS src/screens/profile/__tests__/ProfileSetupScreen.test.tsx
+PASS src/__tests__/screens/flow25-legal-settings.test.tsx
+PASS src/__tests__/services/message-expiration.test.ts
+PASS src/__tests__/integration/flow-16-dashboard.integration.test.ts
+PASS __tests__/screens/auth/LandingScreen.test.tsx
+PASS src/screens/cart/__tests__/BundleBuilderScreen.test.tsx
+PASS src/services/__tests__/oauthService.integration.test.ts
+PASS src/screens/trade/__tests__/IssueReportModal.test.tsx
+PASS src/components/__tests__/listing/ConditionSelector.test.tsx
+PASS src/__tests__/integration/listing-v3-006-bulk.integration.test.ts
+PASS src/__tests__/e2e/billing-history-sub-014.e2e.ts
+PASS src/components/__tests__/AppHeader.test.tsx
+PASS e2e/trial-conversion.e2e.test.ts
+PASS src/__tests__/integration/help-screen.integration.test.ts
+PASS src/components/home/__tests__/ComposerBar.test.tsx
+PASS src/__tests__/screens/trade/TradeOfferScreen.test.tsx
+PASS src/components/molecules/__tests__/ResumeDraftBanner.test.tsx
+PASS e2e/admin-v3-007-category-sp-integration.test.ts
+PASS src/components/subscription/__tests__/PaymentFailureBanner.test.tsx
+PASS src/screens/feedback/__tests__/SuccessScreen.test.tsx
+PASS src/components/__tests__/EmptySearchState.test.tsx
+PASS src/components/__tests__/QaCrashProbe.test.tsx
+PASS src/__tests__/components/ImagePickerGrid.test.tsx
+PASS src/components/trade/__tests__/OfferCountdownPill.test.tsx
+PASS src/__tests__/components/BulkSPSummaryCard.test.tsx
+PASS src/services/__tests__/badges-rpc-direct.test.ts
+PASS src/components/trade/__tests__/AutoCompleteBanner.test.tsx
+PASS src/services/__tests__/badges-admin.test.ts
+PASS src/__tests__/integration/edu-003-services.integration.test.ts
+PASS src/__tests__/hooks/useAIAnalysis.test.tsx
+PASS src/__tests__/e2e/node-item-filtering.e2e.test.ts
+PASS src/components/__tests__/molecules/BrandAutocompleteInput.test.tsx
+PASS src/hooks/__tests__/useSubscription.test.ts
+PASS src/components/subscription/__tests__/PaymentMethodSection.test.tsx
+PASS src/__tests__/services/badgeNotifications.test.ts
+PASS src/__tests__/components/education/SPCalculator.test.tsx
+PASS src/navigation/__tests__/AppNavigatorTabBarNavigation.test.tsx
+PASS src/__tests__/components/education/SPCalculator-EDU-006.test.tsx
+PASS src/services/__tests__/emailChange.test.ts
+PASS src/__tests__/e2e/mid-trade-subscription.e2e.ts
+PASS src/components/auth/__tests__/PhoneVerificationModal.test.tsx
+PASS e2e/cart-flow-07.integration.test.ts
+PASS src/components/subscription/__tests__/SubscriptionStatusCard.test.tsx
+PASS src/components/__tests__/PolicyReacceptanceGate.test.tsx
+PASS src/services/__tests__/verification.unit.test.ts
+PASS src/__tests__/components/shared/BonusBadge.test.tsx
+PASS src/hooks/__tests__/useUserBadges.test.ts
+PASS src/__tests__/hooks/useTaxCalculation.test.ts
+PASS src/__tests__/integration/cart-rpc.integration.test.ts
+PASS src/__tests__/hooks/useLinkedProviders.test.ts
+PASS src/components/subscription/__tests__/SubscriptionBanner.test.tsx
+PASS src/services/__tests__/photoService.merge-split.test.ts
+PASS src/__tests__/components/education/BonusCategoriesList.test.tsx
+PASS e2e/onboarding-carousel.integration.test.ts
+PASS src/__tests__/integration/badges.test.ts
+PASS src/components/__tests__/QaRefreshDeepLinkHandler.test.tsx
+PASS e2e/IDVerification.integration.test.ts
+PASS src/__tests__/integration/flow-02-onboarding.integration.test.ts
+PASS __tests__/integration/flow-14-messaging.integration.test.ts
+PASS src/services/__tests__/review-skip.test.ts
+PASS e2e/listing-v3-002-ai-analysis.integration.test.ts
+PASS src/components/__tests__/listing/PriceSuggestionCard.test.tsx
+PASS src/components/__tests__/QaDevToggleDeepLinkHandler.test.tsx
+PASS src/components/__tests__/listing/AIAnalysisCard.test.tsx
+PASS src/__tests__/integration/liability-disclaimer.integration.test.ts
+PASS src/__tests__/components/BadgeCelebrationModal.test.tsx
+PASS src/components/__tests__/listing/CategorySelectModal.test.tsx
+PASS src/__tests__/services/spCalculatorService.test.ts
+PASS src/components/__tests__/listing/ColorPicker.test.tsx
+PASS src/components/auth/__tests__/ProviderButton.test.tsx
+PASS src/services/__tests__/oauthService.test.ts
+PASS src/services/__tests__/listing.integration.test.ts
+PASS src/screens/onboarding/__tests__/OnboardingScreen.test.tsx
+PASS src/__tests__/e2e/sub-007-webhook.e2e.ts
+PASS src/services/__tests__/listing.test.ts
+PASS src/components/organisms/PersistentTabBar/__tests__/PersistentTabBar.test.tsx
+PASS src/providers/__tests__/GlobalAlertProvider.test.tsx
+PASS src/services/__tests__/listing-appeal.test.ts
+PASS src/components/__tests__/QaScrollToDeepLinkHandler.test.tsx
+PASS src/__tests__/services/spConfigService.test.ts
+PASS src/services/__tests__/review-reporting.test.ts
+PASS src/components/__tests__/QaSetSpDeepLinkHandler.test.tsx
+PASS e2e/listing-v3-004-hooks.integration.test.ts
+PASS src/__tests__/services/categoryService-admin-v3-007.test.ts
+PASS src/services/__tests__/review.test.ts
+PASS src/components/bulk/__tests__/PhotoSelectGrid.test.tsx
+PASS src/hooks/__tests__/useItemDraft.test.tsx
+PASS src/utils/__tests__/age.test.ts
+PASS src/components/__tests__/listing/GenderSelector.test.tsx
+PASS src/services/__tests__/trade.test.ts
+PASS src/components/__tests__/QaClearOverlaysDeepLinkHandler.test.tsx
+PASS src/hooks/__tests__/usePaymentFailure.test.ts
+PASS src/__tests__/services/trade-tfv2-core-logic.test.ts
+PASS e2e/trial-extension.e2e.test.ts
+PASS src/services/__tests__/tradeServiceV2.test.ts
+PASS src/components/__tests__/listing/ConditionGuideOverlay.test.tsx
+PASS src/services/__tests__/discovery.test.ts
+PASS src/components/__tests__/listing/AgeGroupSelector.test.tsx
+PASS src/utils/__tests__/photoHash.test.ts
+PASS src/hooks/__tests__/useGracePeriodStatus.test.ts
+PASS src/__tests__/services/trade-tfv2-023-cancel-consequences.test.ts
+PASS src/hooks/__tests__/useAIAnalysis.test.tsx
+PASS src/__tests__/services/categoryService.test.ts
+PASS src/__tests__/e2e/msg-006-009.e2e.ts
+PASS src/__tests__/e2e/review-005-profile-display.e2e.ts
+PASS src/services/subscriptions/__tests__/trialReminders.test.ts
+PASS src/components/molecules/ItemCard/__tests__/ItemCard.test.tsx
+PASS src/services/__tests__/profile.test.ts
+PASS src/services/__tests__/tradeErrorMap.test.ts
+PASS src/__tests__/e2e/safety-004-image-moderation.e2e.test.ts
+PASS src/__tests__/services/chat-conversations.test.ts
+PASS src/services/__tests__/payoutRouter.test.ts
+PASS src/__tests__/services/draftService.test.ts
+PASS src/__tests__/e2e/review-003-anonymous-flow.e2e.ts
+PASS src/services/__tests__/listing-upload-images.test.ts
+PASS src/services/__tests__/phoneService.test.ts
+PASS src/services/__tests__/tradeBadge.test.ts
+PASS e2e/listing-v3-005-itemcreate.integration.test.ts
+PASS src/__tests__/e2e/sp-002-earning.e2e.ts
+PASS src/hooks/__tests__/usePhotoGroups.test.tsx
+PASS src/__tests__/e2e/chat-realtime.e2e.test.tsx
+PASS src/components/__tests__/listing/PublishButton.test.tsx
+PASS src/utils/__tests__/tradeCancellationCopy.test.ts
+PASS src/__tests__/services/pricingService.test.ts
+PASS src/__tests__/e2e/review-002-mutual-flow.e2e.ts
+PASS src/__tests__/services/referralCodeV2.test.ts
+PASS src/__tests__/services/chat.test.ts
+PASS src/__tests__/services/notificationAnalytics.test.ts
+PASS src/__tests__/components/education/BonusCategoryBadge-EDU-006.test.tsx
+PASS src/components/ui/__tests__/CountBadge.test.tsx
+PASS src/__tests__/e2e/sp-001-wallet.e2e.ts
+PASS src/__tests__/e2e/idBadgeNotifications.e2e.test.ts
+PASS e2e/flow-15-profile.integration.test.ts
+PASS src/services/__tests__/badgeUtils.test.ts
+PASS src/__tests__/services/review-mutual.test.ts
+PASS src/components/__tests__/ConnectivityGate.test.tsx
+PASS src/components/__tests__/ErrorBoundary.test.tsx
+PASS src/__tests__/hooks/usePhoneVerification.test.ts
+PASS src/__tests__/services/items.test.ts
+PASS src/services/__tests__/cartService.test.ts
+PASS src/services/__tests__/chat-conversations.test.ts
+PASS src/__tests__/services/photoService.test.ts
+PASS src/types/__tests__/education-errors.test.ts
+PASS src/__tests__/App.test.tsx
+PASS src/services/__tests__/passwordService.test.ts
+PASS src/__tests__/sp/wallet.test.ts
+PASS src/__tests__/discovery-v2-002-functional.test.ts
+PASS src/screens/__tests__/LoadingScreen.test.tsx
+PASS src/components/__tests__/StarRating.test.tsx
+PASS src/__tests__/services/searchHistory.test.ts
+PASS src/services/__tests__/paymentRetry.test.ts
+PASS src/components/__tests__/EmptyState.test.tsx
+PASS src/__tests__/services/sp-expiration.test.ts
+PASS src/__tests__/e2e/signup-node-assignment.e2e.test.ts
+PASS src/__tests__/services/discovery.test.ts
+PASS src/services/__tests__/auth.test.ts
+PASS src/services/__tests__/billingHistory.test.ts
+PASS src/__tests__/services/accountService.test.ts
+PASS src/__tests__/services/imageModeration.test.ts
+PASS src/__tests__/e2e/payout-integration.test.ts
+PASS src/services/__tests__/referral.test.ts
+PASS src/services/__tests__/devTestingService.test.ts
+PASS src/services/__tests__/email.test.ts
+PASS src/__tests__/services/review-profile-display.test.ts
+PASS src/__tests__/services/location.test.ts
+PASS src/__tests__/integration/trade-payment.integration.test.ts
+PASS src/utils/__tests__/bulkApplyToAll.test.ts
+PASS src/__tests__/e2e/referral-notifications.e2e.ts
+PASS src/services/__tests__/errorReporter.test.ts
+PASS src/types/__tests__/auth-v3.test.ts
+PASS src/__tests__/utils/filterHelpers.test.ts
+PASS src/components/trade/__tests__/countdown.test.ts
+PASS src/__tests__/services/aiService.test.ts
+PASS src/services/__tests__/referralNotifications.test.ts
+PASS src/__tests__/services/brandAutocomplete.test.ts
+PASS src/__tests__/hooks/useItemDraft.test.tsx
+PASS src/services/__tests__/trialExtension.test.ts
+PASS src/services/__tests__/passwordService.integration.test.ts
+PASS src/__tests__/services/subscription-sub-008.unit.test.ts
+PASS src/__tests__/e2e/sp-004-expiration.e2e.ts
+PASS src/utils/policyDate.test.ts
+PASS src/__tests__/node-007-radius.test.ts
+PASS src/__tests__/services/deepLink.test.ts
+PASS src/__tests__/hooks/usePhotoGroups.test.tsx
+PASS src/services/__tests__/chat-images.test.ts
+PASS src/__tests__/services/conditionService.test.ts
+PASS src/services/__tests__/privacyPolicy.test.ts
+PASS src/services/__tests__/phoneService.integration.test.ts
+PASS src/__tests__/services/notificationPreferences.test.ts
+PASS src/services/__tests__/subscriptionTiers.test.ts
+PASS src/services/__tests__/cancelRequestService.test.ts
+PASS src/__tests__/services/idBadgeNotifications.test.ts
+PASS src/types/__tests__/education.test.ts
+PASS src/__tests__/services/tos.test.ts
+PASS src/services/admin/__tests__/reviewModeration.test.ts
+PASS src/__tests__/unit/schema/filter-columns.test.ts
+PASS src/__tests__/services/referralRewards.test.ts
+PASS src/__tests__/services/referralListingBonus.test.ts
+PASS src/services/__tests__/payoutMethods.test.ts
+PASS src/services/__tests__/safety.test.ts
+PASS src/services/__tests__/idBadge.test.ts
+PASS src/__tests__/services/spNotifications.test.ts
+PASS src/services/__tests__/accountService.test.ts
+PASS src/__tests__/payoutFees.test.ts
+PASS src/__tests__/e2e/deepLink.integration.test.ts
+PASS src/services/subscriptions/__tests__/trialConversion.test.ts
+PASS src/hooks/__tests__/usePaymentSheet.test.ts
+PASS e2e/delete-purge.integration.test.ts
+PASS src/screens/__tests__/bulkListingStateMachine.test.ts
+PASS src/__tests__/services/cleanup-messages-edge.test.ts
+PASS src/__tests__/services/tradeNotifications.test.ts
+PASS src/__tests__/e2e/subscription-sub-008.e2e.ts
+PASS src/services/__tests__/subscription.test.ts
+PASS src/services/__tests__/pushDelivery.test.ts
+PASS src/services/__tests__/profileService.test.ts
+PASS src/__tests__/services/subscriptionNotifications.test.ts
+PASS src/__tests__/e2e/badges-v2-003.e2e.ts
+PASS src/types/__tests__/category.test.ts
+PASS src/screens/cart/__tests__/CartCheckoutScreen.maxSp.test.ts
+PASS src/utils/__tests__/formatPrice.test.ts
+PASS src/__tests__/utils/fuzzyMatch.test.ts
+PASS src/utils/imageUrl.test.ts
+PASS src/__tests__/utils/spCalculations.test.ts
+PASS src/services/__tests__/badges.test.ts
+PASS src/utils/__tests__/nodeScope.test.ts
+PASS src/__tests__/services/safety-p003.unit.test.ts
+PASS src/services/__tests__/emailNotifications.test.ts
+PASS src/services/__tests__/sms-api.test.ts
+PASS src/services/__tests__/favoritesService.test.ts
+PASS src/__tests__/storage-item-images.unit.test.ts
+PASS src/__tests__/auth-v2-003.e2e.ts
+PASS src/test-data/test-users.test.ts
+PASS src/__tests__/services/educationContentService.test.ts
+PASS src/__tests__/services/sp-earning.test.ts
+PASS src/__tests__/screens/trade/TradeListBundleGrouping.test.ts
+PASS src/services/__tests__/qaScrollRegistry.test.ts
+PASS src/__tests__/services/educationAnalyticsService.test.ts
+PASS src/services/__tests__/location.test.ts
+PASS src/__tests__/services/tax.test.ts
+PASS src/services/__tests__/sms.test.ts
+PASS src/screens/auth/__tests__/ForgotPassword.e2e.ts
+PASS src/__tests__/e2e/sub-010-subscription-ui.e2e.ts
+PASS src/__tests__/e2e/msg-001-realtime-chat.e2e.ts
+PASS src/__tests__/e2e/payout-webhooks.smoke.test.ts
+
+Summary of all failing tests
+FAIL src/__tests__/e2e/subscription-sub-003.e2e.ts (54.494 s)
+  ● MODULE-11 SUB-003 E2E: Start 30-Day Free Trial › Trial Enrollment Flow (UI Service Layer) › should enroll user in trial via enrollInTrialSubscription service
+
+    thrown: "Exceeded timeout of 15000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      152 |
+      153 |   describe('Trial Enrollment Flow (UI Service Layer)', () => {
+    > 154 |     it('should enroll user in trial via enrollInTrialSubscription service', async () => {
+          |     ^
+      155 |       if (shouldSkipCase()) return;
+      156 |
+      157 |       const isolatedUserId = await createIsolatedUserWithFreeSubscription();
+
+      at it (src/__tests__/e2e/subscription-sub-003.e2e.ts:154:5)
+      at describe (src/__tests__/e2e/subscription-sub-003.e2e.ts:153:3)
+      at Object.describe (src/__tests__/e2e/subscription-sub-003.e2e.ts:14:1)
+
+
+Test Suites: 1 failed, 7 skipped, 356 passed, 357 of 364 total
+Tests:       1 failed, 82 skipped, 4071 passed, 4154 total
+Snapshots:   0 total
+Time:        567.386 s
+Ran all test suites.

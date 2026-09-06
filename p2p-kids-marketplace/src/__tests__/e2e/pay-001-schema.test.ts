@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { assertPerfWithin } from '../../test-helpers/perfAssert';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
@@ -429,7 +430,7 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
       const duration = Date.now() - start;
 
       // Should be very fast with index
-      expect(duration).toBeLessThan(1000);
+      assertPerfWithin('seller_payouts by user_id', duration, 1000);
     });
 
     it('should efficiently query by status', async () => {
@@ -439,7 +440,7 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
 
       const duration = Date.now() - start;
 
-      expect(duration).toBeLessThan(1000);
+      assertPerfWithin('seller_payouts by status', duration, 1000);
     });
 
     it('should efficiently query by idempotency_key', async () => {
@@ -466,7 +467,7 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
 
       const duration = Date.now() - start;
 
-      expect(duration).toBeLessThan(1000);
+      assertPerfWithin('seller_payouts by idempotency_key', duration, 1000);
       expect(data).toBeDefined();
 
       // Clean up

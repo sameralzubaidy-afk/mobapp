@@ -4,7 +4,7 @@
  * File: p2p-kids-marketplace/src/__tests__/e2e/payout-router-integration.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 async function fetchAdminPayoutConfig(client: SupabaseClient) {
@@ -95,6 +95,10 @@ const shouldRunE2E =
 const d = shouldRunE2E ? describe : describe.skip;
 
 d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
+  // complete_trade_v2 (with Stripe fee work + auto-payout) can exceed the default
+  // timeout under full-suite shared-DB load; give this suite a generous budget.
+  jest.setTimeout(60000);
+
   let supabase: SupabaseClient;
   let testSeller: any;
   let testBuyer: any;
@@ -104,8 +108,21 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
   let previousPrimaryMethodId: string | null = null;
   let completeTradeRpcSupported = true;
 
+  // Record pre-run auto-payout config so scenario tests can restore it (BP-48).
+  const originalConfig: { enable_automatic_seller_payout?: boolean; payout_buffer_days?: number } = {};
+
   beforeAll(async () => {
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+    // Record the pre-run auto-payout config so we can restore it in afterAll
+    // (scenario tests toggle shared staging config — BP-48 record/restore).
+    const preCfg = await fetchAdminPayoutConfig(supabase).catch(() => null);
+    if (preCfg) {
+      originalConfig.enable_automatic_seller_payout = preCfg.enable_automatic_seller_payout;
+      if (typeof preCfg.payout_buffer_days === 'number') {
+        originalConfig.payout_buffer_days = preCfg.payout_buffer_days;
+      }
+    }
 
     // Use seeded test users from seed-staging-data.ts
     const SELLER_ID = '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller@kidsmarketplace.test
@@ -203,6 +220,26 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
   });
 
   afterAll(async () => {
+    // Restore the shared staging payout config captured at setup (BP-48).
+    const enableVal =
+      originalConfig.enable_automatic_seller_payout === undefined
+        ? 'true'
+        : String(originalConfig.enable_automatic_seller_payout);
+    const bufferVal =
+      originalConfig.payout_buffer_days === undefined ? '2' : String(originalConfig.payout_buffer_days);
+    await supabase.rpc('upsert_admin_config_setting', {
+      p_key: 'enable_automatic_seller_payout',
+      p_value: enableVal,
+      p_category: 'fees',
+      p_data_type: 'boolean',
+    });
+    await supabase.rpc('upsert_admin_config_setting', {
+      p_key: 'payout_buffer_days',
+      p_value: bufferVal,
+      p_category: 'fees',
+      p_data_type: 'number',
+    });
+
     // Cleanup: Delete test records
     if (testTrade) {
       await supabase.from('seller_payouts').delete().eq('trade_id', testTrade.id);
@@ -233,6 +270,17 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       // Step 2: Verify admin config
       const config = await fetchAdminPayoutConfig(supabase);
       expect(config.enable_automatic_seller_payout).toBe(true);
+
+      // R3 delayed-payout buffer: staging payout_buffer_days=2 makes trade-completion
+      // auto-payouts 'pending' (release +2d) by design. This scenario tests the
+      // immediate-dispatch path ('processing'), so set the buffer to 0 for it.
+      // (Restored to the pre-run value in this file's afterAll.)
+      await supabase.rpc('upsert_admin_config_setting', {
+        p_key: 'payout_buffer_days',
+        p_value: '0',
+        p_category: 'fees',
+        p_data_type: 'number',
+      });
 
       // Step 3: Complete the trade
       const { data: sellerMark, error: sellerMarkError } = await supabase.rpc('complete_trade_v2', {

@@ -23,14 +23,24 @@ describeE2E('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => 
 
   async function createRealTestUser(suffix: string): Promise<string> {
     const email = `sub-003-${suffix}-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
+    const password = 'TestPassword123!';
     const created = await createConfirmedTestUser({
       email,
-      password: 'TestPassword123!',
+      password,
       userMetadata: { display_name: 'SUB-003 Test User' },
     });
 
     if (!created?.userId) {
       throw new Error('Failed to create confirmed test user for SUB-003 test');
+    }
+
+    // DT-59 grants create_trial_subscription / upgrade_free_subscription_to_trial
+    // to authenticated + service_role ONLY. Establish a real session for the
+    // created user so these RPCs (and the owner-RLS subscription writes below)
+    // run as that authenticated user instead of the anonymous client (42501).
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      throw new Error(`Failed to sign in SUB-003 test user: ${signInError.message}`);
     }
 
     return created.userId;

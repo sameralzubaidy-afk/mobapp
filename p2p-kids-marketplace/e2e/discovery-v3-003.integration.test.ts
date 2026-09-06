@@ -145,7 +145,9 @@ describeE2E('Discovery V3 Services - E2E Integration Tests', () => {
           expect(hasMatchingColor).toBe(true);
         }
       });
-    }, 10000);
+      // Heavy color-array filter occasionally exceeds 10s under full-suite load;
+      // give it a 30s budget (observed timing out in `npm run test:all`).
+    }, 30000);
 
     it('should apply sort by newest', async () => {
       const filters: DiscoveryFilters = {

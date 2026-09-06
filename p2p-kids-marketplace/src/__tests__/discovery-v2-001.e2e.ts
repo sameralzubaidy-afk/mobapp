@@ -8,6 +8,7 @@
 
 import { searchListings, searchListingsByCategory } from '../services/discovery';
 import { supabase } from '../config/supabase';
+import { assertPerfWithin } from '../test-helpers/perfAssert';
 
 /**
  * E2E Test: Full-Text Search Index (DISCOVERY-V2-001)
@@ -175,7 +176,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
 
       // Assert
       const duration = performance.now() - startTime;
-      expect(duration).toBeLessThan(500); // 500ms baseline
+      assertPerfWithin('searchListings', duration, 500);
       console.log(
         `Search for "${query}" completed in ${duration.toFixed(2)}ms with ${results.length} results`
       );

@@ -4,8 +4,10 @@
 import { supabase } from '@/config/supabase';
 import { enrollInTrialSubscription, checkTrialEligibility } from '@/services/subscription';
 
-// Increase timeout for E2E tests that may involve slow RPC calls
-jest.setTimeout(15000);
+// Increase timeout for E2E tests that may involve slow RPC calls. Generous
+// budget: isolated-user creation + trial enrollment occasionally exceeds 15s
+// under full-suite shared-staging-DB load (observed in `npm run test:all`).
+jest.setTimeout(60000);
 
 function isAuthRateLimitError(message?: string): boolean {
   return Boolean(message && /request rate limit reached/i.test(message));

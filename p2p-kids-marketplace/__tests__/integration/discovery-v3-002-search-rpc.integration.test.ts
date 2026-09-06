@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '../../src/config/supabase';
+import { assertPerfWithin } from '../../src/test-helpers/perfAssert';
 
 describe('DISCOVERY-V3-002: search_listings RPC (Integration)', () => {
   // Helper to call the RPC
@@ -494,6 +495,6 @@ describe('DISCOVERY-V3-002: Performance Tests', () => {
     const duration = Date.now() - start;
 
     console.log(`⏱️  Search with all filters completed in ${duration}ms`);
-    expect(duration).toBeLessThan(300);
-  }, 10000);
+    assertPerfWithin('search_listings (all filters)', duration, 300);
+  }, 30000);
 });

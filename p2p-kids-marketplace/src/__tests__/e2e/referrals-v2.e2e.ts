@@ -35,6 +35,21 @@ d('Referrals V2 E2E', () => {
   const isReferralProgramDisabled = (message?: string | null): boolean =>
     /referral program is disabled/i.test((message || '').toLowerCase());
 
+  // Seeded persona credentials (scripts/seed-staging-data.ts). apply_referral_code
+  // is granted to authenticated + service_role only (DT-59), so the negative apply
+  // tests must run from a real signed-in session to surface the domain errors.
+  const TEST_SELLER_EMAIL = process.env.E2E_TEST_SELLER_EMAIL || 'test-seller@kidsmarketplace.test';
+  const TEST_SELLER_PASSWORD = process.env.E2E_TEST_SELLER_PASSWORD || 'TestSeller123!';
+  const TEST_BUYER_EMAIL = process.env.E2E_TEST_BUYER_EMAIL || 'test-buyer@kidsmarketplace.test';
+  const TEST_BUYER_PASSWORD = process.env.E2E_TEST_BUYER_PASSWORD || 'TestBuyer123!';
+
+  async function signInAs(email: string, password: string): Promise<void> {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      throw new Error(`Failed to sign in ${email} for referral apply: ${error.message}`);
+    }
+  }
+
   beforeAll(async () => {
     // Verify test users exist
     const { data: referrerExists } = await supabase
@@ -176,6 +191,10 @@ d('Referrals V2 E2E', () => {
         return;
       }
 
+      // Sign in as the referrer so auth.uid() matches the code owner and the
+      // function reports the self-referral domain error (not a permission error).
+      await signInAs(TEST_SELLER_EMAIL, TEST_SELLER_PASSWORD);
+
       const result = await ReferralCodeServiceV2.applyReferralCode(
         testReferrerUserId,
         referralCode
@@ -217,6 +236,10 @@ d('Referrals V2 E2E', () => {
         expect(true).toBe(true);
         return;
       }
+
+      // Sign in as the referee (buyer) so apply_referral_code runs authenticated
+      // and reports the invalid-code domain error (not a permission error).
+      await signInAs(TEST_BUYER_EMAIL, TEST_BUYER_PASSWORD);
 
       const result = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, 'INVALID1');
 

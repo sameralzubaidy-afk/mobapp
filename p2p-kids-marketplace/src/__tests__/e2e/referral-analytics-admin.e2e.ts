@@ -2,6 +2,7 @@
 // filepath: p2p-kids-marketplace/src/__tests__/e2e/referral-analytics-admin.e2e.ts
 
 import { supabase } from '@/config/supabase';
+import { assertPerfWithin } from '@/test-helpers/perfAssert';
 
 describe('E2E: Admin Referral Analytics', () => {
   describe('FLOW-01: Get Referral Metrics', () => {
@@ -175,7 +176,7 @@ describe('E2E: Admin Referral Analytics', () => {
       await supabase.rpc('get_referral_metrics');
       const duration = Date.now() - start;
 
-      expect(duration).toBeLessThan(1000);
+      assertPerfWithin('get_referral_metrics', duration, 1000);
     });
 
     it('should execute get_top_referrers within 1 second', async () => {
@@ -183,7 +184,7 @@ describe('E2E: Admin Referral Analytics', () => {
       await supabase.rpc('get_top_referrers', { p_limit: 10 });
       const duration = Date.now() - start;
 
-      expect(duration).toBeLessThan(1000);
+      assertPerfWithin('get_top_referrers', duration, 1000);
     });
 
     it('should execute get_referral_funnel within 500ms', async () => {
@@ -191,7 +192,7 @@ describe('E2E: Admin Referral Analytics', () => {
       await supabase.rpc('get_referral_funnel');
       const duration = Date.now() - start;
 
-      expect(duration).toBeLessThan(500);
+      assertPerfWithin('get_referral_funnel', duration, 500);
     });
   });
 });

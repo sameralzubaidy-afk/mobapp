@@ -132,8 +132,17 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       expect(referrerCode).toBeTruthy();
       expect(referrerCode.length).toBeGreaterThanOrEqual(8);
 
-      // Step 2: Referee signs up with referral code
-      const applyResult = await ReferralCodeServiceV2.applyReferralCode(refereeId, referrerCode);
+      // Step 2: Referee signs up with referral code.
+      // apply_referral_code is granted to authenticated + service_role only
+      // (DT-59). Call it via the service-role client — auth.uid() is NULL so the
+      // function's COALESCE(auth.uid(), p_user_id) owner-path uses p_user_id.
+      const { data: applyRaw, error: applyRpcError } = await adminSupabase.rpc(
+        'apply_referral_code',
+        { p_user_id: refereeId, p_code: referrerCode.toLowerCase().trim() }
+      );
+      const applyResult = applyRpcError
+        ? { success: false, error: applyRpcError.message }
+        : ((applyRaw ?? {}) as { success: boolean; error?: string });
       if (!applyResult.success) {
         expect(applyResult.error || '').toMatch(
           /already|exists|applied|referred|invalid referral code|disabled/i
@@ -148,7 +157,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       }
 
       // Step 3: Verify referral relationship created
-      let { data: referralData, error: referralError } = await supabase
+      let { data: referralData, error: referralError } = await adminSupabase
         .from('referrals')
         .select('*')
         .eq('referrer_user_id', referrerId)
@@ -156,7 +165,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
         .maybeSingle();
 
       if (!referralData) {
-        const { error: relationUpsertError } = await supabase.from('referrals').upsert(
+        const { error: relationUpsertError } = await adminSupabase.from('referrals').upsert(
           [
             {
               referrer_user_id: referrerId,
@@ -170,7 +179,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
 
         expect(relationUpsertError).toBeNull();
 
-        const refetch = await supabase
+        const refetch = await adminSupabase
           .from('referrals')
           .select('*')
           .eq('referrer_user_id', referrerId)
@@ -202,7 +211,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       expect(['trial', 'active']).toContain(refereeSub?.status);
 
       // Step 5: Referee creates first listing
-      const { data: listing, error: listingError } = await supabase
+      const { data: listing, error: listingError } = await adminSupabase
         .from('items')
         .insert({
           seller_id: refereeId,
@@ -220,7 +229,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       listingId = listing.id;
 
       // Step 6: Admin approves listing (status -> 'available')
-      const { error: approveError } = await supabase
+      const { error: approveError } = await adminSupabase
         .from('items')
         .update({ status: 'available', approved_at: new Date().toISOString() })
         .eq('id', listingId);
@@ -256,7 +265,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       expect(referrerLedger.description).toContain('first listing');
 
       // Step 9: Verify SP rewards granted to referee
-      const { data: refereeLedger, error: refereeLedgerError } = await supabase
+      const { data: refereeLedger, error: refereeLedgerError } = await adminSupabase
         .from('sp_ledger')
         .select('*')
         .eq('user_id', refereeId)
@@ -268,13 +277,13 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       expect(refereeLedger.amount).toBeGreaterThan(0);
 
       // Step 10: Verify wallet balances updated
-      const { data: referrerWallet } = await supabase
+      const { data: referrerWallet } = await adminSupabase
         .from('sp_wallets')
         .select('available_balance, lifetime_earned')
         .eq('user_id', referrerId)
         .single();
 
-      const { data: refereeWallet } = await supabase
+      const { data: refereeWallet } = await adminSupabase
         .from('sp_wallets')
         .select('available_balance, lifetime_earned')
         .eq('user_id', refereeId)
@@ -299,7 +308,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       let listing2Error: any = null;
 
       for (let attempt = 1; attempt <= 3; attempt += 1) {
-        const result = await supabase
+        const result = await adminSupabase
           .from('items')
           .insert({
             seller_id: refereeId,
@@ -332,7 +341,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       const listingId2 = listing2.id;
 
       // Approve second listing
-      await supabase
+      await adminSupabase
         .from('items')
         .update({ status: 'available', approved_at: new Date().toISOString() })
         .eq('id', listingId2);
@@ -341,7 +350,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Verify NO new SP rewards granted for this specific listing
-      const { data: newLedgerEntries, error } = await supabase
+      const { data: newLedgerEntries, error } = await adminSupabase
         .from('sp_ledger')
         .select('*')
         .eq('user_id', referrerId)
@@ -540,12 +549,12 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
   // Helper function to clean up test data
   async function cleanupTestData() {
     if (listingId) {
-      await supabase.from('items').delete().eq('id', listingId);
+      await adminSupabase.from('items').delete().eq('id', listingId);
     }
     if (referralId) {
-      await supabase.from('referrals').delete().eq('id', referralId);
+      await adminSupabase.from('referrals').delete().eq('id', referralId);
     }
     // Clean up SP ledger entries
-    await supabase.from('sp_ledger').delete().in('user_id', [referrerId, refereeId]);
+    await adminSupabase.from('sp_ledger').delete().in('user_id', [referrerId, refereeId]);
   }
 });
