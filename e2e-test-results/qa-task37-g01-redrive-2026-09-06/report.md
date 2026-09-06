@@ -41,6 +41,8 @@ Fresh un-onboarded Stripe Connect account **`acct_1UCgIu4HHYZdHIok`** created on
 
 **Batch B tool-call count: ~110–120** (vs QA Task 36's ~130–160). Majority of cost was hosted-Express Safari driving (form-field focus/re-touch, SSN re-entry); app-modal interactions were one-tap each (DT122 I-1 payoff).
 
+> **CORRECTION (2026-09-06, post-run mining):** the ~110–120 figure above was a manual mid-run estimate and **undercounts** the mined ground truth. The full session transcript was mined into an exact per-phase ledger (see `decision-and-outcome-log-ai-analysis.md` in this folder): **Batch B = 211 exact tool calls**; Batch C = 153; session total = 487. The comparison to QA Task 36's ~130–160 is not apples-to-apples — QA Task 36's numbers were themselves approximate reconstructions and its Batch B stopped at the ID-document gate, whereas this run completed onboarding → verified → primary → withdrawal plus a full Batch C renewal cycle. Lesson: mine the transcript for counts at the end; never report a mid-run estimate as a comparison.
+
 **Known gaps / noted:**
 - **Manual-withdrawal rows are NOT Stripe-dispatched.** `request_seller_payout` creates the row + deducts balance but does not call Stripe; the trade-completion trigger only fires on trade completion (trade_id-NULL rows never dispatched). Pre-existing architecture; matches QA Task 34 H03 acceptance class. Recommend separate dev follow-up (a dispatcher for manual withdrawals).
 - **SSN prefill quirk:** hosted Express 8888 prefill failed the name precheck → "Personal details Incomplete" persisted; canonical test SSN `0000` (Cmd+A select-all + retype) cleared `individual.ssn_last_4`. Phone needed a re-touch to persist.
