@@ -683,7 +683,8 @@ Issue: "Edge Function returning 401/403"
 ✅ Check: RLS policies allow the operation
 ✅ Check: User has correct role/permissions
 ✅ Check: Node access (user in correct node)
-See also: BP-19 (`verify_jwt = false` required for cron-invoked functions), `edge-functions.instructions.md` HP-3
+✅ Check: If the EF is DB-trigger/cron-invoked, it does NOT require `bearer === SUPABASE_SERVICE_ROLE_KEY` — the DB posts the `admin_config`-stored key, which can drift from the env, so every trigger/cron call 401s and money rows strand (BP-87)
+See also: BP-19 (`verify_jwt = false` required for cron-invoked functions), BP-87 (DB-trigger/cron-invoked EFs must not enforce strict bearer == env service role key), `edge-functions.instructions.md` HP-3
 Issue: "Subscription features not working after purchase"
 
 ✅ Check: Stripe webhook received and processed
@@ -1409,6 +1410,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-84 Money-ledger repair path — a money ledger with a recompute RPC (`seller_balance` ← `recompute_seller_balance`) must be repaired/reset ONLY through that RPC (locked `service_role`-only); never a raw ledger write, and never leave a ledger-recompute PUBLIC-executable (DT-118, 2026-09-05) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-85 Money display units — cents-stored money MUST use a cents formatter (`formatPrice` → "$1.49"), never the dollars formatter (`formatDollarAmount` → "$149") (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-86 Membership/value-prop copy — subscription surfaces must render the CANONICAL in-app benefit set (ManageKidsClub "Kids Club+ Benefits" / JoinKidsClub `STATIC_BENEFITS`), never an invented list; grep the whole class before shipping (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-87 DB-trigger/cron-invoked EF auth — do NOT enforce strict `bearer === env SUPABASE_SERVICE_ROLE_KEY` inside a DB-trigger/cron-invoked EF: the DB posts the `admin_config`-stored key, which can drift from the platform-injected env → every trigger/cron call 401s and money rows strand (DT-124, 2026-09-06) — mirror `initiate-payout` (eligibility + ownership + idempotency) or refresh the stored key — full text: `.github/instructions/edge-functions.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

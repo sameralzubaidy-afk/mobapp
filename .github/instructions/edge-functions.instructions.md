@@ -37,6 +37,7 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-77 Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path even for large self-contained single-file functions (no `_shared` deps, e.g. the 82KB/1,840-line `create-trade-offer`) — no per-deploy approval needed (DEV-TASK-36 retired the MCP-deploy mandate); MCP is a documented last-resort fallback only; post-deploy verification (version bump + real invocation, BP-66/BP-71) is mandatory on any path (DEV-TASK-33, 2026-08-28; DEV-TASK-36, 2026-08-28).
 - Backward compatibility — API response shapes are additive-only; new request params need defaults for old clients; deploy order is migration-first; version the contract if a break is unavoidable.
 - BP-83 Stripe test-clock renewal verification — a test clock CANNOT be retro-attached to an existing Checkout subscription (`POST /subscriptions/{id}` with `test_clock` → `400 parameter_unknown`); to verify a real renewal on a given user, create a fresh clock-bound customer + subscription metadata-bound to the same `user_id` so the webhook re-binds the single `subscriptions` row, then advance the clock and assert on the DB.
+- BP-87 DB-trigger/cron-invoked EF auth — do NOT enforce strict `bearer === SUPABASE_SERVICE_ROLE_KEY` inside a DB-trigger/cron-invoked EF: the DB trigger posts the `admin_config`-stored key, which can drift from the platform-injected env → every trigger/cron call 401s and money rows strand (DT-124, 2026-09-06). Mirror `initiate-payout` (eligibility + ownership + idempotency) or refresh the stored key.
 
 ## HP-3: Supabase auth/RLS rule (be explicit)
 
@@ -368,3 +369,15 @@ Rules:
 5. Clean up (BP-70): cancel/delete the clock customer + subscriptions, delete the test clock, and delete the disposable user/rows.
 
 See also: BP-71 (drive the real charge/pay path), BP-72 (verify DB + Stripe state), BP-70 (disposable-user cleanup).
+
+## BP-87: DB-Trigger/Cron-Invoked Edge Functions Must NOT Enforce Strict `bearer === SUPABASE_SERVICE_ROLE_KEY` Inside the Handler
+
+Problem: A DB trigger (AFTER INSERT/UPDATE → `net.http_post`) and the pg_cron wrapper (`rpc_fire_edge_function`) post the service-role key stored in `admin_config` (`supabase_service_role_key`) or set as a GUC — which can DRIFT from the platform-injected `SUPABASE_SERVICE_ROLE_KEY` env the Edge Function reads (edge functions get the project's current service key auto-injected at run time). Adding a defensive "bearer must equal my env key" check inside such a function makes EVERY trigger/cron call return `401 {"code":"UNAUTHORIZED"}` while the state change stays committed and the row strands (e.g. a manual-withdrawal row stuck in 'processing' forever). Confirmed live 2026-09-06 (Dev Task 124 item 1): the new `dispatch-manual-payouts` EF returned 401 to its own AFTER-INSERT trigger (net._http_response `{"success":false,"error":{"code":"UNAUTHORIZED","message":"Service-role bearer token required"}}`) because the `admin_config`-stored key differed from the injected env key — the payout row never completed until the strict check was removed.
+
+Rules:
+1. Do NOT add a strict `Authorization: Bearer <token> === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` check to an Edge Function invoked by a DB trigger or pg_cron. Mirror `initiate-payout` (the trade-payout EF): the security model is (a) eligibility limited to rows the seller already authorized (status filters + no provider_reference_id), (b) the destination/side-effect bound to the row's OWN ownership-verified account (`verify-stripe-ownership` / `user_id` equality), and (c) an idempotency key preventing double side-effects.
+2. If a function must reject anonymous callers, use an approach that does not depend on the DB's stored key matching the env: gateway `verify_jwt` where a real user JWT exists, a request signature/header the trigger or cron is configured to send, or — for DB-trigger/cron callers — accept the service-role bearer WITHOUT comparing it to the env (the DB already restricts who can fire the trigger).
+3. Keep `verify_jwt = false` (BP-19) in `supabase/config.toml` for DB-trigger/cron-invoked functions and mirror the sibling money EF's posture rather than inventing a stricter one.
+4. If you DO keep a strict bearer check, it must be matched by refreshing `admin_config.supabase_service_role_key` (or the GUC) on every service-key rotation — but that stores a secret in the DB (BP-22 anti-pattern); the row-binding + idempotency model is the preferred defense.
+
+See also: BP-19 (`verify_jwt = false` for cron-invoked EFs), HP-3 (service-role usage), BP-22 (secret resolution — resolve from config, never hardcode).
