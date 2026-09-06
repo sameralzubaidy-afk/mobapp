@@ -1227,6 +1227,8 @@ When live-verifying a fix on the simulator (Tier 1), the suspected bug may repro
 D) COMPLETE Flow List (Agent MUST use this list for mapping + checks)
 Use these Flow IDs in docs/flow-registry.md and in every response.
 
+> **Registry authority (2026-09-06):** `docs/flow-registry.md` is the single source of truth for flow IDs and their canonical meanings (FLOW-00…FLOW-33 + FLOW-12A, plus the Part B engineering/compliance appendix). The list below documents the core FLOW-00…FLOW-20 mappings; for numbers 15/16/19 and for FLOW-21…33 the registry's "Canonical flow list & legacy-label resolution" table is authoritative — the legacy meanings below for FLOW-15 (Safety & Moderation), FLOW-16 (CPSC recall) and FLOW-19 (Analytics) were consolidated: FLOW-15 = Safety/Moderation/Content Review (incl. CPSC recall), FLOW-16 = Home Dashboard, FLOW-19 = Trading Education/Help/Support/SP Calculator. Do not use conflicting historical labels; update the registry section IN PLACE when a flow's spec changes and NEVER append dated entries.
+
 FLOW-00: Infrastructure & Environment Health
 Covers: app boots, env vars, Supabase URL/keys, function routing, local stack
 Smoke: scripts/smoke/infra.mjs
