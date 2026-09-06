@@ -37,6 +37,11 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   // freeze/suspend mobile legs (L05/L07/L08, B04) — Kids Club+ active with an
   // admin-freezable wallet. Provision via `npm run qa:wallet-persona -- ensure`.
   'qa-wallet': { email: 'qa-wallet@kidsmarketplace.test', password: 'TestWallet123!' },
+  // DEV-TASK-118 (item 3): dedicated payout/withdraw seller persona with
+  // CONTROLLED balance + method-state fixtures (SUB F/G/H payout domain).
+  // Provision via `npm run qa:payout-fixture -- ensure`; balance/methods via
+  // `-- balance --amount N` / `-- methods --scenario <s>`; reset via `-- reset`.
+  'qa-payout-seller': { email: 'qa-payout-seller@kidsmarketplace.test', password: 'TestPayout123!' },
   // DEV-TASK-96 (item 7): MSG-TC-A01 empty-inbox persona — full profile, zero
   // conversations (see seedNoConversationPersonaFixture in seed-staging-data.ts).
   'test-noconvo': { email: 'test-noconvo@kidsmarketplace.test', password: 'TestNoConvo123!' },

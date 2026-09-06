@@ -44,6 +44,7 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, and audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30).
 - BP-79 Default-privilege hardening is ineffective for NEW functions on Supabase PG 17.6 — `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` cannot stop them being client-executable (built-in PUBLIC baseline always applies AND the default-ACL row directly grants anon/authenticated); enforce fail-closed defaults via the `dt61_guard_revoke_fn_public` EVENT TRIGGER (auto-REVOKE PUBLIC, anon, authenticated on every new public-schema function/procedure) + explicit-grant discipline (DT-61, 2026-08-30).
 - BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but does NOT write a `schema_migrations` tracking row; verify the migration actually landed by invoking the changed object (function/trigger/table) live, never by the migration list (DEV-TASK-83, 2026-09-02).
+- BP-84 Money-ledger repair path — a money ledger with a recompute RPC (`seller_balance` ← `recompute_seller_balance`) must be repaired/reset ONLY through that RPC (locked `service_role`-only, DT-118 2026-09-05); never a raw ledger write, and never leave a ledger-recompute PUBLIC-executable (BP-78/BP-79).
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -495,3 +496,13 @@ Rules:
 - Cross-ref BP-80 (two-phase provisioning — state "written, NOT applied" vs applied, and verify the DB state directly), BP-47 (verify the attached/deployed body, not the file).
 
 Detection checklist: after any `mcp_supabase_apply_migration`, do NOT use `list_migrations` as the pass/fail signal — invoke the changed function/object and assert the new behavior; if the function is missing/broken, re-check the applied body (BP-47) before blaming the migration file.
+
+## BP-84: Money Ledgers With a Recompute RPC Must Be Repaired Only Through It (Service-Role-Only) — Never a Raw Table Write
+
+Problem (DEV-TASK-118, 2026-09-05): `seller_balance` — the stored cash ledger the Payout Settings hero trusts — drifted wildly from the underlying trades/payouts (test-seller showed available $15,603 / 790 trades vs a real $140.40 / 25 completed trades) because trade rows were cleaned/backfilled without reconciling the ledger. The only correct repair is `recompute_seller_balance(p_user_id)` (derives available/pending/lifetime from real `trades` + `seller_payouts`), but before DT-118 it was PUBLIC-executable (SECURITY DEFINER, rewrites money) and there was NO reconciliation job — so out-of-band raw writes and stale triggers could both corrupt what the app displays as the withdrawable balance.
+
+Rules:
+- A money/points ledger that has a recompute RPC (`seller_balance` ← `recompute_seller_balance`) must be repaired/reset ONLY by invoking that RPC — never by a raw INSERT/UPDATE on the ledger table. A raw ledger write (QA/support “quick fix”) creates exactly the drift recompute exists to fix.
+- Lock every ledger recompute RPC to `service_role` only (REVOKE anon/authenticated/PUBLIC + GRANT service_role, BP-78/BP-79 discipline) so reconciles are privileged and auditable — a PUBLIC-executable SECURITY DEFINER that rewrites money is a standing hazard (verify via live `aclexplode`, not a grep).
+- QA-controlled balances belong on a DEDICATED disposable persona provisioned by a dev fixture (e.g. `qa:payout-fixture` `balance --amount` / `reconcile --seller`), never on shared personas via raw writes.
+- Detection checklist: when a displayed balance is materially wrong, compare the stored ledger to the real data — `SELECT count(*), sum(cash_amount_cents) FROM trades WHERE seller_id=<id> AND status='completed'` and the `seller_payouts` gross sums — then repair via `SELECT recompute_seller_balance(<user_id>)` (service role). Cross-ref BP-78 (grants), BP-5 (SECURITY DEFINER search_path), HP-4 (money invariants).

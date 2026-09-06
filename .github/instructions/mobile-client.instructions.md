@@ -27,6 +27,8 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: (a) typecheck, (b) grep for a bare prop-like line immediately followed by a JSX child (text-children corruption), (c) Prettier and confirm it doesn't rewrite the region unexpectedly.
 - BP-61 Accessibility props in `<Text>` — never paste `accessible`/`accessibilityRole`/`accessibilityLabel` as literal children; they must be attributes on the opening tag (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole`) whenever writing or reviewing `<Text>` components.
 - BP-82 Account/subscription screens — Pass It Up semantic tokens only (`#5DBB8E` primary/success, `#E85D75` error, `#FFA726` warning, `#5B8FB9` info, `#1A1A1A`/`#6B6B6B`/`#999999` neutrals); no Material (`#4CAF50`/`#E53935`/`#29B6F6`), Tailwind gray/amber (`#111827`/`#6B7280`/`#D1D5DB`/`#D97706`) or iOS system blue (`#0066CC`/`#007AFF`/`#93C5FD`) leakage.
+- BP-85 Money display units — cents-stored values MUST use a cents formatter (`formatPrice(cents)` → "$1.49"), never the dollars formatter (`formatDollarAmount` expects DOLLARS → "$149"); know the unit of each source config/field before picking a formatter.
+- BP-86 Membership/value-prop copy — subscription surfaces must render the CANONICAL in-app benefit set (ManageKidsClub "Kids Club+ Benefits" card / JoinKidsClub `STATIC_BENEFITS`), never an invented list; grep the whole class (every screen/branch) before shipping.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -367,3 +369,21 @@ Detection checklist:
 - `rg -n "#4CAF50|#E53935|#29B6F6|#0066CC|#007AFF|#93C5FD|#D97706|#111827|#6B7280|#D1D5DB" p2p-kids-marketplace/src/screens/subscription p2p-kids-marketplace/src/components/subscription`
 - Visual: a primary CTA or toggle rendering blue instead of green `#5DBB8E`, or an "Active" badge rendering Material green instead of the brand green.
 See also: BP-56 (Discover/design tokens via `@/theme/discoveryTokens`).
+
+## BP-85: Money Values Stored in Cents Must Use a Cents Formatter — Never the Dollars Formatter
+
+Problem (DEV-TASK-118 follow-up, 2026-09-05): ContinueKidsClubScreen's membership recap rendered the member flat fee as “Flat **$149** …” because the value is stored in CENTS (`getActiveMemberFeeCents()` → 149) but was formatted with `formatDollarAmount(149)` — which expects DOLLARS and just prepends `$`. `formatPrice(149)` divides by 100 first → “$1.49”. A “$149 vs $1.49” on a fee/balance surface is a trust/compliance bug (the user reads a 100× inflated charge).
+
+Rules:
+1. Know the unit of every money value before formatting: config keys/columns suffixed `_cents` (`buyer_fee_active_member_cents`, `minimum_withdrawal_amount_cents`, every `seller_balance.*_cents`, `sp_wallets.available_balance`) are CENTS; `getSubscriptionPrice()` is normalized to DOLLARS by `normalizeSubscriptionPriceMonthly`.
+2. Cents → `formatPrice(cents)` ("$1.49"); dollars → `formatDollarAmount(dollars)` ("$7.99"). Never pass a cents value to the dollars formatter.
+3. Detection checklist: before shipping any fee/balance/summary copy, grep for the pairing `formatDollarAmount(` fed by a `*_cents` source — that pairing is the bug class (`rg -n "formatDollarAmount\(.*Cents" p2p-kids-marketplace/src`).
+
+## BP-86: Membership / Value-Prop Copy Must Come From the Canonical In-App Benefit Set — Grep the Whole Class Before Shipping
+
+Problem (DEV-TASK-118 follow-up, 2026-09-05): the ContinueKidsClub “already active” recap (and its sibling trial branch) advertised a made-up benefit list — “Donation option for listings / Advanced trading insights / Exclusive badges & achievements” — which is NOT what Kids Club+ membership provides, and it omitted the headline benefit (the flat Safety & Platform fee). The canonical set already exists in-app (ManageKidsClubScreen “Kids Club+ Benefits” card + JoinKidsClubScreen `STATIC_BENEFITS` + the BRD/SYSTEM_REQUIREMENTS fee + SP + priority features) — the recap simply drifted.
+
+Rules:
+1. When authoring or touching membership/value-prop copy on ANY surface, source the benefit list from the canonical in-app set (e.g. ManageKidsClubScreen “Kids Club+ Benefits” card / JoinKidsClubScreen `STATIC_BENEFITS`); do not hand-invent rows.
+2. Before shipping, grep the WHOLE class — `rg -n "Advanced trading insights|Exclusive badges|Earn & spend Swap Points" p2p-kids-marketplace/src` — every screen/branch showing a benefits recap must match the canonical list. A fix applied to one branch but not the sibling branch (same screen) is the recurring miss.
+3. When a benefit row carries an admin-configurable money value (flat fee), fetch it live (`getActiveMemberFeeCents()`, BP-28) and format with a cents formatter (BP-85) — never a hardcoded figure.

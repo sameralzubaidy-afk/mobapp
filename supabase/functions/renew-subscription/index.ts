@@ -519,21 +519,45 @@ serve(async (req) => {
 
     console.log('[renew-subscription] Updated subscription status to active');
 
-    // 9. R6 (2026-08-09): unfreeze SP wallet via in-repo RPC so a resubscribed
-    //    user's frozen balance becomes spendable again (replaces the external
-    //    SP_SUBSCRIPTION_UNFREEZE_URL dependency).
+    // 9. R6 (2026-08-09) + DT-118 (2026-09-05): unfreeze SP wallet via in-repo
+    //    RPC so a resubscribed user's frozen balance becomes spendable again
+    //    (replaces the external SP_SUBSCRIPTION_UNFREEZE_URL dependency).
+    //
+    //    DT-118 fix: this RPC MUST run as the SERVICE ROLE. The main
+    //    `supabaseClient` carries the user JWT in global.headers.Authorization
+    //    (needed for auth.getUser()), so PostgREST runs its RPC as the
+    //    authenticated user — but rpc_set_sp_wallet_state was locked to
+    //    service_role by DT-59 (2026-08-30), so that call was silently denied
+    //    (permission denied) and the wallet stayed in grace_period while the
+    //    success message claimed SP was available. Use a dedicated service-role
+    //    client (same pattern as the billingServiceClient in step 10).
+    //    Unfreeze failure is non-fatal (the sub is already active + charged)
+    //    but LOUD: the success payload carries sp_wallet_unfrozen=false and the
+    //    message no longer claims SP availability when the unfreeze did not commit.
+    let spWalletUnfrozen = false;
     try {
-      const { error: unfreezeError } = await supabaseClient.rpc('rpc_set_sp_wallet_state', {
+      const unfreezeServiceClient = createClient(supabaseUrl, supabaseServiceKey);
+      const { error: unfreezeError } = await unfreezeServiceClient.rpc('rpc_set_sp_wallet_state', {
         p_user_id: user_id,
         p_state: 'active',
       });
       if (unfreezeError) {
-        console.error('[renew-subscription] SP unfreeze RPC failed:', unfreezeError.message);
+        spWalletUnfrozen = false;
+        console.error('[renew-subscription] SP unfreeze RPC failed:', {
+          code: unfreezeError.code,
+          message: unfreezeError.message,
+          user_id,
+        });
       } else {
+        spWalletUnfrozen = true;
         console.log('[renew-subscription] SP wallet unfrozen successfully');
       }
     } catch (err) {
-      console.error('[renew-subscription] Error unfreezing SP wallet:', err);
+      spWalletUnfrozen = false;
+      console.error('[renew-subscription] Error unfreezing SP wallet:', {
+        user_id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     // 10. Create billing history record. The invoice from a fresh renewal is paid
@@ -587,11 +611,16 @@ serve(async (req) => {
       console.error('[renew-subscription] Failed to create billing history:', err);
     }
 
-    // Success response
+    // Success response (DT-118): only claim SP availability when the wallet
+    // unfreeze actually committed. `sp_wallet_unfrozen` is additive (old
+    // clients ignore it).
     return jsonResponse({
         success: true,
         subscription_status: 'active',
-        message: 'Subscription renewed successfully. Your Swap Points are now available.',
+        message: spWalletUnfrozen
+          ? 'Subscription renewed successfully. Your Swap Points are now available.'
+          : 'Subscription renewed successfully. Your Swap Points could not be unfrozen yet — please contact support.',
+        sp_wallet_unfrozen: spWalletUnfrozen,
         stripe_subscription_id: stripeSubscription.id,
         next_billing_date: periodEnd,
       });

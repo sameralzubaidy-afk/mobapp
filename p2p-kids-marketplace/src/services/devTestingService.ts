@@ -1132,6 +1132,47 @@ export async function getSimulatedConfigFetchFailure(): Promise<QaConfigFetchFai
 }
 
 // ========================================
+// QA PAYOUT/BILLING FORCED-FETCH-FAILURE (SUB-TC-F07 + K02 error/retry leg — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that forces a fetch failure on the Payout
+ * Settings screen (SUB-TC-F07 offline/load-failure state) and the Transaction
+ * History screen (SUB-TC-K02 error + Retry leg). Absence, 'none', or any
+ * unknown value = no simulation (fail-closed). Values: 'fetch_failure' | 'none'
+ *   - 'fetch_failure' → PayoutSettingsScreen.loadPayoutMethods and
+ *     TransactionHistoryScreen.fetchHistory throw a synthetic Error before any
+ *     network call, so each screen exercises its REAL error UI (Payout Settings:
+ *     the catch Alert "Failed to load payout data…"; Transaction History: the
+ *     error state + Retry button).
+ *
+ * Why this exists: F07 (offline/load-failure) and K02's error-retry leg have no
+ * clean way to be triggered on a healthy staging connection — this reproduces
+ * the exact user-visible branch on demand WITHOUT touching network or server
+ * state.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real fetches always run.
+ * The simulation never alters server state. Cleared on logout with every other
+ * qa_local_* key.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=payout_fetch_failure&value=fetch_failure"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=payout_fetch_failure&value=none"
+ */
+export const QA_PAYOUT_FETCH_FAILURE_KEY = 'qa_local_payout_fetch_failure';
+
+export type QaPayoutFetchFailureMode = 'fetch_failure' | 'none';
+
+export async function getSimulatedPayoutFetchFailure(): Promise<QaPayoutFetchFailureMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_PAYOUT_FETCH_FAILURE_KEY);
+  return value === 'fetch_failure' ? 'fetch_failure' : 'none';
+}
+
+// ========================================
 // QA FORCED-CARD SELECTION (TRD-TC-B03/B06 QA toggle — dev-only)
 // ========================================
 
@@ -1243,6 +1284,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
   payment_card: QA_PAYMENT_CARD_KEY,
   sp_wallet_not_found: QA_SP_WALLET_NOT_FOUND_KEY,
+  payout_fetch_failure: QA_PAYOUT_FETCH_FAILURE_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1256,6 +1298,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_CONFIG_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
   [QA_PAYMENT_CARD_KEY]: ['mastercard_4444', 'visa_4242', 'none'],
   [QA_SP_WALLET_NOT_FOUND_KEY]: ['not_found', 'none'],
+  [QA_PAYOUT_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
 };
 
 /**

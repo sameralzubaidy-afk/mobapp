@@ -29,6 +29,8 @@ import {
   QA_FORCE_CARD_DECLINE_KEY,
   QA_CONFIG_FETCH_FAILURE_KEY,
   QA_PAYMENT_CARD_KEY,
+  QA_PAYOUT_FETCH_FAILURE_KEY,
+  QA_SP_WALLET_NOT_FOUND_KEY,
   getSimulatedPaymentCardPreference,
   setQaLocalValue,
   clearQaLocalValues,
@@ -334,6 +336,8 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       card_decline: QA_FORCE_CARD_DECLINE_KEY,
       config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
       payment_card: QA_PAYMENT_CARD_KEY,
+      sp_wallet_not_found: QA_SP_WALLET_NOT_FOUND_KEY,
+      payout_fetch_failure: QA_PAYOUT_FETCH_FAILURE_KEY,
     });
   });
 
@@ -376,6 +380,11 @@ describe('devTestingService — session-local QA toggle storage + validation', (
     expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'none')).toBe(true);
     expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'pm_1To5Vb4I6kCJlvXoCUYo0CI3')).toBe(false);
     expect(isValidQaToggleValue(QA_PAYMENT_CARD_KEY, 'random_junk')).toBe(false);
+
+    // payout_fetch_failure (DT-118, item 7)
+    expect(isValidQaToggleValue(QA_PAYOUT_FETCH_FAILURE_KEY, 'fetch_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYOUT_FETCH_FAILURE_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYOUT_FETCH_FAILURE_KEY, 'bogus')).toBe(false);
 
     // Unknown storage key → always invalid.
     expect(isValidQaToggleValue('qa_unknown', 'token')).toBe(false);

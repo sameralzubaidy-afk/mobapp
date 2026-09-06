@@ -239,7 +239,7 @@ Required in every SQL deliverable:
 
 Full Postgres RPC / SQL naming convention and required verification queries moved to .github/instructions/supabase-sql.instructions.md (auto-attaches when editing supabase/migrations/**/*.sql).
 
-See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-78) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
+See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-86) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
 UI Performance Defaults (MANDATORY)
 Debounce defaults:
 
@@ -701,7 +701,7 @@ Issue: "Screen colors/tokens look off-brand (blue CTAs / Material palette)"
 
 ✅ Check: No Material/Tailwind/system-blue hex in the screen or its sub-components (BP-82)
 ✅ Check: The screen imports Pass It Up semantic tokens, not a legacy/foreign palette (BP-82 / BP-56)
-See also: BP-82 (account/subscription screens), BP-56 (Discover discoveryTokens)
+See also: BP-82 (account/subscription screens), BP-56 (Discover discoveryTokens), BP-86 (membership/value-prop copy must match the canonical benefit set), BP-85 (cents-stored money needs a cents formatter — "$1.49" not "$149")
 Issue: "Push/in-app notification never arrives for a state change"
 
 ✅ Check: Is there already a DB trigger handling this event? (BP-20)
@@ -1320,7 +1320,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-83)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-86)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1350,7 +1350,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-22 Secret keys (service role) — resolve ONLY from config at runtime; never a hardcoded fallback and never baked into a cron `net.http_post` header (hardcoded fallback allowed only for non-secret base URLs).
 - BP-23 Realtime callbacks — must mirror the same side effects the mount-time effect performs.
 - BP-24 Partial reverts — leave a `// DEFERRED-DECISION` comment on code that survives a partial revert.
-- BP-25 Edge Function compile gate — use `deno check --no-lock`, not `get_errors` (false positives on Deno globals).
+- BP-25 Edge Function compile gate — use `deno check --no-lock`, not `get_errors` (false positives on Deno globals); run from the repo root with `--no-config` (or a `/tmp` copy) — a stray RN tsconfig can false-fail the gate (DT-118, 2026-09-05).
 - BP-26 EF performance — check `execution_time_ms` + staircase pattern before guessing at the bottleneck.
 - BP-27 Duplicate enforcement — search for DB triggers/RPCs that duplicate an Edge Function's business rule check.
 - BP-28 Admin-configurable values — Edge Functions must fail loud (`CONFIG_UNAVAILABLE`), never silently fall back.
@@ -1404,6 +1404,9 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but doesn't write a `schema_migrations` row; verify the migration landed by invoking the changed object live, never by the migration list (DEV-TASK-83, 2026-09-02) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-82 Account/subscription screens — Pass It Up semantic tokens only; no Material/Tailwind/iOS-system-blue leakage (Manage Kids Club+ family `#4CAF50`/`#E53935`/`#0066CC`/`#D97706` etc., confirmed 2026-09-02) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-83 Stripe test-clock renewal verification — a test clock cannot be retro-attached to an existing Checkout subscription (`parameter_unknown`); verify a real renewal on a fresh clock-bound subscription metadata-bound to the same `user_id` (2026-09-02) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-84 Money-ledger repair path — a money ledger with a recompute RPC (`seller_balance` ← `recompute_seller_balance`) must be repaired/reset ONLY through that RPC (locked `service_role`-only); never a raw ledger write, and never leave a ledger-recompute PUBLIC-executable (DT-118, 2026-09-05) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-85 Money display units — cents-stored money MUST use a cents formatter (`formatPrice` → "$1.49"), never the dollars formatter (`formatDollarAmount` → "$149") (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-86 Membership/value-prop copy — subscription surfaces must render the CANONICAL in-app benefit set (ManageKidsClub "Kids Club+ Benefits" / JoinKidsClub `STATIC_BENEFITS`), never an invented list; grep the whole class before shipping (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

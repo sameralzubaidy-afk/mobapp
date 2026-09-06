@@ -26,6 +26,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { supabase } from '../../services/supabase/client';
 import { captureException } from '@/services/errorReporter';
+import { getSimulatedPayoutFetchFailure } from '@/services/devTestingService';
 import {
   listPayoutMethods,
   createPayoutMethod,
@@ -102,6 +103,31 @@ function getProviderColor(methodType: string): string {
   }
 }
 
+/**
+ * DT-118 (items 5/9): a single display name for a payout provider, shared by
+ * the WithdrawModal fee row and the payout-history fee lines so both surfaces
+ * tell one consistent story. Accepts either a method_type ('stripe_connect',
+ * 'paypal', 'venmo', 'bank_ach' — seller_payout_methods) or a ledger provider
+ * ('stripe', 'paypal', 'ach' — seller_payouts), since the two tables store
+ * different enumerations for the same provider.
+ */
+function getPayoutProviderName(value: string | null | undefined): string {
+  switch (value) {
+    case 'stripe_connect':
+    case 'stripe':
+      return 'Stripe';
+    case 'paypal':
+      return 'PayPal';
+    case 'venmo':
+      return 'Venmo';
+    case 'bank_ach':
+    case 'ach':
+      return 'Bank (ACH)';
+    default:
+      return 'payout provider';
+  }
+}
+
 /** Return badge styling based on status message */
 function getStatusBadgeStyle(
   statusMessage: string,
@@ -171,6 +197,14 @@ export default function PayoutSettingsScreen() {
   const loadPayoutMethods = async () => {
     try {
       setLoading(true);
+
+      // DT-118 (item 7): forced-fetch-failure QA toggle (SUB-TC-F07) — when
+      // armed, throw before any network call so the screen exercises its real
+      // load-failure UI (the catch Alert below). Fail-closed outside dev.
+      const simulatedFetchFailure = await getSimulatedPayoutFetchFailure();
+      if (simulatedFetchFailure === 'fetch_failure') {
+        throw new Error('Simulated payout fetch failure (QA toggle payout_fetch_failure)');
+      }
 
       // Best-effort: sync Stripe Connect onboarding state from Stripe -> DB
       // so the UI and payout eligibility reflect completion immediately.
@@ -580,6 +614,11 @@ export default function PayoutSettingsScreen() {
 
         {/* ── Payout History ── */}
         <Text style={styles.sectionLabel}>PAYOUT HISTORY</Text>
+        {recentPayouts.length > 0 && (
+          <Text style={styles.historyFeeNote} testID="payout-history-fee-note">
+            Fees shown are charged by your payout provider — Pass It Up charges no withdrawal fee.
+          </Text>
+        )}
         {recentPayouts.length === 0 ? (
           <View style={styles.emptyHistory} testID="empty-history">
             <Text style={styles.emptyHistoryText}>No payouts yet</Text>
@@ -593,6 +632,10 @@ export default function PayoutSettingsScreen() {
               style={styles.loadMoreButton}
               onPress={handleLoadMore}
               disabled={loadingMore}
+              testID="load-more-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Load more payout history"
             >
               {loadingMore ? (
                 <ActivityIndicator size="small" color="#5DBB8E" />
@@ -768,7 +811,7 @@ function PayoutHistoryCard({ payout }: PayoutHistoryCardProps) {
           </Text>
           {payout.payout_fee_cents > 0 && (
             <Text style={styles.historyFee}>
-              Fee: {formatCentsToDollars(payout.payout_fee_cents)}
+              {`${getPayoutProviderName(payout.provider)} fee: ${formatCentsToDollars(payout.payout_fee_cents)}`}
             </Text>
           )}
         </View>
@@ -856,9 +899,14 @@ function WithdrawModal({
             <Text style={styles.withdrawValue}>{balanceDisplay.available}</Text>
           </View>
           <View style={styles.withdrawRow}>
-            <Text style={styles.withdrawLabel}>Payout Fee:</Text>
+            <Text style={styles.withdrawLabel}>
+              {`Payout processing fee (${getPayoutProviderName(primaryMethod.method_type)}):`}
+            </Text>
             <Text style={styles.withdrawValue}>-{formatCentsToDollars(fee)}</Text>
           </View>
+          <Text style={styles.withdrawFeeNote} testID="withdraw-fee-note">
+            {`This is the fee your payout provider (${getPayoutProviderName(primaryMethod.method_type)}) charges to send the transfer; Pass It Up charges no withdrawal fee.`}
+          </Text>
           <View style={[styles.withdrawRow, styles.withdrawRowTotal]}>
             <Text style={styles.withdrawLabelTotal}>You'll Receive:</Text>
             <Text style={styles.withdrawValueTotal}>{formatCentsToDollars(netAmount)}</Text>
@@ -1410,7 +1458,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    // DT-118 (item 4): pill-height bottom inset so the Load More control scrolls
+    // clear of the floating tab bar (pill top sits ~110pt from the bottom) —
+    // previously 40pt left Load More occluded by the nav bar (F08/G10 blocker).
+    paddingBottom: 120,
   },
   // ── Hero Card ───────────────────────────────────────────────────────────────
   heroCard: {
@@ -1766,6 +1817,12 @@ const styles = StyleSheet.create({
     color: '#999999',
     marginTop: 2,
   },
+  historyFeeNote: {
+    fontSize: 11,
+    color: '#999999',
+    marginTop: -12,
+    marginBottom: 12,
+  },
   emptyHistory: {
     paddingVertical: 32,
     alignItems: 'center',
@@ -1998,6 +2055,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#000',
+  },
+  withdrawFeeNote: {
+    fontSize: 11,
+    color: '#999999',
+    lineHeight: 15,
+    marginTop: -4,
+    marginBottom: 8,
   },
   withdrawRowTotal: {
     marginTop: 8,

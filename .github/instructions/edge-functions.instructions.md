@@ -16,7 +16,7 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-17 send-trade-notifications — check `result.sent > 0`, never trust `resp.ok` alone.
 - BP-18 Reminder EFs — must insert `user_notifications` explicitly, not rely on status-change triggers.
 - BP-19 Cron-invoked EFs — `verify_jwt = false` in config.toml + `--no-verify-jwt` on deploy.
-- BP-25 Edge Function compile gate — use `deno check --no-lock`, not `get_errors`.
+- BP-25 Edge Function compile gate — use `deno check --no-lock`, not `get_errors`; run from the repo root with `--no-config` (or a `/tmp` copy) so a stray RN tsconfig (`jsx: react-native`) can't false-fail the gate (DT-118, 2026-09-05).
 - BP-26 EF performance — check `execution_time_ms` + staircase pattern before guessing at the bottleneck.
 - BP-27 Duplicate enforcement — search for DB triggers/RPCs that duplicate an Edge Function's business rule check.
 - BP-28 Admin-configurable values — Edge Functions must fail loud (`CONFIG_UNAVAILABLE`), never silently fall back.
@@ -123,6 +123,7 @@ cd /Users/sameralzubaidi/Desktop/kids_marketplace_app && deno check --no-lock su
 ```
 - When checking multiple functions, pass all file paths to a single `deno check` invocation.
 - If `deno check` reports errors, investigate them — they are real. If `get_errors` reports errors but `deno check` passes, the errors are false-positives.
+- DT-118 (2026-09-05): `deno check` can FALSE-FAIL when a stray `tsconfig.json` with `"jsx": "react-native"` is discovered from the working directory (e.g. running from `p2p-kids-marketplace/` picks up its RN tsconfig → `error: Unsupported 'jsx' compiler option value 'react-native'`). Run the gate from the workspace root with config discovery disabled — `deno check --no-config --no-lock supabase/functions/<name>/index.ts` — or from a `/tmp` copy of the file. A compile error inside the edited region is real; a `jsx`/config error is environmental (verify by checking the same content from `/tmp`).
 
 ## BP-26: Edge Function Performance Diagnosis — `execution_time_ms` + Staircase Pattern
 Problem: Guessing at a "slow Edge Function" bottleneck without hard data wastes time. The `execution_time_ms` field definitively separates client-side from server-side bottlenecks.

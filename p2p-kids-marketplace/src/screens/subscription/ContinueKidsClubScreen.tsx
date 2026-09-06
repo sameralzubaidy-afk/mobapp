@@ -21,9 +21,9 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getTrialStatus, TrialStatus } from '../../services/subscriptions/trialConversion';
-import { getSubscriptionPrice, getTrialDays } from '../../services/adminConfig';
+import { getSubscriptionPrice, getTrialDays, getActiveMemberFeeCents } from '../../services/adminConfig';
 import { openJoinKidsClubWeb } from '../../utils/subscriptionWeb';
-import { formatDollarAmount } from '@/utils/formatPrice';
+import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
 import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
 
@@ -38,12 +38,34 @@ export default function ContinueKidsClubScreen() {
   const [monthlyPrice, setMonthlyPrice] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(30);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  // Flat Safety & Platform Fee (Kids Club+ member fee) — canonical default 149c,
+  // replaced live from admin_config so copy can't drift from the charged fee
+  // (JoinKidsClubScreen pattern; BP-13/BP-28).
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
 
   const isActiveSubscription = trialStatus?.status === 'active';
   const isTrialSubscription = trialStatus?.status === 'trial';
 
   useEffect(() => {
     loadStatus();
+  }, []);
+
+  // DT-118 benefits fix: fetch the member flat fee independently so a config
+  // failure never breaks the trial/active status load (keeps the 149 default).
+  useEffect(() => {
+    let mounted = true;
+    getActiveMemberFeeCents()
+      .then((cents) => {
+        if (mounted && Number.isFinite(cents) && cents >= 0) {
+          setActiveMemberFlatCents(Math.round(cents));
+        }
+      })
+      .catch(() => {
+        // Keep the canonical 149 default on a config-fetch failure.
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const loadStatus = async () => {
@@ -98,18 +120,58 @@ export default function ContinueKidsClubScreen() {
   }
 
   if (isActiveSubscription) {
+    // DT-118 (item 8): the active state was a near-empty dead-end (one line +
+    // Go Back). Enrich it into an "you're all set" landing: header, benefits
+    // recap, and a primary Manage Kids Club+ action (route manage-kids-club
+    // exists) so an active member who lands here has a clear next step.
     return (
-      <View style={styles.container}>
+      <ScrollView style={styles.container} testID="kids-club-active-screen">
         <View style={styles.content}>
-          <Text style={styles.title}>✅ Kids Club+ Active</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.emoji}>🎉</Text>
+            <Text style={styles.title}>Kids Club+ Active</Text>
+            <View style={styles.activeStatusPill}>
+              <Text style={styles.activeStatusPillText}>✓ You're all set</Text>
+            </View>
+          </View>
+
           <Text style={styles.description}>
             Your subscription is already active and your premium benefits are available.
           </Text>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.secondaryButtonText}>Go Back</Text>
+
+          {/* Benefits recap (DT-118 fix: canonical Kids Club+ membership benefits,
+              matching the ManageKidsClub 'Kids Club+ Benefits' card) */}
+          <View style={styles.section} testID="continue-active-benefits">
+            <Text style={styles.sectionTitle}>Your Premium Benefits:</Text>
+            <View style={styles.benefitsList}>
+              <BenefitItem icon="💰" text="Earn & spend Swap Points on purchases" />
+              <BenefitItem
+                icon="🧾"
+                text={`Flat ${formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade`}
+              />
+              <BenefitItem icon="⭐" text="Priority listing visibility" />
+              <BenefitItem icon="✨" text="Access to exclusive features" />
+            </View>
+          </View>
+
+          {/* Primary action: manage membership (status / next billing / auto-renew) */}
+          <TouchableOpacity
+            style={styles.manageButton}
+            testID="continue-active-manage-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Manage Kids Club Plus"
+            onPress={() => navigation.navigate('ManageKidsClub')}
+          >
+            <Text style={styles.manageButtonText}>Manage Kids Club+</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.activeGoBackButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.activeGoBackButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -142,15 +204,17 @@ export default function ContinueKidsClubScreen() {
           )}
         </View>
 
-        {/* Benefits Reminder */}
+        {/* Benefits Reminder (DT-118 fix: canonical Kids Club+ membership benefits) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Keep Your Premium Benefits:</Text>
           <View style={styles.benefitsList}>
-            <BenefitItem icon="💰" text="Earn & spend Swap Points" />
+            <BenefitItem icon="💰" text="Earn & spend Swap Points on purchases" />
+            <BenefitItem
+              icon="🧾"
+              text={`Flat ${formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade`}
+            />
             <BenefitItem icon="⭐" text="Priority listing visibility" />
-            <BenefitItem icon="🎁" text="Donation option for listings" />
-            <BenefitItem icon="📊" text="Advanced trading insights" />
-            <BenefitItem icon="🏆" text="Exclusive badges & achievements" />
+            <BenefitItem icon="✨" text="Access to exclusive features" />
           </View>
         </View>
 
@@ -374,5 +438,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
+  },
+  // DT-118 (item 8): active-state elements — on-brand pass-it-up green (#5DBB8E)
+  // for the NEW primary action + status pill (the pre-existing trial branch keeps
+  // its legacy styling; not touched).
+  activeStatusPill: {
+    backgroundColor: '#E8F5F0',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+  },
+  activeStatusPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5DBB8E',
+  },
+  manageButton: {
+    backgroundColor: '#5DBB8E',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#5DBB8E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  manageButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  activeGoBackButton: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#5DBB8E',
+    marginBottom: 8,
+  },
+  activeGoBackButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#5DBB8E',
   },
 });

@@ -10,6 +10,7 @@ import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } fr
 import { useAuth } from '@/hooks/useAuth';
 import { getBillingHistory } from '@/services/billingHistory';
 import { captureException } from '@/services/errorReporter';
+import { getSimulatedPayoutFetchFailure } from '@/services/devTestingService';
 import type { BillingHistory } from '@/types/billingHistory.types';
 import { Receipt } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
@@ -28,6 +29,14 @@ export default function TransactionHistoryScreen() {
     if (!userId) return;
 
     try {
+      // DT-118 (item 7): forced-fetch-failure QA toggle (SUB-TC-K02 error/retry
+      // leg) — when armed, throw before the network call so the screen renders
+      // its error state + Retry. Fail-closed outside dev.
+      const simulatedFetchFailure = await getSimulatedPayoutFetchFailure();
+      if (simulatedFetchFailure === 'fetch_failure') {
+        throw new Error('Simulated billing history fetch failure (QA toggle payout_fetch_failure)');
+      }
+
       const data = await getBillingHistory({ user_id: userId, limit: 50 });
       setHistory(data);
       setError(null);
