@@ -783,6 +783,46 @@ Any hit on a live screen is a DEVIATION (canonical map: `#4A7C59`→primary `#5D
 
 *Evidence / origin: QA Task 34 (2026-09-05) — ContinueKidsClub active branch on-brand while its upsell branch leaked `#4A7C59` (price card / primary CTA) + `#4D4D4D`/`#808080` (benefit / fine-print text); the first-pass review only rendered the active branch. Report: `e2e-test-results/qa-task34-payout-e2e-2026-09-05/report.md` (D1).*
 
+### 5.64 Standing rule — QA Task 37 codification (part 1): session-start checklist + instrumented-modals-first + hosted canonical values (2026-09-06) — R63–R66
+
+Codifies QA Task 36 + QA Task 37 decision-log patterns (was recommended after two consecutive rounds; this is the landing). Evidence: `e2e-test-results/qa-task37-g01-redrive-2026-09-06/decision-and-outcome-log-ai-analysis.md` (§Phase-0, F-1/F-4, I-8) and the QA Task 36 log. Where an earlier standing rule covers the same ground (R27 testID-first, R17 screenshot-truth, R-NEW-1 relaunch-first), this section adds the session-level defaults so they are not re-derived every run.
+
+**R63 — Session-start checklist: absorb the restart tax once, in this order.** (1) activate the required mobile-mcp categories; (2) `list_available_devices` + warm WDA; (3) confirm the persona's authoritative state via a single DB read (profile/method/sub/SP/balance — use the start-of-run state helper when available, I-7); (4) confirm admin portal `:3001` + Metro are up; (5) read the §8.3 handoff template BEFORE any handoff so it is emitted verbatim first-pass (QA Task 36 F-9). ~54 calls of prep every run is the baseline; this checklist + repo-memory consolidation is what cuts it.
+
+**R64 — One-tap instrumented modals are the DEFAULT; pixel/OCR is the exception.** When a modal or CTA carries a `testID` + `accessibilityRole` and the AX tree exposes it, drive it by AX (one tap) — do not screenshot-locate it. Fall back to pixel/OCR only when the element is genuinely un-instrumented or the RN `<Modal>` is not AX-exposed in that build (drivability is build-dependent, §5.31). Report un-instrumented elements as instrumentation asks (BP-53 class), not as new one-time work.
+
+**R65 — Hosted Stripe Express canonical test SSN is `0000`, NOT the `8888` Stripe prefill.** Stripe rejects 8888 at name precheck with no visible UI error (the page just stays "Incomplete"), which burned ~15–20 calls in QA Task 37 part 2. Enter `0000` (Cmd+A select-all + retype if prefilled).
+
+**R66 — Hosted Express persists data only at the final "Agree and submit" (intermediate steps collect client-side).** After editing phone/SSN mid-flow, the review page may still show "Incomplete" until the final commit — re-touch the phone field to persist it, then scroll to and tap "Agree and submit"; only then do `details_submitted`/`payouts_enabled` flip in the API. Never re-drive an intermediate step expecting a DB/API change.
+
+### 5.65 Standing rule — QA Task 37 codification (part 2): currently_due-first + industry search-field + stale-after-hosted (2026-09-06) — R67–R69
+
+**R67 — When a hosted page says "Incomplete" with no visible error, read `requirements.currently_due` via the Stripe API FIRST** — the API names the exact missing field (F-4 pattern). Blind-driving an "Incomplete" page wastes 5–20 calls per field and can chase a ghost (QA Task 37 part 2: the DT-121 gov-ID gate was already gone; `currently_due` named phone + `ssn_last_4` + TOS, which directed the fix).
+
+**R68 — Hosted industry-picker sub-item dropdowns are NOT AX-exposed (stale sub-option tree): use the picker's SEARCH field, not scrolling.** Screenshot is truth on the expanded list (the AX tree can skip valid options); type the target term (e.g. "merchandise" → "Other merchandise") in the picker's search box. Never long-press Safari fields (QA Task 36 F-3).
+
+**R69 — After ANY hosted-flow completion, treat the app/DB method state as STALE until a sync.** Pull-to-refresh is NOT a sync — a completed hosted Express flow can leave `seller_payouts_methods.stripe_onboarding_complete=false` while Stripe has fully verified the account. Before asserting UI state, call the sync EF (`sync-stripe-connect-status`) / the sync-on-return path, or the DB/Stripe API read is the verdict (R24). The QA Task 37 "4-lesson" near-miss (a false "DT122 broken" report) is why: ~10+ calls went to reconciling a stale `false` DB row after a real hosted completion.
+
+### 5.66 Standing rule — QA Task 37 codification (part 3): embedded-form select-all-retype + no mid-run estimates + batch confirmation (2026-09-06) — R70–R72
+
+**R70 — In hosted/embedded (iframe) card & checkout forms, Cmd+A select-all + retype EVERY field after the first focus misdirection; suppress the keyboard before any coordinate tap; OCR-pin a field's band once, not per field.** Hosted Checkout fields misdirect taps (QA Task 37: tapping "ZIP" appended to the CARDHOLDER field) and the keyboard changes layout each time — select-all-retype is the reliable replace; the ZIP band (~y605) can be OCR-pinned once. This halves the ~63-call hosted Checkout cost.
+
+**R71 — NEVER report a mid-run call-count estimate as a comparison — mine the transcript for exact counts at the end.** QA Task 37's mid-run "~110–120 calls" materially undercounted the mined truth (211). If a report compares rounds (QA Task 36 vs 37, before/after instrumentation), the numbers MUST come from the transcript miner (`qa:mine-call-ledger` — `tool.execution_start` tallies per phase), never from an in-flight guess. A mid-run estimate may be shared as an informal progress note, but it is never a reportable comparison.
+
+**R72 — Batch confirmation on AX-drivable surfaces: chain taps and confirm at the END; reserve screenshot-confirm for Safari/keyboard-shifted surfaces.** Confirming every tap (list_elements + click + screenshot + view_image per step) is the session's largest constant tax (QA Task 37: 111 list + 92 click + 33 screenshot + 26 view_image). On instrumented, AX-exposed surfaces, chain several taps then confirm once (R-NEW-1 already: first-guess screenshot then proceed).
+
+### 5.67 Standing rule — QA Task 37 codification (part 4): admin automation scoping + DB-over-UI + QA deep links + runbook-first (2026-09-06) — R73–R76
+
+**R73 — Admin-web automation: scope to the TABLE's own filter input, or Escape the global ⌘K dialog first; click row-scoped buttons by row text.** The first `input` on an admin table page is often the global ⌘K search (opens a dialog, not the table filter). Target the table's filter input or Escape-close the global dialog first; then click row-scoped `button:has-text(...)` (with a `window.confirm` override where needed).
+
+**R74 — Confirm DB/Stripe API over UI for hosted outcomes — once, after the sync (R69).** `execute_sql`/Stripe API read-back is the verdict (R24); screenshots corroborate. Do not assert UI copy alone for money/state outcomes.
+
+**R75 — Prefer registered QA deep links / persona one-tap login (`qa-login-as`, `manage-kids-club`, notification deep links) over wizard taps.** Cold/warm deep-link routing is now reliable for the registered routes (DT-123); signup/onboarding wizards are tap-by-tap and cost ~15 taps per disposable. Use a dev-fill path or the deep link when the case under test is not the wizard itself.
+
+**R76 — Consult the committed G01/D05 canonical-values runbook (canonical test SSN `0000`, phone re-touch, commit-at-submit, `currently_due`-first, industry search-field, Checkout card recipe) BEFORE a hosted drive — never discover canonical values mid-flight.** Every value discovered during a run cost 5–20 calls. If the runbook section is missing or stale, flag it as an instrumentation/docs ask rather than improvising the value live.
+
+*Evidence / origin: QA Task 36 + QA Task 37 (2026-09-06) — decision-and-outcome-log-ai-analysis.md F-1/F-2/F-3/F-4/F-6, the per-phase call ledger (Batch B 211, hosted Express ≈148, hosted Checkout 63), and the correction note (mid-run estimate 110–120 vs mined 211).*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

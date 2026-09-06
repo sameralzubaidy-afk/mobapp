@@ -221,6 +221,10 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
             style={styles.updateButton}
             onPress={handleUpdatePaymentMethod}
             disabled={updating}
+            testID="update-payment-method-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={updating ? 'Processing' : 'Update Payment Method'}
           >
             {updating ? (
               <ActivityIndicator size="small" color="#5DBB8E" />
@@ -236,6 +240,10 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
             style={styles.addButton}
             onPress={handleUpdatePaymentMethod}
             disabled={updating}
+            testID="add-payment-method-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={updating ? 'Processing' : 'Add Payment Method'}
           >
             <Text style={styles.addButtonText}>Add Payment Method</Text>
           </TouchableOpacity>

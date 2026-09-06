@@ -6,7 +6,7 @@
  * Seller-facing screen for managing payout methods
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,10 +17,11 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  AppState,
   Linking,
   Modal,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { supabase } from '../../services/supabase/client';
@@ -189,6 +190,14 @@ export default function PayoutSettingsScreen() {
     message: '',
   });
 
+  // DT-124 (Item 2): reload-on-return plumbing. loadPayoutMethods() best-effort
+  // calls syncStripeConnectStatus(), so a full reload after a hosted Stripe
+  // Express return — cold deep-link mount, warm refocus, or app foreground while
+  // this screen is focused — closes the stale "Onboarding required" gap.
+  const lastAutoReloadAtRef = useRef(0);
+  const isFocusedRef = useRef(false);
+  const reloadRef = useRef<() => void>(() => {});
+
   // Load payout methods on mount
   useEffect(() => {
     loadPayoutMethods();
@@ -251,6 +260,41 @@ export default function PayoutSettingsScreen() {
       setRefreshing(false);
     }
   };
+
+  // DT-124 (Item 2): keep the reloadRef closure current (always the latest
+  // loadPayoutMethods) and coalesce mount + focus + AppState-active reloads so a
+  // single hosted-flow return never triggers duplicate network loads.
+  reloadRef.current = () => {
+    const now = Date.now();
+    if (now - lastAutoReloadAtRef.current < 1500) return; // coalesce
+    lastAutoReloadAtRef.current = now;
+    loadPayoutMethods();
+  };
+
+  // Reload when the screen regains focus (warm deep-link navigate to an
+  // already-mounted screen, or back-navigation). The mount-time initial load is
+  // coalesced away by the 1.5s window above.
+  useFocusEffect(
+    useCallback(() => {
+      isFocusedRef.current = true;
+      reloadRef.current();
+      return () => {
+        isFocusedRef.current = false;
+      };
+    }, [])
+  );
+
+  // Reload when the app returns to the foreground while this screen is focused.
+  // The hosted Express flow runs in system Safari, so the return (warm, screen
+  // already mounted beneath the browser) is only observable as an AppState change.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && isFocusedRef.current) {
+        reloadRef.current();
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -1413,7 +1457,13 @@ function PayoutMethodBottomSheet({
   const providerColor = getProviderColor(method.method_type);
 
   return (
-    <Modal transparent animationType="slide" visible={true} onRequestClose={onClose}>
+    <Modal
+      transparent
+      animationType="slide"
+      visible={true}
+      onRequestClose={onClose}
+      accessibilityViewIsModal
+    >
       <TouchableOpacity
         style={styles.sheetOverlay}
         activeOpacity={1}

@@ -31,6 +31,8 @@
     "qa:wallet-persona": "node scripts/qa/wallet-persona-fixture.mjs",
     "qa:failed-payout": "node scripts/qa/failed-payout-fixture.mjs",
     "qa:payout-fixture": "node scripts/qa/payout-fixture.mjs",
+    "qa:mine-call-ledger": "node scripts/qa/mine-call-ledger.mjs",
+    "qa:start-state": "node scripts/qa/start-state.mjs",
     "qa:category-suggestion": "node scripts/qa/category-suggestion-fixture.mjs",
     "testid-drift-check": "node scripts/testid-drift-check.mjs",
     "test:ci": "jest --runInBand --reporters=default",

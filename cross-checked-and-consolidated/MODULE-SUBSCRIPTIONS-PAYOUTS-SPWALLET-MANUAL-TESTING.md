@@ -1749,6 +1749,44 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 
 ---
 
+## Hosted-flow runbook — canonical values & recipes (SUB-TC-G01 / D05)
+
+> **Purpose (Dev Task 124, item 5 — 2026-09-06):** prevent re-discovery of the hosted
+> Stripe flows' canonical values on every run. QA Task 36/37 mined these at a cost of
+> ~148 calls (hosted Express) + ~63 calls (hosted Checkout) per pass; starting a run
+> with this section makes those phases roughly half the cost. Add new values here the
+> moment you discover them — never leave them only in a run archive.
+
+### G01 — Hosted Stripe Express onboarding (Add Stripe Connect payout method)
+
+The hosted drive runs in **system Safari** (the app opens the `account_link`). Canonical values + order:
+
+- **Legal identity is pre-filled by the app's account EF (DT-121):** `Test / User`, DOB `01/01/1990`, US address. This removed the gov-ID document gate — `currently_due` should never include `individual.verification.document` on a fresh account.
+- **SSN is `0000`, NOT the `8888` prefill.** Stripe rejects 8888 at the name precheck with no visible error (the page just stays "Incomplete"). If the SSN field is prefilled, `Cmd+A` select-all + retype `0000`.
+- **Phone must be re-touched to persist** (type into the field, even if it looks filled).
+- **Data commits ONLY at the final "Agree and submit".** Intermediate steps collect client-side — the review page can show "Incomplete" until the final commit.
+- **When a page says "Incomplete" with no visible error, read `requirements.currently_due` via the Stripe API first** (GET `/v1/accounts/{id}` with the `~/.dt11-stripe-key`) — the API names the missing field.
+- **Industry sub-item dropdowns are not AX-exposed**: use the picker's **search field**, not scrolling (e.g. type "merchandise" → pick "Other merchandise"). Never long-press Safari fields.
+- On the "Save account with Link" prompt, tap **"Finish without saving"**.
+- Success signal (API): `details_submitted=true`, `payouts_enabled=true`, `charges_enabled=true`, `currently_due=[]`.
+- Known-good staging Connect accounts: `acct_1U9DMMKX7Q9JD914` (test-seller) · `acct_1TqgWD4BuYEBpSwh` (verified staging seller, user `d84bcc68-…`) · `acct_1UCgIu4HHYZdHIok` (QA Task 37 disposable — deleted after).
+
+### D05 — Reactivate from cancelled / grace (hosted Checkout card form)
+
+When re-subscribing drives a real Checkout session in Safari (D05-style reactivation), the card form has its own recipe:
+
+- Select the **Card** radio to reveal the embedded card fields.
+- **After the first focus misdirection, Cmd+A select-all + retype EVERY field** — hosted Checkout fields are embedded and misdirect taps (QA Task 37: tapping "ZIP" appended to the CARDHOLDER field).
+- Values: card `4242 4242 4242 4242`, expiry `12 / 34`, CVC `123`, cardholder any name.
+- **Suppress the keyboard before any coordinate tap** (layout shifts); OCR-pin the ZIP band once (~y605) rather than per field.
+- The final Safari redirect "can't open localhost" is a **benign success signal** — confirm via DB (the subscription becomes ACTIVE) rather than the browser.
+
+### After ANY hosted completion — the app state is STALE until a sync
+
+Pull-to-refresh is **not** a sync. After a hosted Express completion returns to the app, the method card can still show "Onboarding required" (`stripe_onboarding_complete=false`) even though Stripe is fully verified. Before asserting UI state (or reporting a defect): call the sync path (`sync-stripe-connect-status` — the app's Payout Settings now reloads + syncs on return/focus/foreground per DT-124 item 2), or read the DB/Stripe API directly (R24). A stale `false` DB row after a real hosted completion is a sync gap, not a broken screen (QA Task 37 "4-lesson").
+
+---
+
 ## Fixture-Gated Backlog
 
 > 📦 **Fixture-Gated Backlog (created 2026-09-02):** Cases moved out of their original groups because they require clock fast-forward and/or push-payload fixtures that are not drivable on the live staging app without dedicated tooling (real push delivery, scheduled-job triggers, or Stripe test clocks). They remain valid test cases for a fixture-equipped session; do not attempt during standard on-device runs.

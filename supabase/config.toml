@@ -51,6 +51,14 @@ verify_jwt = false
 [functions.release-due-payouts]
 verify_jwt = false
 
+# dispatch-manual-payouts is invoked server-to-server: by the AFTER-INSERT DB
+# trigger fn_queue_manual_payout_dispatch and by the hourly 'dispatch-manual-payouts'
+# pg_cron job (both net.http_post with the service-role key). The handler itself
+# requires the Authorization bearer to equal the service-role key, so this money
+# path is never publicly invokable. MUST stay verify_jwt=false (Dev Task 124).
+[functions.dispatch-manual-payouts]
+verify_jwt = false
+
 # R7 — Web-first subscription purchase: called by the consumer web app server
 # (passitup.com) with the x-web-secret shared header OR a user JWT.
 [functions.create-checkout-session]

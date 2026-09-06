@@ -30,6 +30,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthContext } from '@/contexts/AuthContext';
 import { captureException } from '@/services/errorReporter';
 import {
@@ -91,6 +92,7 @@ export default function ManageKidsClubScreen() {
   const navigation = useNavigation();
   const { session, refreshSession } = useContext(AuthContext);
   const userId = session?.user?.id;
+  const insets = useSafeAreaInsets();
 
   // State
   const [subscription, setSubscription] = useState<SubscriptionSummary | null>(null);
@@ -353,7 +355,7 @@ export default function ManageKidsClubScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Manage Kids Club+">
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.screenScroll} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.headerSection}>
           <Text style={styles.title}>Manage Kids Club+</Text>
@@ -488,28 +490,41 @@ export default function ManageKidsClubScreen() {
           </View>
         )}
 
-        {/* Re-subscribe Button (for grace_period/expired only) */}
-        {(isGracePeriod || isExpired) && (
-          <View style={styles.resubscribeSection}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleResubscribePress}
-              disabled={checkingPaymentMethod || renewing}
-            >
-              {checkingPaymentMethod || renewing ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Re-subscribe to Kids Club+</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+        {/* Go Back (non-grace states). In grace/expired the resubscribe CTA and
+            Go Back live in the sticky footer below the ScrollView (DT-124 Item 9). */}
+        {(isGracePeriod || isExpired) ? null : (
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
         )}
-
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
       </ScrollView>
+
+      {/* Sticky bottom footer — grace_period / expired only (DT-124 Item 9): the
+          primary action must stay visible without scrolling. */}
+      {(isGracePeriod || isExpired) && (
+        <View style={[styles.graceFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <TouchableOpacity
+            style={[styles.primaryButton, styles.footerPrimaryButton]}
+            onPress={handleResubscribePress}
+            disabled={checkingPaymentMethod || renewing}
+            testID="resubscribe-kids-club-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={
+              checkingPaymentMethod || renewing ? 'Processing' : 'Re-subscribe to Kids Club+'
+            }
+          >
+            {checkingPaymentMethod || renewing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Re-subscribe to Kids Club+</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Cancellation Modal */}
       <Modal
@@ -613,6 +628,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  // DT-124 (Item 9): the ScrollView fills the space above the sticky grace
+  // footer so the footer is pinned to the bottom of the screen.
+  screenScroll: {
+    flex: 1,
+  },
+  // DT-124 (Item 9): sticky bottom footer for grace_period / expired.
+  graceFooter: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  footerPrimaryButton: {
+    alignSelf: 'stretch',
   },
   loadingContainer: {
     flex: 1,
