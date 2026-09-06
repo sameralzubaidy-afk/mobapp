@@ -47,9 +47,21 @@ import { colors, borderRadius, shadows, spacing, componentSpacing } from '@/them
 // measured the CTA at y868-905 inside the pill band (~y844-908), occluding it
 // on every reachable presentation and making the Settings push-notification
 // flow unusable. The pill hides here so the CTA is reachable.
+// ManageKidsClub (root Stack screen, reached from MySubscription / the grace
+// banner / ContinueKidsClub / Cancel flow) pins a sticky bottom footer in the
+// grace_period and expired branches (DT-124 Item 9): "Re-subscribe to Kids
+// Club+" + "Go Back". DT-125 (2026-09-06) measured the footer's bottom row
+// (Go Back) hidden behind the pill band because the footer only reserves the
+// home-indicator inset, not the tab-bar band. The pill hides here so the whole
+// sticky footer is reachable without scrolling on BOTH the grace and expired
+// branches (they share the identical footer path).
 // TODO(REFACTOR): BulkListingCreate is the same class of full-screen form and
 // may need the same treatment — not included to keep this fix scoped.
-const TAB_BAR_HIDDEN_ROUTES = new Set<string>(['ItemCreate', 'NotificationSetup']);
+const TAB_BAR_HIDDEN_ROUTES = new Set<string>([
+  'ItemCreate',
+  'NotificationSetup',
+  'ManageKidsClub',
+]);
 
 // ─── Sell Action Sheet (self-contained modal) ─────────────────────────────────
 

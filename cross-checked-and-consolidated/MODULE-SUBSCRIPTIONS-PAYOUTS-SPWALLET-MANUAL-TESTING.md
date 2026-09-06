@@ -1767,6 +1767,7 @@ The hosted drive runs in **system Safari** (the app opens the `account_link`). C
 - **Data commits ONLY at the final "Agree and submit".** Intermediate steps collect client-side — the review page can show "Incomplete" until the final commit.
 - **When a page says "Incomplete" with no visible error, read `requirements.currently_due` via the Stripe API first** (GET `/v1/accounts/{id}` with the `~/.dt11-stripe-key`) — the API names the missing field.
 - **Industry sub-item dropdowns are not AX-exposed**: use the picker's **search field**, not scrolling (e.g. type "merchandise" → pick "Other merchandise"). Never long-press Safari fields.
+- **Business website requires an `https://` scheme AND a non-placeholder domain (DT-125, 2026-09-06).** `www.example.com` — even `https://www.example.com` — is REJECTED ("Not a valid URL") and Save silently no-ops. Canonical value: `https://passitup.com`. If the account has no website, use the **"describe your business" (product description)** alternative instead of fighting the URL validator.
 - On the "Save account with Link" prompt, tap **"Finish without saving"**.
 - Success signal (API): `details_submitted=true`, `payouts_enabled=true`, `charges_enabled=true`, `currently_due=[]`.
 - Known-good staging Connect accounts: `acct_1U9DMMKX7Q9JD914` (test-seller) · `acct_1TqgWD4BuYEBpSwh` (verified staging seller, user `d84bcc68-…`) · `acct_1UCgIu4HHYZdHIok` (QA Task 37 disposable — deleted after).
@@ -1784,6 +1785,32 @@ When re-subscribing drives a real Checkout session in Safari (D05-style reactiva
 ### After ANY hosted completion — the app state is STALE until a sync
 
 Pull-to-refresh is **not** a sync. After a hosted Express completion returns to the app, the method card can still show "Onboarding required" (`stripe_onboarding_complete=false`) even though Stripe is fully verified. Before asserting UI state (or reporting a defect): call the sync path (`sync-stripe-connect-status` — the app's Payout Settings now reloads + syncs on return/focus/foreground per DT-124 item 2), or read the DB/Stripe API directly (R24). A stale `false` DB row after a real hosted completion is a sync gap, not a broken screen (QA Task 37 "4-lesson").
+
+### Server-side Express completion fixture — `qa:express-complete` (DT-126 item 8, 2026-09-06) — hosted drive ELIMINATED
+
+> **Purpose (Dev Task 126, item 8):** the last big efficiency lever from QA Task 37's analysis — the hosted-Safari drive of Stripe's Express onboarding is (even after all prior fixes) the dominant remaining cost in G01-class rounds. This fixture completes a **TEST-mode** Stripe Express account's verification **100% server-side via the Stripe API**, so QA never opens the hosted browser flow to reach a "verified" payout method.
+>
+> **Where it lives / how to run (from `p2p-kids-marketplace/`):**
+> ```
+> npm run qa:express-complete -- verify      # full proof arc: create → withdraw-test → reset (persona left at baseline)
+> npm run qa:express-complete -- create      # leave a REAL verified account+method in place for an on-device QA session
+> npm run qa:express-complete -- withdraw-test --amount 500   # prove a real test withdrawal fires against it
+> npm run qa:express-complete -- status      # read-only: method rows + live Stripe state
+> npm run qa:express-complete -- reset       # full cleanup (deletes Stripe accounts + method rows + balance)
+> ```
+> Persona default: **qa-payout-seller** (`qa-payout-seller@kidsmarketplace.test` — the DT-118 disposable payout persona). Override with `--persona test-seller|<email>|<uuid>` (a persona that already has a real verified account is a no-op unless `--replace`).
+>
+> **What it does (the TOS question answered):** it creates the account with `controller[requirement_collection]=application` (+ losses/fees `application`, dashboard `none`) — a **Custom-type controlled account** — so the **platform accepts TOS server-side** via `tos_acceptance{date,ip,user_agent}` at create. Stripe's API docs are explicit: `tos_acceptance` "can only be updated for accounts where `controller[requirement_collection]` is `application`". The default Express (`controller[requirement_collection]=stripe`) is precisely why hosted TOS exists. **⇒ For TEST-mode completion the hosted browser step is FULLY eliminated — there is no remaining hosted step.** The only reason the app's real `create-stripe-connect-account` still needs hosted onboarding is that it uses the default Express controller in production; this fixture does NOT change that (QA/test-infra only).
+>
+> **Canonical values baked in** (mirror the runbook above + DT-121 identity): SSN **`0000`** · legal identity **Test / User**, DOB `01/01/1990`, `123 Test St, San Francisco CA 94103` · phone **`+15555550100`** set explicitly at create (no hosted "re-touch" needed) · test bank token (`110000000` / `000123456789`) as `external_account` · MCC `5399` + `individual[email]` + `business_profile[url]=https://kidsmarketplace.test` · capability **`transfers` only**.
+>
+> **Success signals the fixture asserts:** `details_submitted=true`, `payouts_enabled=true`, `capabilities.transfers=active`, `currently_due=[]` — all read back from the LIVE Stripe account before any DB method row is written. It never inserts an unverified row (BP-71).
+>
+> **Safety guardrails:** hard-refuses to run unless the Stripe key is `sk_test_...` (the application-collected model has different LIVE-mode pricing/TOS obligations — TEST-only). Disposable persona + full `reset` cleanup (Stripe account DELETE + method rows + balance recompute). Never touches production onboarding behavior.
+>
+> **TEST-mode capability shape (LIVE-VERIFIED 2026-09-06 during this task's verify):** request **`transfers` ONLY** — the account then reaches `details_submitted=true` + `payouts_enabled=true` + **`charges_enabled=true`** + `currently_due=[]`, and a real test withdrawal dispatches (`tr_1UCjOZ4I6kCJlvXomdiFVKbC`, 474¢). **DO NOT also request `card_payments`:** that strands TEST mode in `disabled_reason=requirements.pending_verification` with `payouts_enabled=false` (seen live on the first verify run) — the same artifact class DT-118 documented. A server-completed TEST account with `charges_enabled=false` would indicate the wrong capability shape, not a real defect.
+>
+> **After using the fixture on-device:** the method row is written verified, so the app's Payout Settings shows the verified card immediately (no stale-sync concern from a hosted return — there was no hosted return). Drive a withdrawal as normal; it dispatches a real test transfer (`dispatch-manual-payouts`, DT-124).
 
 ---
 

@@ -204,6 +204,14 @@ describe('PersistentTabBar — component', () => {
     }
   });
 
+  it('renders nothing on the ManageKidsClub full-screen form (DT-125 grace/expired sticky footer)', () => {
+    setup(makeState(['ManageKidsClub'], 0));
+    const { queryByTestId } = render(<PersistentTabBar />);
+    for (const id of TAB_IDS) {
+      expect(queryByTestId(id)).toBeNull();
+    }
+  });
+
   it('renders the Trades badge with the active trade count', () => {
     (useTradesBadge as jest.Mock).mockReturnValue({ activeCount: 3, refresh: jest.fn() });
     const { getByTestId, getByText } = render(<PersistentTabBar />);
