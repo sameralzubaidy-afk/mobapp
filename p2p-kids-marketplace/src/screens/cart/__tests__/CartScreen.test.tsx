@@ -71,11 +71,16 @@ describe('CartScreen', () => {
     });
 
     it('should not show cart count badge when empty', async () => {
-      const { queryByTestId } = render(<CartScreen />);
+      const { getByTestId, queryByTestId } = render(<CartScreen />);
 
+      // Wait for the cart load to settle (empty state) so no async state update
+      // leaks past this test's teardown into the next one (observed intermittent
+      // CartScreen flake under full-suite parallel load), then assert the badge
+      // stays hidden for an empty cart.
       await waitFor(() => {
-        expect(queryByTestId('cart-count-badge')).toBeNull();
+        expect(getByTestId('cart-empty-icon')).toBeTruthy();
       });
+      expect(queryByTestId('cart-count-badge')).toBeNull();
     });
 
     it('should navigate to Discover when Browse Items pressed', async () => {
@@ -111,9 +116,13 @@ describe('CartScreen', () => {
     it('should render a valid initial state while cart data loads', async () => {
       const { queryByText, findByText } = render(<CartScreen />);
 
+      // Loading indicator is the synchronous initial state; assert it, then let
+      // the async load settle to the empty state before the test ends. The old
+      // early `return` here ended the test mid-load, leaving a CartScreen state
+      // update that fired outside act() and bled into the next test (observed
+      // intermittent CartScreen flake under full-suite parallel load).
       if (queryByText('Loading trade basket...')) {
         expect(queryByText('Loading trade basket...')).toBeTruthy();
-        return;
       }
 
       expect(await findByText('Your trade basket is empty')).toBeTruthy();

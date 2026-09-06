@@ -33,6 +33,11 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   'test-buyer-3': { email: 'test-buyer-3@kidsmarketplace.test', password: 'TestBuyer3123!' },
   'test-grace': { email: 'test-grace@kidsmarketplace.test', password: 'TestGrace123!' },
   'test-expired': { email: 'test-expired@kidsmarketplace.test', password: 'TestExpired123!' },
+  // DEV-TASK-120 (item 1): standing TEST-TRIAL persona for ContinueKidsClub's
+  // trial-≤7d / trial->7d branches (SUB-TC-N06 + D06 legs). Provision via
+  // `npm run qa:r41-trial -- ensure [--days-remaining N]`; clean revert via
+  // `npm run qa:r41-trial -- reset`.
+  'test-trial': { email: 'test-trial@kidsmarketplace.test', password: 'TestTrial123!' },
   // DEV-TASK-109 (item 2): standing disposable SP-wallet persona for the
   // freeze/suspend mobile legs (L05/L07/L08, B04) — Kids Club+ active with an
   // admin-freezable wallet. Provision via `npm run qa:wallet-persona -- ensure`.

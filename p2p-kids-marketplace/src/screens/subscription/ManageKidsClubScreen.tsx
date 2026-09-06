@@ -691,9 +691,6 @@ const styles = StyleSheet.create({
   badge_expired: {
     backgroundColor: '#6B6B6B',
   },
-  badge_free: {
-    backgroundColor: '#6B6B6B',
-  },
   statusBadgeText: {
     fontSize: 14,
     fontWeight: '600',

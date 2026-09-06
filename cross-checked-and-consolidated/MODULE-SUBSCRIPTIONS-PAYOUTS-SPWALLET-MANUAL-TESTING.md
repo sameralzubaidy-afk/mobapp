@@ -133,7 +133,7 @@
 | Role | Email | Subscription | Notes |
 |---|---|---|---|
 | Subscriber | test-buyer@kidsmarketplace.test | Kids Club+ Active | Has SP balance + ledger history |
-| Trial user | test-trial@kidsmarketplace.test | Kids Club+ Trial | Mid-trial, days remaining > 0 |
+| Trial user | test-trial@kidsmarketplace.test | Kids Club+ Trial (`status='trial'`, trial_end_date configurable) | Mid-trial, days remaining > 0 — **Standing fixture (2026-09-06, Dev Task 120)** — provision / switch branch via `npm run qa:r41-trial -- ensure [--days-remaining N]` (default 5 → trial-≤7d urgency badge; pass e.g. 14 → trial->7d, no badge); clean revert `npm run qa:r41-trial -- reset`. Password `TestTrial123!`; one-call login `qa-login-as?persona=test-trial` |
 | Free (trial available) | test-free@kidsmarketplace.test | None | Never used trial |
 | Free (trial used) | test-free-2@kidsmarketplace.test | None | `can_start_trial = false` |
 | Grace period | test-grace@kidsmarketplace.test | Grace period | SP wallet frozen |
@@ -1743,8 +1743,9 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 1. As a trial user with 7 or fewer days remaining, open **ContinueKidsClub**.
 
 **Expected Result:**
-- The badge reads `{N} day left in trial` (1 day) or `{N} days left in trial` (2–7 days).
-- With more than 7 days, the badge reads `{trialDays} free days • no charge today`.
+- With 1–7 days remaining, the warning urgency badge reads `{N} day left in trial` (1 day) or `{N} days left in trial` (2–7 days).
+- With more than 7 days remaining, NO countdown badge renders — a plain **Continue Kids Club+** upsell. The `{trialDays} free days • no charge today` pill is for NON-trial users only (`showDefaultTrialBadge = !isTrialSubscription`) — it never appears for a trial member.
+- Provision both states with `npm run qa:r41-trial -- ensure --days-remaining 5` (≤7d) vs `--days-remaining 14` (>7d); open via `p2pkidsmarketplace://continue-kids-club`.
 
 ---
 

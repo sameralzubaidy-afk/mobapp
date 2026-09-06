@@ -31,8 +31,15 @@ jest.mock('@/config/supabase', () => {
         // banner only renders when subscription.status is also 'grace', which
         // tests control via setupMocks). Trades return no rows.
         if (table === 'subscriptions') {
+          // grace_ends_at must always be in the FUTURE relative to now: the
+          // grace CTA only stacks when graceDaysRemaining > 0. A hardcoded
+          // literal rots as real time advances (a past date silently drops the
+          // grace CTA, so 3 CTAs never stack and the G07 "Show N more action"
+          // toggle is unreachable — this broke CI on 2026-09-06 when the prior
+          // literal 2026-09-01 went stale). Computed lazily per query.
+          const graceEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
           return buildChain({
-            data: { status: 'grace_period', grace_ends_at: '2026-09-01T00:00:00Z' },
+            data: { status: 'grace_period', grace_ends_at: graceEndsAt },
             error: null,
           });
         }
