@@ -40,6 +40,31 @@ if (!supabaseUrl || !supabaseServiceKey) {
   console.error('  SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? 'present' : 'MISSING');
 }
 
+// DT-121 (2026-09-06): fixed plausible legal identity pre-filled ONLY when the
+// Stripe key is a TEST key (sk_test_...).
+//
+// QA Task-36 (F-5) showed that when no legal identity is pre-filled, the hosted
+// Express onboarding asks the seller to enter one, and an implausible or
+// display-style name (e.g. the whole profile display name) fails Stripe's
+// name+SSN precheck and forces government-ID document verification — an
+// unreachable terminal gate for test-mode drives. In TEST mode we pre-fill a
+// clean, plausible individual so the hosted flow sails through Stripe's test
+// verification without documents. In LIVE mode no `individual` is pre-filled:
+// real sellers enter their real legal identity inside the hosted flow.
+const TEST_CONNECT_LEGAL_IDENTITY = {
+  first_name: 'Test',
+  last_name: 'User',
+  dob: { day: 1, month: 1, year: 1990 },
+  address: {
+    line1: '123 Test St',
+    city: 'San Francisco',
+    state: 'CA',
+    postal_code: '94102',
+    country: 'US',
+  },
+} as const;
+const isTestMode = (stripeKey || '').startsWith('sk_test_');
+
 serve(async (req: Request): Promise<Response> => {
   // CORS handling
   if (req.method === 'OPTIONS') {
@@ -191,6 +216,9 @@ serve(async (req: Request): Promise<Response> => {
           card_payments: { requested: true }
         },
         business_type: 'individual',
+        ...(isTestMode
+          ? { individual: TEST_CONNECT_LEGAL_IDENTITY }
+          : {}),
         metadata: {
           user_id: userId,
           platform: 'kids_marketplace'

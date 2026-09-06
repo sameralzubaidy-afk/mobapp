@@ -260,7 +260,7 @@ serve(async (req: Request): Promise<Response> => {
         console.log(`[retry-failed-payment] SP wallet -> active for user=${user_id}`);
       }
 
-      // ── Billing ledger (idempotent on charge_id) — Item 3 (2026-08-27) ───────
+      // ── Billing ledger (idempotent on stripe_invoice_id) — Item 3 (2026-08-27) / DT-121 ──
       const { error: billingError } = await supabaseClient.from('billing_history').upsert(
         {
           user_id,
@@ -275,7 +275,7 @@ serve(async (req: Request): Promise<Response> => {
             : new Date().toISOString(),
           description: 'Kids Club+ subscription - retried payment',
         },
-        { onConflict: 'charge_id', ignoreDuplicates: true },
+        { onConflict: 'stripe_invoice_id', ignoreDuplicates: true },
       );
       if (billingError) {
         console.error('[retry-failed-payment] billing_history upsert failed:', billingError.message);

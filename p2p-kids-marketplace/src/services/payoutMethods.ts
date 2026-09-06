@@ -7,6 +7,7 @@
  */
 
 import { supabase } from '../config/supabase';
+import * as ExpoLinking from 'expo-linking';
 import type {
   SellerPayoutMethod,
   CreatePayoutMethodRequest,
@@ -64,6 +65,86 @@ export async function syncStripeConnectStatus(methodId?: string): Promise<void> 
     }
     throw new Error(message);
   }
+}
+
+// =============================================================================
+// Stripe Account Link (Hosted Onboarding Resume)
+// =============================================================================
+
+/**
+ * Generate a Stripe account-link (hosted Express onboarding) URL for an
+ * existing Stripe Connect payout method.
+ *
+ * DT-122 (I-2): shared by two call sites so a dropped hosted-onboarding
+ * session resumes in one action instead of a full Add-Method re-drive —
+ * (1) AddPayoutMethodModal right after `create-stripe-connect-account`
+ * returns a methodId, and (2) the Payout Settings method-card "Continue
+ * Onboarding" button (stripe_onboarding_complete=false). Previously this
+ * whole block (deep-link build + EF call) was duplicated inline in the
+ * screen.
+ *
+ * Return/refresh URLs route back through the hosted Cloudflare
+ * `/stripe-redirect` page, which then deep-links back into the app with the
+ * runtime-appropriate scheme (Expo Go `exp://…`, standalone
+ * `p2pkidsmarketplace://…`).
+ */
+export async function createStripeAccountLinkUrl(methodId: string): Promise<{ url: string }> {
+  // Read env at call time (not the module-level const) so the URL used matches
+  // how callers read it inline and unit tests can control it.
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error('EXPO_PUBLIC_SUPABASE_URL not configured');
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('Your session has expired. Please log in again.');
+  }
+
+  const redirectBaseUrl = process.env.EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL;
+  if (!redirectBaseUrl) {
+    throw new Error(
+      'Missing EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL. This must be an https:// URL to a hosted redirect page.'
+    );
+  }
+
+  // Build a deep link that works for the current runtime:
+  // - Expo Go: exp://...
+  // - Standalone builds: p2pkidsmarketplace://...
+  const deepLinkSuccess = ExpoLinking.createURL('payout-settings', {
+    queryParams: { success: 'true' },
+  });
+  const deepLinkRefresh = ExpoLinking.createURL('payout-settings', {
+    queryParams: { refresh: 'true' },
+  });
+
+  const base = redirectBaseUrl.replace(/\/$/, '');
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/create-stripe-account-link`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      userId: session.user.id,
+      methodId,
+      returnUrl: `${base}/stripe-redirect?status=success&dl=${encodeURIComponent(deepLinkSuccess)}`,
+      refreshUrl: `${base}/stripe-redirect?status=refresh&dl=${encodeURIComponent(deepLinkRefresh)}`,
+    }),
+  });
+
+  const result = await res.json();
+  if (!res.ok || !result?.success) {
+    throw new Error(result?.error || 'Failed to generate onboarding link');
+  }
+  if (!result?.url) {
+    throw new Error('Failed to generate onboarding link: no URL returned');
+  }
+
+  return { url: result.url };
 }
 
 // =============================================================================

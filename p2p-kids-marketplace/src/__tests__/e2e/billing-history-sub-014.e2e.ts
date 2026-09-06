@@ -129,6 +129,8 @@ describe('SUB-014 E2E: Billing History', () => {
         'idx_billing_history_charge_id',
         'idx_billing_history_status',
         'idx_billing_history_charged_at',
+        // DT-121 (2026-09-06): one billing_history row per Stripe invoice.
+        'uq_billing_history_stripe_invoice_id',
       ];
 
       if (indexes) {

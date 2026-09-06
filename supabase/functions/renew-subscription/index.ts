@@ -565,9 +565,10 @@ serve(async (req) => {
     //     2026-08-27: latest_invoice.payment_intent === null and invoice.charge ===
     //     null while a detached charge exists), so resolve charge_id/amount with
     //     invoice-level fallbacks — never skip the write on a successful renewal.
-    //     NOTE: the invoice.payment_succeeded webhook is NOT subscribed on this
-    //     account, so this EF write is the only billing_history writer for renewals.
-    //     Upsert stays idempotent on charge_id regardless.
+    //     NOTE: the invoice.payment_succeeded webhook (stripe-webhook-subscriptions)
+    //     IS subscribed on this account (DT-88) and can ALSO write a billing row
+    //     for the same renewal. Both writers upsert idempotently on
+    //     stripe_invoice_id (DT-121), so the pair collapses to one row per invoice.
     try {
       const charge = paymentIntent?.charges?.data?.[0];
       const chargeId =
@@ -598,7 +599,7 @@ serve(async (req) => {
               charged_at: paidAtUnix ? new Date(paidAtUnix * 1000).toISOString() : new Date().toISOString(),
               description: `Kids Club+ subscription renewal`,
             },
-            { onConflict: 'charge_id', ignoreDuplicates: true },
+            { onConflict: 'stripe_invoice_id', ignoreDuplicates: true },
           );
 
         if (billingError) {

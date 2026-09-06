@@ -4,7 +4,7 @@
  * Task: PAY-003
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { supabase } from '../../config/supabase';
 import {
   listPayoutMethods,
@@ -13,7 +13,9 @@ import {
   deletePayoutMethod,
   checkPayoutEligibility,
   formatPayoutMethodDisplay,
+  createStripeAccountLinkUrl,
 } from '../payoutMethods';
+import * as ExpoLinking from 'expo-linking';
 import type { SellerPayoutMethod } from '../../types/payout.types';
 
 // Mock Supabase
@@ -21,9 +23,15 @@ jest.mock('../../config/supabase', () => ({
   supabase: {
     auth: {
       getUser: jest.fn(),
+      getSession: jest.fn(),
     },
     from: jest.fn(),
   },
+}));
+
+// Mock expo-linking (used by createStripeAccountLinkUrl to build deep links).
+jest.mock('expo-linking', () => ({
+  createURL: jest.fn(),
 }));
 
 describe('PayoutMethods Service', () => {
@@ -422,6 +430,129 @@ describe('PayoutMethods Service', () => {
       const display = formatPayoutMethodDisplay(bankMethod);
 
       expect(display.label).toBe('Bank Account (****1234)');
+    });
+  });
+
+  describe('createStripeAccountLinkUrl', () => {
+    const originalEnv = { ...process.env };
+    const originalFetch = global.fetch;
+
+    // A minimal fetch mock whose call args we can assert on.
+    const mockFetch = jest.fn() as jest.Mock;
+
+    beforeEach(() => {
+      process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://xyz.supabase.co';
+      process.env.EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL = 'https://redirect.example.com/';
+
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: {
+          session: { access_token: 'test-token', user: { id: mockUserId } },
+        },
+        error: null,
+      });
+
+      (ExpoLinking.createURL as jest.Mock).mockImplementation(
+        (_path: string, opts?: { queryParams?: Record<string, string> }) => {
+          const q = opts?.queryParams ?? {};
+          const key = Object.keys(q)[0] ?? '';
+          const value = q[key] ?? '';
+          return `p2pkidsmarketplace://payout-settings?${key}=${value}`;
+        }
+      );
+
+      mockFetch.mockReset();
+      global.fetch = mockFetch as unknown as typeof fetch;
+    });
+
+    afterEach(() => {
+      process.env.EXPO_PUBLIC_SUPABASE_URL = originalEnv.EXPO_PUBLIC_SUPABASE_URL;
+      process.env.EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL =
+        originalEnv.EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL;
+      global.fetch = originalFetch;
+    });
+
+    it('returns the account-link URL and posts the correct EF request', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          url: 'https://connect.stripe.com/setup/s/acct_123/abc',
+        }),
+      });
+
+      const result = await createStripeAccountLinkUrl('method_1');
+
+      expect(result.url).toBe('https://connect.stripe.com/setup/s/acct_123/abc');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      const callArgs = mockFetch.mock.calls[0] as unknown as [
+        string,
+        { method: string; headers: { Authorization: string }; body: string },
+      ];
+      const [callUrl, callOpts] = callArgs;
+
+      expect(callUrl).toBe('https://xyz.supabase.co/functions/v1/create-stripe-account-link');
+      expect(callOpts.method).toBe('POST');
+      expect(callOpts.headers.Authorization).toBe('Bearer test-token');
+
+      const body = JSON.parse(callOpts.body);
+      expect(body.userId).toBe(mockUserId);
+      expect(body.methodId).toBe('method_1');
+      // Trailing slash on the redirect base is stripped exactly once.
+      expect(body.returnUrl).not.toContain('//stripe-redirect');
+      expect(body.returnUrl).toContain('/stripe-redirect?status=success&dl=');
+      expect(body.returnUrl).toContain(
+        encodeURIComponent('p2pkidsmarketplace://payout-settings?success=true')
+      );
+      expect(body.refreshUrl).toContain('/stripe-redirect?status=refresh&dl=');
+      expect(body.refreshUrl).toContain(
+        encodeURIComponent('p2pkidsmarketplace://payout-settings?refresh=true')
+      );
+    });
+
+    it('throws when there is no session', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: null },
+        error: null,
+      });
+
+      await expect(createStripeAccountLinkUrl('method_1')).rejects.toThrow(
+        'Your session has expired. Please log in again.'
+      );
+    });
+
+    it('throws when EXPO_PUBLIC_SUPABASE_URL is missing', async () => {
+      delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+
+      await expect(createStripeAccountLinkUrl('method_1')).rejects.toThrow(
+        'EXPO_PUBLIC_SUPABASE_URL not configured'
+      );
+    });
+
+    it('throws when EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL is missing', async () => {
+      delete process.env.EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL;
+
+      await expect(createStripeAccountLinkUrl('method_1')).rejects.toThrow(
+        'Missing EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL'
+      );
+    });
+
+    it('propagates the EF error on a failed link request', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        json: async () => ({ success: false, error: 'Stripe error: nope' }),
+      });
+
+      await expect(createStripeAccountLinkUrl('method_1')).rejects.toThrow('Stripe error: nope');
+    });
+
+    it('throws when the EF returns no URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      });
+
+      await expect(createStripeAccountLinkUrl('method_1')).rejects.toThrow('no URL returned');
     });
   });
 });

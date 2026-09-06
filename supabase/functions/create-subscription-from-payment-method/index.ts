@@ -659,7 +659,7 @@ serve(async (req) => {
             : 'Kids Club+ Subscription - Initial Payment',
         },
         {
-          onConflict: 'charge_id',
+          onConflict: 'stripe_invoice_id',
           ignoreDuplicates: true,
         }
       );

@@ -894,7 +894,7 @@ async function recordInitialBillingRow(
       amount,
       status: 'succeeded',
     },
-    { onConflict: 'charge_id' },
+    { onConflict: 'stripe_invoice_id', ignoreDuplicates: true },
   );
 
   if (billingError) {
@@ -958,8 +958,9 @@ function computePeriodAdvance(
 // systemic: all subs on the Stripe account returned current_period_start/end
 // = null even after paid renewals), so customer.subscription.updated can never
 // advance the DB period window. The renewal invoice line period IS populated,
-// so this handler is the reliable renewal-advance path. It is also the sole
-// writer of renewal billing_history rows.
+// so this handler is the reliable renewal-advance path. It shares renewal
+// billing_history writes with the renew-subscription EF; both dedupe on
+// stripe_invoice_id (DT-121).
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleInvoicePaymentSucceeded(
   supabase: any,
@@ -1016,7 +1017,10 @@ async function handleInvoicePaymentSucceeded(
     throw new Error(`record_payment_attempt failed: ${attemptError.message}`);
   }
 
-  // Billing ledger (idempotent on charge_id).
+  // Billing ledger (idempotent on stripe_invoice_id, DT-121). The app EF
+  // (`renew-subscription`) usually writes this row first keyed to the real
+  // ch_... charge; if that row already landed, ignoreDuplicates keeps it and
+  // this handler does NOT mint a second row for the same invoice.
   const { error: billingError } = await supabase.from('billing_history').upsert(
     {
       user_id: sub.user_id,
@@ -1026,7 +1030,7 @@ async function handleInvoicePaymentSucceeded(
       amount,
       status: 'succeeded',
     },
-    { onConflict: 'charge_id' },
+    { onConflict: 'stripe_invoice_id', ignoreDuplicates: true },
   );
   if (billingError) {
     console.error(`[stripe-webhook-subscriptions] invoice.payment_succeeded: billing_history insert failed`, billingError);
