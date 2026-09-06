@@ -1084,15 +1084,16 @@ You MUST maintain and keep updated a canonical registry file:
 docs/flow-registry.md
 Rules:
 
-Every change MUST map to 1+ flows in the registry (even “small” changes).
+Every change MUST map to 1+ flows in the registry (even “small” changes); state the Impacted Flow IDs in your response.
 No feature/change is “done” until:
-impacted flows are listed/updated in docs/flow-registry.md, AND
 Tiered Regression (Section B) is executed for those flows, AND
 you provide commands + expected results.
+Update a flow section ONLY when the change actually alters that flow’s spec (its Description / Steps / Screens / Functions-Features). Edits are IN PLACE — revise the affected lines; never append.
+NEVER append dated DEV-TASK / change-log entries, task IDs, or “registry entry” bullets to docs/flow-registry.md. It is a living spec, NOT a changelog. Change history lives in git commits + per-task summaries + e2e-test-results/ — do not duplicate it into the registry.
 Every flow MUST have at least ONE of:
 an automated smoke script under scripts/smoke/<flow>.mjs, OR
 a manual checklist with exact steps + expected results (only if automation is not feasible yet).
-Scope note (zero-logic UI changes): a change that ONLY alters UI tap targets / navigation inside an existing flow — no business logic, no API/DB/Edge Function changes — still gets a dated registry entry under that flow, but does NOT add a new smoke-script requirement; the flow's existing smoke script or manual checklist already covers it. Do not inflate scripts/smoke/ for zero-logic UI-only changes.
+Scope note (zero-logic UI changes): a change that ONLY alters UI tap targets / navigation / copy inside an existing flow — no business logic, no API/DB/Edge Function changes — does NOT add a new smoke-script requirement (the flow's existing smoke script or manual checklist already covers it). It also does NOT require a registry edit unless it is a lasting screen/UX change worth recording in that flow's Screens/Steps (edit in place only). Never add a “dated registry entry” for zero-logic UI-only changes.
 Folder requirements (must exist in repo):
 
 scripts/smoke/ (one smoke script per flow)
