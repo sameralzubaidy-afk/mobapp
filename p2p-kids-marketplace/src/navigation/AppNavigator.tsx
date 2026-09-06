@@ -222,6 +222,14 @@ const linking = {
       Notifications: 'notifications',
       Unsubscribe: 'unsubscribe',
       LinkedAccounts: 'linked-accounts',
+      // Dev Task 123 (I-7): register PayoutSettings so the Stripe-return deep link
+      // (`p2pkidsmarketplace://payout-settings?success=true|refresh=true`, built by
+      // createStripeAccountLinkUrl and delivered cold via the hosted
+      // /stripe-redirect page) resolves to the Payout Settings screen instead of
+      // dead-ending. This caps the DT-122 (I-2) "Continue Onboarding" resume
+      // action: a dropped hosted session can now land back on Payout Settings
+      // after a cold relaunch.
+      PayoutSettings: 'payout-settings',
     },
   },
 };
