@@ -8,7 +8,7 @@
  *
  * Design System: Pass It Up (v1.0) — Whisk Green
  * - Primary: #5DBB8E (Whisk green)
- * - Neutral 900: #1A1A1A, Neutral 700: #4D4D4D
+ * - Neutral 900: #1A1A1A, Neutral 700: #6B6B6B (secondary text)
  * - Typography: Inter, 16px body, 20px H3
  * - Spacing: 8px grid, 16px page margins
  * - Border Radius: 16px cards, 26px buttons (pill shape)
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 15,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     fontFamily: 'Inter',
   },
   headerSection: {
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     lineHeight: 22,
     fontFamily: 'Inter',
   },
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   cardBrand: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 4,
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 28,
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   },
   securityText: {
     fontSize: 13,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     lineHeight: 18,
   },
   bottomBackBtn: {

@@ -371,7 +371,16 @@ export default function PayoutSettingsScreen() {
         );
         loadPayoutMethods(); // Refresh data
       } else {
-        Alert.alert('Withdrawal Failed', result.error || 'Unable to process withdrawal');
+        // DT-119 (item 4): the RPC returns a terse machine error when the
+        // primary payout method is unverified (action_required). Surface a
+        // friendly, actionable message instead of the raw server string.
+        const isUnverifiedMethod = result.action_required === 'verify_payout_method';
+        Alert.alert(
+          'Withdrawal Failed',
+          isUnverifiedMethod
+            ? "Your payout method isn't verified yet. Please finish verifying it before withdrawing."
+            : result.error || 'Unable to process withdrawal'
+        );
       }
     } catch (error) {
       captureException(error, {
@@ -460,6 +469,12 @@ export default function PayoutSettingsScreen() {
             <ArrowDown size={16} color="#5DBB8E" />
             <Text style={styles.requestPayoutBtnText}>Withdraw Now</Text>
           </TouchableOpacity>
+          {/* DT-119 (item 3): hero balance figures (Available/Pending/Lifetime) are
+              gross — provider fees are deducted when each payout is sent. History
+              rows below show the net (received) amount. */}
+          <Text style={styles.heroFeeNote} testID="balance-fee-note">
+            Balance amounts are before payout provider fees — deducted at payout.
+          </Text>
         </View>
 
         {/* ── Payout Method ── */}
@@ -616,7 +631,8 @@ export default function PayoutSettingsScreen() {
         <Text style={styles.sectionLabel}>PAYOUT HISTORY</Text>
         {recentPayouts.length > 0 && (
           <Text style={styles.historyFeeNote} testID="payout-history-fee-note">
-            Fees shown are charged by your payout provider — Pass It Up charges no withdrawal fee.
+            Amounts below are what you receive after your payout provider's fee — Pass It Up
+            charges no withdrawal fee.
           </Text>
         )}
         {recentPayouts.length === 0 ? (
@@ -626,7 +642,11 @@ export default function PayoutSettingsScreen() {
         ) : (
           <>
             {recentPayouts.map((payout) => (
-              <PayoutHistoryCard key={payout.id} payout={payout} />
+              <PayoutHistoryCard
+                key={payout.id}
+                payout={payout}
+                onSetUpPayoutMethod={handleAddMethod}
+              />
             ))}
             <TouchableOpacity
               style={styles.loadMoreButton}
@@ -771,9 +791,12 @@ export default function PayoutSettingsScreen() {
 
 interface PayoutHistoryCardProps {
   payout: SellerPayout;
+  /** DT-119 (item 2): caller hook to resolve a requires_action payout — opens the
+   *  Add Payout Method flow on the parent screen. */
+  onSetUpPayoutMethod?: () => void;
 }
 
-function PayoutHistoryCard({ payout }: PayoutHistoryCardProps) {
+function PayoutHistoryCard({ payout, onSetUpPayoutMethod }: PayoutHistoryCardProps) {
   const statusInfo = formatPayoutStatus(payout.status);
   const date = new Date(payout.created_at).toLocaleDateString('en-US', {
     day: 'numeric',
@@ -792,7 +815,7 @@ function PayoutHistoryCard({ payout }: PayoutHistoryCardProps) {
         {isCompleted ? (
           <CheckCircle size={16} color="#5DBB8E" weight="fill" testID="icon-completed" />
         ) : isPending ? (
-          <Clock size={16} color="#F59E0B" weight="fill" testID="icon-pending" />
+          <Clock size={16} color="#FFA726" weight="fill" testID="icon-pending" />
         ) : (
           <Clock size={16} color="#999999" weight="fill" />
         )}
@@ -816,6 +839,21 @@ function PayoutHistoryCard({ payout }: PayoutHistoryCardProps) {
           )}
         </View>
       </View>
+      {/* DT-119 (item 2): a requires_action payout has no usable payout method yet
+          — give the seller a direct path to set one up right from the row. */}
+      {payout.status === 'requires_action' && onSetUpPayoutMethod && (
+        <TouchableOpacity
+          style={styles.historyActionButton}
+          onPress={onSetUpPayoutMethod}
+          testID={`history-action-${payout.id}`}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Set Up Payout Method"
+        >
+          <Plus size={16} color="#FFFFFF" />
+          <Text style={styles.historyActionButtonText}>Set Up Payout Method</Text>
+        </TouchableOpacity>
+      )}
       {payout.failure_reason && (
         <View style={styles.failureReasonBox}>
           <Text style={styles.failureReasonText}>⚠️ {payout.failure_reason}</Text>
@@ -1527,6 +1565,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  // DT-119 (item 3): hero balance footnote — hero figures are gross (before
+  // provider fees); the payout-history rows show the net received amount.
+  heroFeeNote: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 14,
+    lineHeight: 15,
+  },
   // ── Section label ───────────────────────────────────────────────────────────
   sectionLabel: {
     fontSize: 11,
@@ -1822,6 +1868,25 @@ const styles = StyleSheet.create({
     color: '#999999',
     marginTop: -12,
     marginBottom: 12,
+  },
+  // DT-119 (item 2): CTA on requires_action payout rows → opens the Add Payout
+  // Method flow on the parent screen.
+  historyActionButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  historyActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   emptyHistory: {
     paddingVertical: 32,

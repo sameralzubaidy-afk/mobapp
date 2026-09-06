@@ -26,6 +26,10 @@ import { openJoinKidsClubWeb } from '../../utils/subscriptionWeb';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
 import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
+// DT-119 (item 1): source colors from the shared Pass-It-Up semantic tokens so
+// the upsell branch can never drift back to the legacy design-system palette
+// (#4A7C59 / #4D4D4D / #808080) — BP-82 (see docx/design-system-passitup.md).
+import { theme } from '@/theme';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -197,9 +201,14 @@ export default function ContinueKidsClubScreen() {
               </Text>
             </View>
           )}
+          {/* DT-119 (item 6): "X free days • no charge today" is a benefit message,
+              NOT a deadline — positive green-tint pill, distinct from the warning
+              treatment kept for the genuine trial countdown above. */}
           {showDefaultTrialBadge && (
-            <View style={styles.urgencyBadge}>
-              <Text style={styles.urgencyText}>{trialDays} free days • no charge today</Text>
+            <View style={styles.freeTrialBadge}>
+              <Text style={styles.freeTrialText}>
+                {trialDays} free days • no charge today
+              </Text>
             </View>
           )}
         </View>
@@ -292,7 +301,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#808080',
+    color: theme.textColors.secondary,
   },
   content: {
     padding: 20,
@@ -312,8 +321,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  // Genuine deadline — warning-orange stays (canonical warning.100/warning.500).
   urgencyBadge: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: theme.colors.warning[100],
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -322,7 +332,21 @@ const styles = StyleSheet.create({
   urgencyText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFA726',
+    color: theme.colors.warning[500],
+  },
+  // DT-119 (item 6): positive/benefit pill — primary green tint, mirrors the
+  // active branch's "You're all set" treatment (primary.100 + green text).
+  freeTrialBadge: {
+    backgroundColor: theme.colors.primary[100],
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  freeTrialText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primary[600],
   },
   section: {
     marginBottom: 24,
@@ -354,16 +378,16 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: theme.textColors.secondary,
     flex: 1,
   },
   pricingCard: {
-    backgroundColor: '#4A7C59',
+    backgroundColor: theme.colors.primary[500],
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#4A7C59',
+    shadowColor: theme.colors.primary[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -385,12 +409,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primaryButton: {
-    backgroundColor: '#4A7C59',
+    backgroundColor: theme.colors.primary[500],
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#4A7C59',
+    shadowColor: theme.colors.primary[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -410,12 +434,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#4A7C59',
+    borderColor: theme.colors.primary[500],
   },
   secondaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4A7C59',
+    color: theme.colors.primary[500],
   },
   textButton: {
     alignItems: 'center',
@@ -423,18 +447,18 @@ const styles = StyleSheet.create({
   },
   textButtonText: {
     fontSize: 14,
-    color: '#808080',
+    color: theme.textColors.secondary,
   },
   finePrint: {
     fontSize: 12,
-    color: '#808080',
+    color: theme.textColors.tertiary,
     textAlign: 'center',
     marginTop: 24,
     lineHeight: 18,
   },
   description: {
     fontSize: 14,
-    color: '#4D4D4D',
+    color: theme.textColors.secondary,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,

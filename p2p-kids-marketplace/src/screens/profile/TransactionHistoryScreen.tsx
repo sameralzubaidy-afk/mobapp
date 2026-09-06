@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 12,
-    color: '#808080',
+    color: '#999999', // tertiary caption (DT-119)
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E', // primary (DT-119)
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#808080',
+    color: '#6B6B6B', // secondary text (DT-119)
     marginTop: 12,
   },
 });

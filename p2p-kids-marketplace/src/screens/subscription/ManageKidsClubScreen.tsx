@@ -686,11 +686,13 @@ const styles = StyleSheet.create({
   badge_grace_period: {
     backgroundColor: '#E85D75',
   },
+  // DT-119 (item 1): neutral/inactive statuses — canonical neutral fill (#6B6B6B)
+  // keeps the white statusBadgeText legible (matches the sibling filled pills).
   badge_expired: {
-    backgroundColor: '#808080',
+    backgroundColor: '#6B6B6B',
   },
   badge_free: {
-    backgroundColor: '#808080',
+    backgroundColor: '#6B6B6B',
   },
   statusBadgeText: {
     fontSize: 14,

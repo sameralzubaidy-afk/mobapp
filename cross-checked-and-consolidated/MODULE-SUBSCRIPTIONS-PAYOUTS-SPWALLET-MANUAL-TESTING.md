@@ -937,17 +937,26 @@
 
 ### SUB-TC-G06 · requires_action payout → "Set Up Payout Method"
 
-**Ref:** FLOW-22 · SellerEarningsScreen / PayoutSettingsScreen
+**Ref:** FLOW-22 · PayoutSettingsScreen (live payout-history row)
 **Actors:** A seller with a requires_action payout
 **Surfaces:** mobile
 
-**Objective:** Verify the requires_action CTA routes to setup.
+**Objective:** Verify a requires_action payout row offers a way to resolve the state.
 
 **Steps:**
-1. Open My Earnings / Payout Settings for a seller with a requires_action payout.
+1. Open Payout Settings for a seller with a requires_action payout (e.g. a
+   completed trade created while no verified payout method existed).
+2. Locate the payout in the PAYOUT HISTORY list.
 
 **Expected Result:**
-- The payout shows an "ACTION REQUIRED" badge with a **[Set Up Payout Method]** button that opens the method setup flow.
+- The payout row shows an "Action Required" status.
+- The row shows a **[Set Up Payout Method]** button (`testID` `history-action-*`).
+- Tapping it opens the in-screen Add Payout Method flow (Stripe Connect
+  onboarding / bank / PayPal / Venmo), so the seller can resolve the state
+  without leaving the screen.
+
+**Notes (DT-119):** The earlier `SellerEarningsScreen` surface that hosted this
+CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 
 ### SUB-TC-G07 · Payout Settings — "Edit Details" sheet
 

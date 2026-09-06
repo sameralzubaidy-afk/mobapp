@@ -401,7 +401,9 @@ export function formatPayoutStatus(status: string): { label: string; color: stri
     case 'requires_action':
       return { label: 'Action Required', color: '#E85D75' };
     case 'pending':
-      return { label: 'Pending', color: '#F59E0B' };
+      // DT-119 (item 2): money-pending uses canonical warning (#FFA726); the
+      // SP-gold #F59E0B is reserved for Swap Points currency only.
+      return { label: 'Pending', color: '#FFA726' };
     case 'processing':
       return { label: 'Processing', color: '#5DBB8E' };
     case 'completed':

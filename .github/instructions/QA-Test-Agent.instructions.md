@@ -765,6 +765,18 @@ Do not guess which table a writer targets or which columns it has — read the l
 
 *Evidence / origin: QA Task 32 Part 2 (2026-09-05) — Batch 2 M03/M04: admin Cancel/Reactivate/Extend-Trial all committed state (active↔grace_period, trial +7d) but wrote zero audit rows; source read of the route + `information_schema` on `admin_audit_logs` confirmed the 42703 insert. Report: `e2e-test-results/qa-task32-adm-r6-sub-2026-09-05/Part2-SUB/report.md`.*
 
+### 5.63 Standing rule — design-compliance: audit EVERY rendered branch + app-wide off-brand-hex grep (2026-09-05) — R62
+
+Design-system methodology rule from QA Task 34 (evidence: `e2e-test-results/qa-task34-payout-e2e-2026-09-05/report.md` — D1 ContinueKidsClub upsell off-brand). Restates and sharpens §6.4 (design-system compliance); the §6.4 checks remain canonical and this entry adds the multi-state trap + the standing grep.
+
+**R62a — Audit EVERY rendered branch of a multi-branch/multi-state screen, not just the branch the current persona renders.** A screen that renders different branches by user state (e.g. ContinueKidsClub's active vs trial vs free/grace/expired/upsell branches; per-status subscription badges) can be on-brand in the branch under test while a sibling branch silently leaks legacy tokens. When a case visits such a screen, review the OTHER branches' style objects too (read the file's per-branch styles; if a state fixture is cheap, render each branch) — a branch you did not render is exactly where drift hides.
+
+**R62b — Run the standing app-wide off-brand-hex grep as part of every design-compliance pass.** The known legacy-design-system hex class has now recurred on two separate screens (Discover → ContinueKidsClub), so this is a standing check, not a one-off:
+`rg -n "#4A7C59|#4D4D4D|#808080" p2p-kids-marketplace/src`
+Any hit on a live screen is a DEVIATION (canonical map: `#4A7C59`→primary `#5DBB8E`, `#4D4D4D`→secondary text `#6B6B6B`, `#808080`→tertiary `#999999` or secondary `#6B6B6B` by role). Dead/deprecated screens (e.g. `SellerEarningsScreen`, Dev Task 86) and deferred screens with no active navigation (e.g. `LeaderboardScreen`) are reported as such — not re-flagged as new defects. Mirrors dev-side BP-82 rule 6 in `.github/instructions/mobile-client.instructions.md`.
+
+*Evidence / origin: QA Task 34 (2026-09-05) — ContinueKidsClub active branch on-brand while its upsell branch leaked `#4A7C59` (price card / primary CTA) + `#4D4D4D`/`#808080` (benefit / fine-print text); the first-pass review only rendered the active branch. Report: `e2e-test-results/qa-task34-payout-e2e-2026-09-05/report.md` (D1).*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
@@ -799,6 +811,8 @@ This app is a **kids' marketplace used by parents/guardians**. Assess whether th
 ### 6.4 UX review — design-system compliance (required, NOT optional)
 
 For **every screen the agent visits** — and, explicitly, **every modal, alert (in-app or native), toast, bottom sheet, and pop-up that appears during a case** — check the actual rendered UI (screenshots + the element tree) against `docx/design-system-passitup.md` (the canonical "Pass It Up" design reference). **Pop-ups/dialogs get the same three-layer review as a full screen** (structural §6.2, wording §6.3, design-system here) — no exceptions for "it's just a small popup."
+
+**Audit EVERY rendered branch of a multi-branch screen (R62a):** when a visited screen renders different branches by user/subscription state (e.g. ContinueKidsClub active vs trial vs upsell), review the OTHER branches' styles too — never only the branch the current persona renders. **Run the standing app-wide off-brand-hex grep (R62b):** `rg -n "#4A7C59|#4D4D4D|#808080" p2p-kids-marketplace/src` — any live-screen hit is a deviation (see §5.63 R62).
 
 Concrete popup/modal criteria (drawn from a real Phase 14 miss):
 - **Color-token consistency** — does the dialog use the documented palette (primary green `#5DBB8E` / pressed `#4DAA7A`; semantic error `#E85D75`, warning `#FFA726`, info `#5B8FB9`; white `#FFFFFF` modal surface), or does it default to system/OS colors (e.g. an unstyled native-looking blue/gray alert)?

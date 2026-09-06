@@ -92,9 +92,9 @@ function statusColor(status: string): string {
     case 'grace':
       return '#E85D75'; // error (passitup)
     case 'expired':
-      return '#808080'; // Neutral
+      return '#999999'; // Neutral tertiary (DT-119)
     default:
-      return '#808080';
+      return '#999999'; // Neutral tertiary (DT-119)
   }
 }
 

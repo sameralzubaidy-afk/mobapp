@@ -36,7 +36,9 @@ import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
-export default function LinkedAccountsScreen({ navigation }: any) {
+// DT-119 (item 1 sweep): component needs no navigation/route props — destructured
+// `navigation` was unused (pre-existing lint error), removed (zero behavior change).
+export default function LinkedAccountsScreen() {
   const { user } = useAuth();
   const [linkedProviders, setLinkedProviders] = useState<LinkedProvider[]>([]);
   const [loginMethodCount, setLoginMethodCount] = useState<number>(0);
@@ -113,7 +115,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
     setLinkingProvider(null);
   };
 
-  const performLinking = async (provider: OAuthProvider, password?: string) => {
+  const performLinking = async (provider: OAuthProvider, _password?: string) => {
     try {
       // Initiate OAuth flow
       const { url } = await initiateSocialLogin(provider);
@@ -266,7 +268,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>Email Address</Text>
             <View style={styles.providerCard}>
               <View style={styles.providerIconContainer}>
-                <EnvelopeSimple size={24} color="#4A7C59" weight="regular" />
+                <EnvelopeSimple size={24} color="#5DBB8E" weight="regular" />
               </View>
               <View style={styles.providerInfo}>
                 <Text style={styles.providerName}>Account Email</Text>
@@ -280,7 +282,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
 
           {/* Info card */}
           <View style={styles.infoCard}>
-            <Info size={20} color="#4A7C59" weight="regular" />
+            <Info size={20} color="#5DBB8E" weight="regular" />
             <Text style={styles.infoText}>
               Link multiple accounts to sign in using any of them. You must keep at least one login
               method.
@@ -292,7 +294,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>Password</Text>
             <View style={styles.providerCard}>
               <View style={styles.providerIconContainer}>
-                <Key size={24} color="#4A7C59" weight="regular" />
+                <Key size={24} color="#5DBB8E" weight="regular" />
               </View>
               <View style={styles.providerInfo}>
                 <Text style={styles.providerName}>Password</Text>
@@ -328,11 +330,11 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                 <View key={provider} style={styles.providerCard} testID={`provider-${provider}`}>
                   <View style={styles.providerIconContainer}>
                     {isLinking || isUnlinking ? (
-                      <ActivityIndicator size="small" color="#4A7C59" />
+                      <ActivityIndicator size="small" color="#5DBB8E" />
                     ) : (
                       (() => {
                         const ProviderIcon = getProviderIcon(provider);
-                        return <ProviderIcon size={24} color="#4A7C59" weight="regular" />;
+                        return <ProviderIcon size={24} color="#5DBB8E" weight="regular" />;
                       })()
                     )}
                   </View>
@@ -398,7 +400,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#808080',
+    color: '#6B6B6B',
   },
   header: {
     flexDirection: 'row',
@@ -440,7 +442,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-    color: '#4D4D4D',
+    color: '#6B6B6B',
     lineHeight: 20,
   },
   section: {
@@ -460,7 +462,7 @@ const styles = StyleSheet.create({
   },
   readonlyBadgeText: {
     fontSize: 12,
-    color: '#808080',
+    color: '#6B6B6B',
     fontWeight: '500',
   },
   providerCard: {
@@ -498,13 +500,13 @@ const styles = StyleSheet.create({
   },
   providerStatus: {
     fontSize: 14,
-    color: '#808080',
+    color: '#6B6B6B',
   },
   actionButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E',
   },
   actionButtonDanger: {
     backgroundColor: '#E53935',
@@ -526,6 +528,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#808080',
+    color: '#6B6B6B',
   },
 });

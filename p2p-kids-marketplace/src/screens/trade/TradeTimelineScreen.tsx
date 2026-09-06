@@ -2667,7 +2667,7 @@ const styles = StyleSheet.create({
   bundleItemPrice: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4D4D4D',
+    color: '#6B6B6B',
   },
   bundleItemDetail: {
     flexDirection: 'row',
@@ -2700,7 +2700,7 @@ const styles = StyleSheet.create({
   bundleTotalValue: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#4D4D4D',
+    color: '#6B6B6B',
   },
   bundleTotalGrandRow: {
     borderTopWidth: 1,
