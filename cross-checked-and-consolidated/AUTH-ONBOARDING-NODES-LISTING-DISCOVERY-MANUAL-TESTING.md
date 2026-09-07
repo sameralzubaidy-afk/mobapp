@@ -1820,7 +1820,7 @@ flagged as deprecation-review candidates (see `docs/DECISIONS.md`).
 2. Tap the Sell FAB.
 
 **Expected Result:**
-- The FAB is visible on every screen (raised orange circle above the pill).
+- The FAB is visible on every screen (raised green circle above the pill — primary green #5DBB8E, same as other primary CTAs).
 - Tapping it opens the Sell action sheet with "List One Item" and "Bulk Upload".
 
 ### AUTH-TC-P11 · Composer bar: focus + type

@@ -335,6 +335,27 @@ Color: #1A1A1A (default), #5DBB8E (active/selected)
 
 ---
 
+### 4.8 Floating Action Button (FAB — "Sell")
+
+**Style**: Raised circular primary-action button in the center of the persistent bottom pill nav (Home | Discover | [Sell FAB] | Trades | Basket). It uses the same primary green as all other primary CTAs so the app reads as one consistent action color. Tapping it opens the Sell action sheet ("List One Item" / "Bulk Upload").
+
+```
+Fill:       #5DBB8E (primary green — same as all primary CTAs)
+Pressed:    #4DAA7A (primary 600, darker green)
+Icon:       #FFFFFF white line icon, ~26px (price-tag "Sell")
+Size:       56x56px circle (border-radius 28px)
+Raise:      ~22px above the pill (the bar has no overflow, so the FAB is not clipped)
+Shadow:     green-tinted drop shadow (depth 4, opacity ~0.4) for elevation
+Touch:      56x56px target (exceeds WCAG AAA 44x44 minimum)
+Behavior:   opens the Sell action sheet
+```
+
+> Design note (FIX-Task-1, 2026-09-07): the FAB previously rendered a legacy orange
+> (`#FF8C42`) that is not part of this palette. It now uses the canonical primary green
+> above. Do not reintroduce accent/orange on the FAB — primary CTAs are green only.
+
+---
+
 ## 5. Screen-Specific Patterns
 
 ### 5.1 Landing Screen
