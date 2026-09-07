@@ -409,10 +409,17 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FF8C42',
+    // FIX-Task-1 (QA Task 43b, 2026-09-07): FAB rendered #FF8C42 (legacy accent,
+    // not in canonical docx/design-system-passitup.md). Canonical doc has no FAB
+    // spec, so the FAB now uses the canonical primary-CTA green (colors.primary[500],
+    // #5DBB8E) like every other primary action. Scoped change: the FAB never consumed
+    // colors.accent[500] (it hardcoded the hex), so no accent consumer is affected.
+    // Doc gap (recommend separate follow-up): add a FAB color spec to
+    // design-system-passitup.md §4 so this doesn't recur.
+    backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF8C42',
+    shadowColor: colors.primary[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
