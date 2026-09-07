@@ -794,6 +794,8 @@ export async function clearQaLocalValues(): Promise<void> {
       QA_CONFIG_FETCH_FAILURE_KEY,
       QA_PAYMENT_CARD_KEY,
       QA_SP_WALLET_NOT_FOUND_KEY,
+      QA_PAYOUT_FETCH_FAILURE_KEY,
+      QA_FAQ_FETCH_FAILURE_KEY,
     ]);
   } catch (err) {
     console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
@@ -1132,6 +1134,44 @@ export async function getSimulatedConfigFetchFailure(): Promise<QaConfigFetchFai
 }
 
 // ========================================
+// QA FAQ-FETCH-FAILURE (ACC-TC-H03 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that forces the FAQ list's offline-fallback
+ * branch (ACC-TC-H03). Absence, 'none', or any unknown value = no simulation
+ * (fail-closed). Values: 'fetch_failure' | 'none'
+ *   - 'fetch_failure' → `faqService.fetchPublishedFaqs` returns the hardcoded
+ *     fallback set (Getting Started / Swap Points / Trading / Account / Safety)
+ *     before any DB call, so the Help screen renders the offline fallback on
+ *     demand.
+ *
+ * Why this exists: ACC-TC-H03 (FAQ offline fallback) needs the `faq_items`
+ * fetch to fail — inducing that on a healthy staging connection is not cleanly
+ * possible. Arming this session-local toggle reproduces the exact user-visible
+ * branch with zero shared-staging blast radius.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real FAQ fetch always runs.
+ * The simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=faq_failure&value=fetch_failure"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=faq_failure&value=none"
+ */
+export const QA_FAQ_FETCH_FAILURE_KEY = 'qa_local_faq_failure';
+
+export type QaFaqFetchFailureMode = 'fetch_failure' | 'none';
+
+export async function getSimulatedFaqFetchFailure(): Promise<QaFaqFetchFailureMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_FAQ_FETCH_FAILURE_KEY);
+  return value === 'fetch_failure' ? 'fetch_failure' : 'none';
+}
+
+// ========================================
 // QA PAYOUT/BILLING FORCED-FETCH-FAILURE (SUB-TC-F07 + K02 error/retry leg — dev-only)
 // ========================================
 
@@ -1282,6 +1322,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   policy_failure: QA_POLICY_LOAD_FAILURE_KEY,
   card_decline: QA_FORCE_CARD_DECLINE_KEY,
   config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
+  faq_failure: QA_FAQ_FETCH_FAILURE_KEY,
   payment_card: QA_PAYMENT_CARD_KEY,
   sp_wallet_not_found: QA_SP_WALLET_NOT_FOUND_KEY,
   payout_fetch_failure: QA_PAYOUT_FETCH_FAILURE_KEY,
@@ -1296,6 +1337,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_POLICY_LOAD_FAILURE_KEY]: ['no_policy', 'fetch_failure', 'none'],
   [QA_FORCE_CARD_DECLINE_KEY]: ['hold_decline', 'none'],
   [QA_CONFIG_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
+  [QA_FAQ_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
   [QA_PAYMENT_CARD_KEY]: ['mastercard_4444', 'visa_4242', 'none'],
   [QA_SP_WALLET_NOT_FOUND_KEY]: ['not_found', 'none'],
   [QA_PAYOUT_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],

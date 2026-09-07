@@ -43,6 +43,8 @@ export const PERSONAS = {
   'test-expired': { id: 'a1234567-0000-0000-0000-000000000013', email: 'test-expired@kidsmarketplace.test', password: 'TestExpired123!' },
   // DEV-TASK-120 (item 1): standing trial persona — qa:r41-trial ensure/reset.
   'test-trial': { id: 'a1234567-0000-0000-0000-000000000015', email: 'test-trial@kidsmarketplace.test', password: 'TestTrial123!' },
+  // 2026-09-07: standing payment-failure persona (ACC-TC-G02) — qa:payfail ensure/reset.
+  'test-payfail': { id: 'a1234567-0000-0000-0000-000000000016', email: 'test-payfail@kidsmarketplace.test', password: 'TestPayfail123!' },
   'test-suspended': { id: 'a1234567-0000-0000-0000-00000000000f', email: 'test-suspended@kidsmarketplace.test', password: 'TestSuspended123!' },
   'qa-first-trade': { id: 'a1234567-0000-0000-0000-000000000014', email: 'qa-first-trade@kidsmarketplace.test', password: 'TestFirstTrade123!' },
   'test-admin': { id: 'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },

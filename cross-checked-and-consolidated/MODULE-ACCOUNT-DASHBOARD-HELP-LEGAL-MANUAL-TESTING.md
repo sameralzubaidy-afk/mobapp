@@ -106,7 +106,8 @@
 | Role | Email | Subscription | Notes |
 |---|---|---|---|
 | Subscriber | test-buyer@kidsmarketplace.test | Kids Club+ Active | Full profile, badges, reviews |
-| Trial user | test-trial@kidsmarketplace.test | Kids Club+ Trial | Dashboard trial-reminder banner — **Standing fixture (2026-09-06, Dev Task 120)** — provision via `npm run qa:r41-trial -- ensure [--days-remaining N]`; clean revert `-- reset`. Password `TestTrial123!`; one-call login `qa-login-as?persona=test-trial` |
+| Trial user | test-trial@kidsmarketplace.test | Kids Club+ Trial | Dashboard trial-reminder banner — **Standing fixture (2026-09-06, Dev Task 120)** — provision via `npm run qa:r41-trial -- ensure [--days-remaining N]`; clean revert `-- reset`. Password `TestTrial123!`; one-call login `qa-login-as?persona=test-trial`. **Provisioned 2026-09-07** (`-- days-remaining 5`, trial_end 2026-09-12 → "5 Days Left in Your Trial") |
+| Payment failure | test-payfail@kidsmarketplace.test | Kids Club+ Active (payment retry pending) | Dashboard payment-failure banner — **Standing fixture (2026-09-07)** — provision via `npm run qa:payfail -- ensure [--retry-count 1|2|3]`; clean revert `-- reset`. Password `TestPayfail123!`; one-call login `qa-login-as?persona=test-payfail`. **Provisioned 2026-09-07** (retry 1 → "Retry 1 of 3") |
 | Grace user | test-grace@kidsmarketplace.test | Grace period | Dashboard grace banner |
 | Free | test-free@kidsmarketplace.test | None | Help/FAQ, legal, contact support |
 | Suspended | test-suspended@kidsmarketplace.test | — | Suspended account screen |

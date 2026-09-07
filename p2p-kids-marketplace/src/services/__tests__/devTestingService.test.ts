@@ -28,10 +28,12 @@ import {
   getQaPolicyLoadFailureMode,
   QA_FORCE_CARD_DECLINE_KEY,
   QA_CONFIG_FETCH_FAILURE_KEY,
+  QA_FAQ_FETCH_FAILURE_KEY,
   QA_PAYMENT_CARD_KEY,
   QA_PAYOUT_FETCH_FAILURE_KEY,
   QA_SP_WALLET_NOT_FOUND_KEY,
   getSimulatedPaymentCardPreference,
+  getSimulatedFaqFetchFailure,
   setQaLocalValue,
   clearQaLocalValues,
   isValidQaToggleValue,
@@ -335,6 +337,7 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       policy_failure: QA_POLICY_LOAD_FAILURE_KEY,
       card_decline: QA_FORCE_CARD_DECLINE_KEY,
       config_fetch_failure: QA_CONFIG_FETCH_FAILURE_KEY,
+      faq_failure: QA_FAQ_FETCH_FAILURE_KEY,
       payment_card: QA_PAYMENT_CARD_KEY,
       sp_wallet_not_found: QA_SP_WALLET_NOT_FOUND_KEY,
       payout_fetch_failure: QA_PAYOUT_FETCH_FAILURE_KEY,
@@ -386,8 +389,52 @@ describe('devTestingService — session-local QA toggle storage + validation', (
     expect(isValidQaToggleValue(QA_PAYOUT_FETCH_FAILURE_KEY, 'none')).toBe(true);
     expect(isValidQaToggleValue(QA_PAYOUT_FETCH_FAILURE_KEY, 'bogus')).toBe(false);
 
+    // faq_failure (ACC-TC-H03)
+    expect(isValidQaToggleValue(QA_FAQ_FETCH_FAILURE_KEY, 'fetch_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_FAQ_FETCH_FAILURE_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_FAQ_FETCH_FAILURE_KEY, 'bogus')).toBe(false);
+
     // Unknown storage key → always invalid.
     expect(isValidQaToggleValue('qa_unknown', 'token')).toBe(false);
+  });
+});
+
+describe('devTestingService — getSimulatedFaqFetchFailure (ACC-TC-H03, session-local)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+  });
+
+  it('returns "none" when the toggle is unset (fail-closed)', async () => {
+    await expect(getSimulatedFaqFetchFailure()).resolves.toBe('none');
+  });
+
+  it('returns "fetch_failure" when armed', async () => {
+    await setQaLocalValue(QA_FAQ_FETCH_FAILURE_KEY, 'fetch_failure');
+    await expect(getSimulatedFaqFetchFailure()).resolves.toBe('fetch_failure');
+  });
+
+  it('returns "none" for "none" and unknown values (fail-closed)', async () => {
+    await setQaLocalValue(QA_FAQ_FETCH_FAILURE_KEY, 'none');
+    await expect(getSimulatedFaqFetchFailure()).resolves.toBe('none');
+
+    await setQaLocalValue(QA_FAQ_FETCH_FAILURE_KEY, 'random_junk');
+    await expect(getSimulatedFaqFetchFailure()).resolves.toBe('none');
+  });
+
+  it('registers faq_failure in the deep-link short-name map + validation', () => {
+    expect(QA_TOGGLE_SHORT_NAMES.faq_failure).toBe(QA_FAQ_FETCH_FAILURE_KEY);
+    expect(isValidQaToggleValue(QA_FAQ_FETCH_FAILURE_KEY, 'fetch_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_FAQ_FETCH_FAILURE_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_FAQ_FETCH_FAILURE_KEY, 'bogus')).toBe(false);
+  });
+
+  it('clearQaLocalValues removes the FAQ fetch-failure toggle', async () => {
+    await setQaLocalValue(QA_FAQ_FETCH_FAILURE_KEY, 'fetch_failure');
+    await expect(getSimulatedFaqFetchFailure()).resolves.toBe('fetch_failure');
+
+    await clearQaLocalValues();
+    await expect(getSimulatedFaqFetchFailure()).resolves.toBe('none');
   });
 });
 

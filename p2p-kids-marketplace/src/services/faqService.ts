@@ -4,6 +4,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
+import { getSimulatedFaqFetchFailure } from './devTestingService';
 
 export interface FAQ {
   id: string;
@@ -110,6 +111,17 @@ export async function fetchPublishedFaqs(): Promise<{
   faqs: FAQ[];
   categories: string[];
 }> {
+  // ACC-TC-H03 QA toggle: when armed, return the hardcoded fallback set before
+  // any DB call so the Help screen renders the offline-fallback branch on demand.
+  // Deliberately returns the fallback (never throws) — HelpScreen.loadFaqs has no
+  // try/catch and would hang on a thrown error.
+  const simulatedFailure = await getSimulatedFaqFetchFailure();
+  if (simulatedFailure === 'fetch_failure') {
+    // eslint-disable-next-line no-console
+    console.warn('[faqService] qa_local_faq_failure armed — serving fallback FAQs');
+    return { faqs: FALLBACK_FAQS, categories: ['All', ...FALLBACK_CATEGORIES] };
+  }
+
   try {
     const { data, error } = await supabase
       .from('faq_items')

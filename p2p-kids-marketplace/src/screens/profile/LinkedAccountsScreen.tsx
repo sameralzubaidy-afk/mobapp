@@ -31,6 +31,7 @@ import { initiateSocialLogin } from '@/services/oauthService';
 import { getSimulatedLinkEmailMismatch } from '@/services/devTestingService';
 import { captureException } from '@/services/errorReporter';
 import PasswordReauthModal from '@/components/auth/PasswordReauthModal';
+import SetPasswordModal from '@/components/auth/SetPasswordModal';
 import type { OAuthProvider, LinkedProvider } from '@/types/auth-v3';
 import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors';
 import { LoadingSpinner } from '@/components/ui';
@@ -47,6 +48,7 @@ export default function LinkedAccountsScreen() {
   const [linkingProvider, setLinkingProvider] = useState<OAuthProvider | null>(null);
   const [unlinkingProvider, setUnlinkingProvider] = useState<OAuthProvider | null>(null);
   const [isReauthVisible, setIsReauthVisible] = useState(false);
+  const [isSetPasswordVisible, setIsSetPasswordVisible] = useState(false);
 
   const allProviders: OAuthProvider[] = ['google', 'facebook', 'apple'];
 
@@ -305,7 +307,7 @@ export default function LinkedAccountsScreen() {
               {!hasPassword && (
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => Alert.alert('Coming Soon', 'Set password feature coming soon')}
+                  onPress={() => setIsSetPasswordVisible(true)}
                   testID="set-password-button"
                   accessible
                   accessibilityRole="button"
@@ -378,6 +380,11 @@ export default function LinkedAccountsScreen() {
           onConfirm={handleReauthConfirm}
           onCancel={handleReauthCancel}
           testID="link-password-reauth"
+        />
+        <SetPasswordModal
+          visible={isSetPasswordVisible}
+          onClose={() => setIsSetPasswordVisible(false)}
+          onSuccess={() => void loadLinkedAccounts()}
         />
       </View>
     </ScreenLayout>

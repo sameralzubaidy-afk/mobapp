@@ -23,10 +23,10 @@
 
 | Guide | Canonical file | Cases | ✅ PASS | 🟡 PARTIAL | 🔴 OPEN | 📄 DRIFT | ⏭️ SKIP | 🗑️ REMOVED | 🔁 RETIRED | 🚫 NOT-SUPPORTED | 🚫 N/A | **Remaining (NEVER RUN)** |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **AUTH** | `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` | 138 | 118 | 2 | 11 | 0 | 2 | 5 | 0 | 0 | 0 | **0** |
+| **AUTH** | `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` | 138 | 125 | 2 | 4 | 0 | 2 | 5 | 0 | 0 | 0 | **0** |
 | **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 64 | 4 | 2 | 0 | 0 | 0 | 0 | 2 | 0 | **0** |
 | **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 234 | 28 | 2 | 3 | 2 | 0 | 0 | 0 | 0 | **19** |
-| **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 57 | 0 | 17 | 0 | 1 | 0 | 0 | 0 | 0 | **0** |
+| **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 61 | 0 | 13 | 0 | 1 | 0 | 0 | 0 | 0 | **0** |
 | **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 144 | 12 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | **3** |
 | **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 77 | 2 | 3 | 0 | 0 | 0 | 15 | 0 | 2 | **1** |
 
@@ -38,7 +38,7 @@ Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/
 
 ## AUTH · Signup / Onboarding / Nodes / Listing / Discovery
 
-**Guide file:** `cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` · **Cases:** 138 · **PASS** 118 · **PARTIAL** 2 · **OPEN** 11 · **DOC-DRIFT** 0 · **SKIPPED** 2 · **REMOVED** 5 · **Remaining (NEVER RUN)** 0
+**Guide file:** `cross-checked-and-consolidated/AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` · **Cases:** 138 · **PASS** 125 · **PARTIAL** 2 · **OPEN** 4 · **DOC-DRIFT** 0 · **SKIPPED** 2 · **REMOVED** 5 · **Remaining (NEVER RUN)** 0
 
 ### Completed test cases (have a verdict on record)
 
@@ -68,7 +68,7 @@ Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/
 | AUTH-TC-C02 | Sign in / Continue with Facebook | ✅ PASS | PASS | 2026-08-16 | `phase20-auth-group-c-closure-2026-08-16` |  |
 | AUTH-TC-C03 | Sign in / Continue with Apple (iOS + Android) | 🔴 STILL OPEN | BLOCKED | 2026-08-16 | `phase19-auth-group-c-closeout-2026-08-16` | BLOCKED (env/fixture) |
 | AUTH-TC-C04 | Existing-email account-link prompt | ✅ PASS | PASS | 2026-08-19 | `qa-final-verify-e05-c04-2026-08-19` |  |
-| AUTH-TC-C05 | Provider unavailable → email fallback banner | 🔴 STILL OPEN | BLOCKED | 2026-08-24 | `auth-final-cleanup-batch-2026-08-24` | BLOCKED (env/fixture) |
+| AUTH-TC-C05 | Provider unavailable → email fallback banner | ✅ PASS | PASS | 2026-09-06 | `qa-task41-b0-b4-exec-2026-09-06` | QA Task 41 re-drive: qa_provider_unavailable=google → inline banner + CTA dismiss (Login) |
 | AUTH-TC-C06 | User cancels OAuth — silent return | ✅ PASS | PASS | 2026-08-16 | `phase19-auth-group-c-closeout-2026-08-16` |  |
 | AUTH-TC-C07 | Social-only user sets a password | 🔴 STILL OPEN | BLOCKED | 2026-08-24 | `auth-final-cleanup-batch-2026-08-24` | BLOCKED (env/fixture) |
 | AUTH-TC-D01 | Logout from Profile with confirmation | ✅ PASS | PASS | 2026-08-23 | `group-a-b-d-auth-2026-08-23` |  |
@@ -93,7 +93,7 @@ Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/
 | AUTH-TC-G06 | Node stats cards + validation | ✅ PASS | PASS | 2026-08-23 | `group-fg-nodes-zip-gating-2026-08-23` |  |
 | AUTH-TC-H01 | Profile Setup: avatar + display name + ZIP | ✅ PASS | PASS | 2026-08-24 | `group-j-h-closure-2026-08-24` |  |
 | AUTH-TC-H02 | Profile Setup validation errors | ✅ PASS | PASS | 2026-08-23 | `group-h-profile-setup-2026-08-23` |  |
-| AUTH-TC-H03 | Avatar upload failure does not block | 🔴 STILL OPEN | BLOCKED | 2026-08-24 | `auth-final-cleanup-batch-2026-08-24` | BLOCKED (env/fixture) |
+| AUTH-TC-H03 | Avatar upload failure does not block | ✅ PASS | PASS | 2026-09-06 | `qa-task41-b0-b4-exec-2026-09-06` | QA Task 41 spot-confirm: toggle armed → Warning "Profile will be created without avatar" → profile created (DB avatar_url NULL); reconciles 2026-08-18 on-record PASS |
 | AUTH-TC-H04 | ~~Welcome screen → Get Started~~ (REMOVED — screen deleted; superseded by H06/H07) | 🗑️ REMOVED | REMOVED | 2026-08-23 | `group-h-profile-setup-2026-08-23` | Reclassified 31d: feature removed (screen deleted) — disposition, not a defect |
 | AUTH-TC-H05 | ~~Feature Highlights carousel~~ (REMOVED — screen deleted; superseded by H06/H07) | 🗑️ REMOVED | REMOVED | 2026-08-23 | `group-h-profile-setup-2026-08-23` | Reclassified 31d: feature removed (screen deleted) — disposition, not a defect |
 | AUTH-TC-H06 | Onboarding carousel: Next / Skip / Get Started | ✅ PASS | PASS | 2026-08-23 | `group-h-profile-setup-2026-08-23` |  |
@@ -123,7 +123,7 @@ Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/
 | AUTH-TC-K05 | Submit N Items for Review + confirm sheet | 🟡 PARTIAL | PARTIAL | 2026-08-19 | `phase25-auth-group-k-bulk-2026-08-19` |  |
 | AUTH-TC-K06 | Bulk SP summary (subscriber) | ✅ PASS | PASS | 2026-08-19 | `phase25-auth-group-k-bulk-2026-08-19` |  |
 | AUTH-TC-L01 | New listing not visible in feed until approved | ✅ PASS | PASS | 2026-08-21 | `group-l-reverify-l01-l04-2026-08-21` |  |
-| AUTH-TC-L02 | Admin approves → item becomes visible | 🔴 STILL OPEN | BLOCKED | 2026-08-21 | `group-l-playwright-l01-l04-2026-08-21` | BLOCKED (env/fixture) |
+| AUTH-TC-L02 | Admin approves → item becomes visible | ✅ PASS | PASS | 2026-08-21 | `group-l-reverify-l01-l04-2026-08-21` | QA Task 41 reconcile (Group L 4/4 PASS; admin approve via /listings → available, DB verified) |
 | AUTH-TC-L03 | Seller receives approval notification | ✅ PASS | PASS | 2026-08-21 | `group-l-reverify-l01-l04-2026-08-21` |  |
 | AUTH-TC-L04 | Editing an approved listing returns to pending | ✅ PASS | PASS | 2026-08-21 | `group-l-reverify-l01-l04-2026-08-21` |  |
 | AUTH-TC-M01 | Search bar (debounced) + clear | ✅ PASS | PASS | 2026-08-22 | `group-m-discover-2026-08-22` |  |
@@ -162,14 +162,14 @@ Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/
 | AUTH-TC-P15 | AI never overwrites composer-pre-filled Title | ✅ PASS | PASS | 2026-08-23 | `group-p-full-run-19-cases-2026-08-23` |  |
 | AUTH-TC-P16 | FAB Sell sheet unchanged (parallel entry point) | ✅ PASS | PASS | 2026-08-23 | `group-p-full-run-19-cases-2026-08-23` |  |
 | AUTH-TC-P17 | Logout still reachable from Profile/Settings | ✅ PASS | PASS | 2026-08-23 | `group-p-full-run-19-cases-2026-08-23` |  |
-| AUTH-TC-P18 | Composer analytics (tap + submit with/without text) | 🔴 STILL OPEN | FAIL | 2026-08-23 | `group-p-full-run-19-cases-2026-08-23` | FAIL, unresolved |
-| AUTH-TC-P19 | Accessibility identifiers (Trades tab, header chat) | 🔴 STILL OPEN | FAIL | 2026-08-23 | `group-p-full-run-19-cases-2026-08-23` | FAIL, unresolved |
+| AUTH-TC-P18 | Composer analytics (tap + submit with/without text) | ✅ PASS | PASS | 2026-08-23 | `group-p-reverify-appheader-composer-2026-08-23` | QA Task 41 reconcile (composer_bar_tapped fires on focus; nuance: also on focus-restoration) |
+| AUTH-TC-P19 | Accessibility identifiers (Trades tab, header chat) | ✅ PASS | PASS | 2026-08-23 | `group-p-reverify-appheader-composer-2026-08-23` | QA Task 41 reconcile (Home header-chat-btn + bell AX-exposed, matches Discover) |
 | AUTH-TC-Q01 | Education Help screen — published sections only | ✅ PASS | PASS | 2026-08-23 | `group-qs-calibration-2026-08-23` |  |
 | AUTH-TC-Q02 | Education Help screen — section by type | 🟡 PARTIAL | PARTIAL | 2026-08-23 | `group-qs-calibration-2026-08-23` |  |
 | AUTH-TC-Q03 | SP calculator — sell mode (no hardcoded rates) | ✅ PASS | PASS | 2026-08-23 | `group-qs-calibration-2026-08-23` |  |
-| AUTH-TC-Q04 | SP calculator — buy mode (cash + fee + cap) | 🔴 STILL OPEN | FAIL | 2026-08-23 | `group-qs-calibration-2026-08-23` | FAIL, unresolved |
+| AUTH-TC-Q04 | SP calculator — buy mode (cash + fee + cap) | ✅ PASS | PASS | 2026-09-06 | `qa-task41-b0-b4-exec-2026-09-06` | QA Task 41 both-persona re-drive: subscriber Books/$25 → cash $8.00 / fee $1.49 (live cfg 149) / total $9.49; free → fee $20.00 (cfg 2000); guide example fee stale ($1.00→$1.49) |
 | AUTH-TC-Q05 | SP calculator — bonus categories + example SP | ✅ PASS | PASS | 2026-08-23 | `group-qs-calibration-2026-08-23` |  |
-| AUTH-TC-Q06 | Education analytics — event tracking (no throw) | 🔴 STILL OPEN | FAIL | 2026-08-23 | `group-qs-calibration-2026-08-23` | FAIL, unresolved |
+| AUTH-TC-Q06 | Education analytics — event tracking (no throw) | ✅ PASS | PASS | 2026-08-23 | `group-qs-fix-verify-2026-08-23` | QA Task 41 reconcile (12-event CHECK live; help_view persists on-device) |
 | AUTH-TC-Q07 | Education prompts — onboarding + in-app prompt state machine | ✅ PASS | PASS | 2026-08-23 | `group-qs-calibration-2026-08-23` |  |
 | AUTH-TC-S01 | Forgot Password — success + Send Another Email | 🔴 STILL OPEN | BLOCKED | 2026-08-24 | `auth-final-cleanup-batch-2026-08-24` | BLOCKED (env/fixture) |
 | AUTH-TC-S02 | Forgot Password — invalid email | ✅ PASS | PASS | 2026-08-23 | `group-qs-calibration-2026-08-23` |  |
@@ -576,7 +576,7 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 
 ## ACC · Account / Dashboard / Help / Legal
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` · **Cases:** 75 · **PASS** 57 · **PARTIAL** 0 · **OPEN** 17 · **DOC-DRIFT** 0 · **SKIPPED** 1 · **Remaining (NEVER RUN)** 0
+**Guide file:** `cross-checked-and-consolidated/MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` · **Cases:** 75 · **PASS** 61 · **PARTIAL** 0 · **OPEN** 13 · **DOC-DRIFT** 0 · **SKIPPED** 1 · **Remaining (NEVER RUN)** 0
 
 ### Completed test cases (have a verdict on record)
 
@@ -609,7 +609,7 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 | ACC-TC-E02 | Wrong password blocked | ✅ PASS | PASS | 2026-08-24 | `account-file-groups-efg-c03-2026-08-24` |  |
 | ACC-TC-E03 | Two-step confirmation → deletion + logout | ✅ PASS | PASS | 2026-08-24 | `account-file-groups-efg-c03-2026-08-24` |  |
 | ACC-TC-F01 | Suspended account screen (Contact Support + Log Out, no email) | ✅ PASS | PASS | 2026-08-25 | `account-file-groups-a-g-full-closure-2026-08-25` |  |
-| ACC-TC-F02 | Unsubscribe via deep-link token (success/error) | 🔴 STILL OPEN | BLOCKED | 2026-08-25 | `account-file-groups-a-g-full-closure-2026-08-25` | BLOCKED (env/fixture) |
+| ACC-TC-F02 | Unsubscribe via deep-link token (success/error) | ✅ PASS | PASS | 2026-08-25 | `account-file-f02-g07-closures-2026-08-25` | QA Task 41 reconcile (valid leg PASS; error leg PASS 2026-08-24) |
 | ACC-TC-F03 | Offline screen + Try Again | ✅ PASS | PASS | 2026-08-25 | `account-file-groups-a-g-full-closure-2026-08-25` |  |
 | ACC-TC-F04 | Suspended account — Log Out tap | ✅ PASS | PASS | 2026-08-25 | `account-file-groups-a-g-full-closure-2026-08-25` |  |
 | ACC-TC-G01 | Greeting + subscription badge + SP balance | ✅ PASS | PASS | 2026-08-25 | `account-file-groups-a-g-full-closure-2026-08-25` |  |
@@ -654,9 +654,9 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 | ACC-TC-K03 | 🚫 NOT IMPLEMENTED — MFA challenge on protected action (no UI) | 🔴 STILL OPEN | BLOCKED | 2026-08-25 | `account-file-b-h-ikl-2026-08-25` | BLOCKED (env/fixture) |
 | ACC-TC-K04 | 🚫 NOT IMPLEMENTED — recovery / remove factor (no UI) | 🔴 STILL OPEN | BLOCKED | 2026-08-25 | `account-file-b-h-ikl-2026-08-25` | BLOCKED (env/fixture) |
 | ACC-TC-L01 | Render-time error shows fallback instead of red/white screen | ✅ PASS | PASS | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` |  |
-| ACC-TC-L02 | Try Again recovers after transient error | 🔴 STILL OPEN | BLOCKED | 2026-08-25 | `account-file-b-h-ikl-2026-08-25` | BLOCKED (env/fixture) |
-| ACC-TC-L03 | Persistent error stays contained to fallback | 🔴 STILL OPEN | BLOCKED | 2026-08-25 | `account-file-b-h-ikl-2026-08-25` | BLOCKED (env/fixture) |
-| ACC-TC-L04 | Error reporting is safe with and without telemetry | 🔴 STILL OPEN | BLOCKED | 2026-08-25 | `account-file-b-h-ikl-2026-08-25` | BLOCKED (env/fixture) |
+| ACC-TC-L02 | Try Again recovers after transient error | ✅ PASS | PASS | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` | QA Task 41 reconcile (crash_trigger=once → ErrorBoundary → Try Again → Home) |
+| ACC-TC-L03 | Persistent error stays contained to fallback | ✅ PASS | PASS | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` | QA Task 41 reconcile (crash_trigger=persist contained, no native crash) |
+| ACC-TC-L04 | Error reporting is safe with and without telemetry | ✅ PASS | PASS | 2026-08-26 | `account-file-full-closure-b02-b03-h05-h06-h07-s03-l01-l04-2026-08-26` | QA Task 41 reconcile (CDP [ErrorBoundary] caught + captureException; fail-closed) |
 
 _All cases in this guide have a verdict on record — none remaining._
 

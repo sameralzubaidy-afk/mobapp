@@ -2003,8 +2003,9 @@ flagged as deprecation-review candidates (see `docs/DECISIONS.md`).
 1. In the SP calculator, enter price 25 and SP 10 for the same category.
 
 **Expected Result:**
-- mode = 'buy'; sp_to_use = 10; cash_paid = 15; fee = **flat transaction fee, not a percentage** (BRD flat fees: `$0.99` subscriber / `$2.99` non-subscriber; staging `admin_config` overrides to `$1.00` / `$20.00` — assert the configured value); total_cost = cash_paid + fee; max_sp_usable is floored to the category cap (e.g., 70%).
+- mode = 'buy'; sp_to_use = 10; cash_paid = 15; fee = **flat transaction fee, not a percentage** (BRD flat fees: `$0.99` subscriber / `$2.99` non-subscriber; staging `admin_config` overrides to `$1.49` / `$20.00` — assert the configured value); total_cost = cash_paid + fee; max_sp_usable is floored to the category cap (e.g., 70%).
 - **Model note (applied 2026-08-24):** the percentage-based fee (10% of price) was removed per `BACKEND-AUDIT-REPORT` Part 1 — `spCalculatorService.calculateSP` (buy mode) now uses the flat `transaction_fee_subscriber_cents` / `transaction_fee_non_subscriber_cents` from `admin_config`.
+- **Fee currency note (2026-09-07):** the live subscriber override is **$1.49** (149¢) since the 2026-09-02 `subscription_authority_consolidation` migration set `transaction_fee_subscriber_cents='149'` (authoritative charged fee `buyer_fee_active_member_cents=149`); the non-subscriber override is **$20.00** (2000¢). Q04 already PASSed with this note on 2026-09-06.
 
 ---
 

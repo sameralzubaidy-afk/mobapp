@@ -119,3 +119,39 @@ grep -rnE "EXPO_PUBLIC_[A-Z_]*(SECRET|SERVICE_ROLE|PRIVATE|PASSWORD|API_KEY)" \
 
 Both commands should return no rows. `NEXT_PUBLIC_ADMIN_UI_SECRET` is the
 single intentional exception (UI auth token, not a credential).
+
+---
+
+## Supabase Auth SMTP (GoTrue password-reset / recovery emails) — SendGrid relay
+
+> **Why this exists (2026-09-07):** staging password-reset email delivery regressed
+> between 2026-08-16 (PASS) and 2026-08-23 (BLOCKED — "Error sending recovery
+> email"; GitHub `sameralzubaidy-afk/mobapp` #15). This is **hosted Supabase Auth
+> dashboard config** (project `drntwgporzabmxdqykrp`), NOT a repo/.env setting —
+> there is no local SMTP config anywhere (supabase/config.toml has no `[auth]`
+> mailer; GoTrue auth mail is separate from the `send-email` Edge Function path).
+> This section records the working settings so reconfiguration is a copy-paste
+> job instead of a re-discovery.
+
+**Provider: SendGrid SMTP relay** (public documented settings — no secret here):
+
+| Setting | Value |
+|---|---|
+| Host | `smtp.sendgrid.net` |
+| Port | `587` (TLS/STARTTLS; `465` SSL and `25` also supported) |
+| Username | `apikey` (literal) |
+| Password | the full `SENDGRID_API_KEY` (mail-send scope) — read from `p2p-kids-marketplace/.env(.staging)` `SENDGRID_API_KEY`; never store the literal in docs |
+| From email | a **Verified Sender** on the SendGrid account (test sender e.g. `noreply@<verified-domain>`) |
+| From name | e.g. `Pass It Up` |
+
+**Where to apply (Supabase dashboard → Authentication → Settings on project
+`drntwgporzabmxdqykrp`):**
+1. **SMTP settings** → enable custom SMTP → host/port/username(`apikey`)/password(SendGrid key)/from — or use the built-in sender.
+2. **URL Configuration** → `site_url` (the app/web root) and confirm **Additional Redirect URLs** include the deep link GoTrue puts in the recovery email: `p2pkidsmarketplace://reset-password` (AUTH-TC-S01 asserts the reset link uses this scheme).
+
+**Verification after applying:** run a real Forgot Password to the documented real
+test inbox (`samer.alzubaidi82@gmail.com`) — success state in-app, an `email_logs`
+row (or the provider's event feed), and the delivered email carries the
+`p2pkidsmarketplace://reset-password` link — then re-run AUTH-TC-S01 on-device.
+(S08/S11 already PASS via the server-side mint harness `admin-trigger-password-reset`
+and are independent of SMTP.)

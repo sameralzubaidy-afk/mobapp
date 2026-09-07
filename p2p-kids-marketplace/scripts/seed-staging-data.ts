@@ -1074,40 +1074,64 @@ async function seedUnsubscribeTokenFixture(): Promise<void> {
  * After the QA opens the chat, mark_trade_messages_read sets read_at → badge
  * clears (P03's expected read flow).
  *
- * Idempotent: if a message from the seller already exists on the target trade,
- * this is a no-op.
+ * Idempotent + self-refreshing (2026-09-07): if a non-deleted seller→buyer
+ * message already exists on the target trade, the fixture RESTORES read_at =
+ * NULL (rather than no-op) so a re-run of seed:staging reliably re-creates the
+ * unread badge after the QA's prior read flow cleared it.
  */
 async function seedUnreadMessageFixture(buyerId: string, sellerId: string): Promise<void> {
   console.log('   ── P03 unread-message fixture ──');
 
-  // Find an existing trade where the buyer is test-buyer (seedTrade creates up
-  // to 3 pending trades earlier in main()).
+  // Find an existing PENDING/IN-PROGRESS trade where the buyer is test-buyer and
+  // the seller is test-seller (seedTrade creates up to 3 pending trades earlier
+  // in main()). Narrowing to pending/in_progress + this seller keeps the fixture
+  // off the B08 dedicated cancelled trade and any TRD-advanced/DT-96 threads.
   const { data: trade, error: tradeError } = await adminSupabase
     .from('trades')
     .select('id, buyer_id, seller_id')
     .eq('buyer_id', buyerId)
+    .eq('seller_id', sellerId)
+    .in('status', ['pending', 'in_progress'])
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (tradeError || !trade) {
     console.warn(
-      `   ⚠️ P03: no buyer trade found to attach a message to (${tradeError?.message ?? 'none'})`
+      `   ⚠️ P03: no pending/in-progress buyer trade found to attach a message to (${tradeError?.message ?? 'none'})`
     );
     return;
   }
 
-  // Idempotency guard: skip if a message from the seller already exists.
+  // Idempotency guard — REFRESH, not skip: once the QA opens the chat the
+  // message gets read_at set, so a plain "skip if a seller message exists" guard
+  // would never restore the unread state on re-seed (P03 not re-runnable). If a
+  // non-deleted seller→buyer message exists, restore read_at = NULL; otherwise
+  // insert the canned unread message. Each seed:staging re-run guarantees the
+  // badge = 1 fixture.
   const { data: existingRows } = await adminSupabase
     .from('messages')
-    .select('id')
+    .select('id, read_at')
     .eq('trade_id', trade.id)
     .eq('sender_id', sellerId)
     .is('deleted_at', null)
     .limit(1);
 
   if (existingRows && existingRows.length > 0) {
-    console.log(`   ✓ P03 unread message already exists on trade ${trade.id}`);
+    const existing = existingRows[0];
+    if (existing.read_at != null) {
+      const { error: updateError } = await adminSupabase
+        .from('messages')
+        .update({ read_at: null })
+        .eq('id', existing.id);
+      if (updateError) {
+        console.warn(`   ⚠️ P03 unread-refresh failed: ${updateError.message}`);
+      } else {
+        console.log(`   ✓ P03 unread message restored (read_at → NULL) on trade ${trade.id}`);
+      }
+    } else {
+      console.log(`   ✓ P03 unread message already present on trade ${trade.id}`);
+    }
     return;
   }
 

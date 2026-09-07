@@ -261,7 +261,7 @@
 
 > 🔴 **RETIRED (2026-09-02) — in-app subscription purchase removed; membership is web-first.**
 > **What this case described:** in-app payment-screen benefit/pricing/trial copy, which no longer exists.
-> **Coverage now lives in:** **SUB-TC-N01/N02** (live value-prop/benefit rows) and the **Web Subscription Purchase E2E** (QA Task 20 — scope 2 web checkout UI shell; note trial copy now conflicts with `trial_enabled=false`, and "$1.49 flat fee" benefit copy conflicts with live $1.00 config). Re-run after QA Task 20's unblock recipe.
+> **Coverage now lives in:** **SUB-TC-N01/N02** (live value-prop/benefit rows) and the **Web Subscription Purchase E2E** (QA Task 20 — scope 2 web checkout UI shell; note trial copy now conflicts with `trial_enabled=false`, and "$1.49 flat fee" benefit copy conflicts with live $1.00 config). Re-run after QA Task 20's unblock recipe. *(2026-09-07 annotation: the "$1.49 vs $1.00" conflict is now REVERSED drift — the live `transaction_fee_subscriber_cents` config is **149** ($1.49) since the 2026-09-02 `subscription_authority_consolidation` migration, so the "$1.49 flat fee" benefit copy is consistent and needs no change; this note is retired-context only.)*
 
 ---
 

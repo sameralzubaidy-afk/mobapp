@@ -38,6 +38,11 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   // `npm run qa:r41-trial -- ensure [--days-remaining N]`; clean revert via
   // `npm run qa:r41-trial -- reset`.
   'test-trial': { email: 'test-trial@kidsmarketplace.test', password: 'TestTrial123!' },
+  // 2026-09-07: standing payment-failure persona for ACC-TC-G02's
+  // PaymentFailureBanner (dashboard) — subscriptions status='active' with
+  // payment_retry_count>=1. Provision via `npm run qa:payfail -- ensure`;
+  // clean revert via `npm run qa:payfail -- reset`.
+  'test-payfail': { email: 'test-payfail@kidsmarketplace.test', password: 'TestPayfail123!' },
   // DEV-TASK-109 (item 2): standing disposable SP-wallet persona for the
   // freeze/suspend mobile legs (L05/L07/L08, B04) — Kids Club+ active with an
   // admin-freezable wallet. Provision via `npm run qa:wallet-persona -- ensure`.
