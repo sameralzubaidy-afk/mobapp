@@ -685,6 +685,12 @@ Issue: "Edge Function returning 401/403"
 ✅ Check: Node access (user in correct node)
 ✅ Check: If the EF is DB-trigger/cron-invoked, it does NOT require `bearer === SUPABASE_SERVICE_ROLE_KEY` — the DB posts the `admin_config`-stored key, which can drift from the env, so every trigger/cron call 401s and money rows strand (BP-87)
 See also: BP-19 (`verify_jwt = false` required for cron-invoked functions), BP-87 (DB-trigger/cron-invoked EFs must not enforce strict bearer == env service role key), `edge-functions.instructions.md` HP-3
+Issue: "Social/OAuth login leaves the user on a raw JSON / developer error page (e.g. Apple provider disabled)"
+
+✅ Check: The provider is actually enabled in Supabase Auth — a disabled provider returns `400 validation_failed "provider is not enabled"` only when the opened authorize URL loads (BP-88)
+✅ Check: The OAuth call config — `signInWithOAuth({ skipBrowserRedirect: true })` returns a URL WITHOUT throwing for a disabled provider, so a classification branch keyed on an initiation error never fires (BP-88)
+✅ Check: The friendly-error banner's copy path is actually reachable — the trigger must surface inside the client's try/catch, not inside the browser sheet/custom tab (BP-88)
+See also: BP-88 (error-classification branches need a real runtime trigger — mocked-error unit tests can green-light dead code), BP-8 (typed service errors)
 Issue: "Subscription features not working after purchase"
 
 ✅ Check: Stripe webhook received and processed
@@ -1414,6 +1420,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-85 Money display units — cents-stored money MUST use a cents formatter (`formatPrice` → "$1.49"), never the dollars formatter (`formatDollarAmount` → "$149") (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-86 Membership/value-prop copy — subscription surfaces must render the CANONICAL in-app benefit set (ManageKidsClub "Kids Club+ Benefits" / JoinKidsClub `STATIC_BENEFITS`), never an invented list; grep the whole class before shipping (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-87 DB-trigger/cron-invoked EF auth — do NOT enforce strict `bearer === env SUPABASE_SERVICE_ROLE_KEY` inside a DB-trigger/cron-invoked EF: the DB posts the `admin_config`-stored key, which can drift from the platform-injected env → every trigger/cron call 401s and money rows strand (DT-124, 2026-09-06) — mirror `initiate-payout` (eligibility + ownership + idempotency) or refresh the stored key — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-88 Error/defensive branches need a real runtime trigger — a mocked-error unit test can green-light dead code (`signInWithOAuth({skipBrowserRedirect:true})` never throws for a disabled provider → ProviderDisabled classification unreachable, raw JSON shown in the browser sheet/custom tab; FIX-Task-2 Item 4, 2026-09-07) — full text: `.github/instructions/mobile-client.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
