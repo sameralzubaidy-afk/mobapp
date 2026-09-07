@@ -10,7 +10,7 @@ import {
   isProviderLinked,
 } from '../oauthService';
 import { supabase } from '../supabase/client';
-import { OAuthStateMismatchError, ProviderUnavailableError } from '@/types/auth-v3-errors';
+import { OAuthStateMismatchError, ProviderUnavailableError, ProviderDisabledError } from '@/types/auth-v3-errors';
 
 // Mock dependencies
 jest.mock('expo-secure-store');
@@ -113,6 +113,19 @@ describe('OAuthService', () => {
       });
 
       await expect(initiateSocialLogin('google')).rejects.toThrow(ProviderUnavailableError);
+    });
+
+    // FIX-Task-2 (43c C03): a provider that is NOT enabled in Supabase Auth (e.g.
+    // Apple → 400 validation_failed "Unsupported provider: provider is not enabled")
+    // must surface as ProviderDisabledError so the UI can show friendly copy.
+    it('should throw ProviderDisabledError when provider is not enabled (400 validation_failed)', async () => {
+      mockSecureStore.setItemAsync.mockResolvedValue();
+      mockSupabase.auth.signInWithOAuth.mockResolvedValue({
+        data: null,
+        error: { message: 'Unsupported provider: provider is not enabled', status: 400 },
+      });
+
+      await expect(initiateSocialLogin('apple')).rejects.toThrow(ProviderDisabledError);
     });
 
     it('should throw error if OAuth URL not returned', async () => {

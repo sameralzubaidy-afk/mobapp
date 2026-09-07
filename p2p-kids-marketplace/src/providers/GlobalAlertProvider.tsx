@@ -307,10 +307,15 @@ const styles = StyleSheet.create({
   buttonPrimary: {
     backgroundColor: colors.primary[500],
   },
+  // FIX-Task-2 (43c Finding #2, owner-reported): alternative/escape actions
+  // (style:'cancel') use the design-doc Secondary Outline variant
+  // (docx/design-system-passitup.md §4.2/§7) — 2px solid brand green + brand
+  // green text on white — NOT the old gray 1px outline, which read as co-primary
+  // with the solid green primary. Applies to every cancel button app-wide.
   buttonCancel: {
     backgroundColor: colors.neutral.white,
-    borderWidth: 1,
-    borderColor: colors.neutral[700],
+    borderWidth: 2,
+    borderColor: colors.primary[500],
   },
   buttonDanger: {
     backgroundColor: colors.error[500],
@@ -324,7 +329,7 @@ const styles = StyleSheet.create({
     color: colors.neutral.white,
   },
   buttonTextCancel: {
-    color: colors.neutral[700],
+    color: colors.primary[500],
     fontWeight: '500',
   },
   buttonTextDanger: {

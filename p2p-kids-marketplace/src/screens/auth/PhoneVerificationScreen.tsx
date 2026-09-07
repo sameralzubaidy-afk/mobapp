@@ -212,12 +212,16 @@ export default function PhoneVerificationScreen() {
             </View>
           )}
 
-          {/* Verify Button */}
+          {/* Verify Button
+              FIX-Task-2 (43c E02): Verify is enabled at ≥1 digit so tapping it with
+              an incomplete code surfaces the guard alert "Please enter all 6 digits"
+              (handleVerify). Previously disabled until exactly 6 digits, which made
+              that guide-asserted path unreachable. Empty field stays disabled. */}
           <Button
             variant="primary"
             size="large"
             onPress={handleVerify}
-            disabled={loading || code.length !== 6}
+            disabled={loading || code.length === 0}
             loading={loading}
             style={styles.verifyButton}
           >

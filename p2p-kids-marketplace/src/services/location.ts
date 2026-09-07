@@ -191,19 +191,24 @@ export const getZipCodeCoordinates = async (
  */
 export const checkZipCodeHasActiveNode = async (zipCode: string): Promise<boolean> => {
   try {
+    // FIX-Task-2 (43c Finding #1): tolerate MULTIPLE active nodes per ZIP.
+    // `.maybeSingle()` throws PGRST116 on 2+ rows, which made this return
+    // `false` — so an ACTIVE home ZIP with >1 active node (e.g. 06850: Norwalk
+    // Central + a diag node) wrongly showed the "We're not live here yet"
+    // waitlist ask in Discover filters. Any active node ⇒ the ZIP is live.
     const { data, error } = await supabase
       .from('nodes')
       .select('id')
       .eq('zip_code', zipCode)
       .eq('is_active', true)
-      .maybeSingle();
+      .limit(1);
 
     if (error) {
       console.warn('⚠️ checkZipCodeHasActiveNode error:', error);
       return false;
     }
 
-    return !!data;
+    return !!data && data.length > 0;
   } catch (error) {
     captureException(error, {
       tags: { service: 'location', action: 'check_zip_has_active_node' },

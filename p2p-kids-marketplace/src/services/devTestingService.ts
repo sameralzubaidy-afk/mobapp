@@ -474,14 +474,15 @@ export interface SimulatedForgotPasswordError {
 }
 
 /**
- * Canonical admin_config key that arms the S03/S04 simulation.
+ * Canonical admin_config key that arms the S03/S04/S05 simulation.
  * Absence, 'none', or any unknown value = no simulation (fail-closed).
- * Values: 'rate_limited' | 'smtp_500'
+ * Values: 'rate_limited' | 'smtp_500' | 'bad_email'
  */
 export const QA_RESET_ERROR_SIMULATION_KEY = 'qa_reset_error_simulation';
 
 /**
- * QA staging toggle for AUTH-TC-S03 (rate-limit) / AUTH-TC-S04 (SMTP-500).
+ * QA staging toggle for AUTH-TC-S03 (rate-limit) / AUTH-TC-S04 (SMTP-500) /
+ * AUTH-TC-S05 (400 invalid email).
  *
  * Why this exists: ForgotPasswordScreen calls GoTrue (`resetPasswordForEmail`)
  * directly, so a rate-limit / SMTP-500 cannot be reproduced backend-only without
@@ -539,6 +540,12 @@ export async function getSimulatedForgotPasswordError(): Promise<SimulatedForgot
       case 'smtp_500':
         // Faithful 5xx "error sending recovery email" (matches the app's S04 branch).
         return { message: 'Error sending recovery email', status: 500 };
+      case 'bad_email':
+        // FIX-Task-2 (43c S05): GoTrue recovery returns 200 for unknown emails on
+        // healthy staging, so a 400 is not otherwise inducible. `status: 400`
+        // keys ForgotPasswordScreen's S05 branch ("Check that the email you
+        // entered is correct...").
+        return { message: 'Email address is invalid', status: 400 };
       default:
         return null;
     }

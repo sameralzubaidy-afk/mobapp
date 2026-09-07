@@ -51,10 +51,10 @@ describe('GlobalAlertProvider', () => {
         message:
           'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
         buttons: [
-          { text: 'Fix it', style: 'cancel', testID: 'referral-invalid-fix-it-button' },
+          { text: 'Fix it', primary: true, testID: 'referral-invalid-fix-it-button' },
           {
             text: 'Continue anyway',
-            primary: true,
+            style: 'cancel',
             testID: 'referral-invalid-continue-anyway-button',
           },
         ],
@@ -80,10 +80,10 @@ describe('GlobalAlertProvider', () => {
         message:
           'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
         buttons: [
-          { text: 'Fix it', style: 'cancel', testID: 'referral-invalid-fix-it-button' },
+          { text: 'Fix it', primary: true, testID: 'referral-invalid-fix-it-button' },
           {
             text: 'Continue anyway',
-            primary: true,
+            style: 'cancel',
             testID: 'referral-invalid-continue-anyway-button',
           },
         ],
@@ -122,6 +122,45 @@ describe('GlobalAlertProvider', () => {
     fireEvent.press(getByTestId('alert-trigger'));
 
     expect(getByTestId('age-gate-dialog-ok-button')).toHaveStyle({
+      backgroundColor: colors.primary[500],
+    });
+  });
+
+  // FIX-Task-2 (43c Finding #2): the cancel/alternative action renders the
+  // design-doc Secondary Outline (2px solid brand green + brand green text on
+  // white) — never the old gray 1px outline. Matches real SignupScreen semantics
+  // (Fix it = primary, Continue anyway = cancel).
+  it('styles the cancel/escape action with the Secondary Outline (green 2px + green text)', () => {
+    const { getByTestId } = renderWithProvider((show) =>
+      show({
+        title: 'Invalid Referral Code',
+        message:
+          'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
+        buttons: [
+          { text: 'Fix it', primary: true, testID: 'referral-invalid-fix-it-button' },
+          {
+            text: 'Continue anyway',
+            style: 'cancel',
+            testID: 'referral-invalid-continue-anyway-button',
+          },
+        ],
+      })
+    );
+
+    fireEvent.press(getByTestId('alert-trigger'));
+
+    // Escape/alternative action = green 2px outline + green text on white.
+    expect(getByTestId('referral-invalid-continue-anyway-button')).toHaveStyle({
+      backgroundColor: colors.neutral.white,
+      borderWidth: 2,
+      borderColor: colors.primary[500],
+    });
+    expect(getByTestId('referral-invalid-continue-anyway-button')).toHaveTextContent(
+      'Continue anyway'
+    );
+
+    // Primary stays solid green — exactly one primary treatment per dialog.
+    expect(getByTestId('referral-invalid-fix-it-button')).toHaveStyle({
       backgroundColor: colors.primary[500],
     });
   });

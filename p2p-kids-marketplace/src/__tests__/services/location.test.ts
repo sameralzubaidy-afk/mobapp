@@ -314,12 +314,32 @@ describe('Location Service - NODE-003', () => {
   // =========================================================================
 
   describe('checkZipCodeHasActiveNode', () => {
-    it('should return true if active node exists for ZIP', async () => {
+    it('should return true if an active node exists for ZIP', async () => {
+      // FIX-Task-2: the query now uses `.limit(1)` (multi-row tolerant) — the
+      // PostgREST result is an ARRAY, not a single object.
       mockSupabase.from.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn().mockResolvedValueOnce({
-          data: { id: 'node-1' },
+        limit: jest.fn().mockResolvedValueOnce({
+          data: [{ id: 'node-1' }],
+          error: null,
+        }),
+      } as any);
+
+      const result = await checkZipCodeHasActiveNode('06850');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return true when MULTIPLE active nodes share the ZIP (43c Finding #1 regression)', async () => {
+      // Two active rows (e.g. Norwalk Central + a diag node on 06850) must NOT
+      // trip a `.maybeSingle()` PGRST116 "multiple rows" error that returned
+      // false → false "not live here" waitlist ask. Any active node = live.
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValueOnce({
+          data: [{ id: 'node-1' }, { id: 'node-2' }],
           error: null,
         }),
       } as any);
@@ -333,8 +353,8 @@ describe('Location Service - NODE-003', () => {
       mockSupabase.from.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn().mockResolvedValueOnce({
-          data: null,
+        limit: jest.fn().mockResolvedValueOnce({
+          data: [],
           error: null,
         }),
       } as any);
@@ -348,7 +368,7 @@ describe('Location Service - NODE-003', () => {
       mockSupabase.from.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn().mockResolvedValueOnce({
+        limit: jest.fn().mockResolvedValueOnce({
           data: null,
           error: new Error('Query error'),
         }),

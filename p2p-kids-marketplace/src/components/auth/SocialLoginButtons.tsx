@@ -12,7 +12,7 @@ import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
 import { initiateSocialLogin, handleOAuthCallback } from '@/services/oauthService';
 import { checkAccountExists } from '@/services/accountService';
 import { autoFillProfile } from '@/services/profileService';
-import { ProviderUnavailableError } from '@/types/auth-v3-errors';
+import { ProviderUnavailableError, ProviderDisabledError } from '@/types/auth-v3-errors';
 import { useAuth } from '@/hooks/useAuth';
 import { getRedirectUri } from '@/services/oauthProviderConfig';
 import { supabase } from '@/services/supabase/client';
@@ -435,6 +435,13 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
           message: `${displayName} is temporarily unavailable. ${
             mode === 'signup' ? 'Sign up' : 'Sign in'
           } with email instead?`,
+        });
+      } else if (error instanceof ProviderDisabledError) {
+        // FIX-Task-2 (43c C03): provider is NOT enabled in Supabase Auth config.
+        // Friendly in-app copy — never leave the user on a raw JSON error page.
+        setErrorInfo({
+          provider,
+          message: `${displayName} Sign-In is temporarily unavailable. Please use email or another method instead.`,
         });
       } else {
         // Initiation/other failures (incl. OAUTH_INIT_FAILED) — never a silent no-op.

@@ -518,6 +518,30 @@ export default function DiscoverScreen({ navigation }: Props) {
     userNodeId,
   ]);
 
+  // FIX-Task-2 (43c Finding #6): effective node scope for the Filters sheet's
+  // live "Show N Results" count — mirrors the scope the grid applies in
+  // performSearch so the numbers never visibly disagree on the default
+  // (My Node / applied-location) state. Global (null) for waitlisted users,
+  // Show-All-Nodes ON, or no node.
+  const countScopeNodeIds = useMemo(() => {
+    const hasLocationFilter = /^\d{5}$/.test(appliedZipCode) && !locationFilterUnavailable;
+    const scope = computeEffectiveNodeScope({
+      userNodeId,
+      isWaitlisted: waitlisted,
+      showAllNodes,
+      hasActiveLocationFilter: hasLocationFilter,
+      locationScopeNodeIds: nodeIdsInScope,
+    });
+    return scope.nodeIds ?? null;
+  }, [
+    userNodeId,
+    waitlisted,
+    showAllNodes,
+    appliedZipCode,
+    locationFilterUnavailable,
+    nodeIdsInScope,
+  ]);
+
   /**
    * Load trending categories scoped to the user's state (DISCOVER-REDESIGN).
    * MVP: supply-side metric — top categories by active listing count.
@@ -1807,6 +1831,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         userProfileZip={sanitizeZipCode(session?.user?.zip_code || '')}
         currentQuery={debouncedQuery}
         spEligibleOnly={filters.spEligibleOnly === true}
+        countScopeNodeIds={countScopeNodeIds ?? undefined}
         onSpToggle={handleToggleSpEligible}
         onZipCodeInputChange={handleZipCodeInputChange}
         onRadiusChange={setRadiusMiles}

@@ -62,6 +62,11 @@ interface SearchFilterModalProps {
   currentQuery?: string;
   /** Live "Accepts Swap Points" state — shared with the Discover header chip. */
   spEligibleOnly?: boolean;
+  /** FIX-Task-2 (43c Finding #6): node-scope ids the grid currently applies
+   *  (My Node / applied-location scope). The live "Show N Results" count honors
+   *  this so it never disagrees with the node-scoped grid header count.
+   *  Undefined = no node scope (global preview). */
+  countScopeNodeIds?: string[];
   /** Toggle the shared SP filter immediately (applies without tapping Apply). */
   onSpToggle?: (value: boolean) => void;
   onZipCodeInputChange: (value: string) => void;
@@ -110,6 +115,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
   userProfileZip,
   currentQuery = '',
   spEligibleOnly = false,
+  countScopeNodeIds,
   onSpToggle = () => {},
   onZipCodeInputChange,
   onRadiusChange,
@@ -187,6 +193,10 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
 
   // DISCOVER-REDESIGN: debounced live result count for the "Show {n} Results"
   // Apply button. Counts the current draft filters + the LIVE shared SP toggle.
+  // FIX-Task-2 (43c Finding #6): honor the grid's node scope (countScopeNodeIds)
+  // while the sheet's location is unchanged (empty input or still the applied
+  // ZIP), so the base count matches the node-scoped grid. If the user types a NEW
+  // zip in the sheet, fall back to a global preview — Apply re-resolves scope.
   useEffect(() => {
     if (!visible) {
       return;
@@ -195,7 +205,15 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     setCountLoading(true);
     const timeout = setTimeout(async () => {
       try {
-        const total = await countListings(currentQuery, { ...draft, spEligibleOnly });
+        const zipInput = (zipCodeInput || '').trim();
+        const zipApplied = (appliedZipCode || '').trim();
+        const locationUnchanged = zipInput === '' || zipInput === zipApplied;
+        const nodeIds = locationUnchanged ? countScopeNodeIds : undefined;
+        const total = await countListings(currentQuery, {
+          ...draft,
+          spEligibleOnly,
+          nodeIds,
+        });
         setLiveCount(total);
       } catch (err) {
         console.warn('[SearchFilterModal] countListings failed:', err);
@@ -206,7 +224,15 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     }, 350);
 
     return () => clearTimeout(timeout);
-  }, [visible, currentQuery, draft, spEligibleOnly]);
+  }, [
+    visible,
+    currentQuery,
+    draft,
+    spEligibleOnly,
+    zipCodeInput,
+    appliedZipCode,
+    countScopeNodeIds,
+  ]);
 
   const handleClearAll = useCallback(() => {
     setDraft(getDefaultFilters());

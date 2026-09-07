@@ -6,7 +6,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from './supabase/client';
 import { OAuthProvider, ProviderProfile, OAuthSession, AuthResult } from '@/types/auth-v3';
-import { OAuthStateMismatchError, ProviderUnavailableError } from '@/types/auth-v3-errors';
+import { OAuthStateMismatchError, ProviderUnavailableError, ProviderDisabledError } from '@/types/auth-v3-errors';
 import {
   OAUTH_SCOPES,
   getRedirectUri,
@@ -158,6 +158,21 @@ export async function initiateSocialLogin(
       if (error.message.includes('503') || error.message.includes('500')) {
         throw new ProviderUnavailableError(provider, `Provider returned error: ${error.message}`);
       }
+      // FIX-Task-2 (43c C03): provider disabled in Supabase Auth (e.g. Apple →
+      // 400 validation_failed "Unsupported provider: provider is not enabled").
+      // Classify it so SocialLoginButtons can show a friendly in-app banner
+      // instead of opening a tab that renders a raw JSON error page.
+      const lm = (error.message || '').toLowerCase();
+      const errAny = error as unknown as { status?: number; code?: string };
+      const isDisabledProvider =
+        lm.includes('provider is not enabled') ||
+        lm.includes('provider is not') ||
+        lm.includes('unsupported provider') ||
+        errAny?.status === 400 ||
+        errAny?.code === 'provider_disabled';
+      if (isDisabledProvider) {
+        throw new ProviderDisabledError(provider, error.message);
+      }
       throw new Error(`OAuth initiation failed: ${error.message}`);
     }
 
@@ -200,7 +215,11 @@ export async function initiateSocialLogin(
     return { url: oauthUrl, state: '' };
   } catch (error) {
     // Re-throw our custom errors
-    if (error instanceof ProviderUnavailableError || error instanceof OAuthStateMismatchError) {
+    if (
+      error instanceof ProviderUnavailableError ||
+      error instanceof OAuthStateMismatchError ||
+      error instanceof ProviderDisabledError
+    ) {
       throw error;
     }
 

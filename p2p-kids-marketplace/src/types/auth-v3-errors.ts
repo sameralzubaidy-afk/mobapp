@@ -168,3 +168,25 @@ export class ProviderUnavailableError extends Error {
     Object.setPrototypeOf(this, ProviderUnavailableError.prototype);
   }
 }
+
+/**
+ * OAuth provider is not enabled in Supabase Auth config
+ * (e.g. Apple returns 400 validation_failed "provider is not enabled").
+ * Recovery: friendly in-app banner ("Apple Sign-In is temporarily unavailable —
+ * try another method") instead of leaving the user on a raw JSON error page.
+ * Distinct from ProviderUnavailableError (outage/timeout) and from actually
+ * enabling the provider (tracked separately, e.g. ticket #14 for Apple).
+ */
+export class ProviderDisabledError extends Error {
+  public readonly code = 'PROVIDER_DISABLED';
+
+  /** The provider that is not enabled */
+  public readonly provider: string;
+
+  constructor(provider: string, message: string) {
+    super(`${provider} sign-in is not enabled: ${message}`);
+    this.name = 'ProviderDisabledError';
+    this.provider = provider;
+    Object.setPrototypeOf(this, ProviderDisabledError.prototype);
+  }
+}

@@ -835,4 +835,62 @@ describe('SearchFilterModal', () => {
       expect(queryByTestId('radius-value-source')).toBeNull();
     });
   });
+
+  describe('Live count node scope (FIX-Task-2 Finding #6)', () => {
+    const countListingsMock = require('@/services/discovery').countListings as jest.Mock;
+
+    it('passes the grid node scope to countListings when the sheet location is unchanged', async () => {
+      countListingsMock.mockClear();
+      render(
+        <SearchFilterModal
+          visible={true}
+          filters={getDefaultFilters()}
+          categories={mockCategories}
+          currentQuery="lego"
+          zipCodeInput="06850"
+          appliedZipCode="06850"
+          countScopeNodeIds={['node-norwalk']}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+
+      await waitFor(
+        () => {
+          expect(countListingsMock).toHaveBeenCalledWith(
+            'lego',
+            expect.objectContaining({ nodeIds: ['node-norwalk'] })
+          );
+        },
+        { timeout: 2000 }
+      );
+    });
+
+    it('omits node scope (global preview) when the user types a NEW zip in the sheet', async () => {
+      countListingsMock.mockClear();
+      render(
+        <SearchFilterModal
+          visible={true}
+          filters={getDefaultFilters()}
+          categories={mockCategories}
+          currentQuery="lego"
+          zipCodeInput="99999"
+          appliedZipCode="06850"
+          countScopeNodeIds={['node-norwalk']}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+
+      await waitFor(
+        () => {
+          expect(countListingsMock).toHaveBeenCalledWith(
+            'lego',
+            expect.objectContaining({ nodeIds: undefined })
+          );
+        },
+        { timeout: 2000 }
+      );
+    });
+  });
 });
