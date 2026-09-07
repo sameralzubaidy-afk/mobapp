@@ -11,6 +11,7 @@ import {
 } from '../oauthService';
 import { supabase } from '../supabase/client';
 import { OAuthStateMismatchError, ProviderUnavailableError, ProviderDisabledError } from '@/types/auth-v3-errors';
+import { getEnabledOAuthProviders } from '@/services/oauthProviderStatus';
 
 // Mock dependencies
 jest.mock('expo-secure-store');
@@ -27,13 +28,21 @@ jest.mock('../supabase/client', () => ({
     from: jest.fn(),
   },
 }));
+// FIX-Task-3 (43d Item 1): the enabled-provider pre-check is a real network probe —
+// mock it in unit tests so existing signInWithOAuth assertions are unaffected.
+jest.mock('@/services/oauthProviderStatus', () => ({
+  getEnabledOAuthProviders: jest.fn(),
+}));
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockSupabase = supabase as any;
+const mockGetEnabledProviders = getEnabledOAuthProviders as jest.Mock;
 
 describe('OAuthService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default: every app provider is enabled — the pre-check never blocks the real flow.
+    mockGetEnabledProviders.mockResolvedValue(['google', 'facebook', 'apple']);
   });
 
   describe('initiateSocialLogin', () => {
@@ -126,6 +135,19 @@ describe('OAuthService', () => {
       });
 
       await expect(initiateSocialLogin('apple')).rejects.toThrow(ProviderDisabledError);
+    });
+
+    // FIX-Task-3 (43d Item 1): pre-validate the tapped provider against the LIVE
+    // GoTrue auth config BEFORE signInWithOAuth. With skipBrowserRedirect:true,
+    // supabase-js would otherwise return the authorize URL without erroring and the
+    // raw-JSON 400 only renders inside the opened sheet — so a disabled provider must
+    // fail fast here and NEVER reach the browser-opening call.
+    it('throws ProviderDisabledError BEFORE signInWithOAuth when the provider is not enabled', async () => {
+      mockGetEnabledProviders.mockResolvedValue(['google', 'facebook']);
+
+      await expect(initiateSocialLogin('apple')).rejects.toThrow(ProviderDisabledError);
+
+      expect(mockSupabase.auth.signInWithOAuth).not.toHaveBeenCalled();
     });
 
     it('should throw error if OAuth URL not returned', async () => {

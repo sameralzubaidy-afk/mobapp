@@ -675,16 +675,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 20,
   },
+  // FIX-Task-3 (43d Item 4): the email fallback is the ONE obvious escape path on
+  // the provider-error banner — render it as a full-width solid brand-primary
+  // (#5DBB8E) button (design-system §4.2 primary) instead of the small orange pill
+  // that read like a secondary hint. Applies to outage / disabled / generic banners
+  // (shared component).
   errorCta: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FF9800',
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#5DBB8E',
+    minHeight: 44,
+    borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
   },
   errorCtaText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });

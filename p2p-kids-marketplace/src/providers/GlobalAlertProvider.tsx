@@ -324,6 +324,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: colors.neutral[900],
+    // FIX-Task-3 (43d Item 3): center long labels that wrap inside a 2-button row
+    // (e.g. "Continue anyway" on the Invalid Referral dialog) — without textAlign,
+    // each wrapped line hugs the left and the label reads off-center in its button.
+    textAlign: 'center',
+    textAlignVertical: 'center',
   },
   buttonTextPrimary: {
     color: colors.neutral.white,

@@ -14,7 +14,7 @@ import {
   StyleSheet
 } from 'react-native';
 import {
-  SafeAreaView } from 'react-native-safe-area-context'; import { useNavigation } from '@react-navigation/native'; import { Linking
+  SafeAreaView } from 'react-native-safe-area-context'; import { useNavigation } from '@react-navigation/native'; import { NativeStackNavigationProp } from '@react-navigation/native-stack'; import { Linking
 } from 'react-native';
 import { supabase } from '@/services/supabase/client';
 import { getSimulatedForgotPasswordError } from '@/services/devTestingService';
@@ -23,8 +23,16 @@ import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
+// FIX-Task-3 (43d Item 6): "Open Supabase Docs" is a developer-facing affordance on a
+// parent/guardian-facing screen — gate it to dev/staging builds only (same gate as the
+// QA deep-link handlers). Production renders an in-app "Contact Support" route instead.
+const IS_DEV_OR_STAGING =
+  __DEV__ ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'development' ||
+  process.env.EXPO_PUBLIC_ENVIRONMENT === 'staging';
+
 export default function ForgotPasswordScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -74,29 +82,59 @@ export default function ForgotPasswordScreen() {
         });
 
         const baseMessage = error.message || 'Failed to send password reset email.';
-        let detailMessage = baseMessage;
-
         const lm = baseMessage.toLowerCase();
-        if (lm.includes('rate limit')) {
-          detailMessage =
-            'You have requested password reset emails too frequently. Please check your inbox (including spam) or try again in a few minutes.';
-        } else if (lm.includes('error sending recovery') || (error as any)?.status >= 500) {
-          detailMessage +=
-            '\n\nPossible causes:\n• SMTP/email provider not configured in Supabase Auth\n• Redirect URL not allowed in Auth settings\n\nCheck Supabase Auth > Email Settings and Email Logs.';
-        } else if ((error as any)?.status === 400) {
-          detailMessage +=
-            '\n\nCheck that the email you entered is correct and belongs to an account.';
-        } else {
-          detailMessage += '\n\nIf this persists, check Supabase Auth email settings and logs.';
-        }
 
-        Alert.alert('Reset Email Failed', detailMessage, [
-          {
-            text: 'Open Supabase Docs',
-            onPress: () => Linking.openURL('https://supabase.com/docs/guides/auth/passwords'),
-          },
-          { text: 'OK' },
-        ]);
+        // Dev/staging keep the full developer-targeted detail + "Open Supabase Docs"
+        // (QA AUTH-TC-S03/S04/S05 assert this exact copy). Production renders a
+        // parent-friendly message + the in-app Contact Support route instead — never a
+        // developer docs link on a parent/guardian screen (FIX-Task-3, 43d Item 6).
+        if (IS_DEV_OR_STAGING) {
+          let detailMessage = baseMessage;
+          if (lm.includes('rate limit')) {
+            detailMessage =
+              'You have requested password reset emails too frequently. Please check your inbox (including spam) or try again in a few minutes.';
+          } else if (lm.includes('error sending recovery') || (error as any)?.status >= 500) {
+            detailMessage +=
+              '\n\nPossible causes:\n• SMTP/email provider not configured in Supabase Auth\n• Redirect URL not allowed in Auth settings\n\nCheck Supabase Auth > Email Settings and Email Logs.';
+          } else if ((error as any)?.status === 400) {
+            detailMessage +=
+              '\n\nCheck that the email you entered is correct and belongs to an account.';
+          } else {
+            detailMessage += '\n\nIf this persists, check Supabase Auth email settings and logs.';
+          }
+
+          Alert.alert('Reset Email Failed', detailMessage, [
+            {
+              text: 'Open Supabase Docs',
+              onPress: () => Linking.openURL('https://supabase.com/docs/guides/auth/passwords'),
+            },
+            { text: 'OK' },
+          ]);
+        } else {
+          // Production: human, action-oriented copy — no developer internals.
+          let detailMessage: string;
+          if (lm.includes('rate limit')) {
+            detailMessage =
+              'You have requested password reset emails too frequently. Please check your inbox (including spam) or try again in a few minutes.';
+          } else if (lm.includes('error sending recovery') || (error as any)?.status >= 500) {
+            detailMessage =
+              "We couldn't send your password reset email right now. Please try again in a few minutes.";
+          } else if ((error as any)?.status === 400) {
+            detailMessage =
+              'The email address you entered looks incorrect. Check it and try again.';
+          } else {
+            detailMessage =
+              "We couldn't send your password reset email right now. Please try again.";
+          }
+
+          Alert.alert('Reset Email Failed', detailMessage, [
+            {
+              text: 'Contact Support',
+              onPress: () => navigation.navigate('ContactSupport'),
+            },
+            { text: 'OK' },
+          ]);
+        }
       } else {
         setEmailSent(true);
         console.log('Password reset email sent successfully');

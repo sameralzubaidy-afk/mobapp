@@ -892,5 +892,69 @@ describe('SearchFilterModal', () => {
         { timeout: 2000 }
       );
     });
+
+    // FIX-Task-3 (43d Item 6): Discover prefills the Filters ZIP with the user's HOME
+    // ZIP but does NOT apply it (appliedZipCode=''). The untouched prefill must count
+    // with the grid's node scope (countScopeNodeIds) — never the global count (43d:
+    // modal "Show 1154 results" vs grid "81 results").
+    it('passes the grid node scope for the untouched home-ZIP prefill (not applied)', async () => {
+      countListingsMock.mockClear();
+      render(
+        <SearchFilterModal
+          visible={true}
+          filters={getDefaultFilters()}
+          categories={mockCategories}
+          currentQuery="lego"
+          zipCodeInput="06850"
+          appliedZipCode=""
+          userProfileZip="06850"
+          countScopeNodeIds={['node-norwalk']}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+
+      await waitFor(
+        () => {
+          expect(countListingsMock).toHaveBeenCalledWith(
+            'lego',
+            expect.objectContaining({ nodeIds: ['node-norwalk'] })
+          );
+        },
+        { timeout: 2000 }
+      );
+    });
+
+    // FIX-Task-3 (43d Item 5): the untouched home prefill is labeled as "Your area",
+    // never as a pending new location ("ZIP 06850 will apply when you tap Apply Filters").
+    it('labels the untouched home prefill as "Your area" and not a pending location', async () => {
+      countListingsMock.mockClear();
+      const { getByTestId, queryByText } = render(
+        <SearchFilterModal
+          visible={true}
+          filters={getDefaultFilters()}
+          categories={mockCategories}
+          zipCodeInput="06850"
+          appliedZipCode=""
+          userProfileZip="06850"
+          countScopeNodeIds={['node-norwalk']}
+          onApply={mockOnApply}
+          onClose={mockOnClose}
+        />
+      );
+
+      expect(getByTestId('filter-home-prefill-label').props.children.join('')).toContain(
+        '06850'
+      );
+      expect(queryByText(/will apply when you tap Apply Filters/)).toBeNull();
+
+      // Let the debounced count settle so no timer fires after the test ends.
+      await waitFor(
+        () => {
+          expect(countListingsMock).toHaveBeenCalled();
+        },
+        { timeout: 2000 }
+      );
+    });
   });
 });

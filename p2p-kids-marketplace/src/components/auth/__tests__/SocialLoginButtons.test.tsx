@@ -13,7 +13,7 @@ import * as accountService from '@/services/accountService';
 import * as profileService from '@/services/profileService';
 import { supabase } from '@/services/supabase/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ProviderUnavailableError } from '@/types/auth-v3-errors';
+import { ProviderUnavailableError, ProviderDisabledError } from '@/types/auth-v3-errors';
 
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -417,6 +417,45 @@ describe('SocialLoginButtons', () => {
 
       // Banner should disappear
       expect(queryByTestId('provider-unavailable-banner')).toBeNull();
+    });
+  });
+
+  describe('Error Handling - Provider Disabled (FIX-Task-3 Item 1)', () => {
+    // A provider disabled in Supabase Auth config (e.g. Apple) must surface the
+    // friendly in-app banner — never leave the user on a raw JSON authorize sheet.
+    it('shows the friendly ProviderDisabled banner when the provider is not enabled', async () => {
+      (oauthService.initiateSocialLogin as jest.Mock).mockRejectedValue(
+        new ProviderDisabledError('apple', 'provider is not enabled')
+      );
+
+      const { getByTestId, getByText } = render(<SocialLoginButtons mode="login" />);
+
+      fireEvent.press(getByTestId('apple-login-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('provider-unavailable-banner')).toBeTruthy();
+        expect(getByText(/Apple Sign-In is temporarily unavailable/i)).toBeTruthy();
+        expect(getByText(/Please use email or another method instead/i)).toBeTruthy();
+      });
+    });
+
+    // FIX-Task-3 (43d Item 4): the email-fallback CTA is the ONE obvious escape path —
+    // a solid brand-green (#5DBB8E) full-width button, not a small secondary pill.
+    it('styles the email-fallback CTA as a solid brand-green primary button', async () => {
+      (oauthService.initiateSocialLogin as jest.Mock).mockRejectedValue(
+        new ProviderUnavailableError('google', '503')
+      );
+
+      const { getByTestId } = render(<SocialLoginButtons mode="login" />);
+
+      fireEvent.press(getByTestId('google-login-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('provider-error-cta')).toHaveStyle({
+          backgroundColor: '#5DBB8E',
+          alignSelf: 'stretch',
+        });
+      });
     });
   });
 

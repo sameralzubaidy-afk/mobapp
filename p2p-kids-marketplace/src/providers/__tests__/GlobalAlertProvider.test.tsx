@@ -228,4 +228,30 @@ describe('GlobalAlertProvider', () => {
     // No button onPress fired — a silent force-clear, never a "tap".
     expect(onPress).not.toHaveBeenCalled();
   });
+
+  // FIX-Task-3 (43d Item 3): button labels must be centered within their touch target.
+  // Long labels that wrap in a 2-button row (e.g. "Continue anyway") must not hug left.
+  it('centers the button text inside the button', () => {
+    const { getByTestId, getByText } = renderWithProvider((show) =>
+      show({
+        title: 'Invalid Referral Code',
+        message:
+          'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
+        buttons: [
+          { text: 'Fix it', primary: true, testID: 'referral-invalid-fix-it-button' },
+          {
+            text: 'Continue anyway',
+            style: 'cancel',
+            testID: 'referral-invalid-continue-anyway-button',
+          },
+        ],
+      })
+    );
+
+    fireEvent.press(getByTestId('alert-trigger'));
+
+    expect(getByText('Continue anyway')).toHaveStyle({
+      textAlign: 'center',
+    });
+  });
 });

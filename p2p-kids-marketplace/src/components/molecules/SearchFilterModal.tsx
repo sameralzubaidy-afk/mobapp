@@ -11,7 +11,7 @@
  * - Apply button: sticky green pill (52px)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -191,12 +191,33 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     }
   }, [draft.minPrice, draft.maxPrice]);
 
+  // FIX-Task-3 (43d Item 6 / Item 5): Discover prefills the Filters ZIP field with
+  // the signed-in user's HOME ZIP for convenience but deliberately does NOT apply it
+  // (appliedZipCode stays ''). While that untouched prefill is showing, the location
+  // is effectively "unchanged" — used by both the live-count scope (Item 6) and the
+  // "Your area" label (Item 5) so the prefill never reads like (or counts like) a
+  // brand-new typed location.
+  const isHomePrefillUnchanged = useMemo(() => {
+    const zipInput = (zipCodeInput || '').trim();
+    const zipApplied = (appliedZipCode || '').trim();
+    const homeZip = (userProfileZip || '').trim();
+    return zipInput !== '' && zipApplied === '' && zipInput === homeZip;
+  }, [zipCodeInput, appliedZipCode, userProfileZip]);
+
+  // Whether the grid currently applies a node scope (My Node / applied location).
+  // When false (Show All Nodes ON / waitlist / no node) the "your area" summary must
+  // not claim the shown items are node-scoped.
+  const hasGridNodeScope = Array.isArray(countScopeNodeIds) && countScopeNodeIds.length > 0;
+
   // DISCOVER-REDESIGN: debounced live result count for the "Show {n} Results"
   // Apply button. Counts the current draft filters + the LIVE shared SP toggle.
   // FIX-Task-2 (43c Finding #6): honor the grid's node scope (countScopeNodeIds)
   // while the sheet's location is unchanged (empty input or still the applied
   // ZIP), so the base count matches the node-scoped grid. If the user types a NEW
   // zip in the sheet, fall back to a global preview — Apply re-resolves scope.
+  // FIX-Task-3 (43d Item 6): the untouched home prefill counts as unchanged too,
+  // so the default-state count matches the node-scoped grid instead of the global
+  // count (43d: modal "Show 1154 results" vs grid "81 results").
   useEffect(() => {
     if (!visible) {
       return;
@@ -207,7 +228,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
       try {
         const zipInput = (zipCodeInput || '').trim();
         const zipApplied = (appliedZipCode || '').trim();
-        const locationUnchanged = zipInput === '' || zipInput === zipApplied;
+        const locationUnchanged =
+          zipInput === '' || zipInput === zipApplied || isHomePrefillUnchanged;
         const nodeIds = locationUnchanged ? countScopeNodeIds : undefined;
         const total = await countListings(currentQuery, {
           ...draft,
@@ -232,6 +254,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     zipCodeInput,
     appliedZipCode,
     countScopeNodeIds,
+    isHomePrefillUnchanged,
   ]);
 
   const handleClearAll = useCallback(() => {
@@ -424,12 +447,24 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
               />
             </View>
 
+            {/* FIX-Task-3 (43d Item 5): label the untouched HOME prefill so it reads
+                as "your area" — visually distinct from a user-entered new location. */}
+            {isHomePrefillUnchanged && (
+              <Text style={styles.homePrefillLabel} testID="filter-home-prefill-label">
+                Your area: {zipCodeInput}
+              </Text>
+            )}
+
             <Text style={styles.locationSummaryText}>
-              {zipCodeInput !== appliedZipCode && /^\d{5}$/.test(zipCodeInput)
-                ? `ZIP ${zipCodeInput} will apply when you tap Apply Filters.`
-                : /^\d{5}$/.test(appliedZipCode)
-                  ? `Showing items around ZIP ${appliedZipCode} within ${radiusMiles} miles`
-                  : 'No location filter applied. Showing all items.'}
+              {isHomePrefillUnchanged
+                ? hasGridNodeScope
+                  ? 'Showing items from your area — no location filter applied yet.'
+                  : 'Your area is filled in for convenience — tap Apply to filter by it.'
+                : zipCodeInput !== appliedZipCode && /^\d{5}$/.test(zipCodeInput)
+                  ? `ZIP ${zipCodeInput} will apply when you tap Apply Filters.`
+                  : /^\d{5}$/.test(appliedZipCode)
+                    ? `Showing items around ZIP ${appliedZipCode} within ${radiusMiles} miles`
+                    : 'No location filter applied. Showing all items.'}
             </Text>
 
             <View style={styles.radiusSliderWrapper}>
@@ -830,6 +865,14 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     fontSize: 12,
     color: COLORS.textSecondary,
+  },
+  // FIX-Task-3 (43d Item 5): the prefilled HOME area label (primary green, distinct
+  // from the neutral summary/placeholder so it never reads like a typed location).
+  homePrefillLabel: {
+    marginTop: SPACING.sm,
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   radiusSliderWrapper: {
     marginTop: SPACING.sm,

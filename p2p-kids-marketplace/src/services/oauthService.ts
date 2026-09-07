@@ -15,6 +15,7 @@ import {
   PROVIDER_TIMEOUT_SECONDS,
 } from './oauthProviderConfig';
 import { QA_PROVIDER_UNAVAILABLE_KEY, getSimulatedProviderOutage } from './devTestingService';
+import { getEnabledOAuthProviders } from './oauthProviderStatus';
 
 function extractStateFromOAuthUrl(url: string): string | null {
   const queryPart = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
@@ -111,6 +112,21 @@ export async function initiateSocialLogin(
       throw new ProviderUnavailableError(
         provider,
         `Provider outage simulated (${QA_PROVIDER_UNAVAILABLE_KEY})`
+      );
+    }
+
+    // FIX-Task-3 (43d Item 1): pre-validate the tapped provider against the LIVE
+    // GoTrue auth config BEFORE signInWithOAuth. With skipBrowserRedirect:true,
+    // supabase-js returns the authorize URL WITHOUT erroring for a disabled provider,
+    // so the `400 provider is not enabled` only renders as raw JSON inside the opened
+    // browser sheet/custom tab — the FIX-Task-2 classification below (L162-174) could
+    // never fire for this path. Probe is fail-open: on `null` (probe unavailable) the
+    // real OAuth initiation runs and the 400-classification remains the backstop.
+    const enabledProviders = await getEnabledOAuthProviders();
+    if (enabledProviders !== null && !enabledProviders.includes(provider)) {
+      throw new ProviderDisabledError(
+        provider,
+        'Provider is not enabled in Supabase Auth configuration'
       );
     }
 
