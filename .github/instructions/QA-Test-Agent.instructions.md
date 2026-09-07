@@ -823,6 +823,24 @@ Codifies QA Task 36 + QA Task 37 decision-log patterns (was recommended after tw
 
 *Evidence / origin: QA Task 36 + QA Task 37 (2026-09-06) — decision-and-outcome-log-ai-analysis.md F-1/F-2/F-3/F-4/F-6, the per-phase call ledger (Batch B 211, hosted Express ≈148, hosted Checkout 63), and the correction note (mid-run estimate 110–120 vs mined 211).*
 
+### 5.68 Standing rule — Android platform operating facts (first Android AUTH round, QA Task 43b, 2026-09-07) — R77
+
+First AUTH manual-testing round executed on Android ("clean" — `Medium_Phone_API_36.1`, Android 16, expo-dev-client dev build). Where an item restates an existing rule (R3 select-all-retype, R-NEW-1 relaunch-first, §5.31 build-dependent drivability, §5.2 re-list-after-state-change), the earlier section stays canonical and this entry adds the Android-specific mechanism/evidence so future Android rounds start from known facts instead of rediscovering them. Evidence: `e2e-test-results/qa-task43b-auth-android-r1-2026-09-07/report.md` §2 + `/memories/session/qa-task43b-android.md`.
+
+**R77 — Android device facts are standing operating knowledge (treat as default for every future Android round, re-verify only the build-dependent items):**
+
+1. **AX tree reports PHYSICAL-PIXEL coordinates, 1:1 with screenshots — NO 3× multiply (unlike iOS points).** On the Medium Phone emulator the tree spans 0–1080 × 0–2400 px and matches screenshots pixel-for-pixel; tap coordinates are used directly. testIDs/identifiers are identical to iOS (`landing-signup-button`, `signup-email-input`, `global-alert-button-0`, `login-failed-dialog-ok-button`, `age-gate-dialog-ok-button`, `otp-dev-bypass-dialog-ok-button`, …). uiautomator dump is the tree source.
+2. **The soft keyboard does NOT auto-show on this emulator (hardware-keyboard config):** `mobile_type_keys` types directly, the layout does not shift, and there is no Cmd+K-style toggle needed. Re-verify per emulator — a software-keyboard emulator behaves like iOS (re-list after every focus/keyboard change, §5.2).
+3. **uiautomator dump can transiently return "no XML content found in uiautomator dump" mid-transition** (a blind/empty list). Do not treat as a hang — poll or screenshot (screenshot is source of truth), per R-NEW-1's discipline, before any relaunch.
+4. **Field-clear (Android analog of iOS Cmd+A / R3):** `adb shell input keycombination 113 29` (CTRL_LEFT + A = select all) then `adb shell input text "…"` reliably replaces a focused field's content. Long-press → Select-All is NOT AX-exposed on Android TextInputs (the floating text-toolbar does not surface in the tree) — do not attempt it first. **`adb input text` encodes spaces as `%s`, NOT `%20`** — `%20` is typed literally (captured: a name field became "QA%20A04%20Android"). No spaces → plain text is fine.
+5. **Deep-link delivery via adb works:** `adb shell am start -W -a android.intent.action.VIEW -d "p2pkidsmarketplace://<path>" com.sameralzubaidi.p2pmarketplace`. Verified: `qa-logout` lands on Landing. `qa-login-as` uses the same mechanism (persona one-tap login, R75-class).
+6. **Cold launch → Expo Dev Launcher home** (dev-client, same as iOS): tap the Metro dev-server row (e.g. `http://10.0.2.2:8081`) to load the app. The session persists across relaunch (AUTH-TC-B04 PASS on Android).
+7. **Android system photo picker + native CropImageActivity ARE AX-drivable on this build** (expo-image-picker): Photos bottom-sheet → tap a photo (gains a "Selected" badge) → Done → the crop activity exposes Navigate-up/Rotate/Flip/CROP (CROP ~top-right) → returns to the caller. The `dev-set-avatar` fixture also renders on Profile Setup. Drivability is build-dependent per §5.31 — attempt the first native interaction empirically, then fall back.
+8. **Android list-tool inline truncation (~2000 chars):** to locate below-fold rows, scroll and then `grep -o` the session-resource content file (absolute path, terminal) for the element label — e.g. the Profile `profile-logout` row was found this way.
+9. **§5.2 layout-shift hazard confirmed on Android:** when an inline error clears/appears (e.g. a password field becoming valid removes its error line), the whole form shifts (~42px) and a tap at the pre-shift coordinate for a lower field misses (captured mid-run on the signup Confirm-Password field). Re-list after any error/hint state change before tapping the next field or submit.
+
+*Evidence / origin: QA Task 43b (2026-09-07) — `e2e-test-results/qa-task43b-auth-android-r1-2026-09-07/report.md` (§2 calibration findings, 25 PASS / 1 PARTIAL live on Android) + `/memories/session/qa-task43b-android.md`.*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
