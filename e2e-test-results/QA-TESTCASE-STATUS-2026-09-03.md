@@ -120,7 +120,7 @@ Completed = any of PASS/PARTIAL/OPEN/DRIFT/SKIP/REMOVED/RETIRED/NOT-SUPPORTED/N/
 | AUTH-TC-J07 | Payment preference — free user upgrade prompt | ✅ PASS | PASS | 2026-08-24 | `group-j-listing-creation-single-2026-08-24` |  |
 | AUTH-TC-J08 | SP earnings preview (subscriber) | ✅ PASS | PASS | 2026-08-24 | `group-j-listing-creation-single-2026-08-24` |  |
 | AUTH-TC-J09 | Submit for Review → pending + success modal | ✅ PASS | PASS | 2026-08-24 | `group-j-listing-creation-single-2026-08-24` |  |
-| AUTH-TC-J10 | Phone-verification gate before publish | ✅ PASS | PASS | 2026-08-24 | `auth-final-cleanup-batch-2026-08-24` |  |
+| AUTH-TC-J10 | Phone-verification gate before publish | ✅ PASS | PASS | 2026-09-08 | `qa-task43h-fix-task5-verify-2026-09-08` | FIX-Task-5 re-verify BOTH platforms (43g Android completion-gap CLOSED): test-free unverified → Submit → gate modal PREFILLED +15551234004 (real profiles.phone 5551234004, E.164) → Send Code ENABLED+fires (phone_verification_codes row) → OTP step dev-autofill reachable → verify → publish resumes (pending item). Placeholder now "Enter your phone number". Phone state restored after each leg. Group E signup leg (PhoneVerificationScreen) spot-confirmed unaffected. Prior iOS PASS 2026-08-24 `auth-final-cleanup-batch` |
 | AUTH-TC-J11 | Draft auto-save + resume | ✅ PASS | PASS | 2026-08-24 | `group-j-closure-j02-j04-j11-j12-j13-j15-2026-08-24` |  |
 | AUTH-TC-J12 | Listing photos — multiple upload, type and size validation | ✅ PASS | PASS | 2026-08-24 | `group-j-closure-j02-j04-j11-j12-j13-j15-2026-08-24` |  |
 | AUTH-TC-J13 | Listing photos — remove, reorder, replace, and persist after resume | ✅ PASS | PASS | 2026-08-24 | `group-j-closure-j02-j04-j11-j12-j13-j15-2026-08-24` |  |

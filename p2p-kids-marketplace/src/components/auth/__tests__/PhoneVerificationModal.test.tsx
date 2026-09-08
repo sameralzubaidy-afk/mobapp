@@ -13,6 +13,8 @@ jest.mock('@/services/phoneService', () => ({
   verifyPhoneCode: jest.fn(),
   // The modal's __DEV__ autofill button reads this constant.
   DEV_SMS_BYPASS_CODE: '123456',
+  // FIX-Task-5: prefill source — resolves the user's saved profiles.phone.
+  getCurrentUserPhone: jest.fn(),
 }));
 
 const mockPhoneService = phoneService as jest.Mocked<typeof phoneService>;
@@ -37,6 +39,8 @@ describe('PhoneVerificationModal', () => {
 
     mockPhoneService.sendPhoneVerificationCode.mockResolvedValue({ devBypass: false } as never);
     mockPhoneService.verifyPhoneCode.mockResolvedValue(undefined as never);
+    // Default: no saved phone → no prefill (existing tests type their own number).
+    mockPhoneService.getCurrentUserPhone.mockResolvedValue(null as never);
   });
 
   it('renders phone step with phone input and send button', () => {
@@ -266,5 +270,68 @@ describe('PhoneVerificationModal', () => {
 
     expect(phoneInput.props.accessibilityLabel).toBe('Phone number');
     expect(sendButton.props.accessibilityLabel).toBe('Send verification code');
+  });
+
+  it('prefills the user\'s saved profiles.phone (raw digits) when the gate opens (FIX-Task-5)', async () => {
+    // test-free persona: profiles.phone = '5551234004' stored as raw digits.
+    mockPhoneService.getCurrentUserPhone.mockResolvedValue('5551234004' as never);
+
+    const { getByTestId } = render(
+      <PhoneVerificationModal visible={true} required onClose={jest.fn()} onSuccess={jest.fn()} />
+    );
+
+    await waitFor(() => {
+      // Normalized through the same +1/E.164 path as a typed number.
+      expect(getByTestId(PHONE_INPUT_ID).props.value).toBe('+15551234004');
+      // A prefilled real number enables the Send Code action.
+      expect(getByTestId(SEND_CODE_ID).props.accessibilityState?.disabled).toBe(false);
+    });
+  });
+
+  it('prefills an already-E.164 saved phone unchanged (FIX-Task-5)', async () => {
+    mockPhoneService.getCurrentUserPhone.mockResolvedValue('+15551234004' as never);
+
+    const { getByTestId } = render(
+      <PhoneVerificationModal visible={true} required onClose={jest.fn()} onSuccess={jest.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(getByTestId(PHONE_INPUT_ID).props.value).toBe('+15551234004');
+    });
+  });
+
+  it('never overwrites a phone the user typed while the prefill fetch was in flight (FIX-Task-5)', async () => {
+    // Simulate a slow prefill: resolve only after the user has typed.
+    let resolvePrefill!: (value: string | null) => void;
+    mockPhoneService.getCurrentUserPhone.mockReturnValue(
+      new Promise((res) => {
+        resolvePrefill = res;
+      }) as never
+    );
+
+    const { getByTestId } = render(
+      <PhoneVerificationModal visible={true} required onClose={jest.fn()} onSuccess={jest.fn()} />
+    );
+
+    fireEvent.changeText(getByTestId(PHONE_INPUT_ID), '9995551234');
+    expect(getByTestId(PHONE_INPUT_ID).props.value).toBe('+19995551234');
+
+    // The prefill resolves AFTER the user typed — the typed number must win.
+    await act(async () => {
+      resolvePrefill('5551234004');
+    });
+
+    expect(getByTestId(PHONE_INPUT_ID).props.value).toBe('+19995551234');
+  });
+
+  it('shows non-misleading placeholder copy when no phone is prefilled (FIX-Task-5)', () => {
+    mockPhoneService.getCurrentUserPhone.mockResolvedValue(null as never);
+
+    const { getByTestId } = render(
+      <PhoneVerificationModal visible={true} onClose={jest.fn()} onSuccess={jest.fn()} />
+    );
+
+    // Guidance copy, never a fake-looking real number like the old placeholder.
+    expect(getByTestId(PHONE_INPUT_ID).props.placeholder).toBe('Enter your phone number');
   });
 });

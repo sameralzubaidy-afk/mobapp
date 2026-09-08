@@ -5,6 +5,7 @@ import {
   isPhoneRequired,
   sendPhoneVerificationCode,
   verifyPhoneCode,
+  getCurrentUserPhone,
   OTPRateLimitError,
   OTPExpiredError,
   PhoneVerificationErrorCode,
@@ -321,6 +322,89 @@ describe('phoneService', () => {
         'failed'
       );
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.NOT_FOUND)).toContain('not found');
+    });
+  });
+
+  describe('getCurrentUserPhone', () => {
+    const mockUser = { id: 'user-123', email: 'test@example.com' };
+
+    beforeEach(() => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      } as any);
+    });
+
+    it('should return the saved profiles.phone when present', async () => {
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: { phone: '5551234004' },
+          error: null,
+        }),
+      };
+      mockSupabase.from.mockReturnValue(mockFrom as any);
+
+      const result = await getCurrentUserPhone();
+
+      expect(result).toBe('5551234004');
+      expect(mockSupabase.from).toHaveBeenCalledWith('profiles');
+      expect(mockSupabase.auth.getUser).toHaveBeenCalled();
+    });
+
+    it('should return null when no authenticated user', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'Not authenticated' },
+      } as any);
+
+      const result = await getCurrentUserPhone();
+
+      expect(result).toBeNull();
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
+
+    it('should return null on a query error (best-effort fallback)', async () => {
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Query failed' },
+        }),
+      };
+      mockSupabase.from.mockReturnValue(mockFrom as any);
+
+      const result = await getCurrentUserPhone();
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when the profile has no phone stored', async () => {
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: { phone: null },
+          error: null,
+        }),
+      };
+      mockSupabase.from.mockReturnValue(mockFrom as any);
+
+      const result = await getCurrentUserPhone();
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null on exception (best-effort fallback)', async () => {
+      mockSupabase.from.mockImplementation(() => {
+        throw new Error('Network error');
+      });
+
+      const result = await getCurrentUserPhone();
+
+      expect(result).toBeNull();
     });
   });
 });

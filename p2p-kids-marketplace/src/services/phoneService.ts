@@ -172,6 +172,53 @@ export async function isPhoneRequired(userId: string): Promise<boolean> {
 }
 
 /**
+ * Get the current authenticated user's saved phone (profiles.phone), or null
+ * when there is no authenticated user, no profile row, or no phone on file.
+ *
+ * FIX-Task-5 (QA Task 43g): the listing phone-verification gate must prefill the
+ * number the user already has on file instead of showing an empty input with a
+ * fake-looking placeholder. Best-effort read — a failure returns null so the
+ * gate still opens for manual entry (the prefill is cosmetic; it must never
+ * block the flow).
+ *
+ * @returns The saved phone as stored in profiles.phone (raw digits, e.g.
+ *          "5551234004", or already E.164), or null. Callers normalize to the
+ *          E.164 form the send boundary requires.
+ */
+export async function getCurrentUserPhone(): Promise<string | null> {
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('phone')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      captureException(error, {
+        tags: { service: 'phoneService', action: 'get_current_user_phone_query' },
+      });
+      return null;
+    }
+
+    return typeof data?.phone === 'string' && data.phone.trim() ? data.phone : null;
+  } catch (err) {
+    captureException(err, {
+      tags: { service: 'phoneService', action: 'get_current_user_phone_exception' },
+    });
+    return null; // Best-effort prefill — never block the flow on a fetch failure
+  }
+}
+
+/**
  * Send phone verification code via Twilio SMS
  *
  * Process:

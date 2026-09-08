@@ -18,8 +18,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { OTPInput } from '@/components/ui/OTPInput';
 import { usePhoneVerification } from '@/hooks/usePhoneVerification';
-import { DEV_SMS_BYPASS_CODE } from '@/services/phoneService';
+import { DEV_SMS_BYPASS_CODE, getCurrentUserPhone } from '@/services/phoneService';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+
+// FIX-Task-5 (QA Task 43g): normalize a raw saved phone to the same E.164-style
+// value the input handler produces when the user types (digits-only → +1 US
+// prefix). Shared by handlePhoneChange and the profiles.phone prefill so a
+// prefilled number is byte-identical to one the user typed themselves.
+function normalizeE164Input(text: string): string {
+  // Auto-format with E.164 (+1 for US)
+  let formatted = text.replace(/[^0-9+]/g, '');
+
+  // Auto-add +1 if the value has no country code
+  if (formatted.length > 0 && !formatted.startsWith('+')) {
+    formatted = '+1' + formatted;
+  }
+
+  return formatted;
+}
 
 interface PhoneVerificationModalProps {
   visible: boolean;
@@ -62,6 +78,15 @@ export default function PhoneVerificationModal({
   } = usePhoneVerification();
 
   const phoneInputRef = useRef<TextInput>(null);
+  const didAttemptPrefillRef = useRef(false);
+  // Mirrors `phone` so the async prefill can check whether the user has typed
+  // something since the fetch started (setPhone accepts a string, not an
+  // updater, so we cannot use a functional setState guard).
+  const latestPhoneRef = useRef('');
+
+  useEffect(() => {
+    latestPhoneRef.current = phone;
+  }, [phone]);
 
   // Focus phone input when modal opens
   useEffect(() => {
@@ -70,15 +95,48 @@ export default function PhoneVerificationModal({
     }
   }, [visible, step]);
 
-  const handlePhoneChange = (text: string) => {
-    // Auto-format with E.164 (+1 for US)
-    let formatted = text.replace(/[^0-9+]/g, '');
-
-    // Auto-add +1 if user starts typing digits
-    if (formatted.length > 0 && !formatted.startsWith('+')) {
-      formatted = '+1' + formatted;
+  // FIX-Task-5 (QA Task 43g): when the gate opens for a phone-unverified user
+  // who already has a phone on file (profiles.phone), prefill it so they see and
+  // verify their OWN number — never an empty field with a fake-looking real
+  // placeholder. Best-effort: a fetch failure or a null saved phone leaves the
+  // field empty for manual entry. The user's own typing is never overwritten
+  // (the functional setState only applies while the field is still empty), and
+  // the ref is reset on close so a reopened gate re-attempts the prefill.
+  useEffect(() => {
+    if (!visible) {
+      didAttemptPrefillRef.current = false;
+      return;
     }
+    if (step !== 'phone' || didAttemptPrefillRef.current || phone) {
+      return;
+    }
+    didAttemptPrefillRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const savedPhone = await getCurrentUserPhone();
+        if (cancelled || !savedPhone) return;
+        // Never clobber a number the user has typed while the fetch was in flight.
+        if (latestPhoneRef.current === '') {
+          setPhone(normalizeE164Input(savedPhone));
+        }
+      } catch {
+        // Best-effort prefill — never block the gate on a fetch failure.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Prefill is driven by the modal opening on the phone step; `phone` guards
+    // against re-fetching after the user edits (see didAttemptPrefillRef above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, step, phone]);
 
+  const handlePhoneChange = (text: string) => {
+    const formatted = normalizeE164Input(text);
+    // Sync synchronously so an in-flight prefill fetch never overwrites a typed
+    // number (the mirror effect above also updates on reset/other setPhone paths).
+    latestPhoneRef.current = formatted;
     setPhone(formatted);
   };
 
@@ -167,7 +225,7 @@ export default function PhoneVerificationModal({
                 <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   ref={phoneInputRef}
                   style={styles.phoneInput}
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="Enter your phone number"
                   keyboardType="phone-pad"
                   value={phone}
                   onChangeText={handlePhoneChange}
