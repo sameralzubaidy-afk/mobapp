@@ -28,6 +28,7 @@ import {
   Image,
 } from 'react-native';
 import { useFocusEffect, useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 import {
@@ -35,6 +36,8 @@ import {
   mapStripeErrorToMessage,
   getBuyerPendingOffersForSeller,
   acknowledgeTradeDisclaimer,
+  cancelTradeV2,
+  type PendingOfferSummary,
 } from '@/services/trade';
 import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
@@ -58,9 +61,14 @@ import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAcce
 
 type TradeOfferRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
+// FIX-Task-7 item 5a: height to reserve so the pinned Send Offer footer clears
+// the floating PersistentTabBar (pill top ≈ insets.bottom + ~72; + 12px gap).
+const TAB_BAR_FOOTER_CLEARANCE = 84;
+
 export default function TradeOfferScreen() {
   const route = useRoute<TradeOfferRouteProp>();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { session, refreshSession } = useAuth();
   const subStatus = useSubscriptionStatus();
   const walletStats = useSPWallet();
@@ -100,6 +108,10 @@ export default function TradeOfferScreen() {
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
   const [showOfferLimitModal, setShowOfferLimitModal] = useState(false);
   const [offerLimitMessage, setOfferLimitMessage] = useState('');
+  // FIX-Task-7 item 5c: the buyer's open offers to this seller (for the cap
+  // modal's one-tap "Cancel Oldest Offer" action).
+  const [offerLimitPendingOffers, setOfferLimitPendingOffers] = useState<PendingOfferSummary[]>([]);
+  const [cancellingOldest, setCancellingOldest] = useState(false);
   // R1 — Tiered Buyer-Fee Engine: the buyer fee is resolved from the DB and kept
   // in sync with the SP amount (percentage tier applies to the cash portion).
   const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
@@ -428,6 +440,9 @@ export default function TradeOfferScreen() {
                 )
                 .join('\n')
             : '';
+          // FIX-Task-7 item 5c: retain the list so the cap modal can offer a
+          // one-tap "Cancel Oldest Offer" without leaving the screen.
+          setOfferLimitPendingOffers(pendingOffers);
           setOfferLimitMessage(
             `${offerResult.error || 'You have reached the offer limit for this seller.'}\n\nOpen offers:\n${openList}\n\nWait for one of your pending offers to resolve, or cancel one to free a slot.`
           );
@@ -491,6 +506,49 @@ export default function TradeOfferScreen() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // FIX-Task-7 item 5c: one-tap "Cancel Oldest Offer" from the per-seller cap
+  // modal — cancel the earliest open offer to this seller, then auto re-submit
+  // the current offer so the buyer completes the flow without leaving.
+  const handleCancelOldestOffer = async () => {
+    if (cancellingOldest || offerLimitPendingOffers.length === 0) return;
+    const sorted = [...offerLimitPendingOffers].sort((a, b) => {
+      const at = a.offer_expires_at ? Date.parse(a.offer_expires_at) : Number.MAX_SAFE_INTEGER;
+      const bt = b.offer_expires_at ? Date.parse(b.offer_expires_at) : Number.MAX_SAFE_INTEGER;
+      return at - bt; // earliest expiry ≈ oldest open offer
+    });
+    const oldest = sorted[0];
+    if (!oldest?.id) return;
+
+    setCancellingOldest(true);
+    try {
+      const result = await cancelTradeV2(
+        oldest.id,
+        'Buyer cancelled oldest offer to free a slot for a new offer'
+      );
+      if (result.success) {
+        // Slot freed — close the cap modal and auto re-submit the current offer.
+        setShowOfferLimitModal(false);
+        setOfferLimitMessage('');
+        setOfferLimitPendingOffers([]);
+        await handleSendOffer();
+      } else {
+        setOfferLimitMessage(
+          `We couldn't cancel your oldest offer (${oldest.title}). ${
+            result.error || 'Please try again or cancel it from My Trades.'
+          }`
+        );
+      }
+    } catch (error: any) {
+      setOfferLimitMessage(
+        `We couldn't cancel your oldest offer (${oldest.title}). ${
+          error.message || 'Please try again or cancel it from My Trades.'
+        }`
+      );
+    } finally {
+      setCancellingOldest(false);
     }
   };
 
@@ -808,7 +866,17 @@ export default function TradeOfferScreen() {
               <Text style={styles.valueStackTotalValue}>${(grandTotalCents / 100).toFixed(2)}</Text>
             </View>
           </View>
+        </ScrollView>
 
+        {/* FIX-Task-7 item 5a: Send Offer is pinned in a footer just above the
+            floating tab bar so the primary CTA is always fully visible without
+            scroll-then-tap friction (reserved space below keeps it clear). */}
+        <View
+          style={[
+            styles.fixedFooter,
+            { marginBottom: insets.bottom + TAB_BAR_FOOTER_CLEARANCE },
+          ]}
+        >
           <Pressable
             style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
             onPress={handleSendOffer}
@@ -824,7 +892,7 @@ export default function TradeOfferScreen() {
               <Text style={styles.primaryButtonText}>Send Offer</Text>
             )}
           </Pressable>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
 
       <DisclaimerModal
@@ -866,6 +934,12 @@ export default function TradeOfferScreen() {
         onCancel={() => setShowOfferLimitModal(false)}
         confirmTestID="offer-limit-view-offers-button"
         cancelTestID="offer-limit-ok-button"
+        footerActionLabel={
+          offerLimitPendingOffers.length > 0 ? 'Cancel My Oldest Offer' : undefined
+        }
+        onFooterAction={handleCancelOldestOffer}
+        footerActionTestID="offer-limit-cancel-oldest-button"
+        footerActionLoading={cancellingOldest}
       />
     </ScreenLayout>
   );
@@ -875,6 +949,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  // FIX-Task-7 item 5a: Send Offer pinned above the floating tab bar.
+  fixedFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
   },
   loadingContainer: {
     flex: 1,

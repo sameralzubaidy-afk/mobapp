@@ -315,7 +315,7 @@ describe('TradeTimelineScreen', () => {
         last4: '4242',
       } as any);
 
-      const { getByTestId, getByText } = render(<TradeTimelineScreen />);
+      const { getByText } = render(<TradeTimelineScreen />);
 
       await waitFor(() => {
         expect(getByText('Payment Details')).toBeTruthy();
@@ -382,7 +382,7 @@ describe('TradeTimelineScreen', () => {
         status: 'completed',
         dispute_status: 'resolved',
         dispute_reason: 'Item not as described',
-        dispute_resolution: 'completed_favor_seller',
+        dispute_resolution: 'resolved_seller',
         dispute_reported_at: '2026-01-01T10:00:00.000Z',
         dispute_resolved_at: '2026-01-02T10:00:00.000Z',
       };
@@ -411,6 +411,37 @@ describe('TradeTimelineScreen', () => {
 
       await waitFor(() => {
         // When dispute already exists, the "Report Problem" button should not show
+        expect(queryByTestId('report-problem-button')).toBeNull();
+      });
+    });
+
+    // FIX-Task-7 (2026-09-08) P1 regression: the real open-dispute UI path sets
+    // dispute_status='reported' but NEVER `disputed_at` (that was the bug that
+    // let auto-complete sail past the backend guard). The client must not depend
+    // on disputed_at either — the reported banner shows AND "I Got It — Complete
+    // Trade" is disabled (pinned footer), so a reported dispute blocks completion.
+    it('should block completion when dispute is reported even with disputed_at NULL (FIX-Task-7 P1)', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      const p1DisputedTrade = {
+        ...mockTrade,
+        dispute_status: 'reported',
+        dispute_reason: 'Seller was a no-show',
+        disputed_at: null,
+        dispute_reported_at: '2026-01-01T10:00:00.000Z',
+      };
+      mockSupabase.from = createFromMock(p1DisputedTrade) as any;
+
+      const { getByTestId, queryByTestId } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('dispute-banner-reported')).toBeTruthy();
+      });
+
+      await waitFor(() => {
+        const confirmButton = getByTestId('confirm-trade-button');
+        expect(
+          Boolean(confirmButton.props.disabled || confirmButton.props.accessibilityState?.disabled)
+        ).toBe(true);
         expect(queryByTestId('report-problem-button')).toBeNull();
       });
     });

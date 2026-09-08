@@ -166,9 +166,12 @@ serve(async (req) => {
         : 100;
 
     // TAX-STATUS-LIFECYCLE: Find eligible trades and capture PIs before auto-completing
+    // FIX-Task-7 (P1): an OPEN dispute (reported/under_review) must be excluded at
+    // the fetch stage — the rpc_process_auto_complete guard is the backstop, but the
+    // EF must NOT Stripe-capture a disputed trade's authorization hold either.
     const { data: eligibleTrades, error: fetchErr } = await supabase
       .from('trades')
-      .select('id, stripe_payment_intent_id, cash_amount_cents')
+      .select('id, stripe_payment_intent_id, cash_amount_cents, dispute_status')
       .eq('status', 'in_progress')
       .not('auto_complete_at', 'is', null)
       .lte('auto_complete_at', new Date().toISOString())
@@ -183,7 +186,14 @@ serve(async (req) => {
       });
     }
 
-    const trades = (eligibleTrades ?? []) as Array<{
+    const trades = ((eligibleTrades ?? []) as Array<{
+      id: string;
+      stripe_payment_intent_id: string | null;
+      cash_amount_cents: number;
+      dispute_status: string | null;
+    }>).filter(
+      (t) => !['reported', 'under_review'].includes(t.dispute_status ?? 'none')
+    ) as Array<{
       id: string;
       stripe_payment_intent_id: string | null;
       cash_amount_cents: number;

@@ -602,54 +602,67 @@ export async function getGracePeriodDays(forceRefresh = false): Promise<number> 
 }
 
 /**
+ * Authoritative admin_config keys for the SP pending-release delay, in priority
+ * order. The DB completion trigger computes `trades.pending_sp_release_at` from
+ * `pending_sp_release_days` (default 3) — that key is the single source of
+ * truth for the actual timer. `sp_pending_days` is the legacy key the Config
+ * page Swap Points tab historically wrote; kept only as a fallback for older
+ * DBs / older app builds.
+ *
+ * FIX-Task-7 item 3 (2026-09-08): getSPReleaseDays previously read ONLY the
+ * legacy `sp_pending_days` key, which could drift from the real timer — staging
+ * had sp_pending_days=2 (stale 2026-07-04) while the DB honored
+ * pending_sp_release_days=3, so seller copy said "SP releasing in 2 days" while
+ * pending_sp_release_at was +72h. Reading the DB-authoritative key first makes
+ * the copy always mirror the actual release timer.
+ */
+const SP_RELEASE_DAYS_KEYS = ['pending_sp_release_days', 'sp_pending_days'];
+
+/**
  * Get the number of days SP remains pending after trade completion
  * before being released to the seller's available balance.
  * Default: 3 days.
  */
 export async function getSPReleaseDays(_forceRefresh = false): Promise<number> {
-  try {
-    const { data, error } = await supabase.rpc('get_config_value', {
-      p_key: 'sp_pending_days',
-    });
-
-    if (!error && data != null) {
-      const parsed = Number(data);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn(
-      '⚠️ getSPReleaseDays RPC failed, trying admin_config key sp_pending_days:',
-      (err as Error).message
-    );
-  }
-
-  // Fallback: check admin_config directly for 'sp_pending_days' (Config page Swap Points tab saves here)
-  // Uses direct query instead of getConfigValue to bypass the is_active=true filter,
-  // because secure_upsert_admin_config RPC does NOT set is_active=true.
-  try {
-    const { data, error } = await supabase
-      .from('admin_config')
-      .select('value, data_type')
-      .eq('key', 'sp_pending_days')
-      .maybeSingle();
-
-    if (!error && data?.value != null) {
-      if (data.data_type === 'number') {
-        const parsed = parseFloat(String(data.value));
+  for (const key of SP_RELEASE_DAYS_KEYS) {
+    // Primary: get_config_value RPC (active admin_config keys).
+    try {
+      const { data, error } = await supabase.rpc('get_config_value', { p_key: key });
+      if (!error && data != null) {
+        const parsed = Number(data);
         if (Number.isFinite(parsed) && parsed > 0) {
           return parsed;
         }
       }
-      // If data_type is missing (RPC doesn't set it), try parsing as number anyway
-      const parsed = Number(data.value);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        return parsed;
-      }
+    } catch (err) {
+      console.warn(`⚠️ getSPReleaseDays RPC failed for admin_config key ${key}:`, (err as Error).message);
     }
-  } catch (err) {
-    console.warn('⚠️ getSPReleaseDays admin_config direct query failed:', (err as Error).message);
+
+    // Fallback: direct admin_config query (bypasses any is_active filter, since
+    // secure_upsert_admin_config RPC does NOT set is_active=true).
+    try {
+      const { data, error } = await supabase
+        .from('admin_config')
+        .select('value, data_type')
+        .eq('key', key)
+        .maybeSingle();
+
+      if (!error && data?.value != null) {
+        if (data.data_type === 'number') {
+          const parsed = parseFloat(String(data.value));
+          if (Number.isFinite(parsed) && parsed > 0) {
+            return parsed;
+          }
+        }
+        // If data_type is missing (RPC doesn't set it), try parsing as number anyway
+        const parsed = Number(data.value);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.warn(`⚠️ getSPReleaseDays admin_config direct query failed for ${key}:`, (err as Error).message);
+    }
   }
 
   // Last resort: check sp_config table (may be stale if sync trigger is missing)

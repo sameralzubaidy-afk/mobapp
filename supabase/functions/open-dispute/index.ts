@@ -82,6 +82,10 @@ serve(async (req) => {
   // D-26: Set dispute overlay columns — trade status REMAINS in_progress
   // NOTE: Column names match the actual trades table schema:
   //   dispute_status, dispute_reason, dispute_notes, dispute_opened_at
+  // FIX-Task-7 (P1): also stamp the legacy `disputed_at` column. The
+  // auto-complete / extension / complete-trade guards gate on disputed_at AND
+  // dispute_status (defense in depth) — this write keeps the legacy column in
+  // sync so no reported dispute can ever sail past the auto-complete guard.
   const svcClient = createClient(supabaseUrl, supabaseSvcKey);
   const { error: updateErr } = await svcClient
     .from('trades')
@@ -90,6 +94,7 @@ serve(async (req) => {
       dispute_reason:      reason.substring(0, 500),
       dispute_notes:       description ? description.substring(0, 2000) : null,
       dispute_opened_at:   new Date().toISOString(),
+      disputed_at:         new Date().toISOString(),
     })
     .eq('id', trade_id);
 

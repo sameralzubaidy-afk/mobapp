@@ -545,7 +545,7 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-W10 | Force Cancel succeeds for all trades in the bundle |  | PASS | 2026-08-31 | `qa-task16-close-trd-2026-08-31` | ✅ PASS | Force Cancel succeeds + DB read-back |
 | TRD-TC-W11 | Status filter works in Bundle Trades view |  | PASS | 2026-08-31 | `qa-task15-dt75-w-t-2026-08-31` | ✅ PASS | status filter |
 | TRD-TC-W12 | Tab toggle resets filters when switching views |  | PASS | 2026-08-31 | `qa-task16-close-trd-2026-08-31` | ✅ PASS | status filter resets on Single↔Bundle toggle (task15 minor defect fixed) |
-| TRD-TC-D06 | Pickup window drives the auto-complete deadline (R2 — configurable) |  | NEVER RUN |  |  | NEVER RUN | (post-MVP / not built) |
+| TRD-TC-D06 | Pickup window drives the auto-complete deadline (R2 — configurable) |  | NEVER RUN |  |  | NEVER RUN | Config-propagation leg PASS 2026-09-08 (\`qa-task-trd-r1-android-2026-09-08\`): \`pickup_window_hours\` 72→48 → \`auto_complete_at\` +48h + buyer "48h" banner — mechanism IMPLEMENTED (R2), NOT post-MVP; only full two-cycle 72↔48 drive remains |
 | TRD-TC-N2 | Retried offer submission → exactly 1 PaymentIntent / 1 trade / 1 SP reservation / 1 audit row |  | NEVER RUN |  |  | NEVER RUN | Idempotency & Audit (N2-C01..C10) — no dedicated run; individual idempotency legs verified under B/C/O/R rows |
 | TRD-TC-Y01 | Trade List summary filter chips |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | summary chips |
 | TRD-TC-Y02 | Trade List Load More history pagination |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | history pagination |

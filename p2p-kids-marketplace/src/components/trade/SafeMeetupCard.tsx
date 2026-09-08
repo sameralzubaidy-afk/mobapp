@@ -58,7 +58,12 @@ interface Props {
 }
 
 export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
-  const [collapsed, setCollapsed] = React.useState(false);
+  // FIX-Task-7 item 5b (2026-09-08): tips COLLAPSED BY DEFAULT so the primary
+  // trade actions (Report a Problem / I Got It) sit higher and are reachable
+  // sooner on the timeline. The header pill is always visible and acts as the
+  // "Tips" expander — tap to reveal the 4 tips + the safety CTA. (Previously the
+  // card started fully expanded and pushed the primary actions down.)
+  const [collapsed, setCollapsed] = React.useState(true);
   const storageKey = `${STORAGE_PREFIX}${tradeId}`;
 
   // Load persisted collapsed state
@@ -89,10 +94,13 @@ export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
         testID="safe-meetup-toggle"
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Safe meetup toggle"
+        accessibilityLabel="View safety tips"
       >
         <ShieldCheck size={20} color="#5DBB8E" weight="fill" />
         <Text style={styles.collapsedText}>Trade Smart, Trade Safe</Text>
+        <View style={styles.tipsPill}>
+          <Text style={styles.tipsPillText}>Tips</Text>
+        </View>
         <Text style={styles.chevron}>{'\u203A'}</Text>
       </TouchableOpacity>
     );
@@ -189,6 +197,20 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#9CA3AF',
     fontWeight: '600',
+  },
+  // FIX-Task-7 item 5b: "Tips" chip on the collapsed pill makes the expander
+  // affordance explicit (tips + safety CTA open on tap).
+  tipsPill: {
+    backgroundColor: '#E9F7F0',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  tipsPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2D6A4F',
+    fontFamily: 'Inter-SemiBold',
   },
   header: {
     flexDirection: 'row',

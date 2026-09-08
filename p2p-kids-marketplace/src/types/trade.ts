@@ -22,7 +22,13 @@ export type TradeStatus =
 export type DisputeStatus = 'none' | 'reported' | 'under_review' | 'resolved';
 
 /** D-26: dispute_resolution values matching DB CHECK constraint */
-export type DisputeResolution = 'completed' | 'refunded';
+// FIX-Task-7 (2026-09-08): reconciled to the live DB CHECK + writers.
+// The DB CHECK (trades.dispute_resolution) allows NULL/'open'/'resolved_buyer'/
+// 'resolved_seller'/'rejected'; open-dispute's resolve paths (resolve-dispute EF
+// and the admin dispute-action route) write 'resolved_seller' (resolve-complete)
+// or 'resolved_buyer' (resolve-refund). The old 'completed'|'refunded' union did
+// not match the DB and is now corrected.
+export type DisputeResolution = 'open' | 'resolved_buyer' | 'resolved_seller' | 'rejected';
 
 /** TFV2-018: payout_status values */
 export type PayoutStatus = 'pending' | 'requires_action' | 'processing' | 'paid' | 'failed';

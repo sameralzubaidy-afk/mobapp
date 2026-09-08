@@ -71,6 +71,7 @@ import ScreenLayout from '@/components/ScreenLayout';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import { registerQaScrollToHandler, scrollChildIntoView } from '@/services/qaScrollRegistry';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TradeTimelineRouteProp = RouteProp<RootStackParamList, 'TradeTimeline'>;
 
@@ -86,8 +87,13 @@ const QA_TOOLING_ENABLED: boolean =
   process.env.EXPO_PUBLIC_ENVIRONMENT === 'development' ||
   process.env.EXPO_PUBLIC_ENVIRONMENT === 'staging';
 
+// FIX-Task-7 item 5a: the pinned "I Got It — Complete Trade" footer sits just
+// above the floating PersistentTabBar (pill top ≈ insets.bottom + ~72; + 12 gap).
+const TAB_BAR_FOOTER_CLEARANCE = 84;
+
 export default function TradeTimelineScreen() {
   const route = useRoute<TradeTimelineRouteProp>();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { session, refreshSession } = useAuth();
   const user = session?.user;
@@ -957,6 +963,11 @@ export default function TradeTimelineScreen() {
 
   const isBuyer = user?.id === trade.buyer_id;
   const isSeller = user?.id === trade.seller_id;
+  // FIX-Task-7 item 5a: pin the buyer's primary "I Got It — Complete Trade" CTA
+  // above the floating tab bar (always visible — no scroll-then-tap). Report a
+  // Problem / Request to Cancel remain in the flow as secondary actions.
+  const showPinnedBuyerCompleteCta =
+    isBuyer && trade.status === 'in_progress' && !!trade.auto_complete_at;
   // D-30: Payment is pre-authorized at offer creation, captured on seller accept — no manual payment step.
   const hasUnresolvedDispute =
     !!(trade as any).dispute_status &&
@@ -1022,7 +1033,9 @@ export default function TradeTimelineScreen() {
       <ScrollView
         ref={timelineScrollRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={
+          [styles.content, showPinnedBuyerCompleteCta && styles.contentWithPinnedCta]
+        }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
         }
@@ -1243,12 +1256,17 @@ export default function TradeTimelineScreen() {
                 </View>
               </View>
             </View>
+            {/* FIX-Task-7 (QA re-verify LOW): role-aware body — a seller must NOT
+                read the buyer's "Your issue has been reported" copy. */}
             <Text style={styles.disputeCardBody}>
-              Your issue has been reported. Our team will review within 24 hours. Auto-complete is
-              paused.
+              {isSeller
+                ? 'A buyer has reported an issue with this trade. Our team is reviewing it. Auto-complete is paused.'
+                : 'Your issue has been reported. Our team will review within 24 hours. Auto-complete is paused.'}
             </Text>
             <Text style={styles.disputeCardNote}>
-              Keep chatting with the other party — we'll notify you with the outcome.
+              {isSeller
+                ? "We'll keep you posted as we review. You can keep chatting with the buyer in the meantime."
+                : "Keep chatting with the other party — we'll notify you with the outcome."}
             </Text>
           </View>
         )}
@@ -1274,7 +1292,9 @@ export default function TradeTimelineScreen() {
               </View>
             </View>
             <Text style={[styles.disputeCardBody, styles.disputeCardBodyOrange]}>
-              Your issue is being reviewed. Auto-complete stays paused while our team investigates.
+              {isSeller
+                ? 'This dispute is under review. Auto-complete stays paused while our team investigates.'
+                : 'Your issue is being reviewed. Auto-complete stays paused while our team investigates.'}
             </Text>
             <Text style={[styles.disputeCardNote, styles.disputeCardNoteOrange]}>
               No action needed from you right now — we'll notify you as soon as there's an update.
@@ -2010,39 +2030,16 @@ export default function TradeTimelineScreen() {
           <SafeMeetupCard tradeId={tradeId} />
         )}
 
-        {/* D-30 FIX: Only show "I Got It" button when trade truly in progress (status='in_progress' AND auto_complete_at set)
-            Hide for: status='pending' OR status='in_progress' with auto_complete_at=NULL */}
-        {isBuyer && trade.status === 'in_progress' && trade.auto_complete_at && (
-          <View style={styles.actions}>
-            <Pressable
-              ref={confirmTradeRef}
-              style={[
-                styles.confirmButton,
-                (submitting || hasUnresolvedDispute) && styles.disabledButton,
-              ]}
-              onPress={handleComplete}
-              disabled={submitting || hasUnresolvedDispute}
-              testID="confirm-trade-button"
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Confirm trade button"
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <View style={styles.confirmButtonInner}>
-                  <CheckCircle size={22} color="#FFFFFF" weight="fill" />
-                  <View style={styles.confirmButtonTextWrap}>
-                    <Text style={styles.confirmButtonText}>I Got It — Complete Trade</Text>
-                    <Text style={styles.confirmButtonSub}>
-                      Tap only after you've received and inspected your item
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </Pressable>
-
-            {!hasUnresolvedDispute && (
+        {/* FIX-Task-7 item 5a: the primary "I Got It — Complete Trade" CTA is
+            rendered in a PINNED footer just above the floating tab bar (always
+            visible, no scroll-then-tap). Report a Problem / Request to Cancel
+            stay here as secondary actions — hidden while a dispute is open
+            (the pinned primary renders disabled instead). */}
+        {isBuyer &&
+          trade.status === 'in_progress' &&
+          trade.auto_complete_at &&
+          !hasUnresolvedDispute && (
+            <View style={styles.actions}>
               <Pressable
                 style={[styles.cancelButtonOutline, submitting && styles.disabledButton]}
                 onPress={handleReportProblem}
@@ -2055,29 +2052,28 @@ export default function TradeTimelineScreen() {
                 <WarningCircle size={20} color="#E85D75" weight="regular" />
                 <Text style={styles.cancelButtonOutlineText}>Report Problem</Text>
               </Pressable>
-            )}
 
-            {/* FIX-CANCEL (2026-09-01): buyer Request to Cancel (hidden while a request is pending) */}
-            {!hasUnresolvedDispute && !cancelRequestPending && (
-              <Pressable
-                ref={requestCancelRef}
-                style={[
-                  styles.cancelButtonOutline,
-                  (submitting || cancelRequestSubmitting) && styles.disabledButton,
-                ]}
-                onPress={handleRequestCancel}
-                disabled={submitting || cancelRequestSubmitting}
-                testID="request-cancel-button"
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel="Request to cancel button"
-              >
-                <XCircle size={20} color="#E85D75" weight="regular" />
-                <Text style={styles.cancelButtonOutlineText}>Request to Cancel</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+              {/* FIX-CANCEL (2026-09-01): buyer Request to Cancel (hidden while a request is pending) */}
+              {!cancelRequestPending && (
+                <Pressable
+                  ref={requestCancelRef}
+                  style={[
+                    styles.cancelButtonOutline,
+                    (submitting || cancelRequestSubmitting) && styles.disabledButton,
+                  ]}
+                  onPress={handleRequestCancel}
+                  disabled={submitting || cancelRequestSubmitting}
+                  testID="request-cancel-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Request to cancel button"
+                >
+                  <XCircle size={20} color="#E85D75" weight="regular" />
+                  <Text style={styles.cancelButtonOutlineText}>Request to Cancel</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
 
         {/* Pending trade cancel (non-seller or zero-cash seller offer) */}
         {trade.status === 'pending' && (!isSeller || trade.cash_amount_cents === 0) && (
@@ -2201,6 +2197,45 @@ export default function TradeTimelineScreen() {
             <Text style={styles.updatedToastText}>Trade updated</Text>
           </View>
         </Animated.View>
+      )}
+
+      {/* FIX-Task-7 item 5a: pinned primary CTA for the buyer's in_progress trade
+          — always fully visible just above the floating tab bar, no scroll first. */}
+      {showPinnedBuyerCompleteCta && (
+        <View
+          style={[
+            styles.pinnedFooter,
+            { bottom: insets.bottom + TAB_BAR_FOOTER_CLEARANCE },
+          ]}
+        >
+          <Pressable
+            ref={confirmTradeRef}
+            style={[
+              styles.confirmButton,
+              (submitting || hasUnresolvedDispute) && styles.disabledButton,
+            ]}
+            onPress={handleComplete}
+            disabled={submitting || hasUnresolvedDispute}
+            testID="confirm-trade-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Confirm trade button"
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <View style={styles.confirmButtonInner}>
+                <CheckCircle size={22} color="#FFFFFF" weight="fill" />
+                <View style={styles.confirmButtonTextWrap}>
+                  <Text style={styles.confirmButtonText}>I Got It — Complete Trade</Text>
+                  <Text style={styles.confirmButtonSub}>
+                    Tap only after you've received and inspected your item
+                  </Text>
+                </View>
+              </View>
+            )}
+          </Pressable>
+        </View>
       )}
       </View>
 
@@ -2577,10 +2612,31 @@ const styles = StyleSheet.create({
     padding: 16,
     // Clear the floating pill nav (PersistentTabBar overlays the stack content):
     // the pill top sits ~110pt from the bottom (safe-area + spacing.sm + pill
-    // height), so bottom-anchored action buttons (Report Problem, I Got It,
-    // Cancel Trade) must scroll fully above it to be reachable — QA E01 was
-    // blocked because the report button sat behind the pill (BP-58).
+    // height), so bottom-anchored action buttons (Report Problem, Cancel Trade)
+    // must scroll fully above it to be reachable — QA E01 was blocked because
+    // the report button sat behind the pill (BP-58).
     paddingBottom: 100,
+  },
+  // FIX-Task-7 item 5a: when the pinned "I Got It" footer is present, keep extra
+  // bottom room so scroll content (secondary actions, payment details) can rest
+  // above the footer instead of hiding behind it.
+  contentWithPinnedCta: {
+    paddingBottom: 210,
+  },
+  // FIX-Task-7 item 5a: pinned primary CTA above the floating tab bar.
+  pinnedFooter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0, // overridden inline (insets.bottom + TAB_BAR_FOOTER_CLEARANCE)
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+    zIndex: 10,
+    elevation: 6,
   },
   // DEV-TASK-114 (2026-09-05) item 1: content wrapper so the realtime
   // "updated" pill overlays the area below the header (top:8 sits just above

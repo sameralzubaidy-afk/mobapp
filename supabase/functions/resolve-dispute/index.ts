@@ -217,6 +217,10 @@ serve(async (req) => {
       dispute_resolution: resolution,
       dispute_resolved_at: now,
       dispute_resolved_by: user.id,   // DEV-TASK-62 (Item 1): who resolved it
+      // FIX-Task-7: keep the legacy disputed_at column in sync — a resolved
+      // dispute is no longer open (the sync trigger also handles this, but an
+      // explicit write is belt-and-braces for any path bypassing the trigger).
+      disputed_at:        null,
       updated_at:         now,
       // resolve_complete: status/completed_at are delegated to complete_trade_v2 below
       //                   (DEV-TASK-48: writing status='completed' directly here skipped

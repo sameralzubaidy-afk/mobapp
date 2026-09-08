@@ -19,6 +19,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 
 export type ConfirmVariant = 'accept' | 'decline' | 'default';
@@ -42,6 +43,15 @@ interface TradeConfirmationModalProps {
   confirmTestID?: string;
   /** Stable QA locator for the cancel (secondary) button. */
   cancelTestID?: string;
+  /**
+   * FIX-Task-7 item 5c: optional third, full-width action rendered below the
+   * button row (e.g. the per-seller-cap modal's "Cancel Oldest Offer" one-tap)
+   * so the buyer never has to leave the modal to free a slot.
+   */
+  footerActionLabel?: string;
+  onFooterAction?: () => void;
+  footerActionTestID?: string;
+  footerActionLoading?: boolean;
 }
 
 export function TradeConfirmationModal({
@@ -57,6 +67,10 @@ export function TradeConfirmationModal({
   hideCancel = false,
   confirmTestID = 'trade-confirm-button',
   cancelTestID = 'trade-cancel-button',
+  footerActionLabel,
+  onFooterAction,
+  footerActionTestID,
+  footerActionLoading = false,
 }: TradeConfirmationModalProps) {
   const confirmBgColor =
     variant === 'accept' ? '#5DBB8E' :
@@ -111,6 +125,25 @@ export function TradeConfirmationModal({
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* FIX-Task-7 item 5c: optional footer action (e.g. Cancel Oldest Offer) */}
+          {footerActionLabel && onFooterAction && (
+            <TouchableOpacity
+              style={[styles.footerAction, footerActionLoading && styles.footerActionDisabled]}
+              onPress={onFooterAction}
+              disabled={loading || footerActionLoading}
+              testID={footerActionTestID || 'trade-footer-action-button'}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={footerActionLabel}
+            >
+              {footerActionLoading ? (
+                <ActivityIndicator size="small" color="#5DBB8E" />
+              ) : (
+                <Text style={styles.footerActionText}>{footerActionLabel}</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </RNModal>
@@ -181,6 +214,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+    fontFamily: 'Inter-SemiBold',
+  },
+  footerAction: {
+    marginTop: 12,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerActionDisabled: {
+    opacity: 0.6,
+  },
+  footerActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2D6A4F',
     fontFamily: 'Inter-SemiBold',
   },
 });

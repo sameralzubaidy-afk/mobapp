@@ -70,7 +70,7 @@ serve(async (req) => {
 
     const { data: trade, error: tradeError } = await supabaseClient
       .from('trades')
-      .select('id, buyer_id, seller_id, status, disputed_at, dispute_resolution')
+      .select('id, buyer_id, seller_id, status, dispute_status, disputed_at, dispute_resolution')
       .eq('id', tradeId)
       .maybeSingle();
 
@@ -119,7 +119,14 @@ serve(async (req) => {
       );
     }
 
-    if (trade.disputed_at && !trade.dispute_resolution) {
+    // FIX-Task-7 (P1): an open dispute pauses completion. Gate on the LIVE
+    // dispute_status (reported/under_review) as well as the legacy disputed_at
+    // column, so the guard never depends on a single write path being correct.
+    const hasOpenDispute =
+      (trade.disputed_at && !trade.dispute_resolution) ||
+      (!!trade.dispute_status && !['none', 'resolved'].includes(trade.dispute_status));
+
+    if (hasOpenDispute) {
       return new Response(
         JSON.stringify({
           success: false,
