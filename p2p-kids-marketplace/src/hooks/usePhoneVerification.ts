@@ -3,7 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { sendPhoneVerificationCode, verifyPhoneCode } from '@/services/phoneService';
-import { OTPRateLimitError, OTPExpiredError } from '@/types/auth-v3-errors';
+import { OTPExpiredError } from '@/types/auth-v3-errors';
+import { buildOtpRateLimitMessage, resolveOtpRetrySeconds } from '@/utils/otpRateLimit';
 
 interface PhoneVerificationState {
   phone: string;
@@ -83,19 +84,18 @@ export function usePhoneVerification() {
     } catch (error) {
       console.error('[usePhoneVerification] sendCode error:', error);
 
-      const rateLimitSeconds =
-        error instanceof OTPRateLimitError
-          ? error.retryAfterSeconds
-          : typeof error === 'object' && error !== null && 'retryAfterSeconds' in error
-            ? Number((error as { retryAfterSeconds?: unknown }).retryAfterSeconds) || 60
-            : null;
+      // FIX-Task-6 (QA Task 43m): detect the rate limit and build the friendly
+      // copy through the shared otpRateLimit helpers (single source) instead of
+      // inlining a local instanceof/structural check. Structural detection
+      // handles both OTPRateLimitError classes (phoneService throws its own).
+      const retryAfterSeconds = resolveOtpRetrySeconds(error);
 
-      if (rateLimitSeconds !== null) {
+      if (retryAfterSeconds !== null) {
         setState((prev) => ({
           ...prev,
           isSending: false,
-          error: `Too many attempts. Please try again in ${rateLimitSeconds} seconds.`,
-          resendCountdown: rateLimitSeconds,
+          error: buildOtpRateLimitMessage(retryAfterSeconds),
+          resendCountdown: retryAfterSeconds,
           canResend: false,
         }));
       } else {

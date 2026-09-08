@@ -34,9 +34,14 @@ import { getCurrentUser } from '@/services/supabase/auth';
 import {
   sendPhoneVerificationCode,
   verifyPhoneCode,
-  OTPRateLimitError,
   OTPExpiredError,
 } from '@/services/phoneService';
+import { useOtpResendCountdown } from '@/hooks/useOtpResendCountdown';
+import {
+  buildOtpRateLimitMessage,
+  formatOtpCountdown,
+  resolveOtpRetrySeconds,
+} from '@/utils/otpRateLimit';
 import {
   requestEmailChange,
   resendEmailChangeCode,
@@ -63,20 +68,6 @@ const formatErrorMessage = (error: unknown): string => {
     return error;
   }
   return JSON.stringify(error) || 'Unknown error';
-};
-
-// Format the verify-modal resend countdown so it can express long rate-limit
-// retry windows (>1h, e.g. the send-phone-otp 86400s daily cap) without dumping
-// a huge raw-seconds number. The underlying value is never truncated — we only
-// change how it is displayed, keeping it in agreement with the sibling
-// "Too many attempts..." message that reports the same retryAfterSeconds.
-const formatResendCountdown = (seconds: number): string => {
-  if (seconds >= 3600) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  }
-  return `${seconds}s`;
 };
 
 export default function EditProfileScreen({ navigation, route }: any) {
@@ -110,7 +101,16 @@ export default function EditProfileScreen({ navigation, route }: any) {
     verifying?: boolean;
     message?: string;
   }>({ visible: false });
-  const [resendCountdown, setResendCountdown] = useState(0);
+  // FIX-Task-6 (QA Task 43m): shared Resend countdown — the 60s cooldown after
+  // a send OR the OTPRateLimitError retry window, via the same hook the signup
+  // PhoneVerificationScreen now uses (single source; previously each screen
+  // re-declared its own countdown state + 1s tick effect). Exposed as
+  // `resendCountdown` so the modal JSX below is unchanged.
+  const {
+    countdown: resendCountdown,
+    startCountdown: armResendCountdown,
+    clearCountdown: clearResendCountdown,
+  } = useOtpResendCountdown();
 
   // Email re-verification state (Dev Task B02 / ACC-TC-B02): changing the email
   // does NOT apply immediately — a 6-digit code is emailed to the NEW address and
@@ -156,15 +156,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
     [normalizePhone]
   );
 
-  useEffect(() => {
-    if (!phoneVerification.visible || resendCountdown <= 0) {
-      return;
-    }
-
-    const timer = setTimeout(() => setResendCountdown((prev) => prev - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [phoneVerification.visible, resendCountdown]);
-
+  // The phone-verification countdown tick is owned by the shared
+  // useOtpResendCountdown hook (FIX-Task-6). The email re-verification countdown
+  // is a separate flow (emailChange service) and stays local:
   useEffect(() => {
     if (!emailVerification.visible || emailResendCountdown <= 0) {
       return;
@@ -405,7 +399,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
     // dropped columns (code/verified) and never sent an SMS in production.
     try {
       await sendPhoneVerificationCode(toE164(newPhone));
-      setResendCountdown(60);
+      armResendCountdown(60);
       setPhoneVerification((prev) => ({
         ...prev,
         sending: false,
@@ -414,14 +408,16 @@ export default function EditProfileScreen({ navigation, route }: any) {
       // Keep modal open and do not show overall success yet; wait for verification
       return true;
     } catch (err) {
-      if (err instanceof OTPRateLimitError) {
-        // Use the real retry window (no 3600s cap) so the countdown agrees with
-        // the message below — the EF can return up to 86400s (daily cap).
-        setResendCountdown(err.retryAfterSeconds);
+      // FIX-Task-6: detect + build copy through the shared otpRateLimit helpers.
+      // Use the real retry window (no 3600s cap) so the countdown agrees with
+      // the message below — the EF can return up to 86400s (daily cap).
+      const retryAfterSeconds = resolveOtpRetrySeconds(err);
+      if (retryAfterSeconds !== null) {
+        armResendCountdown(retryAfterSeconds);
         setPhoneVerification((prev) => ({
           ...prev,
           sending: false,
-          message: `Too many attempts. Please try again in ${err.retryAfterSeconds} seconds.`,
+          message: buildOtpRateLimitMessage(retryAfterSeconds),
         }));
         return false;
       }
@@ -761,7 +757,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
     }
 
     // Auto-redirect to Profile after successful verification (no extra confirmation tap)
-    setResendCountdown(0);
+    clearResendCountdown();
     setPhoneVerification({ visible: false });
     navigation.reset({
       index: 0,
@@ -784,17 +780,19 @@ export default function EditProfileScreen({ navigation, route }: any) {
     setPhoneVerification((prev) => ({ ...prev, sending: true }));
     try {
       await sendPhoneVerificationCode(toE164(phoneVerification.phone!));
-      setResendCountdown(60);
+      armResendCountdown(60);
       setPhoneVerification((prev) => ({ ...prev, sending: false, message: undefined }));
     } catch (err) {
-      if (err instanceof OTPRateLimitError) {
-        // Use the real retry window (no 3600s cap) so the countdown agrees with
-        // the message below — the EF can return up to 86400s (daily cap).
-        setResendCountdown(err.retryAfterSeconds);
+      // FIX-Task-6: detect + build copy through the shared otpRateLimit helpers.
+      // Use the real retry window (no 3600s cap) so the countdown agrees with
+      // the message below — the EF can return up to 86400s (daily cap).
+      const retryAfterSeconds = resolveOtpRetrySeconds(err);
+      if (retryAfterSeconds !== null) {
+        armResendCountdown(retryAfterSeconds);
         setPhoneVerification((prev) => ({
           ...prev,
           sending: false,
-          message: `Too many attempts. Please try again in ${err.retryAfterSeconds} seconds.`,
+          message: buildOtpRateLimitMessage(retryAfterSeconds),
         }));
         return;
       }
@@ -934,7 +932,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
           animationType="slide"
           presentationStyle="fullScreen"
           onRequestClose={() => {
-            setResendCountdown(0);
+            clearResendCountdown();
             setPhoneVerification({ visible: false });
           }}
         >
@@ -946,7 +944,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                 accessibilityRole="button"
                 accessibilityLabel="Cancel"
                 onPress={() => {
-                  setResendCountdown(0);
+                  clearResendCountdown();
                   setPhoneVerification({ visible: false });
                 }}
                 style={styles.verificationBackButton}
@@ -1010,7 +1008,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                   <Text style={styles.verificationTimerText}>Sending...</Text>
                 ) : resendCountdown > 0 ? (
                   <Text style={styles.verificationTimerText}>
-                    Resend code in {formatResendCountdown(resendCountdown)}
+                    Resend code in {formatOtpCountdown(resendCountdown)}
                   </Text>
                 ) : (
                   <TouchableOpacity
@@ -1028,7 +1026,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
               <TouchableOpacity
                 style={styles.verificationChangePhoneButton}
                 onPress={() => {
-                  setResendCountdown(0);
+                  clearResendCountdown();
                   setPhoneVerification({ visible: false });
                 }}
               >
@@ -1122,7 +1120,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                   <Text style={styles.verificationTimerText}>Sending...</Text>
                 ) : emailResendCountdown > 0 ? (
                   <Text style={styles.verificationTimerText}>
-                    Resend code in {formatResendCountdown(emailResendCountdown)}
+                    Resend code in {formatOtpCountdown(emailResendCountdown)}
                   </Text>
                 ) : (
                   <TouchableOpacity onPress={handleResendEmailCode}>
