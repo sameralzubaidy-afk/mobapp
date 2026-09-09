@@ -16,6 +16,10 @@ import {
   cancelTradeV2,
   CreateTradeOfferInput,
 } from '../../services/trade';
+import {
+  getPaymentMethod,
+  invalidatePaymentMethodCache,
+} from '../../services/subscription';
 
 // ─── Mock Supabase ─────────────────────────────────────────────────────────
 // Arrow-function wrappers prevent the undefined-capture bug caused by jest.mock() hoisting.
@@ -36,6 +40,16 @@ jest.mock('@/config/supabase', () => ({
       invoke: (...args: unknown[]) => mockInvoke(...args),
     },
   },
+}));
+
+// FIX-Task-9 item 1: mock the payment-method cache module so the self-heal path in
+// createTradeOfferWithHold can be driven deterministically. The real subscription
+// module is kept (requireActual) so its other exports (e.g. getSubscriptionSummary)
+// behave normally for the rest of this file.
+jest.mock('@/services/subscription', () => ({
+  ...jest.requireActual('@/services/subscription'),
+  getPaymentMethod: jest.fn(),
+  invalidatePaymentMethodCache: jest.fn(),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -374,6 +388,89 @@ describe('TFV2-012A — createTradeOfferWithHold', () => {
         }),
       })
     );
+  });
+
+  it('FIX-Task-9: self-heals a stale cached pm (INVALID_PAYMENT_METHOD → refetch → retry with the new card)', async () => {
+    // 1) create-trade-offer rejects with INVALID_PAYMENT_METHOD (HTTP-error branch).
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'Payment method is invalid or expired',
+        context: {
+          body: {
+            error: {
+              code: 'INVALID_PAYMENT_METHOD',
+              message: 'Payment method is invalid or expired',
+            },
+          },
+        },
+      },
+    });
+    // 2) self-heal re-fetches the saved pm and finds a DIFFERENT (new) card.
+    (getPaymentMethod as jest.Mock).mockResolvedValueOnce({
+      id: 'pm_test_newcard',
+      brand: 'Mastercard',
+      last4: '4444',
+      exp_month: 12,
+      exp_year: 2028,
+    });
+    // 3) the retried create-trade-offer (with the fresh card) succeeds.
+    mockInvoke.mockResolvedValueOnce({
+      data: { success: true, trade_id: 'trade-002', authorization_id: 'pi_auth_2' },
+      error: null,
+    });
+
+    const result = await createTradeOfferWithHold({
+      ...validInput,
+      payment_method_id: 'pm_test_stale',
+    });
+
+    // Ordered assertions: each one reveals how far the self-heal path got.
+    expect(invalidatePaymentMethodCache).toHaveBeenCalled();
+    expect(getPaymentMethod).toHaveBeenCalledWith(true);
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(result.success).toBe(true);
+    expect(result.trade_id).toBe('trade-002');
+    expect(invalidatePaymentMethodCache).toHaveBeenCalled();
+    expect(mockInvoke).toHaveBeenNthCalledWith(
+      2,
+      'create-trade-offer',
+      expect.objectContaining({
+        body: expect.objectContaining({ payment_method_id: 'pm_test_newcard' }),
+      })
+    );
+  });
+
+  it('FIX-Task-9: does NOT retry when the refetched card equals the submitted card (genuine decline)', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'Payment method is invalid or expired',
+        context: {
+          body: {
+            error: {
+              code: 'INVALID_PAYMENT_METHOD',
+              message: 'Payment method is invalid or expired',
+            },
+          },
+        },
+      },
+    });
+    // Same card as the submitted one → no self-heal retry; the decline surfaces.
+    (getPaymentMethod as jest.Mock).mockResolvedValueOnce({
+      id: 'pm_test_visa',
+      brand: 'Visa',
+      last4: '4242',
+      exp_month: 12,
+      exp_year: 2028,
+    });
+
+    const result = await createTradeOfferWithHold(validInput); // pm_test_visa == fresh pm
+
+    expect(result.success).toBe(false);
+    expect(result.error_code).toBe('INVALID_PAYMENT_METHOD');
+    expect(invalidatePaymentMethodCache).toHaveBeenCalled();
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 });
 

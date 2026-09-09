@@ -34,7 +34,12 @@ import { getListingById, probeListingAvailability } from '@/services/listing';
 import { captureException } from '@/services/errorReporter';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
-import { hasActiveOfferForItem, hasActiveTradeBetween, getSellerRating } from '@/services/trade';
+import {
+  getActiveOfferForItem,
+  hasActiveTradeBetween,
+  getSellerRating,
+  cancelTradeV2,
+} from '@/services/trade';
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
 import { addToCart, saveCurrentCart, clearCart, getCartItems } from '@/services/cartService';
@@ -109,6 +114,12 @@ export default function ItemDetailScreen() {
   const [buyerSubLoading, setBuyerSubLoading] = useState(true);
   const [checkingActiveTrade, setCheckingActiveTrade] = useState(false);
   const [showDuplicateOfferModal, setShowDuplicateOfferModal] = useState(false);
+  // FIX-Task-9 item 5: the buyer's existing ACTIVE offer on THIS item (id + status),
+  // captured when the guard modal opens so "Cancel my existing offer and re-offer"
+  // can cancel the exact offer. null = no active offer.
+  const [guardActiveOffer, setGuardActiveOffer] = useState<{ id: string; status: string } | null>(
+    null
+  );
 
   // Seller info masking (TASK-ITEM-DETAILS-001)
   const [hasActiveTrade, setHasActiveTrade] = useState(false);
@@ -354,9 +365,12 @@ export default function ItemDetailScreen() {
     try {
       setCheckingActiveTrade(true);
       // Only block if buyer already has an active offer for this specific item.
-      const hasActive = await hasActiveOfferForItem(user.id, String(listing.id));
+      const activeOffer = await getActiveOfferForItem(user.id, String(listing.id));
 
-      if (hasActive) {
+      if (activeOffer) {
+        // FIX-Task-9 item 5: retain the offer row so the guard modal's third option
+        // ("Cancel my existing offer and re-offer") can cancel the exact offer.
+        setGuardActiveOffer(activeOffer);
         setShowDuplicateOfferModal(true);
         return;
       }
@@ -370,6 +384,38 @@ export default function ItemDetailScreen() {
       Alert.alert('Error', 'Unable to open checkout right now. Please try again.');
     } finally {
       setCheckingActiveTrade(false);
+    }
+  };
+
+  // FIX-Task-9 item 5: cancel the buyer's existing pending offer on this item, then
+  // open TradeInitiation so they can make a fresh offer without leaving to Trade
+  // History, cancelling manually, and returning.
+  const handleCancelAndReOffer = async () => {
+    if (!guardActiveOffer || !listing?.id) return;
+
+    const offerId = guardActiveOffer.id;
+    setShowDuplicateOfferModal(false);
+    setGuardActiveOffer(null);
+    try {
+      const cancelResult = await cancelTradeV2(
+        offerId,
+        'Buyer cancelled existing offer to make a new offer'
+      );
+      if (!cancelResult.success) {
+        Alert.alert(
+          'Could Not Cancel Offer',
+          cancelResult.error || 'We could not cancel your existing offer. Please try again.'
+        );
+        return;
+      }
+      // SP for the cancelled pending offer is refunded by cancel-trade; proceed to
+      // the trade-initiation screen where the buyer re-enters their new offer.
+      navigation.navigate('TradeInitiation', { itemId: String(listing.id) });
+    } catch (err) {
+      captureException(err, {
+        tags: { screen: 'ItemDetailScreen', action: 'cancel_and_reoffer' },
+      });
+      Alert.alert('Error', 'We could not cancel your existing offer. Please try again.');
     }
   };
 
@@ -1091,12 +1137,26 @@ export default function ItemDetailScreen() {
           message="You already have an active offer on this item. Open Trade History to view your current trades."
           primaryButtonText="Go to Trade History"
           secondaryButtonText="Dismiss"
+          tertiaryButtonText={
+            guardActiveOffer?.status === 'pending' || guardActiveOffer?.status === 'payment_failed'
+              ? 'Cancel my existing offer and re-offer'
+              : undefined
+          }
+          tertiaryButtonTestID="duplicate-offer-cancel-reoffer-button"
           onPrimaryPress={() => {
             setShowDuplicateOfferModal(false);
+            setGuardActiveOffer(null);
             navigation.navigate('TradeList');
           }}
-          onSecondaryPress={() => setShowDuplicateOfferModal(false)}
-          onClose={() => setShowDuplicateOfferModal(false)}
+          onSecondaryPress={() => {
+            setShowDuplicateOfferModal(false);
+            setGuardActiveOffer(null);
+          }}
+          onTertiaryPress={handleCancelAndReOffer}
+          onClose={() => {
+            setShowDuplicateOfferModal(false);
+            setGuardActiveOffer(null);
+          }}
         />
 
         {/* Auto-dismissing success toast */}

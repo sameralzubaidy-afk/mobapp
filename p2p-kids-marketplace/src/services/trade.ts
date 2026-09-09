@@ -8,7 +8,11 @@
 
 import { supabase } from '../config/supabase';
 import { Trade } from '../types/trade';
-import { getSubscriptionSummary } from './subscription';
+import {
+  getSubscriptionSummary,
+  getPaymentMethod,
+  invalidatePaymentMethodCache,
+} from './subscription';
 import { getAdminConfig } from './adminConfig';
 import { getUserReviews } from './review';
 import { getSimulatedCardDeclineMode, getSimulatedConfigFetchFailure } from './devTestingService';
@@ -17,6 +21,30 @@ import { trackEvent } from './analytics';
 import { generateSubmissionNonce } from '../utils/submissionNonce';
 
 const ACTIVE_OFFER_STATUSES = ['pending', 'payment_failed', 'in_progress'];
+
+/**
+ * Error codes from the create-trade-offer Edge Function that surface the
+ * canonical TRD-TC-B06 friendly decline copy (client mapper + offer screens),
+ * regardless of the raw server message text (e.g. "Payment method is invalid
+ * or expired"). FIX-Task-9 item 2.
+ */
+const PM_DECLINE_COPY_CODES = ['INVALID_PAYMENT_METHOD', 'CARD_DECLINED', 'STRIPE_HOLD_FAILED'];
+
+/**
+ * Error codes that may indicate a STALE cached payment method was submitted
+ * (the saved card changed server-side while this process still holds the old
+ * cached pm). Superset of PM_DECLINE_COPY_CODES. FIX-Task-9 item 1.
+ */
+const PM_STALE_RETRY_CODES = [
+  'INVALID_PAYMENT_METHOD',
+  'CARD_DECLINED',
+  'STRIPE_HOLD_FAILED',
+  'STRIPE_ERROR',
+];
+
+function codeIn(codes: string[], code?: string | null): boolean {
+  return !!code && codes.includes(code);
+}
 
 /**
  * Check if there is an active trade between buyer and seller
@@ -52,26 +80,44 @@ export async function hasActiveTradeBetween(buyerId: string, sellerId: string): 
  * Check if buyer already has an active offer for a specific listing.
  * This is used by Item Details to prevent duplicate offers on the same item only.
  */
-export async function hasActiveOfferForItem(buyerId: string, listingId: string): Promise<boolean> {
+/**
+ * FIX-Task-9 item 5: return the buyer's ACTIVE offer row on a specific listing
+ * (id + status) so callers can act on it (e.g. ItemDetail "Cancel my existing
+ * offer and re-offer") instead of only knowing one exists.
+ */
+export async function getActiveOfferForItem(
+  buyerId: string,
+  listingId: string
+): Promise<{ id: string; status: string } | null> {
   try {
     const { data, error } = await supabase
       .from('trades')
-      .select('id')
+      .select('id, status')
       .eq('buyer_id', buyerId)
       .eq('listing_id', listingId)
       .in('status', ACTIVE_OFFER_STATUSES)
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
-      console.error('[trade] Error checking active offer for listing:', error);
-      return false;
+      console.error('[trade] Error getting active offer for listing:', error);
+      return null;
     }
 
-    return (data?.length ?? 0) > 0;
+    return (data as { id: string; status: string } | null) ?? null;
   } catch (error) {
-    console.error('[trade] Error in hasActiveOfferForItem:', error);
-    return false;
+    console.error('[trade] Error in getActiveOfferForItem:', error);
+    return null;
   }
+}
+
+/**
+ * Check if buyer already has an active offer for a specific listing.
+ * This is used by Item Details to prevent duplicate offers on the same item only.
+ */
+export async function hasActiveOfferForItem(buyerId: string, listingId: string): Promise<boolean> {
+  const offer = await getActiveOfferForItem(buyerId, listingId);
+  return offer !== null;
 }
 
 /**
@@ -159,7 +205,15 @@ export async function getSellerRating(sellerId: string): Promise<{
  * @param error - Stripe error message or code
  * @returns User-friendly error message
  */
-export function mapStripeErrorToMessage(error?: string): string {
+export function mapStripeErrorToMessage(error?: string, code?: string): string {
+  // FIX-Task-9 item 2 (B06 copy reconcile): pm-invalid / decline codes surface the
+  // canonical TRD-TC-B06 friendly copy regardless of the raw server message text
+  // (e.g. create-trade-offer's "Payment method is invalid or expired"), matching the
+  // cross-checked manual-testing guide.
+  if (codeIn(PM_DECLINE_COPY_CODES, code)) {
+    return 'Payment method declined. Please update your card.';
+  }
+
   if (!error) {
     return 'Payment failed. Please try again.';
   }
@@ -759,12 +813,12 @@ export async function createTradeOfferWithHold(
     // Mirrors cartService.checkoutCart (the single-item offer path was the missing half of DT-18).
     const submissionNonce = generateSubmissionNonce();
 
-    const invokeCreateTradeOffer = async (token: string) =>
+    const invokeCreateTradeOffer = async (token: string, pmId?: string) =>
       supabase.functions.invoke('create-trade-offer', {
         body: {
           item_id: input.item_id,
           sp_amount: input.sp_amount,
-          payment_method_id: input.payment_method_id,
+          payment_method_id: pmId ?? input.payment_method_id,
           cash_amount_cents: input.cash_amount_cents,
           transaction_fee_cents: input.transaction_fee_cents,
           buyer_subscription_status: input.buyer_subscription_status,
@@ -830,10 +884,43 @@ export async function createTradeOfferWithHold(
         }
       }
 
-      if (error) {
-        console.error('[trade] createTradeOfferWithHold invoke error:', message);
-        return { success: false, error: message, error_code: code };
-      }
+        if (error && codeIn(PM_STALE_RETRY_CODES, code)) {
+          // FIX-Task-9 item 1 (stale payment-method cache): the EF rejected the
+          // submitted pm (invalid/expired/declined). This can happen when the saved
+          // card changed server-side (added on web / QA fixture swap) while this
+          // process still holds the stale cached pm. Invalidate the cache, re-fetch
+          // the saved pm, and transparently retry ONCE if a DIFFERENT card is now
+          // saved — so a stale-cache offer succeeds on the same tap instead of
+          // failing until the app is relaunched. Reuses the same submission nonce
+          // (same attempt → Stripe idempotency dedupe holds). Single retry; never loops.
+          invalidatePaymentMethodCache();
+          const freshMethod = await getPaymentMethod(true);
+          if (freshMethod?.id && freshMethod.id !== input.payment_method_id) {
+            const selfHeal = await invokeCreateTradeOffer(accessToken, freshMethod.id);
+            data = selfHeal.data;
+            error = selfHeal.error;
+            if (!error) {
+              code = extractErrorCodeFromPayload(data);
+            } else {
+              message = await extractEdgeInvokeErrorMessage(
+                error,
+                data,
+                'Failed to submit your offer. Please try again.'
+              );
+              code = extractErrorCodeFromPayload(data);
+            }
+          }
+        }
+
+        // Only report/return when the rejection (original or self-heal retry) is real.
+        if (error) {
+          // FIX-Task-9 item 3: a handled business-rule rejection (incl. the expected
+          // MAX_PENDING_OFFERS 409 cap) must not error-log or full-screen LogBox on
+          // iOS — the screens surface their own branded UI. Warn only.
+          // eslint-disable-next-line no-console
+          console.warn('[trade] createTradeOfferWithHold invoke rejected:', code, message);
+          return { success: false, error: message, error_code: code };
+        }
     }
 
     const result = data as {

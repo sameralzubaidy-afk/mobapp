@@ -21,11 +21,13 @@
 // `isDevEnvironment()` check as a fail-closed backstop.
 
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import {
   QA_TOGGLE_SHORT_NAMES,
   isValidQaToggleValue,
   setQaLocalValue,
+  readQaLocalValue,
 } from '@/services/devTestingService';
 
 /**
@@ -87,12 +89,31 @@ async function applyQaDevToggle(url: string): Promise<void> {
   }
 
   const result = await setQaLocalValue(storageKey, value);
+  // FIX-Task-9 item 1 (disarm robustness): read back what was actually stored so the
+  // QA agent isn't trusting the deep link alone — a dropped/expired/missed write is
+  // immediately visible and can be re-fired instead of silently staying armed.
+  const stored = await readQaLocalValue(storageKey);
   // eslint-disable-next-line no-console
   console.log(
     `[QaDevToggleDeepLink] ${result.success ? 'Armed' : 'Failed to arm'} ${key}=${value}${
       result.error ? ` (${result.error})` : ''
-    }`
+    } (read-back: ${stored === null ? '<unset/expired>' : stored})`
   );
+  if (result.success) {
+    // Defer one tick so the GlobalAlertProvider's global Alert.alert patch is
+    // installed (this handler mounts BEFORE the provider, whose effect routes every
+    // Alert.alert through the branded modal). Then surface a dev-only, observable
+    // confirmation the QA agent can read in the AX tree — and clear with
+    // dev-clear-overlays. Never reachable in production (handler is inert there).
+    setTimeout(() => {
+      Alert.alert(
+        '[QA] Toggle Applied',
+        `${key} = ${value}${
+          stored === null ? ' (read-back: unset/expired)' : ` (verified read-back: ${stored})`
+        }`
+      );
+    }, 0);
+  }
 }
 
 /**

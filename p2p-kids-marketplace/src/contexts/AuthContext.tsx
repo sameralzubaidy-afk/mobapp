@@ -12,6 +12,7 @@ import { useUserStore } from '../stores/userStore';
 // logout-then-different-persona sequence never leaks an armed toggle into an
 // unrelated run. No-op outside dev/test builds (devTestingService gate).
 import { clearQaLocalValues } from '../services/devTestingService';
+import { invalidatePaymentMethodCache } from '../services/subscription';
 
 const SUPABASE_CONFIGURED = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
@@ -581,6 +582,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // No-op outside dev/test builds (devTestingService gate) — release builds
       // are unaffected.
       await clearQaLocalValues();
+
+      // FIX-Task-9 item 1 (session boundary): drop the module-level payment-method
+      // cache on logout so a logout → different-persona login never reuses the prior
+      // persona's cached card. Without this, a stale pm survives until the process is
+      // relaunched (only terminate+relaunch cleared it in QA TRD Part 3).
+      invalidatePaymentMethodCache();
 
       // Clear session
       setSession(null);

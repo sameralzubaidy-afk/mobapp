@@ -40,6 +40,7 @@ import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { getSPReleaseDays, getAdminConfig } from '@/services/adminConfig';
 import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
+import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { AutoCompleteBanner, createCountdownModel, formatCountdownLabel } from '@/components/trade';
@@ -96,6 +97,7 @@ export default function TradeTimelineScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { session, refreshSession } = useAuth();
+  const { showAlert } = useGlobalAlert();
   const user = session?.user;
   const { tradeId } = route.params;
 
@@ -1413,22 +1415,38 @@ export default function TradeTimelineScreen() {
             </View>
           ))}
 
-        {/* Payout Hold Info Bar — seller only, after acceptance (in_progress with auto_complete_at set) */}
+        {/* Payout Hold Info Bar — seller only, after acceptance (in_progress with auto_complete_at set).
+            FIX-Task-9 item 4: tappable — tapping opens the payout-release explanation
+            (mirrors the buyer's countdown treatment). */}
         {isSeller && trade.status === 'in_progress' && trade.auto_complete_at && (
-          <View style={styles.payoutHoldCard}>
+          <Pressable
+            style={styles.payoutHoldCard}
+            onPress={() =>
+              showAlert({
+                title: 'When does my payout release?',
+                message:
+                  'Your payout is held securely until this trade completes. It releases when the buyer taps "I Got It", or automatically when the auto-complete countdown ends — no action needed from you. The funds are then released to your linked payout account.',
+                buttons: [{ text: 'Got it', testID: 'payout-hold-info-ok-button', primary: true }],
+              })
+            }
+            testID="payout-hold-info-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Payout information — when your payout releases"
+          >
             <Text style={styles.payoutHoldEmoji}>💰</Text>
             <View style={styles.payoutHoldTextWrap}>
               <Text style={styles.payoutHoldTitle}>
                 Your payout is on hold until trade completes
               </Text>
               <Text style={styles.payoutHoldDesc}>
-                Funds are held securely and released once the buyer taps "I Got It"
+                Funds are held securely and release when the buyer taps "I Got It"
                 {autoCompleteCountdownLabel
-                  ? `, or automatically in ${autoCompleteCountdownLabel} if no action is taken.`
-                  : '.'}
+                  ? `, or automatically in ${autoCompleteCountdownLabel} if no action is taken. Tap for details.`
+                  : 'Tap for details on when this releases.'}
               </Text>
             </View>
-          </View>
+          </Pressable>
         )}
 
         {/* Auto-complete timer — buyer only; seller sees the countdown in the payout card below */}

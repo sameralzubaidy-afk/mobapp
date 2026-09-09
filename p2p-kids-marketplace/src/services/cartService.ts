@@ -542,7 +542,13 @@ export async function checkoutCart(params: {
   let savedPaymentMethodId: string | undefined = params.paymentMethodId;
   if (!savedPaymentMethodId) {
     try {
-      const method = await getPaymentMethod();
+      // FIX-Task-9 item 1 (money-adjacent): always re-fetch the saved pm fresh at
+      // checkout (bypass the in-memory cache) so a card changed server-side (e.g.
+      // added on another surface/device, or a QA fixture swap) is used — never a
+      // stale cached card. Cart checkout already pays several EF round-trips, so one
+      // authoritative pm read is proportionate here (the per-tap offer flow instead
+      // self-heals on a pm error to keep its happy path zero-overhead).
+      const method = await getPaymentMethod(true);
       savedPaymentMethodId = method?.id;
     } catch (e) {
       console.error('[cartService.checkoutCart] Failed to get payment method:', e);

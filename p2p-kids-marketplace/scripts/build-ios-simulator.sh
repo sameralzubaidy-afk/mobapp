@@ -8,14 +8,27 @@
 #   bash scripts/build-ios-simulator.sh --install # Install+launch existing build only
 #
 # Environment variables (optional):
-#   IOS_SIMULATOR_NAME   e.g. "iPhone 17 Pro Max" (default)
-#   SENTRY_DISABLE_AUTO_UPLOAD   default: true
-#   SENTRY_ALLOW_FAILURE          default: true
+#   IOS_SIMULATOR_NAME         e.g. "iPhone 17 Pro Max" (default)
+#   SENTRY_COPY_OPTIONS_FILE   default: false  (simulator/Debug builds — see note below)
+#   SENTRY_DISABLE_AUTO_UPLOAD default: true
+#   SENTRY_ALLOW_FAILURE       default: true
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Why BOTH Sentry vars are required for a simulator/Debug build (QA Task TRD-R1b, 2026-09-08 —
+# this fix was rediscovered from a build log every round before being committed as FIX-3):
+#   SENTRY_COPY_OPTIONS_FILE=false   clears the missing-`sentry.options.json` copy-phase failure
+#                                    (the Sentry RN plugin's options-file copy step).
+#   SENTRY_DISABLE_AUTO_UPLOAD=true  clears the terminal `sentry-cli` sourcemap-upload error
+#                                    ("An organization ID or slug is required") inside the
+#                                    "Bundle React Native code and images" phase.
+# SENTRY_ALLOW_FAILURE=true alone does NOT clear either phase — it only stops sentry-cli from
+# failing the build after those errors print. And `npx expo run:ios` alone is NOT enough (the
+# expo CLI insists on code signing even for a simulator build), so this script builds with
+# CODE_SIGN_IDENTITY="" / CODE_SIGNING_REQUIRED=NO to route around that check.
+SENTRY_COPY_OPTIONS_FILE="${SENTRY_COPY_OPTIONS_FILE:-false}"
 SENTRY_DISABLE_AUTO_UPLOAD="${SENTRY_DISABLE_AUTO_UPLOAD:-true}"
 SENTRY_ALLOW_FAILURE="${SENTRY_ALLOW_FAILURE:-true}"
 SIMULATOR_NAME="${IOS_SIMULATOR_NAME:-iPhone 17 Pro Max}"
@@ -25,6 +38,7 @@ WORKSPACE="ios/PassItUp.xcworkspace"
 BUILD_DIR="ios/build"
 APP_PATH="${BUILD_DIR}/Build/Products/Debug-iphonesimulator/PassItUp.app"
 
+export SENTRY_COPY_OPTIONS_FILE
 export SENTRY_DISABLE_AUTO_UPLOAD
 export SENTRY_ALLOW_FAILURE
 
@@ -37,7 +51,7 @@ case "$MODE" in
 
   --fast)
     echo "=== iOS Simulator Fast Build (skip prebuild) ==="
-    SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true xcodebuild \
+    SENTRY_COPY_OPTIONS_FILE=false SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true xcodebuild \
       -workspace "$WORKSPACE" \
       -scheme "$SCHEME" \
       -configuration Debug \
@@ -61,7 +75,7 @@ case "$MODE" in
 
     # Build for simulator
     echo "--- Build ---"
-    SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true xcodebuild \
+    SENTRY_COPY_OPTIONS_FILE=false SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true xcodebuild \
       -workspace "$WORKSPACE" \
       -scheme "$SCHEME" \
       -configuration Debug \

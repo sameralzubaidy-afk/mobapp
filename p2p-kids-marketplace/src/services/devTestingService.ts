@@ -739,7 +739,7 @@ interface QaLocalValue {
  * Read a session-local QA toggle value, honoring the TTL. Returns null when
  * unset, expired, unparsable, or on storage error (fail-closed).
  */
-async function readQaLocalValue(key: string): Promise<string | null> {
+export async function readQaLocalValue(key: string): Promise<string | null> {
   try {
     const raw = await AsyncStorage.getItem(key);
     if (!raw) return null;

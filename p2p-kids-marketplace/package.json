@@ -46,6 +46,7 @@
     "start:android:logs": "bash ./scripts/start-android-with-logs.sh",
     "android": "expo run:android",
     "ios": "bash scripts/build-ios-simulator.sh --fast",
+    "ios:sim-build": "bash scripts/build-ios-simulator.sh --fast",
     "ios:fresh": "npx kill-port 8081 2>/dev/null; bash scripts/build-ios-simulator.sh --fast",
     "android:fresh": "npx kill-port 8081 2>/dev/null; expo run:android --clear",
     "ios:nuclear": "bash scripts/build-ios-simulator.sh",

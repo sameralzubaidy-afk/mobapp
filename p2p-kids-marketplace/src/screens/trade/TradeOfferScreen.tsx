@@ -461,11 +461,19 @@ export default function TradeOfferScreen() {
         }
 
         // Card decline / Stripe errors → user-friendly message
+        // FIX-Task-9 item 2 (B06 copy reconcile): INVALID_PAYMENT_METHOD (server's
+        // "Payment method is invalid or expired") and CARD_DECLINED surface the same
+        // canonical friendly copy as a decline, matching the TRD-TC-B06 guide.
         if (
           offerResult.error_code === 'STRIPE_HOLD_FAILED' ||
-          offerResult.error_code === 'STRIPE_ERROR'
+          offerResult.error_code === 'STRIPE_ERROR' ||
+          offerResult.error_code === 'INVALID_PAYMENT_METHOD' ||
+          offerResult.error_code === 'CARD_DECLINED'
         ) {
-          Alert.alert('Payment Hold Failed', mapStripeErrorToMessage(offerResult.error));
+          Alert.alert(
+            'Payment Hold Failed',
+            mapStripeErrorToMessage(offerResult.error, offerResult.error_code)
+          );
           return;
         }
 

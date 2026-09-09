@@ -24,8 +24,10 @@ interface ModalProps extends Omit<RNModalProps, 'children'> {
   children?: React.ReactNode;
   primaryButtonText?: string;
   secondaryButtonText?: string;
+  tertiaryButtonText?: string;
   onPrimaryPress?: () => void;
   onSecondaryPress?: () => void;
+  onTertiaryPress?: () => void;
   onClose?: () => void;
   showCloseButton?: boolean;
   containerStyle?: ViewStyle;
@@ -33,6 +35,8 @@ interface ModalProps extends Omit<RNModalProps, 'children'> {
   primaryButtonTestID?: string;
   /** Optional accessibility identifier for the secondary action button. */
   secondaryButtonTestID?: string;
+  /** Optional accessibility identifier for the tertiary action button (FIX-Task-9 item 5). */
+  tertiaryButtonTestID?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -42,13 +46,16 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   primaryButtonText,
   secondaryButtonText,
+  tertiaryButtonText,
   onPrimaryPress,
   onSecondaryPress,
+  onTertiaryPress,
   onClose,
   showCloseButton = true,
   containerStyle,
   primaryButtonTestID,
   secondaryButtonTestID,
+  tertiaryButtonTestID,
   ...props
 }) => {
   const isBottomSheet = type === 'bottomSheet';
@@ -114,6 +121,19 @@ export const Modal: React.FC<ModalProps> = ({
                   testID={secondaryButtonTestID}
                 >
                   {secondaryButtonText}
+                </Button>
+              )}
+              {/* FIX-Task-9 item 5: optional third action (e.g. "Cancel my existing
+                  offer and re-offer"). Rendered below the primary/secondary actions. */}
+              {tertiaryButtonText && (
+                <Button
+                  variant="text"
+                  size="medium"
+                  onPress={onTertiaryPress}
+                  style={styles.button}
+                  testID={tertiaryButtonTestID}
+                >
+                  {tertiaryButtonText}
                 </Button>
               )}
             </View>
