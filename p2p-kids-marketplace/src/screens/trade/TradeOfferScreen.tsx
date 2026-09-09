@@ -112,6 +112,12 @@ export default function TradeOfferScreen() {
   // modal's one-tap "Cancel Oldest Offer" action).
   const [offerLimitPendingOffers, setOfferLimitPendingOffers] = useState<PendingOfferSummary[]>([]);
   const [cancellingOldest, setCancellingOldest] = useState(false);
+  // FIX-Task-8 item 2: the liability-disclaimer policy the buyer accepted for THIS
+  // offer in this screen session, carried forward so the auto-resubmit-after-cancel-
+  // oldest path does not re-prompt for a materially unchanged offer. A useRef (not
+  // state) because it never drives rendering; it resets on screen unmount, so a
+  // fresh visit or a different item still shows the disclaimer normally.
+  const acceptedDisclaimerPolicyIdRef = useRef<string | null>(null);
   // R1 — Tiered Buyer-Fee Engine: the buyer fee is resolved from the DB and kept
   // in sync with the SP amount (percentage tier applies to the cash portion).
   const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
@@ -340,6 +346,10 @@ export default function TradeOfferScreen() {
   };
 
   const handleDisclaimerAccept = async (policyId: string) => {
+    // FIX-Task-8 item 2: remember the accepted policy BEFORE the offer attempt so
+    // it survives a MAX_PENDING_OFFERS rejection that lands on the cap modal — the
+    // exact UX-5c case where the one-tap auto-resubmit must not re-prompt.
+    acceptedDisclaimerPolicyIdRef.current = policyId;
     setShowDisclaimer(false);
     await handleInitiateTrade(policyId);
   };
@@ -509,6 +519,32 @@ export default function TradeOfferScreen() {
     }
   };
 
+  // FIX-Task-8 item 1 (QA TRD-R1b Finding 1): after "Cancel My Oldest Offer"
+  // frees a slot, the immediate auto-resubmit intermittently hit the server-side
+  // per-seller cap check while the cancelled offer was still counted in a fresh
+  // pending-offer read ("You have 3 pending offers" despite the DB showing 2).
+  // Before firing the resubmit's EF call, refetch the per-seller pending offers
+  // and wait (bounded, best-effort) until the cancelled offer is no longer
+  // present — i.e. the slot is genuinely free and visible to the same `trades`
+  // read the cap check uses. Returns true once the slot is confirmed free, or
+  // false if it never clears within the retry bound (caller must NOT fire a
+  // doomed auto-resubmit then).
+  const confirmCanceledOfferSlotFreed = async (cancelledOfferId: string): Promise<boolean> => {
+    const sellerId = item?.seller_id;
+    if (!sellerId) return true; // cannot verify the seller — let the server decide
+    const MAX_ATTEMPTS = 5;
+    const RETRY_DELAY_MS = 250;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const pending = (await getBuyerPendingOffersForSeller(sellerId)) ?? [];
+      const cancelledStillCounted = pending.some((o) => o.id === cancelledOfferId);
+      if (!cancelledStillCounted) return true; // slot freed — safe to auto-resubmit
+      if (attempt < MAX_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    }
+    return false;
+  };
+
   // FIX-Task-7 item 5c: one-tap "Cancel Oldest Offer" from the per-seller cap
   // modal — cancel the earliest open offer to this seller, then auto re-submit
   // the current offer so the buyer completes the flow without leaving.
@@ -529,11 +565,42 @@ export default function TradeOfferScreen() {
         'Buyer cancelled oldest offer to free a slot for a new offer'
       );
       if (result.success) {
-        // Slot freed — close the cap modal and auto re-submit the current offer.
+        // FIX-Task-8 item 1: keep the cap modal open (footer shows the loading
+        // state) and confirm the freed slot is visible to a fresh per-seller
+        // pending-offer read before auto-resubmitting, so the resubmit's
+        // server-side cap check can never reject on a stale count.
+        const slotFreed = await confirmCanceledOfferSlotFreed(oldest.id);
+        if (!slotFreed) {
+          // Cancellation landed but the slot has not shown up within the retry
+          // bound — do NOT fire a doomed resubmit. Refresh the pending list so
+          // the modal reflects reality and the buyer can retry.
+          const refreshed = item?.seller_id
+            ? ((await getBuyerPendingOffersForSeller(item.seller_id)) ?? [])
+            : [];
+          setOfferLimitPendingOffers(refreshed);
+          setOfferLimitMessage(
+            `Your oldest offer (${oldest.title}) was cancelled, but the freed slot hasn't shown up yet. Please wait a moment and try again, or cancel it from My Trades.`
+          );
+          return;
+        }
+
+        // Slot confirmed free — close the cap modal and auto re-submit the
+        // current offer.
         setShowOfferLimitModal(false);
         setOfferLimitMessage('');
         setOfferLimitPendingOffers([]);
-        await handleSendOffer();
+
+        // FIX-Task-8 item 2: skip re-presenting the Liability Disclaimer when the
+        // buyer already accepted it for this (materially unchanged) offer earlier
+        // in this screen session — the cap modal is only reachable after a prior
+        // accept, so carrying the policy forward does not weaken the gate. A
+        // genuinely new manual "Send Offer" still always shows the disclaimer.
+        const acceptedPolicyId = acceptedDisclaimerPolicyIdRef.current;
+        if (acceptedPolicyId) {
+          await handleInitiateTrade(acceptedPolicyId);
+        } else {
+          await handleSendOffer();
+        }
       } else {
         setOfferLimitMessage(
           `We couldn't cancel your oldest offer (${oldest.title}). ${

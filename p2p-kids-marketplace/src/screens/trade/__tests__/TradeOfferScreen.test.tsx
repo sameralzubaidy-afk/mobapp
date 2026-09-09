@@ -3,7 +3,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TradeOfferScreen from '../TradeOfferScreen';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
-import { createTradeOfferWithHold } from '@/services/trade';
+import { createTradeOfferWithHold, cancelTradeV2, getBuyerPendingOffersForSeller } from '@/services/trade';
 import { getItemById } from '@/services/items';
 import { getAdminConfig, getBuyerFeeForCheckout } from '@/services/adminConfig';
 import { getTransactionFee, getPaymentMethod } from '@/services/subscription';
@@ -110,6 +110,8 @@ const mockUseSubscriptionStatus = useSubscriptionStatus as jest.Mock;
 const mockUseRoute = useRoute as jest.Mock;
 const mockUseNavigation = useNavigation as jest.Mock;
 const mockCreateTradeOffer = createTradeOfferWithHold as jest.Mock;
+const mockCancelTradeV2 = cancelTradeV2 as jest.Mock;
+const mockGetBuyerPendingOffersForSeller = getBuyerPendingOffersForSeller as jest.Mock;
 const mockGetItemById = getItemById as jest.Mock;
 const mockGetAdminConfig = getAdminConfig as jest.Mock;
 const mockGetBuyerFeeForCheckout = getBuyerFeeForCheckout as jest.Mock;
@@ -381,5 +383,147 @@ describe('TradeOfferScreen', () => {
 
     // …and the newly-added card becomes the displayed/active one.
     expect(await findByText(/Paying with VISA/)).toBeTruthy();
+  });
+
+  // FIX-Task-8 (QA TRD-R1b Finding 1 + owner-approved UX): after "Cancel My
+  // Oldest Offer" frees a slot, the one-tap auto-resubmit must (1) refetch the
+  // per-seller pending offers and confirm the freed slot before firing the
+  // resubmit EF call (so the server-side cap check can't reject on a stale
+  // count), and (2) NOT re-present the Liability Disclaimer the buyer already
+  // accepted for this materially-unchanged offer.
+  it('cancel-oldest → auto-resubmit: confirms the slot freed and skips the disclaimer (FIX-Task-8)', async () => {
+    // First offer attempt hits the per-seller cap → cap modal. The auto-resubmit
+    // (second call) succeeds once the slot is confirmed free.
+    mockCreateTradeOffer
+      .mockResolvedValueOnce({
+        success: false,
+        error: 'You have 3 pending offers with this seller. Cancel one to make a new offer.',
+        error_code: 'MAX_PENDING_OFFERS',
+      })
+      .mockResolvedValueOnce({ success: true, trade_id: 'trade-456' });
+
+    const oldest = {
+      id: 'offer-oldest',
+      title: 'Remote Control Car',
+      cash_amount_cents: 2500,
+      sp_amount: 0,
+      offer_expires_at: '2026-09-09T00:00:00.000Z',
+    };
+    const others = [
+      { id: 'offer-2', title: 'Skateboard', cash_amount_cents: 3000, sp_amount: 0, offer_expires_at: '2026-09-10T00:00:00.000Z' },
+      { id: 'offer-3', title: 'Soccer Ball', cash_amount_cents: 1500, sp_amount: 0, offer_expires_at: '2026-09-11T00:00:00.000Z' },
+    ];
+
+    // Fetch #1 = cap-modal list (3 pending incl. the oldest). Fetch #2 = the
+    // slot-confirmation read AFTER the cancel (oldest gone → slot freed).
+    mockGetBuyerPendingOffersForSeller
+      .mockResolvedValueOnce([oldest, ...others])
+      .mockResolvedValueOnce(others);
+    mockCancelTradeV2.mockResolvedValue({ success: true });
+
+    const { getByTestId, getByText } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(getByText('Use Saved Card')).toBeTruthy();
+    });
+
+    // Manual Send Offer → the disclaimer IS shown first (gate unchanged).
+    fireEvent.press(getByTestId('send-offer-button'));
+    await waitFor(() => {
+      expect(getByTestId('mock-disclaimer-accept')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('mock-disclaimer-accept'));
+
+    // First offer attempt is rejected by the server-side cap → cap modal.
+    await waitFor(() => {
+      expect(getByTestId('offer-limit-cancel-oldest-button')).toBeTruthy();
+    });
+
+    // Cancel the oldest → slot-confirmation refetch → auto-resubmit WITHOUT a
+    // second disclaimer presentation.
+    fireEvent.press(getByTestId('offer-limit-cancel-oldest-button'));
+
+    // The auto-resubmit EF call fires exactly once more (total 2 calls) with no
+    // further disclaimer accept needed.
+    await waitFor(() => {
+      expect(mockCreateTradeOffer).toHaveBeenCalledTimes(2);
+    });
+
+    // The slot-confirmation read happened BEFORE the resubmit EF call.
+    expect(mockGetBuyerPendingOffersForSeller).toHaveBeenCalledTimes(2);
+    expect(mockGetBuyerPendingOffersForSeller).toHaveBeenCalledWith('seller-123');
+
+    // One-tap completion: the auto-resubmit reached the success screen directly.
+    expect(mockReplace).toHaveBeenCalledWith(
+      'TradeSuccess',
+      expect.objectContaining({ tradeId: 'trade-456' })
+    );
+  });
+
+  // FIX-Task-8 item 1: the slot-confirmation read is not a single blind check —
+  // if the freed slot is not visible yet it retries (bounded) until it is, then
+  // fires the auto-resubmit. Guards the eventual-consistency window that caused
+  // the intermittent "You have 3 pending offers" rejection.
+  it('retries the slot-confirmation read until the freed slot is visible, then auto-resubmits (FIX-Task-8)', async () => {
+    mockCreateTradeOffer
+      .mockResolvedValueOnce({
+        success: false,
+        error: 'You have 3 pending offers with this seller. Cancel one to make a new offer.',
+        error_code: 'MAX_PENDING_OFFERS',
+      })
+      .mockResolvedValueOnce({ success: true, trade_id: 'trade-789' });
+
+    const oldest = {
+      id: 'offer-oldest',
+      title: 'Remote Control Car',
+      cash_amount_cents: 2500,
+      sp_amount: 0,
+      offer_expires_at: '2026-09-09T00:00:00.000Z',
+    };
+    const others = [
+      { id: 'offer-2', title: 'Skateboard', cash_amount_cents: 3000, sp_amount: 0, offer_expires_at: '2026-09-10T00:00:00.000Z' },
+    ];
+
+    // Call 1 = cap-modal list; call 2 = first slot-confirm read (stale — oldest
+    // still present); call 3 = slot-confirm read that finally sees the freed slot.
+    let pendingReads = 0;
+    mockGetBuyerPendingOffersForSeller.mockImplementation(async () => {
+      pendingReads += 1;
+      if (pendingReads === 1) return [oldest, ...others];
+      if (pendingReads === 2) return [oldest, ...others];
+      return others;
+    });
+    mockCancelTradeV2.mockResolvedValue({ success: true });
+
+    const { getByTestId, getByText } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(getByText('Use Saved Card')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('send-offer-button'));
+    await waitFor(() => {
+      expect(getByTestId('mock-disclaimer-accept')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('mock-disclaimer-accept'));
+
+    await waitFor(() => {
+      expect(getByTestId('offer-limit-cancel-oldest-button')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('offer-limit-cancel-oldest-button'));
+
+    // Auto-resubmit eventually fires after the retry confirmed the slot freed.
+    await waitFor(
+      () => {
+        expect(mockCreateTradeOffer).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 4000 }
+    );
+
+    // The retry loop consulted the pending list more than once (stale → freed).
+    expect(pendingReads).toBeGreaterThanOrEqual(3);
+    expect(mockReplace).toHaveBeenCalledWith(
+      'TradeSuccess',
+      expect.objectContaining({ tradeId: 'trade-789' })
+    );
   });
 });
