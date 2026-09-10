@@ -37,6 +37,8 @@ interface ModalProps extends Omit<RNModalProps, 'children'> {
   secondaryButtonTestID?: string;
   /** Optional accessibility identifier for the tertiary action button (FIX-Task-9 item 5). */
   tertiaryButtonTestID?: string;
+  /** Optional accessibility identifier for the close (×) button (FIX-Task-12 item 5). */
+  closeButtonTestID?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -56,6 +58,7 @@ export const Modal: React.FC<ModalProps> = ({
   primaryButtonTestID,
   secondaryButtonTestID,
   tertiaryButtonTestID,
+  closeButtonTestID,
   ...props
 }) => {
   const isBottomSheet = type === 'bottomSheet';
@@ -68,11 +71,7 @@ export const Modal: React.FC<ModalProps> = ({
       {...props}
     >
       <View style={styles.backdrop}>
-        <TouchableOpacity
-          style={styles.backdropTouchable}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        <TouchableOpacity style={styles.backdropTouchable} activeOpacity={1} onPress={onClose} />
         <View
           style={[
             styles.container,
@@ -82,8 +81,19 @@ export const Modal: React.FC<ModalProps> = ({
         >
           {isBottomSheet && <View style={styles.handle} />}
 
+          {/* FIX-Task-12 item 5 (BP-53 class): the close control must be a real
+              accessibility element — without testID/accessible/accessibilityRole
+              it never surfaced in the iOS AX tree (QA Task A1/Item-6 Part 1: the
+              Active-Offer guard modal's ✕ was not drivable, only Dismiss was). */}
           {showCloseButton && !isBottomSheet && (
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onClose}
+              testID={closeButtonTestID}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
               <Text style={styles.closeButtonText}>×</Text>
             </TouchableOpacity>
           )}

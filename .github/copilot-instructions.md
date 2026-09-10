@@ -130,11 +130,11 @@ IOS_SIMULATOR_UDID=<from xcrun simctl list devices booted>
 ANDROID_EMULATOR_SERIAL=<from adb devices>
 ```
 
-> **Simulator-target override — do not chase a wrong-device preflight failure:** the suite's `.env` **unconditionally** sets `TFV2_IOS_DEVICE_NAME="iPhone 16 Pro E2E"` (line 28), and `run-suite.sh` sources it with `set -o allexport`, so a shell prefix like `TFV2_IOS_DEVICE_NAME=...` is silently clobbered and will NOT choose the simulator. The working override is a shell-provided `IOS_SIMULATOR_UDID=<udid>` — it is commented out in `.env` (so sourcing does not clobber a value you export), and preflight targets the UDID instead of the device name. Combine it with `--no-preflight` when the target simulator and app build are already ready:
+> **Simulator-target override — do not chase a wrong-device preflight failure:** the suite's `.env` **unconditionally** sets `TFV2_IOS_DEVICE_NAME="iPhone 16 Pro E2E"` (line 28), and `run-suite.sh` sources it with `set -o allexport`, so a shell prefix like `TFV2_IOS_DEVICE_NAME=...` is silently clobbered and will NOT choose the simulator. The working override is a shell-provided `IOS_SIMULATOR_UDID=<udid>`: it is commented out in `.env` (so sourcing does not clobber a value you export), and since **FIX-Task-12 item 4** `preflight-setup.sh` honours it as the top-priority target — it ignores `TFV2_IOS_DEVICE_NAME`, boots the override simulator if needed, and verifies the app is installed **on that device** (not on whatever happens to be `booted`). Preflight also fails fast (exit 2) if the UDID is not a simulator on this machine.
 > ```
-> IOS_SIMULATOR_UDID=<udid> bash test-automation/trade-flow-v2/scripts/run-suite.sh --no-preflight --group A,B,C ...
+> IOS_SIMULATOR_UDID=<udid> bash test-automation/trade-flow-v2/scripts/run-suite.sh --group A,B,C ...
 > ```
-> If you see a preflight failure about the wrong device/name, check the `IOS_SIMULATOR_UDID` override (and the booted-simulator list) instead of assuming the simulator itself is broken.
+> Full preflight now works with the override, so the old `--no-preflight` workaround is **no longer required** — use `--no-preflight` only when you deliberately want to skip the environment checks (note it also skips `seed:staging` and the keyboard suppression). If you see a preflight failure about the wrong device/name, check the `IOS_SIMULATOR_UDID` override (and the booted-simulator list) instead of assuming the simulator itself is broken.
 
 ### Admin portal login (browser-based manual verification)
 

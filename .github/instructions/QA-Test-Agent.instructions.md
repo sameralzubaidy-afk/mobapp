@@ -824,6 +824,38 @@ Codifies QA Task 36 + QA Task 37 decision-log patterns (was recommended after tw
 
 *Evidence / origin: QA Task 36 + QA Task 37 (2026-09-06) — decision-and-outcome-log-ai-analysis.md F-1/F-2/F-3/F-4/F-6, the per-phase call ledger (Batch B 211, hosted Express ≈148, hosted Checkout 63), and the correction note (mid-run estimate 110–120 vs mined 211).*
 
+### 5.67b QA deep-link registry — registered links + params (read BEFORE firing one; R-16-5)
+
+The QA-only deep links below are registered in dev/staging builds only (`__DEV__` or `EXPO_PUBLIC_ENVIRONMENT=development|staging`); a production build never registers the listeners. Deliver with `xcrun simctl openurl booted "p2pkidsmarketplace://<path>?<params>"` (iOS) or `adb shell am start -W -a android.intent.action.VIEW -d "p2pkidsmarketplace://<path>?<params>" com.sameralzubaidi.p2pmarketplace` (Android). Most require an authenticated session — log in first with `qa-login-as`.
+
+| Deep link | Params | Notes |
+|---|---|---|
+| `qa-login-as` | `persona=<name>` | One-tap persona login (R75). Personas live in `src/services/qaPersonas.ts`. |
+| `qa-logout` | — | Fast teardown to Landing (§5.16). |
+| `qa-set-sp` | `listing=<listingId>`, `amount=<N>` | Sets an item's SP value on the cart checkout in ONE call (§5.47 R-NEW-2). |
+| `qa-trade-success` | `role`, `listingType`, `tradeStatus`, `tradeId`, `spUsed`, `spAmountDollars`, `remainingSP`, `totalSpToSeller`, `spPendingReleaseDays`, `feeSavingsCents` | Force-renders the TradeSuccess screen for Group H completion CTAs. See the param table below. |
+| `qa-refresh` | — | Force-refetches the currently-open screen (wired: TradeList). |
+| `qa-scroll-to` | `testID=<id>` | Scrolls the target element into the visible band and works around below-the-fold AX coords. |
+| `qa-dev-toggle` | `key=<short>`, `value=<value>` | Arms a session-local failure/simulation toggle (e.g. `card_decline`, `crash_trigger`, `policy_failure`, `config_fetch_failure`). Session-local; cleared on logout. |
+| `qa-clear-overlays` | — | Clears stuck overlays/alerts after a failed dismiss. |
+
+**`qa-trade-success` param semantics** (source of truth: `src/components/QaForceTradeSuccessDeepLinkHandler.tsx`, cross-checked line-by-line against `TradeSuccessScreen.tsx`):
+
+| Param | Drives |
+|---|---|
+| `role` | `buyer` \| `seller` (default `seller`) |
+| `listingType` | `cash_only` \| `accept_sp` \| `donate` (default `cash_only`) |
+| `tradeStatus` | `initiated` \| `completed` (default `completed`) |
+| `tradeId` | a real trade uuid (optional — a placeholder makes the fee-savings fetch fall soft to $0) |
+| `spUsed` | buyer-leg SP **count** — gates the SP-savings permutation (needs > 0) |
+| `spAmountDollars` | the **dollar figure** for the H02 "Got it! You saved $X using SP!" copy (NOT `spUsed` — R-16-5) |
+| `remainingSP` | buyer's remaining SP ("You have N SP available") |
+| `totalSpToSeller` | SP total shown to the seller (H03 pending-wallet copy) |
+| `spPendingReleaseDays` | release window ("releasing in N days", default 3) |
+| `feeSavingsCents` | free-buyer H01 savings, in **cents** → "would've saved you $X" |
+
+⚠️ **Do NOT report a copy regression when `feeSavingsCents` (or a real `tradeId`) is omitted** (FIX-Task-12 item 6, QA Task A1/Item-6 2026-09-10). `TradeSuccessScreen.tsx` has two branches: the free-buyer savings line renders the **generic fallback** — *"Trade complete! Kids Club+ gives you a flat fee and bonus Swap Points on every sale."* — unless a savings figure is supplied. A link that omits the param looks like copy drift but is an under-specified QA link. Fire `feeSavingsCents=200` (or pass a real `tradeId`) when the case asserts the savings copy. For real (non-QA) completions the screen auto-derives both figures from the trade row, so the deep link is only needed for placeholder/QA trades.
+
 ### 5.68 Standing rule — Android platform operating facts (first Android AUTH round, QA Task 43b, 2026-09-07) — R77
 
 First AUTH manual-testing round executed on Android ("clean" — `Medium_Phone_API_36.1`, Android 16, expo-dev-client dev build). Where an item restates an existing rule (R3 select-all-retype, R-NEW-1 relaunch-first, §5.31 build-dependent drivability, §5.2 re-list-after-state-change), the earlier section stays canonical and this entry adds the Android-specific mechanism/evidence so future Android rounds start from known facts instead of rediscovering them. Evidence: `e2e-test-results/qa-task43b-auth-android-r1-2026-09-07/report.md` §2 + `/memories/session/qa-task43b-android.md`.

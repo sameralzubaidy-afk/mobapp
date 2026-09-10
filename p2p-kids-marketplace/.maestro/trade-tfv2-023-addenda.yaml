@@ -7,6 +7,10 @@ appId: com.sameralzubaidi.p2pmarketplace
 - launchApp:
     clearState: true
 - waitForAnimationToEnd
+# Class 4 (FIX-Task-12 item 1): dismiss the Expo Dev Launcher after every
+# clearState launch — a dev-client build returns to the launcher, not the app.
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
+- waitForAnimationToEnd
 
 # ── Step 1: Seed a test listing (login as seller, create item) ──
 - runFlow: helpers/tfv2-login-seller.yaml

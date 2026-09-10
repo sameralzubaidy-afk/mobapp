@@ -4,8 +4,16 @@
 
 appId: com.sameralzubaidi.p2pmarketplace
 ---
+# Class 4 (FIX-Task-12 item 1): EVERY `launchApp clearState:true` on a
+# dev-client build returns to the Expo Dev Launcher, so the
+# tfv2-dismiss-system-dialogs helper (which taps the Metro server row) must be
+# run after EACH one — not just the first. Without the second call the buyer
+# session never loaded and the flow died at the post-login `tab-discover`
+# assertion on both iOS and Android.
 - launchApp:
     clearState: true
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
 - waitForAnimationToEnd
 
 # ── Step 1: Seed a test listing (login as seller, create item) ──
@@ -16,6 +24,10 @@ appId: com.sameralzubaidi.p2pmarketplace
 - stopApp
 - launchApp:
     clearState: true
+- waitForAnimationToEnd
+# FIX-Task-12 item 1: dismiss the Dev Launcher again — this is the launch that
+# previously had no dismissal and killed the run.
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
 - waitForAnimationToEnd
 - runFlow: helpers/tfv2-login-buyer.yaml
 
@@ -56,44 +68,40 @@ appId: com.sameralzubaidi.p2pmarketplace
     id: "tab-discover"
 - takeScreenshot: "01-after-login"
 
-# ── Navigate to Me tab ──
+# ── Navigate to My Trades ──
+# FIX-Task-12 (testID drift, Class 5): the bottom nav exposes
+# tab-home / tab-discover / tab-sell / tab-trades / tab-basket — there is NO
+# `tab-me` any more, so the old `tapOn id: tab-me` failed with "element not
+# found" (verified on-device 2026-09-10). The Trades tab lands directly on
+# TradeListScreen, which is what this block was trying to reach.
 - tapOn:
-    id: "tab-me"
+    id: "tab-trades"
 - waitForAnimationToEnd
 - waitForAnimationToEnd
 
-# ── Navigate to TradeListScreen from Me tab via profile trades stat ──
+# ── Verify trades screen ──
+- extendedWaitUntil:
+    visible:
+      id: "tab-active"
+    timeout: 15000
+
+# ── Check Active tab (shows pending/in-progress trades) ──
+- tapOn:
+    id: "tab-active"
+- waitForAnimationToEnd
+
+# ── Check for existing trades and verify timer/dispute components ──
 - runFlow:
     when:
       visible:
-        id: "profile-trades-stat"
+        id: "trade-row-"
     commands:
       - tapOn:
-          id: "profile-trades-stat"
+          id: "trade-row-"
+          index: 0
       - waitForAnimationToEnd
-
-      # ── Verify trades screen ──
+      # Verify trade detail screen elements
       - assertVisible:
-          id: "tab-active"
-      - waitForAnimationToEnd
-
-      # ── Check Active tab (shows pending/in-progress trades) ──
-      - tapOn:
-          id: "tab-active"
-      - waitForAnimationToEnd
-
-      # ── Check for existing trades and verify timer/dispute components ──
-      - runFlow:
-          when:
-            visible:
-              id: "trade-row-"
-          commands:
-            - tapOn:
-                id: "trade-row-"
-                index: 0
-            - waitForAnimationToEnd
-            # Verify trade detail screen elements
-            - assertVisible:
-                id: "trade-status-badge"
-            - takeScreenshot: "02-trade-detail"
+          id: "trade-status-badge"
+      - takeScreenshot: "02-trade-detail"
 

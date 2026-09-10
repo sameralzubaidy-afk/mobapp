@@ -6,24 +6,35 @@ appId: com.sameralzubaidi.p2pmarketplace
 ---
 - waitForAnimationToEnd
 
-# Handle Welcome screen if shown.
-- runFlow:
-    when:
-      visible:
-        id: "welcome-get-started-button"
+# FIX-Task-12 (Android cold-start): POLL for the app's entry screen before
+# deciding which screen we are on. On Android the JS bundle can take a while to
+# render after `launchApp clearState:true`, and the original single-shot
+# `when visible:` checks evaluated before Landing had painted — they were
+# skipped, the whole login was skipped, and the flow died at
+# "Assertion is false: id: tab-discover is visible" while sitting on Landing
+# (verified 2026-09-10 on the Android leg). Each iteration is a no-op once we
+# have navigated on, so tapping Landing twice is impossible.
+- repeat:
+    times: 10
     commands:
-      - tapOn:
-          id: "welcome-get-started-button"
-      - waitForAnimationToEnd
-
-# Handle Landing screen if shown.
-- runFlow:
-    when:
-      visible:
-        id: "landing-login-button"
-    commands:
-      - tapOn:
-          id: "landing-login-button"
+      # Welcome / onboarding carousel (fresh install)
+      - runFlow:
+          when:
+            visible:
+              id: "welcome-get-started-button"
+          commands:
+            - tapOn:
+                id: "welcome-get-started-button"
+            - waitForAnimationToEnd
+      # Landing screen (logged out)
+      - runFlow:
+          when:
+            visible:
+              id: "landing-login-button"
+          commands:
+            - tapOn:
+                id: "landing-login-button"
+            - waitForAnimationToEnd
       - waitForAnimationToEnd
 
 # Attempt login when login form is visible.
@@ -49,19 +60,48 @@ appId: com.sameralzubaidi.p2pmarketplace
       - eraseText
       - inputText: "TestSeller123!"
 
-      # Class 1: hideKeyboard before submit (keyboard/autofill overlay blocks the tap)
-      - hideKeyboard
-      - waitForAnimationToEnd
-      # Class 1: scrollUntilVisible to ensure button is on screen
-      - scrollUntilVisible:
-          element:
-            id: "login-submit-button"
-          direction: DOWN
-          timeout: 5000
-      - tapOn:
-          id: "login-submit-button"
-      - waitForAnimationToEnd
-      - waitForAnimationToEnd                      # Double wait: transition + auth
+      # Class 1: dismiss the keyboard before the submit tap.
+      # FIX-Task-12 — do NOT use `- hideKeyboard` here:
+      #   iOS:     it HARD-FAILS on this build's custom TextInputs ("Couldn't hide
+      #            the keyboard…") and aborts the flow. Tap the app's own QA
+      #            dismiss control instead (`keyboard-done-button`, the
+      #            KeyboardDoneAccessory "Done" bar) — guarded, so it is a no-op
+      #            when that bar isn't shown.
+      #   Android: it sends a BACK key event, and with no soft keyboard up (the
+      #            emulator has a hardware keyboard) BACK EXITS THE APP to the
+      #            device home screen (verified 2026-09-10 on the Android leg).
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - runFlow:
+                when:
+                  visible:
+                    id: "keyboard-done-button"
+                commands:
+                  - tapOn:
+                      id: "keyboard-done-button"
+                  - waitForAnimationToEnd
+      # Class 1: scroll the submit button into view and tap it — but only while
+      # the login form is still on screen. If the login already succeeded (or
+      # the screen was left for any reason), the button is gone and an
+      # unconditional scrollUntilVisible aborts the whole flow with
+      # "No visible element found: id: login-submit-button" (verified
+      # 2026-09-10, Android leg: the app was already on Home when this ran).
+      - runFlow:
+          when:
+            visible:
+              id: "login-email-input"
+          commands:
+            - scrollUntilVisible:
+                element:
+                  id: "login-submit-button"
+                direction: DOWN
+                timeout: 5000
+            - tapOn:
+                id: "login-submit-button"
+            - waitForAnimationToEnd
+            - waitForAnimationToEnd
 
 # Retry submit once if still on login screen (also hardened).
 - runFlow:
@@ -69,18 +109,21 @@ appId: com.sameralzubaidi.p2pmarketplace
       visible:
         id: "login-email-input"
     commands:
-      # Class 1: hideKeyboard before retry submit
-      - hideKeyboard
-      - waitForAnimationToEnd
-      - scrollUntilVisible:
-          element:
-            id: "login-submit-button"
-          direction: DOWN
-          timeout: 5000
-      - tapOn:
-          id: "login-submit-button"
-      - waitForAnimationToEnd
-      - waitForAnimationToEnd
+      # Class 1: same guarded dismiss+submit as above (retry pass).
+      - runFlow:
+          when:
+            visible:
+              id: "login-email-input"
+          commands:
+            - scrollUntilVisible:
+                element:
+                  id: "login-submit-button"
+                direction: DOWN
+                timeout: 5000
+            - tapOn:
+                id: "login-submit-button"
+            - waitForAnimationToEnd
+            - waitForAnimationToEnd
 
 # iOS save-password sheet may appear.
 - runFlow:

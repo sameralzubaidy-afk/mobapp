@@ -1143,6 +1143,7 @@ export default function ItemDetailScreen() {
               : undefined
           }
           tertiaryButtonTestID="duplicate-offer-cancel-reoffer-button"
+          closeButtonTestID="duplicate-offer-modal-close-button"
           onPrimaryPress={() => {
             setShowDuplicateOfferModal(false);
             setGuardActiveOffer(null);

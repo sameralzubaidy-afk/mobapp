@@ -128,22 +128,38 @@ appId: com.sameralzubaidi.p2pmarketplace
       - eraseText
       - inputText: "TestBuyer123!"
 
-      # Class 1: hideKeyboard before submit tap (Failure 1 fix)
-      - hideKeyboard
-      - waitForAnimationToEnd
+      # Class 1: dismiss the keyboard before the submit tap (Failure 1 fix).
+      # FIX-Task-12: no `hideKeyboard` (hard-fails on iOS custom inputs; sends
+      # BACK on Android) — the iOS QA Done accessory is used instead.
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - runFlow:
+                when:
+                  visible:
+                    id: "keyboard-done-button"
+                commands:
+                  - tapOn:
+                      id: "keyboard-done-button"
+                  - waitForAnimationToEnd
 
-      # Class 1: scrollUntilVisible to ensure button is on screen
-      - scrollUntilVisible:
-          element:
-            id: "login-submit-button"
-          direction: DOWN
-          timeout: 5000
-
-      # [LoginScreen] Tap submit
-      - tapOn:
-          id: "login-submit-button"
-      - waitForAnimationToEnd
-      - waitForAnimationToEnd                      # Double wait: transition + auth
+      # Class 1: scrollUntilVisible to ensure button is on screen — guarded, so
+      # a missing submit button (login already done) cannot abort the flow.
+      - runFlow:
+          when:
+            visible:
+              id: "login-email-input"
+          commands:
+            - scrollUntilVisible:
+                element:
+                  id: "login-submit-button"
+                direction: DOWN
+                timeout: 5000
+            - tapOn:
+                id: "login-submit-button"
+            - waitForAnimationToEnd
+            - waitForAnimationToEnd
 
 # Class 4: iOS save-password sheet (may appear after any login)
 - runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
@@ -224,8 +240,21 @@ appId: com.sameralzubaidi.p2pmarketplace
 - takeScreenshot: "04-trade-offer"
 
 # ── Submit the offer (Fix for "Offer never submitted") ──────────────────
-# Class 1: hide keyboard, ensure send-offer-button is visible, then tap
-- hideKeyboard
+# Class 1: dismiss keyboard (FIX-Task-12: no `hideKeyboard` — it hard-fails on
+# iOS custom inputs and sends BACK on Android), then ensure the send-offer
+# button is visible before tapping it.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "keyboard-done-button"
+          commands:
+            - tapOn:
+                id: "keyboard-done-button"
+            - waitForAnimationToEnd
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
@@ -287,8 +316,20 @@ appId: com.sameralzubaidi.p2pmarketplace
 # ═══════════════════════════════════════════════════════════════════════════
 # PHASE 6 — Navigate to Trade List via Profile
 # ═══════════════════════════════════════════════════════════════════════════
-# Class 1: Dismiss keyboard before tab navigation
-- hideKeyboard
+# Class 1: dismiss the keyboard before tab navigation (FIX-Task-12: guarded
+# iOS accessory tap — `hideKeyboard` is unsafe on both platforms).
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "keyboard-done-button"
+          commands:
+            - tapOn:
+                id: "keyboard-done-button"
+            - waitForAnimationToEnd
 - waitForAnimationToEnd
 
 # [ProfileScreen / TradeListScreen] Navigate to Me tab

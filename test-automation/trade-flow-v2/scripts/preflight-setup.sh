@@ -60,13 +60,54 @@ ok "Maestro: $(maestro --version 2>/dev/null | head -1)"
 if command -v xcrun &>/dev/null; then
   log "Checking iOS Simulator (target: $TFV2_IOS_DEVICE_NAME)..."
 
-  # Step 1: Is our target device already booted?
-  BOOTED_UDID=$(xcrun simctl list devices booted 2>/dev/null \
-    | grep -E "$TFV2_IOS_DEVICE_NAME" \
-    | grep -Eo '\([0-9A-F-]{36}\)' | tr -d '()' | head -1 || true)
+  # Step 0 (FIX-Task-12 item 4): an explicitly-provided IOS_SIMULATOR_UDID WINS.
+  # Before this fix the target was resolved purely from TFV2_IOS_DEVICE_NAME
+  # (which run-suite.sh sources from .env with `set -o allexport`, unconditionally
+  # overwriting any shell prefix) and then IOS_SIMULATOR_UDID was overwritten with
+  # the resolved UDID — so the documented override silently did nothing and only
+  # worked with --no-preflight. Now the override is honoured: the named device is
+  # ignored, the override simulator is booted if needed, and the app check below
+  # runs against IT.
+  BOOTED_UDID=""
+  EXPLICIT_IOS_UDID="${IOS_SIMULATOR_UDID:-}"
+  if [[ -n "$EXPLICIT_IOS_UDID" ]]; then
+    # NOTE (FIX-Task-12): capture the device list first, then grep — never
+    # `xcrun ... | grep -q`. Under `set -o pipefail`, `grep -q` exits on the
+    # first match and SIGPIPEs xcrun, so the PIPELINE returns 141 even though
+    # grep matched, and every such check reports "not found" for something that
+    # IS present (this is what made preflight always report the app as missing).
+    ALL_IOS_DEVICES=$(xcrun simctl list devices available 2>/dev/null || true)
+    if ! grep -q "$EXPLICIT_IOS_UDID" <<<"$ALL_IOS_DEVICES"; then
+      fail "IOS_SIMULATOR_UDID='$EXPLICIT_IOS_UDID' is not a simulator on this machine."
+      fail "Fix → either drop the override (preflight then uses TFV2_IOS_DEVICE_NAME='$TFV2_IOS_DEVICE_NAME'),"
+      fail "       or pass a real UDID from: xcrun simctl list devices available"
+      exit 2
+    fi
+    ok "Explicit IOS_SIMULATOR_UDID=$EXPLICIT_IOS_UDID overrides TFV2_IOS_DEVICE_NAME='$TFV2_IOS_DEVICE_NAME'"
+    if grep -q "$EXPLICIT_IOS_UDID" <<<"$(xcrun simctl list devices booted 2>/dev/null || true)"; then
+      BOOTED_UDID="$EXPLICIT_IOS_UDID"
+      ok "Override simulator already booted: $BOOTED_UDID"
+    else
+      log "Booting override simulator $EXPLICIT_IOS_UDID..."
+      xcrun simctl boot "$EXPLICIT_IOS_UDID"
+      open -a Simulator &>/dev/null || true
+      log "Waiting for simulator to finish booting (20s)..."
+      sleep 20
+      BOOTED_UDID="$EXPLICIT_IOS_UDID"
+      SIM_FRESH_BOOTED=1
+    fi
+  fi
+
+  # Step 1: Is our target device already booted? (name-based, only when there is
+  # no explicit UDID override)
+  if [[ -z "${BOOTED_UDID:-}" ]]; then
+    BOOTED_UDID=$(xcrun simctl list devices booted 2>/dev/null \
+      | grep -E "$TFV2_IOS_DEVICE_NAME" \
+      | grep -Eo '\([0-9A-F-]{36}\)' | tr -d '()' | head -1 || true)
+  fi
 
   if [[ -n "${BOOTED_UDID:-}" ]]; then
-    ok "Target simulator '$TFV2_IOS_DEVICE_NAME' is already booted: $BOOTED_UDID"
+    ok "Target simulator already booted: $BOOTED_UDID"
   else
     log "Target '$TFV2_IOS_DEVICE_NAME' not booted — searching available devices..."
     AVAIL_UDID=$(xcrun simctl list devices available 2>/dev/null \
@@ -118,13 +159,26 @@ if command -v xcrun &>/dev/null; then
   fi
 
   # ── 3. Verify app is installed ──────────────────────────────────────────────
-  log "Verifying app installation ($APP_ID)..."
-  if ! xcrun simctl listapps booted 2>/dev/null | grep -q "\"$APP_ID\""; then
-    fail "App '$APP_ID' is NOT installed on the booted simulator."
+  log "Verifying app installation ($APP_ID) on $BOOTED_UDID..."
+  # FIX-Task-12 item 3:
+  #  (a) check the TARGET device, not `booted` — with more than one simulator
+  #      booted, `simctl listapps booted` inspects the wrong device;
+  #  (b) capture the list, THEN grep. The old one-liner
+  #      `xcrun simctl listapps booted | grep -q "$APP_ID"` can NEVER pass under
+  #      `set -o pipefail`: grep -q exits on the first match and SIGPIPEs xcrun,
+  #      so the pipeline status is 141 (not 0) and the check reports
+  #      "app is NOT installed" for an app that IS installed. Reproduced
+  #      2026-09-10 on iPhone 16 Pro E2E with the app installed.
+  INSTALLED_APPS=$(xcrun simctl listapps "$BOOTED_UDID" 2>/dev/null || true)
+
+  if ! grep -q "\"$APP_ID\"" <<<"$INSTALLED_APPS"; then
+    fail "App '$APP_ID' is NOT installed on the target simulator ($BOOTED_UDID)."
     fail ""
     fail "This is a SETUP error, not a test failure. Automation cannot install the app."
-    fail "Fix → build and install the app:"
-    fail "  cd p2p-kids-marketplace && npx expo run:ios"
+    fail "Fix → build and install the app (fast path, installs onto the booted sim):"
+    fail "  cd p2p-kids-marketplace && yarn ios:sim-build --install"
+    fail "       (or, if ios/build/.../PassItUp.app already exists:"
+    fail "        xcrun simctl install $BOOTED_UDID ios/build/Build/Products/Debug-iphonesimulator/PassItUp.app)"
     fail ""
     fail "After install, re-run:"
     fail "  bash test-automation/trade-flow-v2/scripts/run-suite.sh"

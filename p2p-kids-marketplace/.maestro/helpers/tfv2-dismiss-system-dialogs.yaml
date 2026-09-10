@@ -60,20 +60,118 @@ appId: com.sameralzubaidi.p2pmarketplace
           text: "Allow Paste"
       - waitForAnimationToEnd
 
-# ── Expo dev-client launcher (fresh launch / clearState) ─────────────
-# After clearState the dev build shows the "Development servers" launcher
-# (Pass It Up! / DEVELOPMENT SERVERS / http://localhost:8081) instead of
-# auto-connecting to Metro. Tap the server entry to load the JS bundle so
-# the Welcome/Landing/Login screens can appear. Conditional + safe: no-op
-# when the launcher isn't shown.
+# ── Android system ANR dialog ("… isn't responding") ─────────────────
+# Android shows a MODAL system dialog when any app stops responding — most often
+# an unrelated system app (e.g. Digital Wellbeing) on a loaded emulator.
+# Verified 2026-09-10 on the Android leg of the Group D run: the flow started
+# while "Digital Wellbeing isn't responding / Close app / Wait" covered the Expo
+# dev launcher, so the launcher row was never visible, every conditional step was
+# skipped and the flow died at the post-login `tab-discover` assert. Tap "Wait"
+# (not "Close app" — that force-closes the app under test) and carry on.
 - runFlow:
     when:
       visible:
-        text: "http://localhost:8081"
+        text: ".*isn't responding"
     commands:
       - tapOn:
-          text: "http://localhost:8081"
+          text: "Wait"
       - waitForAnimationToEnd
+
+# ── Expo dev-client launcher (fresh launch / clearState) ─────────────
+# After clearState the dev build shows the "Development servers" launcher
+# (Pass It Up! / DEVELOPMENT SERVERS / <host>:8081) instead of auto-connecting
+# to Metro. Tap the server entry to load the JS bundle so the
+# Welcome/Landing/Login screens can appear. Conditional + safe: no-op when the
+# launcher isn't shown.
+#
+# FIX-Task-12 item 2 — the matcher matches the server row on ANY host:
+#   iOS simulator:     http://localhost:8081
+#   Android emulator:  http://10.0.2.2:8081  (the emulator's host-loopback alias)
+# The previous exact-string matcher only matched `http://localhost:8081`, so on
+# Android the launcher was never dismissed and the flow died on that screen.
+#
+# POLLED (repeat 6×): on the Android emulator the launcher's server row renders
+# several seconds after `launchApp clearState:true` returns, so a single
+# `when visible` check right after the launch silently skipped the tap and the
+# flow died on the launcher — verified 2026-09-10 (Android leg of the Group D
+# run, failure frame showing the launcher with http://10.0.2.2:8081). Each
+# iteration is a no-op once the launcher is gone.
+- repeat:
+    times: 6
+    commands:
+      # Re-check the ANR dialog each iteration — it can appear mid-poll.
+      - runFlow:
+          when:
+            visible:
+              text: ".*isn't responding"
+          commands:
+            - tapOn:
+                text: "Wait"
+            - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              text: ".*(localhost|10\\.0\\.2\\.2).*8081.*"
+          commands:
+            - tapOn:
+                text: ".*(localhost|10\\.0\\.2\\.2).*8081.*"
+            - waitForAnimationToEnd
+            # FIX-Task-12 item 1 — WAIT for the launcher screen to be replaced
+            # by the app UI before returning. A cold bundle load on a dev build
+            # takes ~12-20s; two bare `waitForAnimationToEnd` calls return
+            # immediately (the launcher has no animation), so the caller
+            # asserted on a screen that had not rendered yet.
+            - extendedWaitUntil:
+                notVisible:
+                  text: ".*(localhost|10\\.0\\.2\\.2).*8081.*"
+                timeout: 45000
+            - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
+# ── Expo developer-menu onboarding sheet + the dev menu itself ────────
+# FIX-Task-12 item 1 (continued) — after the JS bundle loads, a dev-client build
+# presents the ONE-TIME developer-menu onboarding sheet ("This is the developer
+# menu…" + [Continue]) ON TOP OF THE APP. Because `launchApp clearState:true`
+# wipes the app data that records "onboarding already seen", it reappears after
+# EVERY clearState launch — the flow then failed the post-login `tab-discover`
+# assertion while the sheet was covering the screen.
+#
+# Empirically verified (2026-09-10):
+#   * tapping [Continue] dismisses the onboarding sheet but LEAVES THE DEV MENU
+#     OPEN (showing "Reload / Go home / TOOLS / Fast refresh");
+#   * a swipe DOWN on that menu closes it and reveals the app behind it —
+#     verified on BOTH iPhone 16 Pro E2E (iOS 26.5) AND the Android emulator.
+# Poll a few times (the sheet can appear a moment after the bundle loads); every
+# step is a conditional no-op when nothing is shown, so a warm launch or an
+# already-dismissed menu passes straight through.
+#
+# The "dev menu is open" detector is `.*[Pp]erformance monitor.*` — a dev-menu-only
+# label that can never match the app's own UI. The label differs per platform
+# (iOS: "Toggle performance monitor"; Android: "Performance monitor"), so the
+# iOS-only string first used here never fired on Android and the flow died with
+# the menu still open (verified 2026-09-10, Android leg of the Group D run).
+- repeat:
+    times: 5
+    commands:
+      - runFlow:
+          when:
+            visible:
+              text: "This is the developer menu.*"
+          commands:
+            - tapOn:
+                text: "Continue"
+            - waitForAnimationToEnd
+            - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              text: ".*[Pp]erformance monitor.*"
+          commands:
+            - swipe:
+                direction: DOWN
+                duration: 700
+            - waitForAnimationToEnd
+            - waitForAnimationToEnd
       - waitForAnimationToEnd
 
 # ── App-level Welcome screen ─────────────────────────────────────────
@@ -86,6 +184,24 @@ appId: com.sameralzubaidi.p2pmarketplace
           id: "welcome-get-started-button"
       - waitForAnimationToEnd
 
-# ── iOS Keyboard Dismiss (catch-all) ─────────────────────────────────
-- hideKeyboard
-- waitForAnimationToEnd
+# ── Keyboard dismiss (catch-all, iOS only) ────────────────────────────
+# FIX-Task-12: was a bare `- hideKeyboard`, which is unsafe on BOTH platforms:
+#   iOS     → HARD-FAILS on this build's custom TextInputs ("Couldn't hide the
+#             keyboard…") and aborted any caller that ran this helper right
+#             after a login;
+#   Android → sends a BACK key event and, with no soft keyboard up (hardware
+#             keyboard emulator), BACK EXITS THE APP to the device home screen
+#             (verified 2026-09-10 on the Android leg of the Group D run).
+# Only the iOS accessory tap is kept, guarded — a no-op when it isn't shown.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "keyboard-done-button"
+          commands:
+            - tapOn:
+                id: "keyboard-done-button"
+            - waitForAnimationToEnd
