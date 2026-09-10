@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <testsuites>
-  <testsuite name="Test Suite" device="iPhone 17 Pro Max - iOS 26.1 - 3F3293A3-C4B7-43FE-AD67-A2C4B82B4A0E" tests="1" failures="1" time="16.0">
-    <testcase id="module-15.1-flow-22-payouts" name="module-15.1-flow-22-payouts" classname="module-15.1-flow-22-payouts" file=".maestro/module-15.1-flow-22-payouts.yaml" time="16.0" status="ERROR">
-      <failure>Unknown error</failure>
+  <testsuite name="Test Suite" device="Medium_Phone_API_36.1" tests="1" failures="1" time="64.0">
+    <testcase id="module-15.1.2-flow-08-trade-v2-components" name="module-15.1.2-flow-08-trade-v2-components" classname="module-15.1.2-flow-08-trade-v2-components" file=".maestro/module-15.1.2-flow-08-trade-v2-components.yaml" time="64.0" status="ERROR">
+      <failure>Assertion is false: id: tab-discover is visible</failure>
     </testcase>
   </testsuite>
 </testsuites>
