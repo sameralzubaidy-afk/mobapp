@@ -1,0 +1,74 @@
+{
+  "module": "MODULE-15.1.2 TradeFlowV2",
+  "generatedAt": "2026-09-10T14:56:27.440Z",
+  "options": {
+    "list": false,
+    "dryRun": false,
+    "help": false,
+    "noPreflight": false,
+    "bail": false,
+    "json": false,
+    "includePending": false,
+    "includeManual": false,
+    "platform": "both",
+    "runner": null,
+    "groups": [
+      "D"
+    ],
+    "cases": null,
+    "statuses": null,
+    "retries": 1,
+    "timeoutMs": 600000,
+    "outDir": "/Users/sameralzubaidi/Desktop/kids_marketplace_app/e2e-test-results/2026-09-10T14-42-56"
+  },
+  "totals": {
+    "casesSelected": 5,
+    "casesPassed": 0,
+    "casesFailed": 5,
+    "casesSkipped": 0,
+    "unitsExecuted": 2,
+    "unitsPassed": 1,
+    "unitsFailed": 1
+  },
+  "units": [
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-flow-08-trade-v2-components.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-D01",
+        "TRD-TC-D02",
+        "TRD-TC-D03",
+        "TRD-TC-D04",
+        "TRD-TC-D05"
+      ],
+      "passed": true,
+      "attempts": 1,
+      "durationMs": 353203,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-flow-08-trade-v2-components.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-flow-08-trade-v2-components.yaml",
+      "platform": "android",
+      "grep": null,
+      "cases": [
+        "TRD-TC-D01",
+        "TRD-TC-D02",
+        "TRD-TC-D03",
+        "TRD-TC-D04",
+        "TRD-TC-D05"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 130241,
+      "timedOut": false,
+      "command": "maestro test --platform android --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-flow-08-trade-v2-components.yaml",
+      "stderrTail": "\tat maestro.drivers.AndroidDriver.awaitLaunch(AndroidDriver.kt:162)\n\tat maestro.drivers.AndroidDriver.open(AndroidDriver.kt:108)\n\tat maestro.Maestro$Companion.android(Maestro.kt:690)\n\tat maestro.cli.session.MaestroSessionManager.createAndroid(MaestroSessionManager.kt:350)\n\tat maestro.cli.session.MaestroSessionManager.createMaestro(MaestroSessionManager.kt:211)\n\tat maestro.cli.session.MaestroSessionManager.newSession(MaestroSessionManager.kt:109)\n\tat maestro.cli.session.MaestroSessionManager.newSession$default(MaestroSessionManager.kt:67)\n\tat maestro.cli.command.TestCommand.runShardSuite(TestCommand.kt:479)\n\tat maestro.cli.command.TestCommand.access$runShardSuite(TestCommand.kt:81)\n\tat maestro.cli.command.TestCommand$handleSessions$1$results$1$1.invokeSuspend(TestCommand.kt:438)\n\tat kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)\n\tat kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)\n\tat kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)\n\tat kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)\n\n"
+    }
+  ],
+  "skipped": []
+}
