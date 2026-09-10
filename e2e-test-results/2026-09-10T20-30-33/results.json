@@ -1,0 +1,74 @@
+{
+  "module": "MODULE-15.1.2 TradeFlowV2",
+  "generatedAt": "2026-09-10T20:42:12.717Z",
+  "options": {
+    "list": false,
+    "dryRun": false,
+    "help": false,
+    "noPreflight": false,
+    "bail": false,
+    "json": false,
+    "includePending": false,
+    "includeManual": false,
+    "platform": "both",
+    "runner": null,
+    "groups": [
+      "D"
+    ],
+    "cases": null,
+    "statuses": null,
+    "retries": 1,
+    "timeoutMs": 1200000,
+    "outDir": "/Users/sameralzubaidi/Desktop/kids_marketplace_app/e2e-test-results/2026-09-10T20-30-33"
+  },
+  "totals": {
+    "casesSelected": 5,
+    "casesPassed": 0,
+    "casesFailed": 5,
+    "casesSkipped": 0,
+    "unitsExecuted": 2,
+    "unitsPassed": 1,
+    "unitsFailed": 1
+  },
+  "units": [
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-flow-08-trade-v2-components.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TRD-TC-D01",
+        "TRD-TC-D02",
+        "TRD-TC-D03",
+        "TRD-TC-D04",
+        "TRD-TC-D05"
+      ],
+      "passed": true,
+      "attempts": 2,
+      "durationMs": 638288,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-flow-08-trade-v2-components.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-flow-08-trade-v2-components.yaml",
+      "platform": "android",
+      "grep": null,
+      "cases": [
+        "TRD-TC-D01",
+        "TRD-TC-D02",
+        "TRD-TC-D03",
+        "TRD-TC-D04",
+        "TRD-TC-D05"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 2501,
+      "timedOut": false,
+      "command": "maestro test --platform android --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-flow-08-trade-v2-components.yaml",
+      "stderrTail": "Not enough devices connected (0) to run the requested number of shards (1).\n"
+    }
+  ],
+  "skipped": []
+}
