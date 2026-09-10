@@ -371,9 +371,18 @@ const NotificationItem = React.memo(function NotificationItem({
       </View>
 
       {/* FIX-Task-13 item 5c: item emoji chip (omitted when the notification
-          isn't about a specific item). */}
+          isn't about a specific item).
+          FIX-Task-15 item 4 (2026-09-10): the chip carries the glyph as its
+          accessibilityLabel so QA can assert WHICH emoji rendered from the AX
+          tree, instead of being limited to screenshot-only verification. */}
       {itemGlyph ? (
-        <View style={styles.itemGlyphChip} testID={`notification-item-glyph-${item.id}`}>
+        <View
+          style={styles.itemGlyphChip}
+          testID={`notification-item-glyph-${item.id}`}
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={itemGlyph}
+        >
           <Text style={styles.itemGlyphText}>{itemGlyph}</Text>
         </View>
       ) : null}
@@ -451,6 +460,12 @@ export default function NotificationCenterScreen() {
         const result = await getUserNotifications(userId, PAGE_SIZE, offset);
 
         if (!result.success) {
+          // FIX-Task-15 item 5 (2026-09-10): the raw reason was previously rendered
+          // verbatim under "Something went wrong" (e.g. the PostgREST "Gateway
+          // Timeout" term). Keep it for dev diagnosis; never show it to parents/kids.
+          if (__DEV__) {
+            console.warn('[NotificationCenter] Failed to load notifications:', result.error);
+          }
           setError(result.error ?? 'Failed to load notifications');
           return;
         }
@@ -468,6 +483,10 @@ export default function NotificationCenterScreen() {
         setHasMore(data.length === PAGE_SIZE);
         setError(null);
       } catch (err) {
+        // FIX-Task-15 item 5: raw reason stays out of the UI (dev log only).
+        if (__DEV__) {
+          console.warn('[NotificationCenter] Failed to load notifications:', err);
+        }
         setError((err as Error).message);
       }
     },
@@ -629,7 +648,13 @@ export default function NotificationCenterScreen() {
         <View testID="error-state" style={styles.emptyState}>
           <Warning size={64} color="#E85D75" weight="regular" testID="error-icon" />
           <Text style={styles.emptyTitle}>Something went wrong</Text>
-          <Text style={styles.emptyBody}>{error}</Text>
+          {/* FIX-Task-15 item 5 (2026-09-10): friendly, non-technical copy. The
+              backend message (`error`) is deliberately NOT rendered — it can be a
+              raw HTTP status ("Gateway Timeout") or a PostgREST code. */}
+          <Text style={styles.emptyBody}>
+            We couldn’t load your notifications just now. Please check your connection and try
+            again.
+          </Text>
           <TouchableOpacity
             testID="retry-button"
             accessible

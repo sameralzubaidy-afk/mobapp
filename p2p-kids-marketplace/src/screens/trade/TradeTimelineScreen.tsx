@@ -108,6 +108,26 @@ function computePinnedFooterSpace(insetsBottom: number, footerHeight: number): n
   );
 }
 
+// FIX-Task-15 item 7 (2026-09-10): the EXPANDED safe-meetup card is scroll
+// content, so while it is open its CTA can still pass beneath the floating tab
+// bar / pinned footer. Reserving the card's MEASURED height while expanded gives
+// it the same guaranteed clearance the collapsed/tail state already has (QA
+// Android I02/I05 round, finding 7 — both platforms).
+// Exported for its unit test (mirrors how `computePinnedFooterSpace` stays
+// module-scope so the padding and the diagnostic can never drift apart).
+export function computeTimelineBottomPadding(params: {
+  hasPinnedFooter: boolean;
+  insetsBottom: number;
+  footerHeight: number;
+  safeMeetupExpanded: boolean;
+  safeMeetupHeight: number;
+}): number {
+  const base = params.hasPinnedFooter
+    ? computePinnedFooterSpace(params.insetsBottom, params.footerHeight)
+    : 100;
+  return base + (params.safeMeetupExpanded ? params.safeMeetupHeight : 0);
+}
+
 export default function TradeTimelineScreen() {
   const route = useRoute<TradeTimelineRouteProp>();
   const insets = useSafeAreaInsets();
@@ -184,6 +204,11 @@ export default function TradeTimelineScreen() {
   const [pinnedFooterHeight, setPinnedFooterHeight] = useState(0);
   const [timelineViewportHeight, setTimelineViewportHeight] = useState(0);
   const [timelineContentHeight, setTimelineContentHeight] = useState(0);
+  // FIX-Task-15 item 7 (2026-09-10): the expanded safe-meetup card's measured
+  // height + whether it is open right now. The card publishes `expanded` (NOT its
+  // internal `collapsed` flag), so this state and the callback agree.
+  const [safeMeetupExpanded, setSafeMeetupExpanded] = useState(false);
+  const [safeMeetupHeight, setSafeMeetupHeight] = useState(0);
 
   // Register the qa-scroll-to handler for this screen. Registered once for the
   // screen lifetime; the refs are stable, so the testID→ref mapping is built
@@ -233,9 +258,27 @@ export default function TradeTimelineScreen() {
       maxScrollOffset: Math.max(0, timelineContentHeight - timelineViewportHeight),
       pinnedFooterHeight,
       pinnedFooterReservedSpace: computePinnedFooterSpace(insets.bottom, pinnedFooterHeight),
+      // FIX-Task-15 item 7: the expanded safe-meetup card's contribution, so QA
+      // can confirm the reserved space grows with the card from the log alone.
+      safeMeetupExpanded,
+      safeMeetupHeight,
+      timelineBottomPadding: computeTimelineBottomPadding({
+        hasPinnedFooter: true,
+        insetsBottom: insets.bottom,
+        footerHeight: pinnedFooterHeight,
+        safeMeetupExpanded,
+        safeMeetupHeight,
+      }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timelineViewportHeight, timelineContentHeight, pinnedFooterHeight, insets.bottom]);
+  }, [
+    timelineViewportHeight,
+    timelineContentHeight,
+    pinnedFooterHeight,
+    insets.bottom,
+    safeMeetupExpanded,
+    safeMeetupHeight,
+  ]);
   // TFV2-011: Issue report modal
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [nextStepsDismissed, setNextStepsDismissed] = useState(false);
@@ -1050,7 +1093,17 @@ export default function TradeTimelineScreen() {
   // to rest above it at max scroll. Measuring keeps this correct under font
   // scaling and per-platform insets (QA Task Android G/H/I + D03 froze both
   // siblings; the old constant also left Payment Details under the pill).
-  const pinnedFooterReservedSpace = computePinnedFooterSpace(insets.bottom, pinnedFooterHeight);
+  // FIX-Task-15 item 7 (2026-09-10): that base is now computed inside
+  // `computeTimelineBottomPadding`, which ALSO adds the expanded safe-meetup
+  // card's measured height while it is open, so the card's CTA can be scrolled
+  // clear of the pinned footer + floating tab bar.
+  const timelineBottomPadding = computeTimelineBottomPadding({
+    hasPinnedFooter,
+    insetsBottom: insets.bottom,
+    footerHeight: pinnedFooterHeight,
+    safeMeetupExpanded,
+    safeMeetupHeight,
+  });
   // FIX-CANCEL (2026-09-01): buyer cancel-request derived state
   const cancelRequestStatus = (trade as any)?.cancel_request_status ?? null;
   const cancelRequestPending =
@@ -1121,12 +1174,12 @@ export default function TradeTimelineScreen() {
         ref={timelineScrollRef}
         style={styles.scrollView}
         // FIX-Task-13 item 1: measure the viewport so the diagnostic above can
-        // report the real scroll range (see `pinnedFooterReservedSpace`).
+        // report the real scroll range (see `timelineBottomPadding`).
         onLayout={(e) => setTimelineViewportHeight(e.nativeEvent.layout.height)}
         onContentSizeChange={(_w, h) => setTimelineContentHeight(h)}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: hasPinnedFooter ? pinnedFooterReservedSpace : 100 },
+          { paddingBottom: timelineBottomPadding },
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
@@ -2181,10 +2234,16 @@ export default function TradeTimelineScreen() {
 
         {/* TFV2-020: Safe meetup tips (only after seller accepts, not for pending offers) */}
         {/* FIX-Task-13 item 1: wrapped in a measurable View so the qa-scroll-to
-            registry can scroll the card into view (the card owns no ref). */}
+            registry can scroll the card into view (the card owns no ref).
+            FIX-Task-15 item 7: the same wrapper now also reports the card's real
+            height + expanded state, which feed `timelineBottomPadding`. */}
         {trade.status === 'in_progress' && trade.auto_complete_at && (
-          <View ref={safeMeetupRef} collapsable={false}>
-            <SafeMeetupCard tradeId={tradeId} />
+          <View
+            ref={safeMeetupRef}
+            collapsable={false}
+            onLayout={(e) => setSafeMeetupHeight(e.nativeEvent.layout.height)}
+          >
+            <SafeMeetupCard tradeId={tradeId} onExpandedChange={setSafeMeetupExpanded} />
           </View>
         )}
 
@@ -2792,7 +2851,7 @@ const styles = StyleSheet.create({
   },
   // FIX-Task-13 item 1 (2026-09-10): the extra bottom room for the pinned
   // "I Got It" / "Cancel Trade" footer is no longer a static style — it is
-  // computed per render as `pinnedFooterReservedSpace` (measured footer height
+  // computed per render as `timelineBottomPadding` (measured footer height
   // + tab-bar clearance + safe-area inset) and applied inline on the ScrollView,
   // so it can never drift from the footer's real size. (The old static
   // `contentWithPinnedCta: { paddingBottom: 210 }` was removed with it.)

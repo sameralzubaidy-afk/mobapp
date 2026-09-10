@@ -1741,7 +1741,8 @@ SELECT public.rpc_process_expired_offers(100);
 3. Open a pending or completed trade.
 
 **Expected Result:**
-- Both parties see a safe-meetup card on the In Progress trade: "🛡️ Stay Safe — Choose a Public Meetup Spot" with tips (library, coffee shop, police station).
+- Both parties see the safe-meetup card on the In Progress trade — **collapsed by default** as a pill reading "Trade Smart, Trade Safe · [Tips] ›" (`safe-meetup-toggle`).
+- Tapping the pill expands the card: header "Trade Smart, Trade Safe", the 4 tips (meet where others can see you · drop a pin · cancel anytime · daytime only) and the CTA "Got it — Let's Trade Safely".
 - The card is not shown on pending or completed trades.
 
 ---
@@ -1751,18 +1752,23 @@ SELECT public.rpc_process_expired_offers(100);
 **Ref:** TRADING-FLOW-V2 §11.5
 **Actors:** test-buyer
 
-**Objective:** Verify dismissing the safe-meetup card persists for that trade only.
+**Objective:** Verify the safe-meetup card collapses for that trade and stays collapsed on return.
+
+**Shipped behaviour (reconciled FIX-Task-15 item 8, 2026-09-10 — this case previously described a design that was never built):** the card is **collapsed by default on EVERY In Progress trade** (FIX-Task-7 item 5b, 2026-09-08). Dismissal persists per trade in device storage keyed by `trade_id` (`safe_meetup_collapsed_<tradeId>`); **expansion is never persisted** — no code path writes anything but the collapsed state.
 
 **Steps:**
-1. On an In Progress trade, tap **[Got it ✓]** on the card.
-2. Navigate away and return to the same trade.
-3. Open a different In Progress trade.
-4. On the collapsed card, tap **[Tips]**.
+1. On an In Progress trade, confirm the card renders **collapsed** — a pill reading **"Trade Smart, Trade Safe · [Tips] ›"** (`safe-meetup-toggle`).
+2. Tap the pill → the card expands (`safe-meetup-card`) with the tips (`safe-meetup-tips`).
+3. Tap the expanded CTA **"Got it — Let's Trade Safely"** (`safe-meetup-cta`).
+4. Navigate away and return to the same trade.
+5. Open a different In Progress trade.
 
 **Expected Result:**
-- The card collapses to a compact link ("🛡️ Meeting safely? [Tips]") and stays collapsed when returning to the same trade.
-- A different In Progress trade shows the card expanded (dismissal is per trade, not global).
-- Tapping [Tips] re-expands the card.
+- Step 1: the collapsed pill is what renders first — the card is **not** expanded by default.
+- Step 2: tapping the pill expands the card (tips + CTA visible).
+- Step 3: the CTA collapses the card back to the pill and records the dismissal for this trade.
+- Step 4: the same trade still renders **collapsed** (`safe-meetup-toggle` present, `safe-meetup-card` absent) → the dismissal persisted for that trade.
+- Step 5: the other In Progress trade is also **collapsed** — because collapsed is the default for EVERY trade, not because a dismissal was applied globally. Expansion never carries across trades and is never persisted.
 
 ---
 

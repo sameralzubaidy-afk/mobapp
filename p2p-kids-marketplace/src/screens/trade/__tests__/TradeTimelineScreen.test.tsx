@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
-import TradeTimelineScreen from '../TradeTimelineScreen';
+import TradeTimelineScreen, { computeTimelineBottomPadding } from '../TradeTimelineScreen';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { processTradePayment } from '@/services/trade';
@@ -718,5 +718,55 @@ describe('TradeTimelineScreen', () => {
 
       expect(await waitFor(() => getByTestId('request-extension-button'))).toBeTruthy();
     });
+  });
+});
+
+// FIX-Task-15 item 7 (2026-09-10): the EXPANDED safe-meetup card is scroll
+// content, so its measured height is added to the ScrollView's reserved bottom
+// space while it is open — the same guarantee the collapsed/tail state has.
+describe('computeTimelineBottomPadding (FIX-Task-15 item 7)', () => {
+  it('reserves the pinned-footer space (inset + clearance + footer + gap) while collapsed', () => {
+    expect(
+      computeTimelineBottomPadding({
+        hasPinnedFooter: true,
+        insetsBottom: 34,
+        footerHeight: 85,
+        safeMeetupExpanded: false,
+        safeMeetupHeight: 378,
+      })
+    ).toBe(34 + 84 + 85 + 24);
+  });
+
+  it('adds the measured expanded card height while the card is open', () => {
+    expect(
+      computeTimelineBottomPadding({
+        hasPinnedFooter: true,
+        insetsBottom: 34,
+        footerHeight: 85,
+        safeMeetupExpanded: true,
+        safeMeetupHeight: 378,
+      })
+    ).toBe(34 + 84 + 85 + 24 + 378);
+  });
+
+  it('falls back to the default and still adds the expanded card when there is no pinned footer', () => {
+    expect(
+      computeTimelineBottomPadding({
+        hasPinnedFooter: false,
+        insetsBottom: 34,
+        footerHeight: 0,
+        safeMeetupExpanded: false,
+        safeMeetupHeight: 378,
+      })
+    ).toBe(100);
+    expect(
+      computeTimelineBottomPadding({
+        hasPinnedFooter: false,
+        insetsBottom: 34,
+        footerHeight: 0,
+        safeMeetupExpanded: true,
+        safeMeetupHeight: 378,
+      })
+    ).toBe(478);
   });
 });

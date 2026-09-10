@@ -22,6 +22,7 @@ import ChatScreen from '../ChatScreen';
 import * as chatService from '@/services/chat';
 import * as idBadgeService from '@/services/idBadge';
 import { AuthContext } from '@/contexts/AuthContext';
+import { supabase } from '@/config/supabase';
 
 // Mock dependencies
 jest.mock('@/services/chat');
@@ -244,6 +245,53 @@ describe('ChatScreen - MODULE-15.1 FLOW-14', () => {
       await waitFor(() => {
         expect(getAllByText('Alice').length).toBeGreaterThan(0);
       });
+    });
+  });
+
+  // FIX-Task-15 item 1 (2026-09-10): the frozen state used to render while the
+  // trade fetch was still in flight (trade === null ⇒ isTradeActive === false),
+  // briefly telling the user their ACTIVE trade had ended.
+  describe('Frozen-state gating (FIX-Task-15 item 1)', () => {
+    const getTradesQuery = () => (supabase.from as jest.Mock)('trades');
+
+    it('never shows the frozen banner or ended-placeholder before the status is known', async () => {
+      // Hold the trade fetch open so the screen stays in the unknown-status state.
+      (getTradesQuery().single as jest.Mock).mockImplementationOnce(() => new Promise(() => {}));
+
+      const { queryByTestId, getByTestId } = renderScreen();
+
+      // This is the QA-reported order: messages resolve first (composer mounts)
+      // while the trade fetch is still in flight.
+      await waitFor(() => expect(getByTestId('message-input')).toBeTruthy());
+
+      expect(queryByTestId('chat-frozen-banner')).toBeNull();
+      expect(getByTestId('message-input').props.placeholder).toBe('Loading this chat…');
+    });
+
+    it('shows the active composer with no frozen banner once an in_progress trade loads', async () => {
+      const { queryByTestId, getByTestId } = renderScreen();
+      await waitFor(() => {
+        expect(getByTestId('message-input').props.placeholder).toBe('Type a message...');
+      });
+      expect(queryByTestId('chat-frozen-banner')).toBeNull();
+    });
+
+    it('still shows the frozen banner + placeholder for a cancelled trade', async () => {
+      (getTradesQuery().single as jest.Mock).mockResolvedValueOnce({
+        data: {
+          id: 'trade-123',
+          buyer_id: 'user-123',
+          seller_id: 'user-456',
+          status: 'cancelled',
+          listing: null,
+        },
+        error: null,
+      });
+
+      const { getByTestId } = renderScreen();
+
+      await waitFor(() => expect(getByTestId('chat-frozen-banner')).toBeTruthy());
+      expect(getByTestId('message-input').props.placeholder).toBe('Chat is no longer active');
     });
   });
 

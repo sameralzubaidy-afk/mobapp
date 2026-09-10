@@ -107,7 +107,9 @@ export const getUnreadNotificationCount = async (
       .eq('is_read', false);
 
     if (fallbackError) {
-      console.error(
+      // FIX-Task-15 item 6 (2026-09-10): already-degraded fallback path —
+      // console.warn matches the rest of this function (L97/L99/L121/L123).
+      console.warn(
         '[ReferralNotifications] Fallback unread count failed:',
         fallbackError.message
       );
@@ -131,7 +133,8 @@ export const getUnreadNotificationCount = async (
         .eq('is_read', false);
 
       if (fallbackError) {
-        console.error(
+        // FIX-Task-15 item 6 (2026-09-10): background fallback count — non-critical.
+        console.warn(
           '[ReferralNotifications] Fallback unread count failed after exception:',
           fallbackError.message
         );
@@ -141,7 +144,8 @@ export const getUnreadNotificationCount = async (
       return { success: true, count: count ?? 0 };
     } catch (fallbackErr) {
       const finalError = fallbackErr as Error;
-      console.error(
+      // FIX-Task-15 item 6 (2026-09-10): deepest fallback of a background count.
+      console.warn(
         '[ReferralNotifications] Error getting unread count via fallback:',
         finalError.message
       );

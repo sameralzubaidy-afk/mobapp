@@ -55,9 +55,20 @@ const TIPS = [
 interface Props {
   tradeId: string;
   onDismiss?: () => void;
+  /**
+   * FIX-Task-15 item 7 (2026-09-10): publishes the EXPANDED state (note: NOT the
+   * internal `collapsed` flag) so a host screen — the Trade Timeline — can reserve
+   * the expanded card's height and keep its CTA clear of the floating tab bar.
+   * Publishing `expanded` (rather than `collapsed`) keeps the host's state name
+   * and this callback pointing the same way; the first cut shipped `collapsed`
+   * into a state called `safeMeetupExpanded`, which inverted the reserved space
+   * (QA verify round, both platforms). Expansion is still never persisted — only
+   * the collapsed state is written to storage.
+   */
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
-export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
+export function SafeMeetupCard({ tradeId, onDismiss, onExpandedChange }: Props) {
   // FIX-Task-7 item 5b (2026-09-08): tips COLLAPSED BY DEFAULT so the primary
   // trade actions (Report a Problem / I Got It) sit higher and are reachable
   // sooner on the timeline. The header pill is always visible and acts as the
@@ -72,6 +83,14 @@ export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
       if (val === 'true') setCollapsed(true);
     });
   }, [storageKey]);
+
+  // FIX-Task-15 item 7 (2026-09-10): report the state on mount and on every
+  // toggle, so the host's reserved space always matches what is rendered. The
+  // host passes its state setter, so re-running this cannot loop. Published as
+  // `expanded` — see the prop comment for the inversion this fixed.
+  React.useEffect(() => {
+    onExpandedChange?.(!collapsed);
+  }, [collapsed, onExpandedChange]);
 
   const dismiss = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

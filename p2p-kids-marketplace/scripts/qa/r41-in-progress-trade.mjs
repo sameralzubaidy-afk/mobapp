@@ -226,6 +226,10 @@ async function cmdReset() {
   }
   if (DRY_RUN) {
     log('r41-in-progress-trade', `DRY-RUN — would delete ${trades.length} tagged trade(s) + their items:`);
+    log(
+      'r41-in-progress-trade',
+      'DRY-RUN — also deletes their trade_events, trade_notification_log and user_notifications rows'
+    );
     for (const t of trades) console.log(`  trade ${t.id}  item ${t.listing_id}  status=${t.status}  dispute=${t.dispute_status ?? 'none'}`);
     return;
   }
@@ -240,6 +244,23 @@ async function cmdReset() {
     if (evErr) console.warn(`[r41-in-progress-trade] trade_events cleanup warn: ${evErr.message}`);
     const { error: nlErr } = await admin.from('trade_notification_log').delete().eq('trade_id', tid);
     if (nlErr) console.warn(`[r41-in-progress-trade] trade_notification_log cleanup warn: ${nlErr.message}`);
+    // FIX-Task-15 item 3 (2026-09-10): the fixture's own INSERT fires the
+    // `trade_request_notification` trigger, which writes a `user_notifications`
+    // row for the seller (supabase/migrations/145_trade_notifications.sql).
+    // Deleting the trade does NOT remove it — the previous round left one unread
+    // `trade_request` row pointing at a deleted item. `data.trade_id` (written as
+    // NEW.id::text) is the only link back, so match on jsonb containment.
+    // Counted first so the cleanup is verifiable from this script's own output.
+    const { count: fixtureNotificationCount } = await admin
+      .from('user_notifications')
+      .select('id', { count: 'exact', head: true })
+      .contains('data', { trade_id: tid });
+    const { error: unErr } = await admin
+      .from('user_notifications')
+      .delete()
+      .contains('data', { trade_id: tid });
+    if (unErr) console.warn(`[r41-in-progress-trade] user_notifications cleanup warn: ${unErr.message}`);
+    else log('r41-in-progress-trade', `  ✔ cleared ${fixtureNotificationCount} user_notifications row(s) for ${tid}`);
     const { error: tdErr } = await admin.from('trades').delete().eq('id', tid);
     if (tdErr) {
       console.error(`❌ trade delete failed for ${tid}: ${tdErr.message}`);

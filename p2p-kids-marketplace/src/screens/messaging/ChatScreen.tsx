@@ -754,6 +754,12 @@ export default function ChatScreen() {
     : null;
   // Chat is frozen when trade is no longer active (cancelled or completed)
   const isTradeActive = trade?.status === 'pending' || trade?.status === 'in_progress';
+  // FIX-Task-15 item 1 (2026-09-10): `trade` is null until fetchTrade() resolves,
+  // so `isTradeActive` is false during the load window — which briefly rendered the
+  // frozen banner ("The trade has ended.") and the disabled placeholder on a
+  // genuinely ACTIVE trade. `chatFrozen` is only true once the status is KNOWN.
+  const tradeStatusUnknown = loadingTrade && !trade;
+  const chatFrozen = !tradeStatusUnknown && !isTradeActive;
 
   return (
     <ScreenLayout variant="detail" title="Chat">
@@ -836,8 +842,9 @@ export default function ChatScreen() {
         <Text style={styles.safetyBannerChevron}>{'\u203A'}</Text>
       </TouchableOpacity>
 
-      {/* Chat frozen banner: shown when trade is no longer active (cancelled/expired/completed) */}
-      {!isTradeActive && (
+      {/* Chat frozen banner: shown when trade is no longer active (cancelled/expired/completed).
+          FIX-Task-15 item 1: gated on `chatFrozen`, never on a not-yet-known status. */}
+      {chatFrozen && (
         <View style={styles.chatFrozenBanner} testID="chat-frozen-banner">
           <Warning size={18} color="#92400E" weight="fill" />
           <Text style={styles.chatFrozenBannerText}>
@@ -972,8 +979,16 @@ export default function ChatScreen() {
             <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               testID="message-input"
               style={[styles.input, !isTradeActive && styles.inputDisabled]}
-              placeholder={isTradeActive ? 'Type a message...' : 'Chat is no longer active'}
-              placeholderTextColor={isTradeActive ? '#999999' : '#BBBBBB'}
+              // FIX-Task-15 item 1: while the trade fetch is in flight, say nothing
+              // about the trade — never assert it has ended before we know.
+              placeholder={
+                tradeStatusUnknown
+                  ? 'Loading this chat…'
+                  : isTradeActive
+                    ? 'Type a message...'
+                    : 'Chat is no longer active'
+              }
+              placeholderTextColor={chatFrozen ? '#BBBBBB' : '#999999'}
               value={isTradeActive ? inputText : ''}
               onChangeText={handleInputChange}
               multiline

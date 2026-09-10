@@ -13,9 +13,19 @@
 // (see qaScrollRegistry.ts); this handler invokes it and logs a machine-
 // readable RESULT line the QA agent can grep:
 //
-//   [QaScrollToDeepLink] RESULT <testID> <x> <y>        (scrolled + window coords)
-//   [QaScrollToDeepLink] RESULT <testID> NOT_FOUND      (no such element on screen)
-//   [QaScrollToDeepLink] RESULT <testID> NO_HANDLER     (no screen registered)
+//   [QaScrollToDeepLink] RESULT <testID> <x> <y>          (scrolled + window coords)
+//   [QaScrollToDeepLink] RESULT <testID> OUT_OF_VIEW <x> <y>  (scroll issued, but the
+//                                                        element is still outside the
+//                                                        window — coords NOT tap-usable)
+//   [QaScrollToDeepLink] RESULT <testID> MEASURE_FAILED    (the native measure returned
+//                                                        non-finite values; no coords exist)
+//   [QaScrollToDeepLink] RESULT <testID> NOT_FOUND        (no such element on screen)
+//   [QaScrollToDeepLink] RESULT <testID> NO_HANDLER       (no screen registered)
+//
+// FIX-Task-15 item 2 (2026-09-10): OUT_OF_VIEW / MEASURE_FAILED were added after the
+// Android no-op scroll logged a plausible-looking success (and later, `NaN NaN`). A
+// tool that reports coordinates must never label an unusable one as usable
+// (QA playbook R94 §5).
 //
 // SECURITY GATE: identical to QaLoginAsDeepLinkHandler / QaDevToggleDeepLinkHandler —
 // the listener is registered only in dev / staging builds (`__DEV__` or
@@ -24,7 +34,7 @@
 
 import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
-import { requestQaScrollTo } from '@/services/qaScrollRegistry';
+import { requestQaScrollTo, type QaScrollResult } from '@/services/qaScrollRegistry';
 
 /**
  * Enables the qa-scroll-to deep link in dev / staging builds only.
@@ -51,6 +61,17 @@ function isQaScrollToUrl(url: string | null): boolean {
   }
 }
 
+/** Renders the machine-readable RESULT token QA greps from the Metro/logcat output. */
+function formatQaScrollResult(handled: boolean, result: QaScrollResult | null): string {
+  if (!handled) return 'NO_HANDLER';
+  if (!result) return 'NOT_FOUND';
+  if (result.status === 'measure_failed') return 'MEASURE_FAILED';
+  if (result.status === 'out_of_view') {
+    return `OUT_OF_VIEW ${result.coords.x} ${result.coords.y}`;
+  }
+  return `${result.coords.x} ${result.coords.y}`;
+}
+
 /** Scrolls the requested testID into view on the current screen and logs the result. */
 async function applyQaScrollTo(url: string): Promise<void> {
   const parsed = Linking.parse(url);
@@ -63,13 +84,9 @@ async function applyQaScrollTo(url: string): Promise<void> {
     return;
   }
 
-  const { handled, coords } = await requestQaScrollTo(testID);
+  const { handled, result } = await requestQaScrollTo(testID);
   // eslint-disable-next-line no-console
-  console.log(
-    `[QaScrollToDeepLink] RESULT ${testID} ${
-      !handled ? 'NO_HANDLER' : coords ? `${coords.x} ${coords.y}` : 'NOT_FOUND'
-    }`
-  );
+  console.log(`[QaScrollToDeepLink] RESULT ${testID} ${formatQaScrollResult(handled, result)}`);
 }
 
 /**

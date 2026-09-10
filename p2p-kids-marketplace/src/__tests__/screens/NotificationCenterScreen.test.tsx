@@ -206,6 +206,24 @@ describe('NotificationCenterScreen', () => {
     expect(getByTestId('retry-button')).toBeTruthy();
   });
 
+  it('shows friendly copy instead of the raw backend error (FIX-Task-15 item 5)', async () => {
+    mockGetUserNotifications.mockResolvedValue({
+      success: false,
+      error: 'Gateway Timeout',
+    });
+
+    const { getByTestId, getByText, queryByText } = render(<NotificationCenterScreen />);
+    await waitFor(() => expect(getByTestId('error-state')).toBeTruthy());
+
+    expect(
+      getByText(
+        'We couldn’t load your notifications just now. Please check your connection and try again.'
+      )
+    ).toBeTruthy();
+    expect(queryByText('Gateway Timeout')).toBeNull();
+    expect(getByTestId('retry-button')).toBeTruthy();
+  });
+
   it('retries load when retry button is tapped', async () => {
     mockGetUserNotifications
       .mockResolvedValueOnce({ success: false, error: 'Network error' })

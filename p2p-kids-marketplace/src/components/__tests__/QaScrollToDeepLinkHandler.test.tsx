@@ -17,7 +17,10 @@ import QaScrollToDeepLinkHandler from '../QaScrollToDeepLinkHandler';
 import { requestQaScrollTo } from '@/services/qaScrollRegistry';
 
 jest.mock('@/services/qaScrollRegistry', () => ({
-  requestQaScrollTo: jest.fn().mockResolvedValue({ handled: true, coords: { x: 220, y: 500 } }),
+  requestQaScrollTo: jest.fn().mockResolvedValue({
+    handled: true,
+    result: { status: 'ok', coords: { x: 220, y: 500 } },
+  }),
 }));
 
 jest.mock('expo-linking', () => ({
@@ -99,5 +102,41 @@ describe('QaScrollToDeepLinkHandler', () => {
 
     await waitFor(() => expect(mockAddEventListener).toHaveBeenCalled());
     expect(mockRequestScrollTo).not.toHaveBeenCalled();
+  });
+
+  // FIX-Task-15 item 2 (2026-09-10): the RESULT line must distinguish a scroll
+  // that actually landed (coords) from one that left the element out of view.
+  it('logs the coords for a successful scroll', async () => {
+    parseAs('qa-scroll-to', { testID: 'message-button' });
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    render(<QaScrollToDeepLinkHandler />);
+    triggerUrl('p2pkidsmarketplace://qa-scroll-to?testID=message-button');
+
+    await waitFor(() =>
+      expect(logSpy).toHaveBeenCalledWith(
+        '[QaScrollToDeepLink] RESULT message-button 220 500'
+      )
+    );
+    logSpy.mockRestore();
+  });
+
+  it('logs OUT_OF_VIEW (never a bare success) when the element stays outside the viewport', async () => {
+    parseAs('qa-scroll-to', { testID: 'message-button' });
+    mockRequestScrollTo.mockResolvedValueOnce({
+      handled: true,
+      result: { status: 'out_of_view', coords: { x: 16, y: 1214 } },
+    });
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    render(<QaScrollToDeepLinkHandler />);
+    triggerUrl('p2pkidsmarketplace://qa-scroll-to?testID=message-button');
+
+    await waitFor(() =>
+      expect(logSpy).toHaveBeenCalledWith(
+        '[QaScrollToDeepLink] RESULT message-button OUT_OF_VIEW 16 1214'
+      )
+    );
+    logSpy.mockRestore();
   });
 });

@@ -496,7 +496,9 @@ export async function getUnreadCount(tradeId: string, userId: string): Promise<n
 
     return actualUnread.length;
   } catch (error) {
-    console.error('[chat.getUnreadCount] Error:', error);
+    // FIX-Task-15 item 6 (2026-09-10): background badge count — non-critical,
+    // so console.warn (a console.error here raised a dev LogBox on a normal path).
+    console.warn('[chat.getUnreadCount] Error:', error);
     return 0;
   }
 }
@@ -544,7 +546,8 @@ export async function getTotalUnreadMessageCount(userId: string): Promise<number
         .is('read_at', null);
 
       if (msgError) {
-        console.error(
+        // FIX-Task-15 item 6: per-trade count is skipped (`continue`) — non-critical.
+        console.warn(
           '[chat.getTotalUnreadMessageCount] Error counting unread for trade',
           trade.id,
           msgError.message
@@ -557,7 +560,9 @@ export async function getTotalUnreadMessageCount(userId: string): Promise<number
 
     return totalUnread;
   } catch (error) {
-    console.error('[chat.getTotalUnreadMessageCount] Error:', error);
+    // FIX-Task-15 item 6: background badge count that degrades to 0 — the
+    // console.error here was the LogBox source QA flagged (chat.ts:560).
+    console.warn('[chat.getTotalUnreadMessageCount] Error:', error);
     return 0;
   }
 }

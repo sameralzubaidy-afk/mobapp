@@ -337,14 +337,34 @@ describe('NotificationCenterScreen - MODULE-15.1 FLOW-17', () => {
         error: 'Failed to load notifications',
       });
 
-      const { getByTestId, getByText } = render(<NotificationCenterScreen />);
+      const { getByTestId, getByText, queryByText } = render(<NotificationCenterScreen />);
 
       await waitFor(() => {
         expect(getByTestId('error-state')).toBeTruthy();
         expect(getByTestId('error-icon')).toBeTruthy(); // Phosphor Warning icon
         expect(getByText('Something went wrong')).toBeTruthy();
-        expect(getByText('Failed to load notifications')).toBeTruthy();
+        // FIX-Task-15 item 5: friendly copy, never the raw backend reason.
+        expect(
+          getByText(
+            'We couldn’t load your notifications just now. Please check your connection and try again.'
+          )
+        ).toBeTruthy();
+        expect(queryByText('Failed to load notifications')).toBeNull();
       });
+    });
+
+    it('should never render a raw HTTP status in the error state (FIX-Task-15 item 5)', async () => {
+      mockGetUserNotifications.mockResolvedValue({
+        success: false,
+        error: 'Gateway Timeout',
+      });
+
+      const { getByTestId, queryByText } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => expect(getByTestId('error-state')).toBeTruthy());
+      expect(queryByText('Gateway Timeout')).toBeNull();
+      expect(queryByText('504')).toBeNull();
+      expect(getByTestId('retry-button')).toBeTruthy();
     });
 
     it('should show retry button in error state', async () => {

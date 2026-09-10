@@ -23,6 +23,24 @@
 
 **Platform totals: 2 PASS guidance flips (I02, I05) · 1 tooling FAIL (Android `qa-scroll-to`) · 5 new findings (1 MEDIUM, 4 LOW).**
 
+### ⚠️ ADDENDUM (same day, later build — DESK-OBSERVED, not a device drive by this round)
+
+While this report was being finalised, a **FIX-Task-15** change-set landed in the working tree (`git status` shows `M` on `QaScrollToDeepLinkHandler.tsx`, `qaScrollRegistry.ts`, `TradeTimelineScreen.tsx`, `ChatScreen.tsx`, `NotificationCenterScreen.tsx`, `services/chat.ts`, `SafeMeetupCard.tsx`, `scripts/qa/r41-in-progress-trade.mjs` + their tests, the guide and the tracker), and a **FIX-Task-15 verification run is in flight** (`e2e-test-results/qa-fix-task15-verify-2026-09-10/` contains only `screenshots/` at the time of writing, and the Metro log shows live Android driving of other trades). **No device interaction was performed for this addendum** (R29 — that round owns the emulator); the observations below are read from the Metro log + source, and the *authoritative* verdicts for the new build belong to that round, not to this one.
+
+1. **Findings 1–7 of this report all have fixes in the working tree.** Source-verified labels: `QaScrollToDeepLinkHandler.tsx` — *"FIX-Task-15 item 2 (2026-09-10): OUT_OF_VIEW was added after the Android no-op"*; `trade/TradeTimelineScreen.tsx` — `computeTimelineBottomPadding({ …, safeMeetupExpanded, safeMeetupHeight })` (*"FIX-Task-15 item 7"*), whose new metrics fields (`safeMeetupExpanded` / `safeMeetupHeight` / `timelineBottomPadding`) are visible in the live log; `ChatScreen.tsx`, `NotificationCenterScreen.tsx`, `services/chat.ts`, `SafeMeetupCard.tsx` and `scripts/qa/r41-in-progress-trade.mjs` are all modified (findings 2, 4/5, 6, DOC-DRIFT, 3 respectively).
+2. **The `qa-scroll-to` Android no-scroll STILL reproduces on the new build — what changed is that it now fails HONESTLY.** Live log lines from that build:
+   ```
+   WARN  measure cannot find view with tag #2338   (×5)
+   LOG   [QaScrollToDeepLink] RESULT message-button OUT_OF_VIEW NaN NaN
+   WARN  measure cannot find view with tag #2792   (×5)
+   LOG   [QaScrollToDeepLink] RESULT safe-meetup-toggle OUT_OF_VIEW NaN NaN
+   WARN  measure cannot find view with tag #3198   (×5)
+   LOG   [QaScrollToDeepLink] RESULT safe-meetup-toggle OUT_OF_VIEW NaN NaN
+   ```
+   Per the new source, `out_of_view` = *"the scroll was issued but the element is still outside the viewport"* and is documented as *"never a bare success"*. So: the scroll itself is still a no-op on Android, but the tool no longer emits plausible-but-wrong coordinates (this round's failure mode) — it now reports `OUT_OF_VIEW` with `NaN` coords plus `measure cannot find view with tag #N` warnings. **This round's FAIL verdict stands for the build it tested; the re-verification of the fix is FIX-Task-15's job.**
+3. **Practically, for the next Android round:** read `OUT_OF_VIEW` / `NaN` / `measure cannot find view with tag` as *"tool could not scroll — use the manual swipe"* (never as an app-side element-occlusion finding), and keep §5.75 R94 point 4/5 in force.
+4. Tracker rows/baseline for this round are **unchanged** by this addendum (I02/I05 PASS both platforms stands; the Android reachability evidence is the manual-swipe leg, which the tool change does not affect).
+
 ---
 
 ## 1. Part 0 — Android trade-fetch precondition (R29 check first)
