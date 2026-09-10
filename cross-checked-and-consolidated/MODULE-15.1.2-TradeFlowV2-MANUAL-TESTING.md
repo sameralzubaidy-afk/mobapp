@@ -400,7 +400,7 @@
 **Expected Result:**
 - On the item: a single **[Request to Buy]** button plus a secondary **Add**/"View Trade Basket" cart button. Cash-only listings show **no** payment-mode badge (only Accept-SP listings show an "SP Accepted"/"Use SP" affordance), so there is no "Cash Only" badge to expect.
 - After submitting: a confirmation toast and the trade appears as **Pending**; the seller receives a push notification.
-- The seller's offer row shows the item, cash amount, and a green countdown pill.
+- The seller's offer row shows the item, cash amount, and the offer's remaining time ("48h left" as plain text on the row); the colored countdown pill renders on the **Review Offer** header — see **TRD-TC-D03** for the colour bands.
 - After the seller accepts: both parties see the trade move to **In Progress**; buyer sees "Payment confirmed. Coordinate pickup." with an auto-complete banner ("Auto-completing in ~72h" — the default `pickup_window_hours`); the seller does **not** see an [I Got It] button or the auto-complete banner.
 - After the buyer confirms: the trade shows as **Completed**, a "Trade Complete!" screen appears with a [Rate Seller] button; the seller sees a "Sold!" completion screen with [Rate Buyer].
 
@@ -1219,11 +1219,12 @@ SELECT public.rpc_process_auto_complete(100);
 
 **Steps:**
 1. Log in as **Seller** and view offers with varying time remaining on the **Offers** tab and Review screen.
-2. Compare the pill color at >12h, 6–12h, 2–6h, <2h, and after expiry.
+2. Compare the pill color at >6h, 2–6h, ≤2h, and after expiry.
 
 **Expected Result:**
-- Green for more than ~12h remaining, amber for ~6–12h, orange for ~2–6h, red for under ~2h, and gray reading "Expired" once past the deadline.
+- Blue `#EFF6FF` (normal, >6h remaining), amber `#FFFBEB` (warning, ≤6h remaining), red `#FEF2F2` (critical, ≤2h remaining), and gray `#F8FAFC` reading "Expired" once past the deadline.
 - The pill color matches on both the Offers tab row and the Review Offer header.
+  - ⚠️ **QA flag (2026-09-09, FIX-Task-10 item 3):** on the shipped component the Offers-tab list rows render plain text ("Offer expires in 9h 59m") with **no** pill — `OfferCountdownPill` renders only on the **Review Offer** header. Whether the list row should also carry a pill is an open product decision, not a defect in the documented colors/thresholds (the four bands above are verified correct on-device, `qa-task-trd-expanded-2026-09-09`).
 ## sql to fast track offers 
 -- STEP 1: Find pending offers
 SELECT id, status, offer_expires_at, created_at

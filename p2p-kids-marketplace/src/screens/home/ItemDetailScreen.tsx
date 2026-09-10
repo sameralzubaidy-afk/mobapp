@@ -1134,7 +1134,7 @@ export default function ItemDetailScreen() {
           visible={showDuplicateOfferModal}
           type="alert"
           title="Active Offer"
-          message="You already have an active offer on this item. Open Trade History to view your current trades."
+          message="You already have an active offer on this item. Go to Trade History to view your current trades."
           primaryButtonText="Go to Trade History"
           secondaryButtonText="Dismiss"
           tertiaryButtonText={

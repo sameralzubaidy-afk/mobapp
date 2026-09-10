@@ -974,6 +974,15 @@ export default function TradeTimelineScreen() {
   const hasUnresolvedDispute =
     !!(trade as any).dispute_status &&
     !['none', 'resolved'].includes((trade as any).dispute_status);
+  // FIX-Task-10 item 1: pin the seller's "Cancel Trade" control above the floating
+  // tab bar (same class as the buyer's pinned CTA). It previously sat at the very
+  // bottom of the scroll content, behind the tab band, so a seller had to scroll +
+  // re-list to reach it on every in_progress trade. Buyer and seller footers are
+  // mutually exclusive (isBuyer vs isSeller), so only one is ever rendered.
+  const showPinnedSellerCancelCta =
+    isSeller && trade.status === 'in_progress' && !hasUnresolvedDispute;
+  // Either pinned footer reserves the same extra scroll room below the content.
+  const hasPinnedFooter = showPinnedBuyerCompleteCta || showPinnedSellerCancelCta;
   // FIX-CANCEL (2026-09-01): buyer cancel-request derived state
   const cancelRequestStatus = (trade as any)?.cancel_request_status ?? null;
   const cancelRequestPending =
@@ -1036,7 +1045,7 @@ export default function TradeTimelineScreen() {
         ref={timelineScrollRef}
         style={styles.scrollView}
         contentContainerStyle={
-          [styles.content, showPinnedBuyerCompleteCta && styles.contentWithPinnedCta]
+          [styles.content, hasPinnedFooter && styles.contentWithPinnedCta]
         }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
@@ -2111,31 +2120,10 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
-        {/* Addendum A (TFV2-023): seller can cancel an in_progress trade */}
-        {isSeller && trade.status === 'in_progress' && !hasUnresolvedDispute && (
-          <View style={styles.actions}>
-            <Pressable
-              ref={sellerCancelInprogressRef}
-              style={[
-                styles.cancelButtonOutline,
-                (submitting || isCancelling) && styles.disabledButton,
-              ]}
-              onPress={handleCancel}
-              disabled={submitting || isCancelling}
-              testID="seller-cancel-inprogress-button"
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Seller cancel inprogress button"
-            >
-              {isCancelling ? (
-                <ActivityIndicator size="small" color="#E85D75" />
-              ) : (
-                <XCircle size={20} color="#E85D75" weight="regular" />
-              )}
-              <Text style={styles.cancelButtonOutlineText}>Cancel Trade</Text>
-            </Pressable>
-          </View>
-        )}
+        {/* Addendum A (TFV2-023): seller can cancel an in_progress trade.
+            FIX-Task-10 item 1: this control MOVED out of the scroll content into a
+            pinned footer above the floating tab bar (see below) so it is always
+            visible without scrolling. */}
 
         {isSeller && trade.status === 'in_progress' && (
           <View style={styles.sellerCompletedBox} testID="seller-awaiting-payment-notice">
@@ -2252,6 +2240,39 @@ export default function TradeTimelineScreen() {
                 </View>
               </View>
             )}
+          </Pressable>
+        </View>
+      )}
+
+      {/* FIX-Task-10 item 1: pinned seller "Cancel Trade" control for an in_progress
+          trade — always fully visible just above the floating tab bar (mirrors the
+          buyer's pinned CTA). Rendered only when the buyer footer is absent. */}
+      {showPinnedSellerCancelCta && (
+        <View
+          style={[
+            styles.pinnedFooter,
+            { bottom: insets.bottom + TAB_BAR_FOOTER_CLEARANCE },
+          ]}
+        >
+          <Pressable
+            ref={sellerCancelInprogressRef}
+            style={[
+              styles.cancelButtonOutline,
+              (submitting || isCancelling) && styles.disabledButton,
+            ]}
+            onPress={handleCancel}
+            disabled={submitting || isCancelling}
+            testID="seller-cancel-inprogress-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Seller cancel inprogress button"
+          >
+            {isCancelling ? (
+              <ActivityIndicator size="small" color="#E85D75" />
+            ) : (
+              <XCircle size={20} color="#E85D75" weight="regular" />
+            )}
+            <Text style={styles.cancelButtonOutlineText}>Cancel Trade</Text>
           </Pressable>
         </View>
       )}

@@ -463,7 +463,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     if (existingTrade) {
       return {
         success: false,
-        error: 'You already have an active offer on this item. Open Trade History to continue.',
+        error: 'You already have an active offer on this item. Go to Trade History to continue.',
       };
     }
 

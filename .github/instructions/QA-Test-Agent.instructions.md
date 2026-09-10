@@ -950,6 +950,34 @@ Zero-dev-cost rule codified from the QA Task TRD Part 3 run's §8.3 Session Hand
 
 **R92 — External-state mutation ⇒ fresh-process gate: when a fixture/tool mutates SHARED server state that the app caches at process start (saved payment method, persona, config toggles), assume the RUNNING process holds stale state — do ONE terminate+relaunch (a fresh process re-reads the state from the DB) BEFORE retrying; never logout/relogin or an unbounded retry loop.** TRD Part 3's B06: after `qa:ensure-cards` swapped test-buyer's stored card to a valid MASTERCARD, the running app kept submitting the stale invalid payment method → repeated "Offer Failed / Payment method is invalid or expired" (STRIPE_HOLD_FAILED); a direct EF `create-trade-offer` SUCCEEDED in the same window (server + card fine → the client was stale); logout+relogin did NOT clear it (a modal intercepted the logout deep link); only a **terminate + relaunch** resolved it. Trigger: after an external fixture/tool write to a state the app caches at startup, if the app behaves as if the write never happened, terminate+relaunch before re-driving or re-arming. Extends R83 (§5.72 — DB-vs-app tiebreaker, which proves the server is right) with the client-side recovery step, and R78-9 / §5.2 (relaunch-on-corrupted-field) from field state up to process-cached server state. Pairs with the R28 sharpening in §5.40 (dev-toggle disarm must be verified, and a toggle that won't clear needs the fresh process). *Evidence / origin: QA Task TRD Part 3 (2026-09-09) — `e2e-test-results/qa-task-trd-part3-2026-09-09/report.md` §4 B06 + §6 finding 1 (stale-pm chase, ~30 calls) + the run's §8.3 Session Handoff.*
 
+### 5.74 Standing procedure — Stripe saved-card invalidation for the A1 rejection branch (FIX-Task-11, 2026-09-10) — R93
+
+**Why this exists.** FIX-Task-9's self-heal retry logic in `createTradeOfferWithHold` (`src/services/trade.ts`) has two outcomes: (1) the saved card drifted but a DIFFERENT usable card is available → the app silently retries with the fresh card and the offer succeeds (already proven on-device); (2) the saved card is **genuinely unusable** → the app surfaces the friendly decline ("Payment method declined. Please update your card.") with no retry loop. Outcome 2 is entered whenever `create-trade-offer` rejects with a `PM_STALE_RETRY_CODES` code (`INVALID_PAYMENT_METHOD` / `CARD_DECLINED` / `STRIPE_HOLD_FAILED` / `STRIPE_ERROR`). Before FIX-Task-11 there was no way to create that state, so the rejection branch was unit-test-only.
+
+**The fixture.** `npm run qa:invalidate-payment-method -- --persona <name>` (script `scripts/qa/invalidate-payment-method.mjs`; flags `--dry-run`, `--restore`). Allowlisted personas: `test-buyer`, `test-free`, `test-buyer-2`, `test-buyer-3` (the set `qa:ensure-cards` can restore).
+
+**What it does, and the Stripe facts behind it (empirically verified 2026-09-10):**
+- Stripe has **no delete endpoint for a card PaymentMethod** (`DELETE /v1/payment_methods/:id` → `Unrecognized request URL`), so a "deleted card" cannot be simulated. Detaching is what the fixture uses instead.
+- **A detached card can never be re-attached** — Stripe permanently refuses: *"This PaymentMethod was previously used without being attached to a Customer or was detached from a Customer, and may not be used again."* So after the fixture, the EF's `paymentMethods.retrieve()` still succeeds but its subsequent `attach()` throws → `400 INVALID_PAYMENT_METHOD`. That is exactly the trigger FIX-Task-9 branches on.
+- The fixture detaches **every** card on the persona's Stripe customer, not just the stored one. This is required: the `get-payment-method` EF's deterministic card selection (Dev Task 41) would otherwise silently swap in another attached card, producing outcome 1 (silent self-heal) instead of the rejection.
+- The DB is left **untouched** — `subscriptions.stripe_payment_method_id` keeps pointing at the now-unusable card, which is the point: the app believes it has a valid saved card and doesn't. Detached card ids are logged and written to a state file (`$TMPDIR/qa-invalidate-payment-method/<persona>.json`) for audit + restore.
+
+**Standing procedure (this is the case's procedure now, not a one-off):**
+1. `npm run qa:invalidate-payment-method -- --persona test-buyer` → ends with `✅ PASS` plus a `✅ PROOF` line showing Stripe refused the re-attach.
+2. Log in as the persona and submit an offer **without relaunching the app** → expect the friendly decline, **no retry loop, no crash, no LogBox**. (A relaunch also rejects, since the resolver returns the same unusable pm — but no-relaunch is the stricter test of the self-heal logic, so prefer it.)
+3. Backend corroboration (optional but cheap, and side-effect free because the pm check runs *before* any trade insert): `npm run qa:ef-repro -- --persona test-buyer --ef create-trade-offer --items <listing_id>` → expect **HTTP 400 `INVALID_PAYMENT_METHOD`**.
+4. `npm run qa:invalidate-payment-method -- --persona test-buyer --restore` → reinstalls a valid MASTERCARD •••• 4444 **and** verifies it (Stripe retrieve + attached-customer check + DB read-back).
+5. Re-check the health of the same backend call: it must now get **past** the payment check and fail on the next condition instead (e.g. `409 ITEM_NOT_AVAILABLE` for a sold item). A *different* error is the proof the payment path is healthy again.
+
+**Mandatory discipline:**
+- **Always run `--restore` before ending the session.** Never leave a persona with an unusable saved card — the next run (any offer flow) would fail confusingly. Restore must mint a **fresh** card because a detached one can never be re-attached.
+- **Blast radius (state honestly in the report):** the fixture permanently consumes the persona's existing test-mode cards (they stay detached). Restore leaves exactly one valid 4444 card. This is test-mode only and re-provisionable, but the report's `App State Left Behind` must say so.
+- The script hard-fails (exit 2) on a live Stripe key or an unknown persona; `--dry-run` mutates nothing. Never edit the allowlist to point at a non-QA customer.
+- **Interaction with R92 (§5.73):** R92 says "after an external state mutation, relaunch before retrying" — here the *stale cached pm is the test condition*, so do NOT reflexively relaunch between steps 1 and 2. R92 re-applies normally for every other fixture, and after the run the fixture is restored anyway.
+- FIX-Task-9's A1 leg is only *unblocked* by this fixture; executing the on-device A1 verification is still the QA agent's job (steps 2 and 5 above).
+
+*Evidence / origin: FIX-Task-11 (2026-09-10) — invalidate→reject→restore→healthy demonstrated end-to-end: `400 INVALID_PAYMENT_METHOD` with the card detached, then `409 ITEM_NOT_AVAILABLE` (i.e. past the payment check) after restore, with zero trades created.*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

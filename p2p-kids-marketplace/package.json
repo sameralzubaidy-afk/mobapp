@@ -12,6 +12,7 @@
     "qa:ax-tree": "node scripts/qa/ax-tree.mjs",
     "qa:ensure-buyer3-card": "node scripts/qa/ensure-buyer3-valid-card.mjs",
     "qa:ensure-cards": "node scripts/qa/ensure-valid-cards.mjs",
+    "qa:invalidate-payment-method": "node scripts/qa/invalidate-payment-method.mjs",
     "qa:reset-offer-fixtures": "node scripts/qa/reset-offer-fixtures.mjs",
     "qa:create-bundle-fixture": "node scripts/qa/create-bundle-fixture.mjs",
     "qa:create-in-progress-bundle-fixture": "node scripts/qa/create-in-progress-bundle-fixture.mjs",
