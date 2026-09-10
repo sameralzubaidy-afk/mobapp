@@ -116,14 +116,31 @@ appId: com.sameralzubaidi.p2pmarketplace
             - tapOn:
                 text: ".*(localhost|10\\.0\\.2\\.2).*8081.*"
             - waitForAnimationToEnd
-            # FIX-Task-12 item 1 — WAIT for the launcher screen to be replaced
-            # by the app UI before returning. A cold bundle load on a dev build
-            # takes ~12-20s; two bare `waitForAnimationToEnd` calls return
-            # immediately (the launcher has no animation), so the caller
-            # asserted on a screen that had not rendered yet.
+            # FIX-Task-14 (2026-09-10) — WAIT for the ONE thing that is both
+            # guaranteed to appear after a cold launch AND is itself what blocks
+            # the app: the one-time developer-menu onboarding sheet.
+            #
+            # Why NOT wait for the launcher to disappear — that is the FIX-Task-12
+            # shape AND this task's first two attempts, both of which left iOS RED:
+            #   (a) the launcher STAYS in the AX hierarchy BEHIND that sheet (a
+            #       modal does not remove the view beneath it), so a `notVisible`
+            #       keyed on ANY launcher text can never be satisfied and burns
+            #       its whole timeout — verified in run 2026-09-10T19-38-42
+            #       ("Assertion is false: ... is not visible", 1m19s ×2);
+            #   (b) deleting the wait outright is no better: the next bare
+            #       `when visible` poll crashed the XCUITest driver mid-transition
+            #       (viewHierarchy → kAXErrorInvalidUIElement, HTTP 500), and a
+            #       bare `when visible` inside a `repeat:` hard-fails the flow —
+            #       verified in run 2026-09-10T19-19-01.
+            # `extendedWaitUntil` retries driver errors; a bare `when visible`
+            # does not. The sheet reliably reappears after EVERY clearState launch
+            # (clearState wipes the "onboarding already seen" flag), and this block
+            # only runs when the launcher row was actually tapped — i.e. exactly
+            # that cold-launch path. Do NOT revert this to a `notVisible` wait
+            # keyed on the launcher or on any `8081` text.
             - extendedWaitUntil:
-                notVisible:
-                  text: ".*(localhost|10\\.0\\.2\\.2).*8081.*"
+                visible:
+                  text: "This is the developer menu.*"
                 timeout: 45000
             - waitForAnimationToEnd
       - waitForAnimationToEnd

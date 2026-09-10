@@ -23,15 +23,23 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 
 const REPO   = 'sameralzubaidy-afk/mobapp';
 const LABEL  = 'e2e-failure';
 const outDir = process.argv[2];
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+// NOTE (FIX-Task-14, 2026-09-10): execFileSync with an ARGS ARRAY — never a
+// shell-interpolated string. `gh ${args.join(' ')}` pushed every argument
+// through /bin/sh, so any value containing backticks, `$(...)`, quotes or
+// newlines was reinterpreted by the shell. Issue bodies contain fenced code
+// blocks and multi-line stderr, so EVERY `gh issue create` failed (reported as
+// "0 issued filed"), and `label create` failed too ("accepts at most 1 arg(s)")
+// which left the 'e2e-failure' label missing. Args are now passed RAW — do NOT
+// reintroduce JSON.stringify() around them.
 function gh(...args) {
-  return execSync(`gh ${args.join(' ')}`, { encoding: 'utf8', stdio: ['pipe','pipe','pipe'] }).trim();
+  return execFileSync('gh', args, { encoding: 'utf8', stdio: ['pipe','pipe','pipe'] }).trim();
 }
 function ghSafe(...args) {
   try { return { ok: true, out: gh(...args) }; }
@@ -117,7 +125,7 @@ for (const unit of failures) {
     '--repo', REPO,
     '--state', 'open',
     '--label', LABEL,
-    '--search', JSON.stringify(caseList),
+    '--search', caseList,
     '--json', 'number,title,url'
   );
 
@@ -175,8 +183,8 @@ for (const unit of failures) {
   const createResult = ghSafe(
     'issue', 'create',
     '--repo', REPO,
-    '--title', JSON.stringify(title),
-    '--body', JSON.stringify(body),
+    '--title', title,
+    '--body', body,
     '--label', LABEL
   );
 

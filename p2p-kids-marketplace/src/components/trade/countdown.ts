@@ -2,12 +2,34 @@
 
 export type CountdownUrgency = 'normal' | 'warning' | 'critical' | 'expired';
 
+/**
+ * FIX-Task-13 item 2 (2026-09-10): the auto-complete "urgent" threshold.
+ *
+ * The AutoCompleteBanner is a DELIBERATE 2-band projection (normal / urgent) of
+ * this module's 4-band urgency model — it is not a 4-band mirror of the offer
+ * countdown pill. Before this constant existed the banner hard-coded its own
+ * `minutesLeft < 240` inline, so editing the thresholds here silently did NOT
+ * affect the banner (QA Task Android G/H/I + D03, 2026-09-10 — a maintenance
+ * trap). The value now lives here, next to the bands it deliberately diverges
+ * from, so any future change is a single edit.
+ */
+export const AUTO_COMPLETE_URGENT_MINUTES = 240; // < 4 hours
+
 export interface CountdownModel {
   minutesLeft: number;
   hoursLeft: number;
   percentLeft: number;
   urgency: CountdownUrgency;
   expired: boolean;
+}
+
+/**
+ * FIX-Task-13 item 2: single source of truth for the AutoCompleteBanner's
+ * urgent band. Expired countdowns are urgent by definition (minutesLeft === 0).
+ */
+export function isAutoCompleteUrgent(model: CountdownModel | null | undefined): boolean {
+  if (!model) return false;
+  return model.expired || model.minutesLeft < AUTO_COMPLETE_URGENT_MINUTES;
 }
 
 function minutesFromDiffMs(diffMs: number): number {

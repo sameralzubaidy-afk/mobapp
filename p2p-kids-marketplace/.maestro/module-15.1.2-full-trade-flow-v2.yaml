@@ -35,6 +35,12 @@
 #   script start and after user switch.
 # Class 5 (testID Drift): Manifest comment block above; screen-context labels
 #   on every assertion for instant triage.
+# Class 6 (Assertion Over-Reach): a wait/assertion matcher must be scoped to the
+#   SINGLE screen it gates — never a regex broad enough to also match persistent
+#   app chrome. FIX-Task-14 (2026-09-10): `notVisible: ".*(localhost|10\.0\.2\.2).*8081.*"`
+#   also matched the dev menu's own "Connected to: http://localhost:8081" line, so
+#   it could never be satisfied once the menu was open and its timeout failed the
+#   flow. Prefer an `id:` matcher, or a screen-ONLY text anchor.
 #
 # ── LAST VERIFIED: 2026-06-24 (agent ran testID audit) ─────────────────
 # ═══════════════════════════════════════════════════════════════════════════

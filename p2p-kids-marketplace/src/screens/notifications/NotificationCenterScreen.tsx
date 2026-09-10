@@ -57,6 +57,8 @@ import {
   type NotificationDeepLinkData,
 } from '@/services/deepLink';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-13 item 5c (2026-09-10): stable per-item emoji for scannable rows.
+import { getNotificationItemGlyph } from '@/utils/notificationItemGlyph';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -336,6 +338,11 @@ const NotificationItem = React.memo(function NotificationItem({
   const iconConfig = getNotificationIconConfig(item);
   const { Icon, backgroundColor, iconColor } = iconConfig;
   const isUnread = !item.is_read;
+  // FIX-Task-13 item 5c (2026-09-10): a stable emoji derived from the item title
+  // the producers already store in `data`. Several near-identical rows (e.g.
+  // multiple "Trade Cancelled") become scannable at a glance. Rows that are not
+  // about a specific item render exactly as before (glyph === null).
+  const itemGlyph = getNotificationItemGlyph(item.data);
 
   return (
     <TouchableOpacity
@@ -362,6 +369,14 @@ const NotificationItem = React.memo(function NotificationItem({
           testID={`notification-icon-${item.id}`}
         />
       </View>
+
+      {/* FIX-Task-13 item 5c: item emoji chip (omitted when the notification
+          isn't about a specific item). */}
+      {itemGlyph ? (
+        <View style={styles.itemGlyphChip} testID={`notification-item-glyph-${item.id}`}>
+          <Text style={styles.itemGlyphText}>{itemGlyph}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.contentContainer}>
         <Text
@@ -720,6 +735,24 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     paddingRight: 16,
+  },
+  // FIX-Task-13 item 5c (2026-09-10): stable per-item emoji chip so rows for
+  // different items are scannable (e.g. several "Trade Cancelled" rows).
+  itemGlyphChip: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginRight: 10,
+    marginTop: 6, // centres the 28px chip against the 40px icon circle
+    flexShrink: 0,
+  },
+  itemGlyphText: {
+    fontSize: 15,
   },
   notificationTitle: {
     fontSize: 14,

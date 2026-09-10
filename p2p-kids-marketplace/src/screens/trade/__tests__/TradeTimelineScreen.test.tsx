@@ -670,4 +670,53 @@ describe('TradeTimelineScreen', () => {
       });
     });
   });
+
+  // FIX-Task-13 items 5a + 5b (2026-09-10).
+  describe('FIX-Task-13 safety/extension UX', () => {
+    const hoursFromNow = (hours: number) =>
+      new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+
+    it('item 5a: the step-1 "Message the seller" row opens the chat', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock({ ...mockTrade, auto_complete_at: hoursFromNow(48) }) as any;
+
+      const { getByTestId } = render(<TradeTimelineScreen />);
+
+      const row = await waitFor(() => getByTestId('next-step-message-button'));
+      fireEvent.press(row);
+
+      expect(mockNavigate).toHaveBeenCalledWith('Chat', { tradeId: 'trade-123' });
+    });
+
+    it('item 5b: keeps the extension card collapsed behind a link when the deadline is far (>6h)', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock({ ...mockTrade, auto_complete_at: hoursFromNow(48) }) as any;
+
+      const { getByTestId, queryByTestId } = render(<TradeTimelineScreen />);
+
+      expect(await waitFor(() => getByTestId('extension-toggle'))).toBeTruthy();
+      expect(queryByTestId('request-extension-button')).toBeNull();
+    });
+
+    it('item 5b: auto-expands the extension card when the deadline is close (<=6h)', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock({ ...mockTrade, auto_complete_at: hoursFromNow(3) }) as any;
+
+      const { getByTestId, queryByTestId } = render(<TradeTimelineScreen />);
+
+      expect(await waitFor(() => getByTestId('request-extension-button'))).toBeTruthy();
+      expect(queryByTestId('extension-toggle')).toBeNull();
+    });
+
+    it('item 5b: tapping the collapsed link reveals the full extension card', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock({ ...mockTrade, auto_complete_at: hoursFromNow(48) }) as any;
+
+      const { getByTestId } = render(<TradeTimelineScreen />);
+
+      fireEvent.press(await waitFor(() => getByTestId('extension-toggle')));
+
+      expect(await waitFor(() => getByTestId('request-extension-button'))).toBeTruthy();
+    });
+  });
 });

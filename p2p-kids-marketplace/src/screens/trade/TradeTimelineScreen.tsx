@@ -92,6 +92,22 @@ const QA_TOOLING_ENABLED: boolean =
 // above the floating PersistentTabBar (pill top ≈ insets.bottom + ~72; + 12 gap).
 const TAB_BAR_FOOTER_CLEARANCE = 84;
 
+// FIX-Task-13 item 1 (2026-09-10): the vertical space the pinned footer needs.
+// Module-scope so the ScrollView padding AND the dev diagnostic below use the
+// SAME formula (no drift), and so it can be referenced before the early return.
+// Fallback = the footer's typical measured height (~210dp) used only for the
+// very first layout pass, before onLayout reports the real height.
+const PINNED_FOOTER_GAP = 24;
+const PINNED_FOOTER_HEIGHT_FALLBACK = 210;
+function computePinnedFooterSpace(insetsBottom: number, footerHeight: number): number {
+  return (
+    insetsBottom +
+    TAB_BAR_FOOTER_CLEARANCE +
+    (footerHeight || PINNED_FOOTER_HEIGHT_FALLBACK) +
+    PINNED_FOOTER_GAP
+  );
+}
+
 export default function TradeTimelineScreen() {
   const route = useRoute<TradeTimelineRouteProp>();
   const insets = useSafeAreaInsets();
@@ -154,6 +170,20 @@ export default function TradeTimelineScreen() {
   const confirmTradeRef = useRef<View>(null);
   const requestCancelRef = useRef<View>(null);
   const sellerCancelInprogressRef = useRef<View>(null);
+  // FIX-Task-13 item 1 (2026-09-10): QA Task Android G/H/I + D03 found that the
+  // pinned footer occluded `message-button` + the safe-meetup card and that QA
+  // had NO way to scroll either into view (the qa-scroll-to registry only
+  // covered the 6 action buttons). Registering them turns "is it occluded or
+  // just unreached?" into one call, and unblocks I05's positive leg.
+  const messageButtonRef = useRef<View>(null);
+  const safeMeetupRef = useRef<View>(null);
+  const requestExtensionRef = useRef<View>(null);
+  const reportProblemRef = useRef<View>(null);
+  // FIX-Task-13 item 1: the pinned footer's MEASURED height + the ScrollView's
+  // measured viewport/content heights drive the reserved bottom space (below).
+  const [pinnedFooterHeight, setPinnedFooterHeight] = useState(0);
+  const [timelineViewportHeight, setTimelineViewportHeight] = useState(0);
+  const [timelineContentHeight, setTimelineContentHeight] = useState(0);
 
   // Register the qa-scroll-to handler for this screen. Registered once for the
   // screen lifetime; the refs are stable, so the testID→ref mapping is built
@@ -170,6 +200,13 @@ export default function TradeTimelineScreen() {
       'confirm-trade-button': confirmTradeRef,
       'request-cancel-button': requestCancelRef,
       'seller-cancel-inprogress-button': sellerCancelInprogressRef,
+      // FIX-Task-13 item 1 (2026-09-10): the two siblings the pinned footer
+      // appeared to occlude (message-button + safe-meetup card) are registered
+      // here so QA can scroll them into view + read fresh coords in ONE call.
+      'message-button': messageButtonRef,
+      'safe-meetup-toggle': safeMeetupRef,
+      'request-extension-button': requestExtensionRef,
+      'report-problem-button': reportProblemRef,
     };
 
     return registerQaScrollToHandler(async (testID) => {
@@ -181,9 +218,31 @@ export default function TradeTimelineScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // FIX-Task-13 item 1 — dev/staging diagnostic (Metro log only): records the
+  // real scroll numbers behind the occlusion finding, so a future round never
+  // has to guess whether the tail band is occluded or merely unreached.
+  // Declared HERE, with the other hooks, to keep hook order stable (the screen
+  // has early returns below).
+  useEffect(() => {
+    if (!QA_TOOLING_ENABLED) return;
+    if (timelineContentHeight <= 0 || timelineViewportHeight <= 0) return;
+    // eslint-disable-next-line no-console
+    console.log('[TradeTimeline][FIX-Task-13] scroll metrics', {
+      viewportHeight: timelineViewportHeight,
+      contentHeight: timelineContentHeight,
+      maxScrollOffset: Math.max(0, timelineContentHeight - timelineViewportHeight),
+      pinnedFooterHeight,
+      pinnedFooterReservedSpace: computePinnedFooterSpace(insets.bottom, pinnedFooterHeight),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timelineViewportHeight, timelineContentHeight, pinnedFooterHeight, insets.bottom]);
   // TFV2-011: Issue report modal
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [nextStepsDismissed, setNextStepsDismissed] = useState(false);
+  // FIX-Task-13 item 5b (2026-09-10): the "Need more time?" extension card is
+  // collapsed behind a link until the pickup deadline is close (≤6h) or the user
+  // taps the link. See `extensionDeadlineClose` below.
+  const [extensionExpanded, setExtensionExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [spReleaseDays, setSpReleaseDays] = useState(3);
   // DEV-TASK-75 (2026-08-31) — O07 refund-detail view: refund rows for a trade
@@ -983,6 +1042,15 @@ export default function TradeTimelineScreen() {
     isSeller && trade.status === 'in_progress' && !hasUnresolvedDispute;
   // Either pinned footer reserves the same extra scroll room below the content.
   const hasPinnedFooter = showPinnedBuyerCompleteCta || showPinnedSellerCancelCta;
+  // FIX-Task-13 item 1 (2026-09-10): reserve EXACTLY the vertical space the
+  // pinned footer occupies, instead of the previous hard-coded 210.
+  // The footer floats at `insets.bottom + TAB_BAR_FOOTER_CLEARANCE`, so the
+  // scroll content must clear `insets.bottom + clearance + footer height` for
+  // the tail siblings (message-button / safe-meetup card / secondary actions)
+  // to rest above it at max scroll. Measuring keeps this correct under font
+  // scaling and per-platform insets (QA Task Android G/H/I + D03 froze both
+  // siblings; the old constant also left Payment Details under the pill).
+  const pinnedFooterReservedSpace = computePinnedFooterSpace(insets.bottom, pinnedFooterHeight);
   // FIX-CANCEL (2026-09-01): buyer cancel-request derived state
   const cancelRequestStatus = (trade as any)?.cancel_request_status ?? null;
   const cancelRequestPending =
@@ -999,16 +1067,24 @@ export default function TradeTimelineScreen() {
   const hasPendingRefund = refundRows.some((r) => r.status === 'pending');
   const latestRefundDate = refundRows.length > 0 ? refundRows[0].created_at : null;
   const showRefundSection = refundRows.length > 0 && totalRefundCents > 0;
-  // Compute auto-complete countdown for the seller payout card
-  const autoCompleteCountdownLabel = (() => {
-    if (!trade.auto_complete_at) return '';
+  // Compute auto-complete countdown for the seller payout card, and (FIX-Task-13
+  // item 5b) whether the pickup deadline is close enough to surface the full
+  // "Need more time?" extension card without the user expanding it first.
+  const autoCompleteModel = (() => {
+    if (!trade.auto_complete_at) return null;
     const baseMs = Date.parse(trade.auto_complete_at) - 72 * 60 * 60 * 1000;
     const startIso = Number.isFinite(baseMs)
       ? new Date(baseMs).toISOString()
       : trade.auto_complete_at;
-    const model = createCountdownModel(trade.auto_complete_at, startIso);
-    return formatCountdownLabel(model);
+    return createCountdownModel(trade.auto_complete_at, startIso);
   })();
+  const autoCompleteCountdownLabel = autoCompleteModel
+    ? formatCountdownLabel(autoCompleteModel)
+    : '';
+  // FIX-Task-13 item 5b: "close" = the shared 4-band model's warning / critical /
+  // expired bands (≤6h) — deliberately the SHARED model, not the banner's own
+  // <4h 2-band cut (see countdown.ts / AutoCompleteBanner).
+  const extensionDeadlineClose = !!autoCompleteModel && autoCompleteModel.urgency !== 'normal';
   // DEV-TASK-113 (2026-09-05) item 1: friendly, role-appropriate copy for a
   // cancelled trade's reason. NEVER render the raw cancellation_reason code.
   // Refund context is only meaningful here (real refund rows via O07); Trade
@@ -1044,9 +1120,14 @@ export default function TradeTimelineScreen() {
       <ScrollView
         ref={timelineScrollRef}
         style={styles.scrollView}
-        contentContainerStyle={
-          [styles.content, hasPinnedFooter && styles.contentWithPinnedCta]
-        }
+        // FIX-Task-13 item 1: measure the viewport so the diagnostic above can
+        // report the real scroll range (see `pinnedFooterReservedSpace`).
+        onLayout={(e) => setTimelineViewportHeight(e.nativeEvent.layout.height)}
+        onContentSizeChange={(_w, h) => setTimelineContentHeight(h)}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: hasPinnedFooter ? pinnedFooterReservedSpace : 100 },
+        ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
         }
@@ -1340,7 +1421,19 @@ export default function TradeTimelineScreen() {
               <View style={styles.nextStepsList}>
                 {isBuyer ? (
                   <>
-                    <View style={styles.nextStepRow}>
+                    {/* FIX-Task-13 item 5a (2026-09-10): the step-1 row is now
+                        tappable — a second, higher-up path to messaging the
+                        seller (the only other entry point is `message-button`
+                        further down, which QA Task Android G/H/I + D03 could
+                        not reach). */}
+                    <Pressable
+                      style={styles.nextStepRow}
+                      onPress={handleOpenChat}
+                      testID="next-step-message-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Message the seller"
+                    >
                       <View style={styles.nextStepNumber}>
                         <Text style={styles.nextStepNumberText}>1</Text>
                       </View>
@@ -1350,7 +1443,8 @@ export default function TradeTimelineScreen() {
                           Coordinate the meetup location and time
                         </Text>
                       </View>
-                    </View>
+                      <Text style={styles.nextStepChevron}>{'\u203A'}</Text>
+                    </Pressable>
                     <View style={styles.nextStepRow}>
                       <View style={styles.nextStepNumber}>
                         <Text style={styles.nextStepNumberText}>2</Text>
@@ -1376,7 +1470,16 @@ export default function TradeTimelineScreen() {
                   </>
                 ) : (
                   <>
-                    <View style={styles.nextStepRow}>
+                    {/* FIX-Task-13 item 5a: seller-side step-1 row is tappable too
+                        (mirrors the buyer's row). */}
+                    <Pressable
+                      style={styles.nextStepRow}
+                      onPress={handleOpenChat}
+                      testID="next-step-message-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Message the buyer"
+                    >
                       <View style={styles.nextStepNumber}>
                         <Text style={styles.nextStepNumberText}>1</Text>
                       </View>
@@ -1384,7 +1487,8 @@ export default function TradeTimelineScreen() {
                         <Text style={styles.nextStepLabel}>Message the buyer</Text>
                         <Text style={styles.nextStepDesc}>Coordinate a meetup time and place</Text>
                       </View>
-                    </View>
+                      <Text style={styles.nextStepChevron}>{'\u203A'}</Text>
+                    </Pressable>
                     <View style={styles.nextStepRow}>
                       <View style={styles.nextStepNumber}>
                         <Text style={styles.nextStepNumberText}>2</Text>
@@ -1564,8 +1668,30 @@ export default function TradeTimelineScreen() {
               );
             }
 
-            // No extension used yet → offer the one-time "Request more time"
+            // No extension used yet → offer the one-time "Request more time".
+            // FIX-Task-13 item 5b (2026-09-10): the full card carries a lot of
+            // visual weight next to the safe-meetup card, so it stays collapsed
+            // behind a "Need more time?" link until the deadline is CLOSE
+            // (shared countdown `warning` band, ≤6h) — then it renders exactly as
+            // before. Tapping the link expands it early.
             if (!extStatus) {
+              if (!extensionDeadlineClose && !extensionExpanded) {
+                return (
+                  <Pressable
+                    style={styles.extensionCollapsedLink}
+                    onPress={() => setExtensionExpanded(true)}
+                    testID="extension-toggle"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Need more time?"
+                  >
+                    <Clock size={18} color="#5DBB8E" weight="regular" />
+                    <Text style={styles.extensionCollapsedText}>Need more time?</Text>
+                    <Text style={styles.nextStepChevron}>{'\u203A'}</Text>
+                  </Pressable>
+                );
+              }
+
               return (
                 <View style={styles.extensionCard}>
                   <View style={styles.extensionCardHeader}>
@@ -2031,6 +2157,7 @@ export default function TradeTimelineScreen() {
         {/* Hide message button for cancelled and pending trades — no active trade exists */}
         {trade.status !== 'cancelled' && trade.status !== 'pending' && (
           <Pressable
+            ref={messageButtonRef}
             style={styles.messageButton}
             onPress={handleOpenChat}
             testID="message-button"
@@ -2053,8 +2180,12 @@ export default function TradeTimelineScreen() {
         )}
 
         {/* TFV2-020: Safe meetup tips (only after seller accepts, not for pending offers) */}
+        {/* FIX-Task-13 item 1: wrapped in a measurable View so the qa-scroll-to
+            registry can scroll the card into view (the card owns no ref). */}
         {trade.status === 'in_progress' && trade.auto_complete_at && (
-          <SafeMeetupCard tradeId={tradeId} />
+          <View ref={safeMeetupRef} collapsable={false}>
+            <SafeMeetupCard tradeId={tradeId} />
+          </View>
         )}
 
         {/* FIX-Task-7 item 5a: the primary "I Got It — Complete Trade" CTA is
@@ -2068,6 +2199,7 @@ export default function TradeTimelineScreen() {
           !hasUnresolvedDispute && (
             <View style={styles.actions}>
               <Pressable
+                ref={reportProblemRef}
                 style={[styles.cancelButtonOutline, submitting && styles.disabledButton]}
                 onPress={handleReportProblem}
                 disabled={submitting}
@@ -2209,6 +2341,7 @@ export default function TradeTimelineScreen() {
           — always fully visible just above the floating tab bar, no scroll first. */}
       {showPinnedBuyerCompleteCta && (
         <View
+          onLayout={(e) => setPinnedFooterHeight(e.nativeEvent.layout.height)}
           style={[
             styles.pinnedFooter,
             { bottom: insets.bottom + TAB_BAR_FOOTER_CLEARANCE },
@@ -2249,6 +2382,7 @@ export default function TradeTimelineScreen() {
           buyer's pinned CTA). Rendered only when the buyer footer is absent. */}
       {showPinnedSellerCancelCta && (
         <View
+          onLayout={(e) => setPinnedFooterHeight(e.nativeEvent.layout.height)}
           style={[
             styles.pinnedFooter,
             { bottom: insets.bottom + TAB_BAR_FOOTER_CLEARANCE },
@@ -2656,12 +2790,12 @@ const styles = StyleSheet.create({
     // the report button sat behind the pill (BP-58).
     paddingBottom: 100,
   },
-  // FIX-Task-7 item 5a: when the pinned "I Got It" footer is present, keep extra
-  // bottom room so scroll content (secondary actions, payment details) can rest
-  // above the footer instead of hiding behind it.
-  contentWithPinnedCta: {
-    paddingBottom: 210,
-  },
+  // FIX-Task-13 item 1 (2026-09-10): the extra bottom room for the pinned
+  // "I Got It" / "Cancel Trade" footer is no longer a static style — it is
+  // computed per render as `pinnedFooterReservedSpace` (measured footer height
+  // + tab-bar clearance + safe-area inset) and applied inline on the ScrollView,
+  // so it can never drift from the footer's real size. (The old static
+  // `contentWithPinnedCta: { paddingBottom: 210 }` was removed with it.)
   // FIX-Task-7 item 5a: pinned primary CTA above the floating tab bar.
   pinnedFooter: {
     position: 'absolute',
@@ -3276,6 +3410,14 @@ const styles = StyleSheet.create({
   nextStepContent: {
     flex: 1,
   },
+  // FIX-Task-13 item 5a (2026-09-10): chevron affordance on the tappable step-1
+  // "Message …" row.
+  nextStepChevron: {
+    alignSelf: 'center',
+    fontSize: 20,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
   nextStepLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -3468,6 +3610,31 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
   },
   // R15 — Trade Extension
+  // FIX-Task-13 item 5b (2026-09-10): collapsed "Need more time?" link, mirroring
+  // the "What to do next" collapsed pill so the timeline has ONE collapse idiom.
+  extensionCollapsedLink: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  extensionCollapsedText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
   extensionCard: {
     backgroundColor: '#F0FDF4',
     borderRadius: 16,

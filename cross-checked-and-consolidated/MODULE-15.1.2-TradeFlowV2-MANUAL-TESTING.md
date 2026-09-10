@@ -1255,7 +1255,11 @@ SELECT public.rpc_process_expired_offers(100);
 3. Log in as **Buyer** and open the trade after it completes.
 
 **Expected Result:**
-- The buyer sees an auto-complete banner ("Auto-completes in [time]" + "Received it? Tap 'I Got It'").
+- The buyer sees the auto-complete banner:
+  - **normal band (>4h left):** `Confirm pickup — auto-completes in <N>h` + "Confirm you picked up the item, or the trade auto-completes and funds release to the seller." with an amber timer icon.
+  - **urgent band (<4h left):** the same copy **plus a "Due soon" label and an amber left accent bar** — urgency is never signalled by colour alone (FIX-Task-13 item 5d, 2026-09-10).
+  - **past the deadline:** "Trade is ready for auto-completion" + "Complete the trade now or contact support if there is an issue."
+  - ⚠️ **Guide reconciled to shipped copy (FIX-Task-13 item 3, 2026-09-10):** the previous expected text ("Auto-completes in [time]" + "Received it? Tap 'I Got It'") predates the shipped R2 copy — behaviour was always correct.
 - The seller does not see the banner; instead sees "Buyer paid. Awaiting pickup confirmation."
 - Once completed, the banner is gone.
 
@@ -1525,8 +1529,8 @@ SELECT public.rpc_process_expired_offers(100);
 3. Reach the 1-hour-before-expiry point and check notifications.
 
 **Expected Result:**
-- At ~6h: "⏱ Offer expiring in 6h on [Item]" (deep links to Review Offer).
-- At ~1h: "Last chance — offer on [Item] expires in 1h" (deep links to Review Offer).
+- At ~6h **and** ~1h the seller sees the title **"Offer Expiring Soon"** with the body `You have an offer on "<item>" expiring in N hours.` (N = 6 / 1 as appropriate) — both tap through to the **Review Offer** screen.
+  - ⚠️ **Guide reconciled to shipped copy (FIX-Task-13 item 3, 2026-09-10):** the previous expected titles — "⏱ Offer expiring in 6h on [Item]" / "Last chance — offer on [Item] expires in 1h" — predate the shipped notification redesign. Thresholds, reminder count and dedup semantics were verified correct on-device (QA Task Android G/H/I + D03, 2026-09-10); only the copy text was stale.
 - No third expiry reminder is sent.
 
 ---
@@ -1545,7 +1549,7 @@ SELECT public.rpc_process_expired_offers(100);
 3. Reach the 2-hours-before-auto-complete point and check notifications.
 
 **Expected Result:**
-- At ~24h: "Your [Item] trade auto-completes in 24h. Got it? Tap 'I Got It'."
+- At ~24h: `Your trade for "<item>" auto-completes in 24h. Got it? Tap 'I Got It'.` (guide wording reconciled to the shipped string, FIX-Task-13 item 3, 2026-09-10 — same meaning).
 - At ~2h: "[Item] trade auto-completes in 2 hours."
 - No third auto-complete reminder is sent.
 
@@ -1789,12 +1793,13 @@ SELECT public.rpc_process_expired_offers(100);
 
 **Steps:**
 1. Open the chat for a listing you have never messaged and try to send a message.
-2. Tap **[Got it]** and send a message.
+2. Tap **[Got it — Let's Trade Safely]** and send a message.
 3. Reopen that same listing's chat.
 4. Open a different listing's chat for the first time.
 
 **Expected Result:**
-- Before the first message a modal appears: "Keep your trade safe — SP and buyer protection only work for in-app transactions." with a [Got it] button.
+- Before the first message a modal appears headed **"Trade Smart, Trade Safe"** with the sub-line "Smart traders meet where people are around" and the **4 safety tips** (Meet where others can see you · Drop a pin before you leave · Cancel anytime — no explanation needed · Daytime only), dismissed by the green **[Got it — Let's Trade Safely]** button.
+  - ⚠️ **Guide reconciled to shipped copy (FIX-Task-13 item 3, 2026-09-10):** the previous expected text ("Keep your trade safe — SP and buyer protection only work for in-app transactions." + a [Got it] button) predates the shipped safety-UX redesign. Behaviour (once per listing) was already verified correct on-device (QA Task Android G/H/I + D03, 2026-09-10) — only the copy was stale.
 - After dismissing, you can send the message; the modal does not reappear for that listing.
 - A different listing's first chat shows the modal again (it is per listing).
 
@@ -6623,9 +6628,12 @@ FROM items;
 **Objective:** Verify the trade-extension request card and sent state.
 
 **Steps:**
-1. On an in-progress trade's timeline with no extension used, observe the card and tap **Request More Time**.
+1. On an in-progress trade's timeline with no extension used, observe the entry point and tap **Request More Time**.
 
 **Expected Result:**
+- **Entry point depends on the pickup deadline (FIX-Task-13 item 5b, 2026-09-10):**
+  - **More than 6h left:** the card is **collapsed behind a "Need more time?" link** (chevron, testID `extension-toggle`) so it does not compete with the Safe-Meetup card. Tapping the link expands the full card.
+  - **6h or less left:** the full card is shown automatically.
 - Card **Need more time?** reads `You can request one extension to extend the pickup window. The other party must accept within 4 hours, or the trade is cancelled.`
 - After requesting, the card becomes **Extension request sent** with `Waiting for the other party to respond. If they don't answer within {countdown}, the request expires and the trade is cancelled.`
 
