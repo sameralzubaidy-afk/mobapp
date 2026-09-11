@@ -27,6 +27,7 @@ Personas: test-buyer (subscriber), test-free, test-seller (trial) · real admin 
 8. **A deep link fired while the Basket tab is selected may not navigate** — re-fire or use the in-screen "View Trade Basket" button.
 9. **`mcp_supabase_query_logs`** returned `"Backend error! Retry your query"` for a `function_edge_logs` query — EF log diagnosis unavailable this session.
 10. **Item Detail's footer is stable at y1949–2085** for every listing ⇒ cheap repeated Add taps (the Add control becomes "View Trade Basket" once the item is in the cart).
+11. **Android dev client can wedge on `Reloading...`** — repeated `force-stop` + Dev-Launcher relaunch reached a splash then a permanently empty view tree (`qa:ocr` showed "Reloading..."); treat as a dev-tooling block (R87 class), not an app fault.
 
 ## Decision log highlights (friction → pivot)
 - **Offers cap not cleared at session start** (R-16-1 not applied) ⇒ the first bundle attempt failed for a fixture reason. Root-caused in 3 calls via `qa:ef-repro` (409 MAX_PENDING_OFFERS), then reset. **Cost ~12 calls.**
@@ -34,6 +35,13 @@ Personas: test-buyer (subscriber), test-free, test-seller (trial) · real admin 
 - **Admin portal clicks:** `locator.click` on `/settings/cart` timed out because **the sidebar intercepted pointer events** (known class) ⇒ switched to `page.evaluate(() => el.click())` for every portal click; `getByText('FEES')` also failed to switch the config tab (render didn't change) — **a DOM-level `button` text match + `textContent` dump** was required to read the Fees panel.
 - **Min-price raise made safe by discovery, not assumption:** source-read of `20260902000001_dev_task_86_forward_only_min_price.sql` proved the auto-pause was intentionally removed ⇒ the 0→5 raise had no listing blast radius (verified empirically afterwards).
 - **`charge_one_fee_per_bundle` data_type normalised** to `boolean` after the helper wrote `string` (portal defines it boolean) — flagged for a dev sanity check (F6).
+
+## ⚠️ CORRECTION (2026-09-11) — the "bundle checkout is broken" finding is RETRACTED
+- **Owner evidence:** a real 3-item bundle order submitted 2026-09-11 **02:06:54 UTC** created 3 `pending` trades in one batch (02:06:54.649 / .732 / .762) sharing **`bundle_id = 330427dc-1b1e-4146-b9fc-fa8e1e118457`** (buyer `d84bcc68…`, seller test-seller-3) with exactly **one** `buyer_transaction_fee_cents = 149` and two zeros. The app's bundle checkout therefore works end-to-end, including the one-fee-per-bundle rule.
+- **What actually happened to me:** `qa:reset-offer-fixtures` (run 3× this session) clears **`cart_items` server-side** without telling the running app. My second attempt submitted from a client whose cart/bundle context had been invalidated underneath it → non-2xx → I filed it as a product defect. Classic self-inflicted-state misattribution; the playbook's environment-first rules (R83/R87/R94) should have forced a clean-session reproduction before any finding.
+- **Kept (still true):** attempt 1 WAS the per-seller cap (409 `MAX_PENDING_OFFERS`, real residue); `checkoutCart` **does** discard the EF's structured error body (a genuine, low-severity diagnosability gap).
+- **Clean re-test attempted 2026-09-11 07:19–07:21 and NOT completed:** fresh `force-stop` → Dev-Launcher → server row; the client wedged on `Reloading...`, then reached a splash and a permanently empty view tree; a second `force-stop` + cold Dev Launcher start reproduced the same stall. Recorded as an **environment block** (dev-client/dev-server), not evidence either way. **Next session: finish this reproduction first — it is the only outstanding verification of the correction.**
+- Report, tracker round note and tracker coverage rows have all been corrected in place; no surface still claims the bundle path is broken.
 
 ## Residue / cleanup performed
 - `qa:reset-offer-fixtures --persona test-buyer` × 3 (final: 0 pending offers, 0 cart items).
