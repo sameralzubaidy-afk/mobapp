@@ -21,6 +21,12 @@ import { supabase } from '@/config/supabase';
 import { getBuyerFeeForCheckout, getChargeOneFeePerBundle } from '@/services/adminConfig';
 import { generateSubmissionNonce } from '@/utils/submissionNonce';
 import { getPaymentMethod } from '@/services/subscription';
+// FIX-Task-16 item 1: reuse the canonical EF-error helpers (trade.ts) instead of
+// re-implementing FunctionsHttpError parsing — see resolveCheckoutSubmissionError.
+import {
+  extractEdgeInvokeErrorMessage,
+  extractErrorCodeFromPayload,
+} from '@/services/trade';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -461,6 +467,59 @@ export function subscribeToCartChanges(
   };
 }
 
+// ─── Checkout failure diagnostics (FIX-Task-16 item 1) ───────────────────────
+
+/**
+ * Read the Edge Function's JSON error body from a `FunctionsHttpError`.
+ * supabase-js sets `.message` to the hardcoded "Edge Function returned a non-2xx
+ * status code" (BP-39) and leaves the real `{ code, message }` on `.context`
+ * (a Response). Returns null when there is no readable body, so the caller
+ * falls back to the generic copy.
+ */
+async function readFunctionErrorBody(invokeError: unknown): Promise<unknown> {
+  const context = (invokeError as { context?: unknown } | null)?.context;
+  if (!context || typeof context !== 'object') return null;
+
+  try {
+    const candidate = context as Response;
+    if (typeof candidate.clone === 'function') {
+      return await candidate.clone().json();
+    }
+    if (typeof candidate.json === 'function') {
+      return await candidate.json();
+    }
+  } catch {
+    // Body missing / already consumed / not JSON — caller uses the generic copy.
+  }
+
+  return (context as { body?: unknown }).body ?? null;
+}
+
+/**
+ * Resolve a failed checkout submission into the `{ code, message }` the UI should
+ * show. Without this the buyer only ever sees "Failed to submit offers for all
+ * items", which makes a real server rejection (e.g. a 409 `MAX_PENDING_OFFERS`
+ * per-seller cap) indistinguishable from a genuine outage.
+ */
+async function resolveCheckoutSubmissionError(
+  invokeError: unknown,
+  invokeData: unknown
+): Promise<{ code: string; message: string; details?: unknown }> {
+  const body = await readFunctionErrorBody(invokeError);
+  const code = extractErrorCodeFromPayload(invokeData) ?? extractErrorCodeFromPayload(body);
+  const details = (body as { error?: { details?: unknown } } | null)?.error?.details;
+
+  return {
+    code: code ?? 'ALL_OFFERS_FAILED',
+    message: await extractEdgeInvokeErrorMessage(
+      invokeError,
+      invokeData,
+      'Failed to submit offers for all items'
+    ),
+    ...(details !== undefined ? { details } : {}),
+  };
+}
+
 // ─── checkoutCart (backward compat — used by CartCheckoutScreen) ──────────────
 
 export async function checkoutCart(params: {
@@ -558,6 +617,9 @@ export async function checkoutCart(params: {
   const tradeIds: string[] = [];
   const failures: string[] = [];
   const skippedItems: CheckoutSkippedItem[] = [];
+  // FIX-Task-16 item 1: the EF's own structured {code, message} for the failure —
+  // returned to the caller (and surfaced in the alert) when nothing succeeded.
+  let submissionError: { code: string; message: string; details?: unknown } | null = null;
 
   // Bundle checkout: send ALL items in a single Edge Function call (batch mode).
   // This avoids N parallel HTTP calls, each with their own cold start + Stripe API overhead.
@@ -593,10 +655,11 @@ export async function checkoutCart(params: {
         },
       });
       if (resp.error || !resp.data?.success) {
-        console.error(
-          '[cartService.checkoutCart] Batch offer failed:',
-          resp.error ?? resp.data?.error
-        );
+        // FIX-Task-16 item 1: keep the EF's structured reason so the caller can
+        // show it. FIX-Task-16 item 2: console.warn — this path is handled, and
+        // console.error raised a full-screen dev LogBox that swallowed taps.
+        submissionError = await resolveCheckoutSubmissionError(resp.error, resp.data);
+        console.warn('[cartService.checkoutCart] Batch offer failed:', submissionError);
         // If the entire batch failed, all items failed
         for (const it of items) failures.push(it.listingId);
       } else {
@@ -648,7 +711,10 @@ export async function checkoutCart(params: {
           },
         });
         if (resp.error || !resp.data?.success) {
-          console.error('[cartService.checkoutCart] Offer failed:', resp.error ?? resp.data?.error);
+          // Same class as the batch path above: surface the EF's reason and warn
+          // (not error) on this handled rejection.
+          submissionError = await resolveCheckoutSubmissionError(resp.error, resp.data);
+          console.warn('[cartService.checkoutCart] Offer failed:', submissionError);
           failures.push(item.listingId);
           continue;
         }
@@ -663,7 +729,10 @@ export async function checkoutCart(params: {
   if (failures.length > 0 && tradeIds.length === 0) {
     return {
       success: false,
-      error: { code: 'ALL_OFFERS_FAILED', message: 'Failed to submit offers for all items' },
+      error: submissionError ?? {
+        code: 'ALL_OFFERS_FAILED',
+        message: 'Failed to submit offers for all items',
+      },
     };
   }
 

@@ -166,6 +166,12 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
           config[key] = parseFloat(value as string) as never;
         } else if (dataType === 'boolean') {
           config[key] = (value === 'true' || value === true) as never;
+        } else if (typeof config[key] === 'boolean') {
+          // FIX-Task-16 item 4: a boolean-keyed setting whose admin_config row is
+          // (mis)typed 'string' would otherwise be assigned the RAW text — and the
+          // string 'false' is truthy, which would flip a feature flag ON. The
+          // compiled default's own type is the authority (no hardcoded key list).
+          config[key] = (value === 'true' || value === true) as never;
         } else {
           config[key] = value as never;
         }
@@ -420,7 +426,12 @@ export async function getChargeOneFeePerBundle(): Promise<boolean> {
       .maybeSingle();
 
     if (!error && data?.value != null) {
-      return data.value === 'true';
+      // FIX-Task-16 item 4: admin_config.value is TEXT, but this key's `data_type`
+      // must stay 'boolean' (every sibling flag is boolean). Accept both the string
+      // form ("true") and a real boolean so the bundle fee mode can never silently
+      // fall back to per-item charging if the stored type changes.
+      const raw = data.value as unknown;
+      return typeof raw === 'boolean' ? raw : String(raw).trim().toLowerCase() === 'true';
     }
   } catch (err) {
     console.warn('⚠️ getChargeOneFeePerBundle failed:', (err as Error).message);

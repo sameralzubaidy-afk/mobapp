@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { formatCents } from '@/services/tax';
+import { formatCents, formatTaxRate } from '@/services/tax';
 
 interface Props {
   taxAmountCents: number;
@@ -52,9 +52,28 @@ export const TaxBreakdownRow: React.FC<Props> = ({
 
   if (!alwaysShow && !loading && taxAmountCents <= 0) return null;
 
+  // FIX-Task-16 item 5: render the applied rate — `taxRate`/`jurisdiction` were
+  // previously accepted and silently ignored. The rate shows ONLY when it is a
+  // known, non-zero value, so an exempt/zero/legacy row can never read "0.00%".
+  const showRate = typeof taxRate === 'number' && Number.isFinite(taxRate) && taxRate > 0;
+  // TRD-TC-O01: the VISIBLE label stays the kid-friendly tax name and never
+  // becomes the jurisdiction name. The jurisdiction is instead exposed to
+  // assistive tech, so the prop carries real meaning without changing the copy.
+  const accessibilityLabel = [label, showRate ? formatTaxRate(taxRate) : null, jurisdiction]
+    .filter(Boolean)
+    .join(', ');
+
   return (
     <View style={styles.row} testID={testID}>
-      <Text style={styles.label}>{label}</Text>
+      <Text
+        style={styles.label}
+        accessible
+        accessibilityLabel={accessibilityLabel}
+        testID="tax-label"
+      >
+        {label}
+        {showRate ? ` (${formatTaxRate(taxRate)})` : ''}
+      </Text>
       {loading ? (
         <ActivityIndicator size="small" testID="tax-loading" />
       ) : (

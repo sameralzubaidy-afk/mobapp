@@ -713,7 +713,12 @@ export interface CreateTradeOfferResult {
   error_code?: string;
 }
 
-function extractErrorCodeFromPayload(payload: unknown): string | undefined {
+/**
+ * Extract the Edge Function's structured error `code` (`{ error: { code } }`).
+ * Exported (FIX-Task-16 item 1) so `cartService.checkoutCart` can surface the
+ * same `{ code, message }` pair the single-item offer path already derives here.
+ */
+export function extractErrorCodeFromPayload(payload: unknown): string | undefined {
   if (!payload || typeof payload !== 'object') {
     return undefined;
   }

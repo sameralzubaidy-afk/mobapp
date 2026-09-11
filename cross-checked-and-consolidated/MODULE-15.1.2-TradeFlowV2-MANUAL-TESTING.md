@@ -105,7 +105,7 @@
 | | TRD-TC-K08 | Admin partial refund — tax ledger partially refunded |
 | | TRD-TC-K09 | Payments reconciliation page — charged vs refunded per trade |
 | | TRD-TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client |
-| | TRD-TC-K11 | Seller fee = 5% × cash portion (SP trade) |
+| | TRD-TC-K11 | Seller fee = tier rate × cash portion (SP trade) |
 | **L — Bundle Flows** | TRD-TC-L01 | Bundle banner on trade detail |
 | | TRD-TC-L02 | Confirm All shortcut for bundle (buyer) |
 | | TRD-TC-L03 | Bundle offer rows in Offers tab (seller) |
@@ -139,7 +139,7 @@
 | | TRD-TC-M20 | Discover header heart icon navigates to Favorites |
 | **N — Cart (Admin)** | TRD-TC-N01 | Admin sets minimum cart value → reflects in app |
 | | TRD-TC-N02 | Admin minimum cart value validation |
-| | TRD-TC-N03 | Admin updates Minimum Listing Price on Config → Fees tab |
+| | TRD-TC-N03 | Admin updates Min Listing Price on Config → Fees tab |
 | | TRD-TC-N04 | Seller cannot publish single-item listing below threshold |
 | | TRD-TC-N05 | Bulk: below-threshold items flagged, valid items publish |
 | | TRD-TC-N06 | Existing listing auto-paused when threshold raised above price |
@@ -266,7 +266,7 @@
 | | TRD-TC-S07 | Bundle CTA appears on CartScreen with 2+ same-seller items |
 | | TRD-TC-S08 | Bundle CTA hidden with single item or empty cart |
 | | TRD-TC-S09 | Bundle CTA navigates to checkout in bundle mode |
-| | TRD-TC-S10 | Bundle checkout shows "Bundle Offer" banner |
+| | TRD-TC-S10 | "Combined Offer" banner shown only on bundle checkout |
 | | TRD-TC-S11 | Regression: Discover/search grid unchanged (no badges) |
 | | TRD-TC-S12 | Regression: single-item offer flow unchanged |
 | | TRD-TC-S13 | Regression: seller identity unlocks only post-acceptance |
@@ -2033,8 +2033,8 @@ SELECT public.rpc_process_expired_offers(100);
 4. Enter 5 SP.
 
 **Expected Result:**
-- **Item Detail screen:** Price Breakdown shows Item Price, Transaction Fee, **Sales Tax** (with rate), then Total.
-- **Make Offer screen:** Value stack shows Offer amount, "Platform fee" $1.49, **"Sales Tax"** (based on node rate), and "Total cash" = offer amount + sales tax + $1.49.
+- **Item Detail screen:** Price Breakdown shows Item Price, **Safety & Platform Fee**, **Sales Tax** (with rate, e.g. `Sales Tax (6.99%)`), then "Total (before SP discount)".
+- **Make Offer screen:** Value stack shows Offer amount, **"Safety & Platform Fee"** $1.49, **"Sales Tax"** (with rate — priced from the item's tax-category rule, node rate only as fallback), and "Total cash" = offer amount + sales tax + $1.49.
 - After entering 5 SP, an "SP discount" row appears showing `-5 SP` — it reduces the cash portion only; the Sales Tax stays calculated on the full item price (BP-37) and does not change.
 - The Stripe PaymentIntent created at offer submission includes the tax amount (Option B — tax is charged at offer time, not deferred to completion).
 
@@ -2052,8 +2052,8 @@ SELECT public.rpc_process_expired_offers(100);
 3. Review the value stack.
 
 **Expected Result:**
-- **Item Detail screen:** Price Breakdown shows Item Price, Transaction Fee, **Sales Tax**, then Total.
-- **Make Offer screen:** "Platform fee" is tiered — **flat $1.49 on the first trade** (`buyer_fee_first_trade_cents`); after 1+ completed trades it is **5% of the cash portion + $1.99, capped at $4.99** (`buyer_fee_subsequent_*`). **"Sales Tax"** row (based on node rate); "Total cash" = offer amount + sales tax + the applicable tiered fee.
+- **Item Detail screen:** Price Breakdown shows Item Price, **Safety & Platform Fee**, **Sales Tax** (with rate), then "Total (before SP discount)".
+- **Make Offer screen:** **"Safety & Platform Fee"** is tiered — **flat $1.49 on the first trade** (`buyer_fee_first_trade_cents`); after 1+ completed trades it is **5% of the cash portion + $1.99, capped at $4.99** (`buyer_fee_subsequent_*`). **"Sales Tax"** row (with rate — from the item's tax-category rule, node rate only as fallback); "Total cash" = offer amount + sales tax + the applicable tiered fee.
 - No SP input section is visible.
 
 ---
@@ -2090,7 +2090,7 @@ SELECT public.rpc_process_expired_offers(100);
 2. Add 3 items from the same seller to cart.
 3. Navigate to **CartCheckout** screen.
 4. Review the **Order Summary** section.
-5. Verify the **Platform Fee** row shows: `Platform Fee (×3 items): $4.47` (3 × $1.49 subscriber fee).
+5. Verify the **Safety & Platform Fee** row shows: `Safety & Platform Fee (×3 items): $4.47` (3 × $1.49 subscriber fee).
 6. Verify the **Cash Total** includes 3× the platform fee.
 7. Tap **Send Offer** and complete checkout.
 8. Navigate to the bundle trade's **Timeline** screen.
@@ -2100,7 +2100,7 @@ SELECT public.rpc_process_expired_offers(100);
 **Expected Result:**
 | Scenario | Expected Outcome |
 |---|---|
-| CartCheckout: Platform Fee label | Shows "Platform Fee (×3 items)" with dollar amount = 3 × subscriber fee |
+| CartCheckout: Platform Fee label | Shows "Safety & Platform Fee (×3 items)" with dollar amount = 3 × subscriber fee |
 | CartCheckout: Cash Total | Includes 3× platform fee + subtotal - SP + tax |
 | Trade Timeline: Bundle totals | "Platform Fee" row sums all `buyer_transaction_fee_cents` = 3 × fee |
 | Toggle OFF + free user | Same behavior with the applicable tiered fee (first-trade $1.49; subsequent 5% + $1.99 capped $4.99) per item |
@@ -2120,7 +2120,7 @@ SELECT public.rpc_process_expired_offers(100);
 2. Add 3 items from the same seller to cart.
 3. Navigate to **CartCheckout** screen.
 4. Review the **Order Summary** section.
-5. Verify the **Platform Fee** row shows: `Platform Fee: $1.49` (single fee, no ×N suffix) for a subscriber.
+5. Verify the **Safety & Platform Fee** row shows: `Safety & Platform Fee: $1.49` (single fee, no ×N suffix) for a subscriber.
 6. Verify the **Cash Total** includes exactly 1× the platform fee.
 7. Tap **Send Offer** and complete checkout.
 8. Navigate to the bundle trade's **Timeline** screen.
@@ -2131,7 +2131,7 @@ SELECT public.rpc_process_expired_offers(100);
 | Scenario | Expected Outcome |
 |---|---|
 | Admin toggle ON | Config page at `localhost:3001/config` → Fees tab shows `Charge One Fee Per Bundle: Enabled` |
-| CartCheckout: Platform Fee label | Shows "Platform Fee: $1.49" (subscriber) — no "(×N items)" suffix |
+| CartCheckout: Platform Fee label | Shows "Safety & Platform Fee: $1.49" (subscriber) — no "(×N items)" suffix |
 | CartCheckout: Cash Total | Includes exactly 1× platform fee + subtotal - SP + tax |
 | Trade Timeline: Bundle totals | "Platform Fee" row shows exactly 1× fee (single `buyer_transaction_fee_cents` across all bundle trades) |
 | Toggle ON + free user | One fee for the entire bundle (first-trade $1.49; subsequent tiered) |
@@ -2256,16 +2256,16 @@ SELECT public.rpc_process_expired_offers(100);
 
 ---
 
-### TRD-TC-K11 · Seller fee = 5% × cash portion (SP trade)
+### TRD-TC-K11 · Seller fee = tier rate × cash portion (SP trade)
 
-**Ref:** SYSTEM_REQUIREMENTS_V2 §8.1 (8.1.2 Seller fee / Example 2, 8.1.4 default 5%) · Migration `20260727000001_add_seller_transaction_fee_cents.sql`
-**Actors:** test-seller (free tier — deterministic 5%), test-buyer (subscriber)
-**Precondition:** `platform_fee_seller_percentage` = 5 (default seed). Seller is on the FREE tier so `effectivePct = basePct = 5` (subscriber-tier seller fee depends on `platform_fee_seller_discount_percentage_kids_club_plus` — see note). Item is $25, Accept SP enabled.
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8.1 (8.1.2 Seller fee / Example 2, 8.1.3 per-tier admin config) · Migration `20260727000001_add_seller_transaction_fee_cents.sql`
+**Actors:** test-seller (**trial ⇒ Kids Club+ tier rate, 20%**), test-buyer (subscriber)
+**Precondition:** Live staging admin config (Config → Trade Timing → Transaction Fees): **"Seller Fee % — Free Tier"** = `platform_fee_seller_percentage` = **10**, and **"Seller Fee % — Kids Club+"** = `platform_fee_seller_discount_percentage_kids_club_plus` = **20**. The Kids Club+ field is the **absolute rate itself, not a discount** (BP-38). `test-seller` is on a **trial**, so the Kids Club+ rate applies → `effectivePct = 20`. Item is $25, Accept SP enabled. *(These rates are admin-configurable — re-read them before running and substitute into the arithmetic below.)*
 
-**Objective:** Verify the seller fee is 5% of the **cash portion** (price − SP), NOT 5% of the full item price — this is the exact input contract R5 (SP redemption) must consume. Fee must be computed at offer time and deducted from the payout at completion.
+**Objective:** Verify the seller fee is the seller's **tier rate (20%)** applied to the **cash portion** (price − SP), NOT that rate on the full item price — this is the exact input contract R5 (SP redemption) must consume. Fee must be computed at offer time and deducted from the payout at completion.
 
 **Steps:**
-1. test-seller (free) lists a $25 item with **Accept SP** enabled.
+1. test-seller (on trial ⇒ Kids Club+ rate) lists a $25 item with **Accept SP** enabled.
 2. test-buyer (subscriber) submits an offer using **12 SP** on the $25 item → cash portion = $13.00, buyer fee = $1.49.
 3. Verify `trades.seller_transaction_fee_cents` on the created offer.
 4. test-seller accepts; test-buyer confirms completion.
@@ -2274,13 +2274,13 @@ SELECT public.rpc_process_expired_offers(100);
 **Expected Result:**
 | Scenario | Expected Outcome |
 |---|---|
-| Offer-time fee | `seller_transaction_fee_cents` = round(5% × $13.00) = **$0.65 (65¢)** — NOT $1.25 (5% × $25 full price) |
+| Offer-time fee | `seller_transaction_fee_cents` = round(20% × $13.00) = **$2.60 (260¢)** — NOT $5.00 (20% × $25 full price) |
 | Fee base | Based on cash portion (price − SP), excluding buyer fee — matches §8.1.2 Example 2 |
-| Completion payout | `payout_amount_cents` = cash portion − seller fee = $13.00 − $0.65 = **$12.35** (before provider payout fees) |
+| Completion payout | `payout_amount_cents` = cash portion − seller fee = $13.00 − $2.60 = **$10.40** (before provider payout fees) |
 | SP not fee'd | Seller still credited 12 SP (pending → released per SP rules); no fee deducted from SP |
 | Verification SQL | `SELECT sp_amount, cash_amount_cents, buyer_transaction_fee_cents, seller_transaction_fee_cents FROM trades WHERE listing_id = '<id>';` then after completion `SELECT payout_amount_cents FROM trades WHERE id = '<trade_id>';` |
 
-> Note: The subscriber-seller variant uses `platform_fee_seller_discount_percentage_kids_club_plus` (seed = 0). This is now editable in the admin portal at **Config → Trade Timing → Transaction Fees → Seller Fee % — Kids Club+**. Set it to 5 if the intended policy is a uniform 5% seller fee across tiers. The spec (§8.1.2 / §8.1.5) has been aligned to the code: seller fee = rate × cash portion (item price − SP), with per-tier admin config documented in §8.1.3.
+> Note: Staging currently runs **10% (free tier) / 20% (Kids Club+)** — both are admin-editable at **Config → Trade Timing → Transaction Fees** (`Seller Fee % — Free Tier` / `Seller Fee % — Kids Club+`), and the Kids Club+ field is an absolute rate, not a discount (BP-38). The spec's *seed* defaults (`seller_percent_fee_free = 5.0%`, `seller_percent_fee_subscriber = 0.0%`, §8.1.4) are superseded by the live admin config — always read the live values and substitute them into the arithmetic above. The formula (rate × cash portion, item price − SP) is unchanged and verified.
 
 ---
 
@@ -3018,22 +3018,22 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 > Current limitation: `cart_max_saved_carts` and `cart_saved_expiry_days` can be edited in admin, but the runtime cart flow still hardcodes the 3-cart cap and has no verified configurable expiry consumption. Do not mark those two config-to-mobile paths covered until the implementation is wired end to end.
 
-### passed TRD-TC-N03 · Admin updates Minimum Listing Price on Config → Fees tab (no deploy)
+### passed TRD-TC-N03 · Admin updates Min Listing Price on Config → Fees tab (no deploy)
 
 **Actors:** Admin
 
-**Objective:** Verify the admin can change the "Minimum Listing Price" field on the Config page's Fees tab, with no deploy required, and the new value takes effect immediately for new listings.
+**Objective:** Verify the admin can change the "Min Listing Price" field on the Config page's Fees tab, with no deploy required, and the new value takes effect immediately for new listings.
 
 **Steps:**
 1. Log in to the **admin portal** and navigate to **Config**.
 2. Select the **Fees** tab from the sidebar.
-3. Locate the **Minimum Listing Price** setting.
+3. Locate the **Min Listing Price** setting.
 4. Change the value from `0` to `5` and click **Save**.
 5. Refresh the page and confirm the value persists as `5`.
 6. Change it back to `0` and save to reset.
 
 **Expected Result:**
-- The **Minimum Listing Price** field is visible on the Fees tab with label "Minimum Listing Price" and a text input.
+- The **Min Listing Price** field is visible on the Fees tab with label "Min Listing Price" and a text input. *(The label is auto-derived from the config key `min_listing_price` — title-cased per word.)*
 - Description reads: "Minimum price (in dollars) required for a listing to go live. Set to 0 to disable the floor."
 - Saving shows a green success banner; the value persists after refresh.
 - No code deploy, server restart, or app redeploy is needed — the change is immediate via the existing `secure_upsert_admin_config` RPC.
@@ -3203,7 +3203,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Steps:**
 1. As **test-seller**, ensure you have an available listing priced at $4.00.
 2. As **test-buyer**, verify the $4.00 listing is visible in Discover and has purchase actions (Add to Cart / Request to Buy).
-3. As **Admin**, go to **Config → Fees**, change **Minimum Listing Price** from `0` to `5`, and save.
+3. As **Admin**, go to **Config → Fees**, change **Min Listing Price** from `0` to `5`, and save.
 4. As **test-buyer**, refresh Discover and search for the $4.00 listing.
 5. As **test-seller**, open **My Listings** and find the $4.00 listing.
 
@@ -5326,12 +5326,12 @@ FROM items;
 **Precondition:** Cart has 2+ test-seller items.
 
 **Steps:**
-1. Tap "Bundle these N items" CTA.
+1. Tap the **"Make one offer for these N items"** CTA in the Trade Basket.
 2. Observe CartCheckoutScreen.
 
 **Expected Result:**
-- 📦 "Bundle Offer" banner at top.
-- All items listed. SP stepper available. Tapping Confirm Purchase submits the offer.
+- 📦 **"Combined Offer"** banner at top.
+- All items listed. Points (SP) inputs available per item. Tapping the primary **"Send Offer · $N"** button submits the offer.
 
 ---
 
@@ -5340,11 +5340,11 @@ FROM items;
 **Ref:** SELLER-GROUP-005
 
 **Steps:**
-1. With 2+ items, tap regular Checkout → no bundle banner.
-2. Go back, tap Bundle CTA → bundle banner visible.
+1. With 2+ items, tap regular Checkout → no **"📦 Combined Offer"** banner.
+2. Go back, tap the combined-offer CTA → **"📦 Combined Offer"** banner visible.
 
 **Expected Result:**
-- Regular Checkout: no bundle banner. Bundle CTA: banner present.
+- Regular Checkout: no banner. Combined-offer checkout: banner present.
 
 ---
 
@@ -6987,7 +6987,7 @@ FROM items;
 | Value stack $1.49 subscriber fee | TRD-TC-K01 |
 | Value stack tiered non-subscriber fee | TRD-TC-K02 |
 | SP discount row conditional | TRD-TC-K03 |
-| Seller fee 5% × cash portion (SP trade) | TRD-TC-K11 |
+| Seller fee tier rate × cash portion (SP trade) | TRD-TC-K11 |
 | Bundle banner on trade detail | TRD-TC-L01 |
 | Confirm All shortcut for bundle | TRD-TC-L02 |
 | Bundle offer rows in Offers tab | TRD-TC-L03 |
@@ -7014,7 +7014,7 @@ FROM items;
 | Favorites — availability status + empty state | TRD-TC-M15 |
 | Admin — minimum cart value config reflects in app | TRD-TC-N01 |
 | Admin — minimum cart value validation | TRD-TC-N02 |
-| Admin — Minimum Listing Price config on Fees tab | TRD-TC-N03 |
+| Admin — Min Listing Price config on Fees tab | TRD-TC-N03 |
 | Seller — single-item listing blocked below min price | TRD-TC-N04 |
 | Bulk — below-threshold items flagged, valid items publish | TRD-TC-N05 |
 | Listing — auto-paused when threshold raised above price | TRD-TC-N06 |
