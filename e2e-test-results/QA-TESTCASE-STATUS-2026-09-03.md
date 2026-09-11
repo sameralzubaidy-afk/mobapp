@@ -25,7 +25,7 @@
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | **AUTH** | `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` | 138 | 128 | 1 | 2 | 0 | 2 | 5 | 0 | 0 | 0 | **0** |
 | **MSG** | `MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` | 72 | 64 | 4 | 2 | 0 | 0 | 0 | 0 | 2 | 0 | **0** |
-| **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 236 | 27 | 1 | 5 | 2 | 0 | 0 | 0 | 0 | **17** |
+| **TRD** | `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` | 288 | 238 | 25 | 1 | 5 | 2 | 0 | 0 | 0 | 0 | **17** |
 | **ACC** | `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md` | 75 | 68 | 0 | 2 | 0 | 1 | 0 | 0 | 4 | 0 | **0** |
 | **ADM** | `MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` | 160 | 144 | 12 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | **3** |
 | **SUB** | `MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET-MANUAL-TESTING.md` | 100 | 77 | 2 | 3 | 0 | 0 | 0 | 15 | 0 | 2 | **1** |
@@ -290,7 +290,9 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 
 ## TRD · TradeFlow V2 (Module 15.1.2)
 
-**Guide file:** `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` · **Cases:** 288 · **PASS** 236 · **PARTIAL** 27 · **OPEN** 1 · **DOC-DRIFT** 5 · **SKIPPED** 2 · **Remaining (NEVER RUN)** 17
+**Guide file:** `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` · **Cases:** 288 · **PASS** 238 · **PARTIAL** 25 · **OPEN** 1 · **DOC-DRIFT** 5 · **SKIPPED** 2 · **Remaining (NEVER RUN)** 17
+
+> **Baseline update — 4-Stage QA Dispatch, Stage 3 TRD Bundle Harvest (2026-09-11):** delta = **S06 🟡 PARTIAL → ✅ PASS** and **S08 🟡 PARTIAL → ✅ PASS** (both were source-only; now driven on Android against the live in-progress bundle). Android execution notes appended to L01/L03/L06/L07/L08/M01/K06/S04 rows (Date/Source refreshed, no other status flips — all were PASS on record). New totals (**288 · 238 PASS · 25 PARTIAL · 1 OPEN · 5 DOC-DRIFT · 2 SKIPPED · 17 Remaining**) are mirrored in the §1 per-guide roll-up in the same pass (R52 step 2 / R56). ⚠️ **R56 FLAG (not corrected this round):** the TRD "Remaining test cases — NEVER RUN" table header reads **(19)** against 19 body rows while §1 and this header both say **17** — needs a row-level audit before the next round touches these counts.
 
 > **Baseline update — TRD Round 2, Groups K–T Android (2026-09-10):** supersedes the FIX-Task-13 baseline figures. Delta = N06 ✅ PASS → 📄 DOC-DRIFT and N07 🔴 STILL OPEN → 📄 DOC-DRIFT (both obsolete after DT-86's forward-only min-price decision — see the rows and the round note below). New totals (**288 · 236 PASS · 27 PARTIAL · 1 OPEN · 5 DOC-DRIFT · 2 SKIPPED · 17 Remaining**) are mirrored in the §1 per-guide roll-up in the same pass (R52 step 2 / R56).
 
@@ -397,24 +399,24 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 | TRD-TC-K03 | SP discount row conditional on SP used | ✅ PASS | PASS | 2026-08-29 | `qa-task5-trd-f-k-2026-08-29` | SP discount row show/hide |
 | TRD-TC-K04 | Bundle checkout — fee charged per item (admin toggle OFF) | ✅ PASS | PASS | 2026-08-29 | `qa-task5-trd-f-k-2026-08-29` | fee toggle OFF ×3 items |
 | TRD-TC-K05 | Bundle checkout — one fee per bundle (admin toggle ON) | ✅ PASS | PASS | 2026-08-29 | `qa-task5-trd-f-k-2026-08-29` | fee toggle ON 1× |
-| TRD-TC-K06 | Bundle timeline — fee display matches charge mode | ✅ PASS | PASS | 2026-08-29 | `qa-task5-trd-f-k-2026-08-29` | both bundle modes |
+| TRD-TC-K06 | Bundle timeline — fee display matches charge mode | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | Android re-check (in_progress bundle 330427dc, seller view): bundle banner + per-item context render, but NO fee/totals section on the seller timeline — guide precondition (two bundles, one per mode, buyer view) not met ⇒ PARTIAL leg noted |
 | TRD-TC-K07 | Admin partial refund — refund price only, keep fee | ✅ PASS | PASS | 2026-08-29 | `qa-task5-trd-f-k-2026-08-29` | partial refund price-only |
 | TRD-TC-K08 | Admin partial refund — tax ledger partially refunded | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | tax ledger on partial refund (task5 finding fixed DT-48) |
 | TRD-TC-K09 | Payments reconciliation page — charged vs refunded per trade | ✅ PASS | PASS | 2026-08-29 | `qa-task5-trd-f-k-2026-08-29` | payments reconciliation |
 | TRD-TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | EF stale-client bundle → 409 SP_INSUFFICIENT (task5 TRADE_INSERT_ERROR fixed) |
 | TRD-TC-K11 | Seller fee = 5% × cash portion (SP trade) | ✅ PASS | PASS | 2026-08-31 | `qa-task16-close-trd-2026-08-31` | fee = pct × cash portion (staging 10/20%, guide 5% stale) |
-| TRD-TC-L01 | Bundle banner on trade detail | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | bundle banner expand |
+| TRD-TC-L01 | Bundle banner on trade detail | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **Android**: `bundle-context-banner` "Bundle offer · 3 items" + "View all items" toggle; expanded list shows all 3 items with title + cash price (live bundle 330427dc) |
 | TRD-TC-L02 | Confirm All shortcut for bundle (buyer) | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | Confirm All 2 |
-| TRD-TC-L03 | Bundle offer rows in Offers tab (seller) | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | NEEDS ACTION bundle row |
+| TRD-TC-L03 | Bundle offer rows in Offers tab (seller) | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **Android**: seller Needs Action renders the bundle card "📦 Bundle Offer · 3 items" + OFFER badge + 3 priced line items + Review Each / Accept All / Decline All |
 | TRD-TC-L04 | Non-bundle offers render as single rows | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | single row Review only |
 | TRD-TC-L05 | In-progress bundles section in Buying tab | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | IN PROGRESS bundle group |
-| TRD-TC-L06 | Bundle banner in Review Offer screen | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | Review Offer bundle SP/net |
-| TRD-TC-L07 | Accept All N Items in Review Offer screen | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | Accept All |
-| TRD-TC-L08 | Individual accept/decline alongside bundle siblings | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | individual accept + sibling pending |
+| TRD-TC-L06 | Bundle banner in Review Offer screen | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **Android**: bundle context banner + `review-bundle-toggle` → 3 `review-bundle-item-<id>` rows + "Buyer's Total Paid $50.00" |
+| TRD-TC-L07 | Accept All N Items in Review Offer screen | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **Android headline leg driven**: Accept All 3 Items → confirm modal → "Bundle Accepted! Payment authorized." → all 3 trades In Progress. **Guide locator doc-drift:** shipped ids are `accept-bundle-confirm-button`/`accept-bundle-cancel-button`, not the guide's `btn-accept-all-confirm`/`btn-bundle-modal-cancel` |
+| TRD-TC-L08 | Individual accept/decline alongside bundle siblings | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **Android**: `accept-trade-button` + `decline-trade-button` confirmed co-present alongside `accept-bundle-button` on the bundle Review Offer screen; individual-action leg not driven (would split the bundle) ⇒ PARTIAL leg noted |
 | TRD-TC-L09 | Bundle card in Your Offers (buyer) | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | Your Offers bundle card; disclaimer=Amazon boilerplate finding |
 | TRD-TC-L10 | Bundle cancel prompt (buyer + seller) | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | cancel-all vs just-this-one |
 | TRD-TC-L11 | Bundle checkout skips items already in an active trade — buyer notified, flow continues | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | bundle checkout active-trade item |
-| TRD-TC-M01 | Add first item → active cart created | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | add first item |
+| TRD-TC-M01 | Add first item → active cart created | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **Android**: basket badge 0→1, `cart-item-<id>` + `cart-summary` Subtotal/Total render; cart + session survivied a terminate/relaunch |
 | TRD-TC-M02 | Add second item from same seller | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | same-seller direct add |
 | TRD-TC-M03 | Add item from different seller → choice modal | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | different-seller modal |
 | TRD-TC-M04 | Replace Cart option | ✅ PASS | PASS | 2026-08-30 | `qa-task7-expanded-lmn-retest-2026-08-30` | replace cart |
@@ -493,11 +495,11 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 | TRD-TC-S01 | Different-seller modal uses generic copy (no seller name leak) | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
 | TRD-TC-S02 | "More from this seller" icon appears only when 2+ approved listings | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
 | TRD-TC-S03 | "More from this seller" icon hidden when seller has exactly 1 listing | 🟡 PARTIAL | PARTIAL | 2026-08-30 | `qa-task12-close-2026-08-30` | hide gate source-confirmed; no single-listing-seller fixture |
-| TRD-TC-S04 | Tapping icon opens "More from this seller" page — no seller identity | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
+| TRD-TC-S04 | Tapping icon opens "More from this seller" page — no seller identity | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **Android**: page opens from the cart banner with title "More from this seller"; no seller name/handle/email anywhere in tree or render |
 | TRD-TC-S05 | Add to Cart from filtered seller page populates cart correctly | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
-| TRD-TC-S06 | "Matches Your Cart" indicator on filtered seller page | 🟡 PARTIAL | PARTIAL | 2026-08-30 | `qa-task12-close-2026-08-30` | matchesBanner source-verified |
+| TRD-TC-S06 | "Matches Your Cart" indicator on filtered seller page | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **PARTIAL→PASS (Android on-device)**: banner "Items from this seller match your active cart." + every tile labelled "Matches Your Trade Basket" and the in-cart tile labelled "In Trade Basket" |
 | TRD-TC-S07 | Bundle CTA appears on CartScreen with 2+ same-seller items | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
-| TRD-TC-S08 | Bundle CTA hidden with single item or empty cart | 🟡 PARTIAL | PARTIAL | 2026-08-30 | `qa-task12-close-2026-08-30` | 1-item CTA source-confirmed |
+| TRD-TC-S08 | Bundle CTA hidden with single item or empty cart | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **PARTIAL→PASS (Android on-device)**: 1-item cart renders the single-item CTA copy "Make an offer for this item" (no bundle copy); empty cart renders no CTA. NOTE: the shared `testID="bundle-cta-button"` is reused for the single-item CTA (naming trap) |
 | TRD-TC-S09 | Bundle CTA navigates to checkout in bundle mode | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
 | TRD-TC-S10 | Bundle checkout shows "Bundle Offer" banner | 🟡 PARTIAL | PARTIAL | 2026-08-30 | `qa-task12-close-2026-08-30` | bundle banner bundleMode source |
 | TRD-TC-S11 | Regression: Discover/search grid unchanged (no badges) | 🟡 PARTIAL | PARTIAL | 2026-08-30 | `qa-task12-close-2026-08-30` | discover grid unchanged source |
