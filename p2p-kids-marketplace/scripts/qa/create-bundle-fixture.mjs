@@ -197,6 +197,14 @@ async function main() {
     log(`⚠️  Cart read-back failed: ${readError.message}`);
   } else {
     log(`✅ VERIFY — ${BUYER} active cart has ${cart?.length ?? 0} item(s).`);
+    // FIX-Task-17 item 11: the read-back above already SELECTs bundle_id but only
+    // reported a count, so the bundle could not be identified afterwards (BP-72:
+    // verify a fixture's key by its own id, not a fuzzy count). Print the ids QA
+    // needs for DB read-backs and handoffs.
+    const bundleIds = [...new Set((cart ?? []).map((r) => r.bundle_id).filter(Boolean))];
+    const cartIds = [...new Set((cart ?? []).map((r) => r.cart_id).filter(Boolean))];
+    log(`   bundle_id(s): ${bundleIds.join(', ') || '(none)'}`);
+    log(`   cart_id(s):   ${cartIds.join(', ') || '(none)'}`);
   }
 
   log('✅ BUNDLE FIXTURE READY.');

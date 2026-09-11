@@ -43,7 +43,13 @@ import {
   CheckoutWarning,
   buildSkippedItemsCopy,
 } from '@/services/cartService';
-import { acknowledgeTradeDisclaimer } from '@/services/trade';
+// FIX-Task-17 item 3 (QA F6): one canonical buyer checkout-failure title +
+// message mapping, shared with the single-item offer surfaces.
+import {
+  acknowledgeTradeDisclaimer,
+  CHECKOUT_FAILED_TITLE,
+  mapStripeErrorToMessage,
+} from '@/services/trade';
 import { useSubscriptionStatus } from '@/hooks/useAuth';
 import { calculateTax, isTaxExemptCategory } from '@/services/tax';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
@@ -610,7 +616,10 @@ export default function CartCheckoutScreen() {
           setShowPaymentMethodModal(true);
           return;
         }
-        Alert.alert('Checkout Failed', result.error.message);
+        Alert.alert(
+          CHECKOUT_FAILED_TITLE,
+          mapStripeErrorToMessage(result.error.message, result.error.code)
+        );
         return;
       }
 
@@ -834,8 +843,8 @@ export default function CartCheckoutScreen() {
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>
               {bundleMode && !chargeOneFeePerBundle
-                ? `${buyerFeeInfo?.label ?? 'Platform Fee'} (\u00D7${itemCount} items)`
-                : (buyerFeeInfo?.label ?? 'Platform Fee')}
+                ? `${buyerFeeInfo?.label ?? 'Safety & Platform Fee'} (\u00D7${itemCount} items)`
+                : (buyerFeeInfo?.label ?? 'Safety & Platform Fee')}
             </Text>
             <Text style={styles.breakdownValue} testID="platform-fee-amount">
               ${effectiveFeeDollars.toFixed(2)}

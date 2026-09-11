@@ -213,6 +213,10 @@ export default function SellerEarningsScreen() {
         </View>
         {item.platform_fee_cents > 0 && (
           <View style={styles.detailRow}>
+            {/* DEFERRED-DECISION (2026-09-11, FIX-Task-17 item 6): "Platform Fee" retained.
+                The flagged gap was the Review Offer payout row (now reconciled). Unifying
+                every fee row to the canonical "Safety & Platform Fee" is an open copy
+                decision for Samer. */}
             <Text style={styles.detailLabel}>Platform Fee</Text>
             <Text style={styles.detailValue}>-{formatAmount(item.platform_fee_cents)}</Text>
           </View>

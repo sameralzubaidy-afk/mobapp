@@ -32,6 +32,7 @@ import { getItemById, Item } from '@/services/items';
 import {
   createTradeOfferWithHold,
   mapStripeErrorToMessage,
+  CHECKOUT_FAILED_TITLE,
   getBuyerPendingOffersForSeller,
   acknowledgeTradeDisclaimer,
 } from '@/services/trade';
@@ -477,6 +478,7 @@ export default function TradeInitiationScreen() {
         // FIX-Task-9 item 2 (B06 copy reconcile): INVALID_PAYMENT_METHOD (server's
         // "Payment method is invalid or expired") and CARD_DECLINED surface the same
         // canonical friendly copy as a decline, matching the TRD-TC-B06 guide.
+        // FIX-Task-17 item 3 (QA F6): shared CHECKOUT_FAILED_TITLE (no drift).
         if (
           offerResult.error_code === 'STRIPE_HOLD_FAILED' ||
           offerResult.error_code === 'STRIPE_ERROR' ||
@@ -484,7 +486,7 @@ export default function TradeInitiationScreen() {
           offerResult.error_code === 'CARD_DECLINED'
         ) {
           Alert.alert(
-            'Payment Hold Failed',
+            CHECKOUT_FAILED_TITLE,
             mapStripeErrorToMessage(offerResult.error, offerResult.error_code)
           );
           return;

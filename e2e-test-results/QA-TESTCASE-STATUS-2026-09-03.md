@@ -499,7 +499,7 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 | TRD-TC-S05 | Add to Cart from filtered seller page populates cart correctly | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
 | TRD-TC-S06 | "Matches Your Cart" indicator on filtered seller page | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **PARTIAL→PASS (Android on-device)**: banner "Items from this seller match your active cart." + every tile labelled "Matches Your Trade Basket" and the in-cart tile labelled "In Trade Basket" |
 | TRD-TC-S07 | Bundle CTA appears on CartScreen with 2+ same-seller items | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
-| TRD-TC-S08 | Bundle CTA hidden with single item or empty cart | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **PARTIAL→PASS (Android on-device)**: 1-item cart renders the single-item CTA copy "Make an offer for this item" (no bundle copy); empty cart renders no CTA. NOTE: the shared `testID="bundle-cta-button"` is reused for the single-item CTA (naming trap) |
+| TRD-TC-S08 | Bundle CTA hidden with single item or empty cart | ✅ PASS | PASS | 2026-09-11 | `qa-dispatch-4stage-2026-09-11/report.md` | **PARTIAL→PASS (Android on-device)**: 1-item cart renders the single-item CTA copy "Make an offer for this item" (no bundle copy); empty cart renders no CTA. ~~NOTE: the shared `testID="bundle-cta-button"` is reused for the single-item CTA (naming trap)~~ **FIXED — FIX-Task-17 item 8**: single-item CTA is now `single-item-cta-button`; `bundle-cta-button` is 2+ items only |
 | TRD-TC-S09 | Bundle CTA navigates to checkout in bundle mode | ✅ PASS | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` |  |
 | TRD-TC-S10 | Bundle checkout shows "Bundle Offer" banner | 🟡 PARTIAL | PARTIAL | 2026-08-30 | `qa-task12-close-2026-08-30` | bundle banner bundleMode source |
 | TRD-TC-S11 | Regression: Discover/search grid unchanged (no badges) | 🟡 PARTIAL | PARTIAL | 2026-08-30 | `qa-task12-close-2026-08-30` | discover grid unchanged source |
@@ -590,7 +590,9 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 | TRD-TC-Z07 | Gating: no request on pending/completed/disputed/duplicate | ✅ PASS | PASS | 2026-09-01 | `qa-task17-z-g-dt78-81-2026-09-01` | gating by state |
 | TRD-TC-Z08 | Regression: seller instant cancel unchanged | ✅ PASS | PASS | 2026-09-01 | `qa-task17-z-g-dt78-81-2026-09-01` | seller instant cancel + TFV2-023 consequence |
 
-### Remaining test cases — NEVER RUN (19)
+### Remaining test cases — NEVER RUN (17)
+
+> **R56 correction (FIX-Task-17 item 10, 2026-09-11):** the header read **(19)** while the table held **17** data rows and the §1 roll-up + TRD section header both said **17**. Row-level audit: A03, A04, D05, D06, E05, E06, N2, Q10, Q11, Q13, Q14, Q16, R01, R02, R03, R04, R05 = **17** rows. Header corrected 19 → 17; **no rows were added or removed**.
 
 | TC-ID | Description | Note / why remaining |
 |---|---|---|

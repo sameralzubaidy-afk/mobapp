@@ -130,7 +130,10 @@ describe('CartScreen', () => {
   });
 
   describe('Make Offer CTA', () => {
-    it('should render bundle-cta-button when cart has items', async () => {
+    // FIX-Task-17 item 8: renamed — this test asserts the EMPTY-cart state, it
+    // never asserted the CTA testID (which is now split into
+    // `bundle-cta-button` / `single-item-cta-button` by cart size).
+    it('renders the empty basket without raising an alert', async () => {
       const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {

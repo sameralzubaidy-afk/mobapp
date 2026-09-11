@@ -1269,6 +1269,11 @@ export default function TradeTimelineScreen() {
                           </Text>
                         </View>
                         <View style={styles.bundleTotalRow}>
+                          {/* DEFERRED-DECISION (2026-09-11, FIX-Task-17 item 6): "Platform Fee" retained.
+                              The QA-flagged gap was the seller's Review Offer payout row (now reconciled
+                              to the canonical "Safety & Platform Fee"). Unifying the Timeline / Trade
+                              Detail / Seller Earnings rows too is a copy decision for Samer (it also
+                              invalidates 8 guide lines), so it is NOT changed here. */}
                           <Text style={styles.bundleTotalLabel}>Platform Fee:</Text>
                           <Text style={styles.bundleTotalValue}>
                             ${(bundleFeeCents / 100).toFixed(2)}
@@ -2051,6 +2056,8 @@ export default function TradeTimelineScreen() {
                 <Text style={styles.value}>{trade.sp_amount} SP</Text>
               </View>
               <View style={styles.row}>
+                {/* NOTE (FIX-Task-17 item 6): "Platform Fee:" retained on the Timeline —
+                    see the bundle-totals note above (open copy decision for Samer). */}
                 <Text style={styles.label}>Platform Fee:</Text>
                 <Text style={styles.value}>
                   ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
@@ -2115,6 +2122,8 @@ export default function TradeTimelineScreen() {
                 <Text style={styles.value}>{trade.sp_amount} SP</Text>
               </View>
               <View style={styles.row}>
+                {/* NOTE (FIX-Task-17 item 6): "Platform Fee:" retained on the Timeline —
+                    see the bundle-totals note above (open copy decision for Samer). */}
                 <Text style={styles.label}>Platform Fee:</Text>
                 <Text style={styles.value}>
                   -${((trade.seller_transaction_fee_cents ?? 0) / 100).toFixed(2)}

@@ -577,7 +577,12 @@ export default function ReviewOfferScreen() {
             <Text style={styles.payoutValue}>${cashAmount}</Text>
           </View>
           <View style={styles.payoutRow}>
-            <Text style={styles.payoutLabel}>Platform Fee</Text>
+            {/* FIX-Task-17 item 6 (QA F2): reconciled with the app-wide canonical
+                fee label (admin_config.buyer_fee_label default in
+                services/adminConfig.ts) — checkout / Item Detail / Timeline all
+                read "Safety & Platform Fee"; this seller row was the last
+                "Platform Fee" holdout. */}
+            <Text style={styles.payoutLabel}>Safety & Platform Fee</Text>
             <Text style={[styles.payoutValue, styles.payoutFeeText]}>-${sellerFee}</Text>
           </View>
           {totalSpToSeller > 0 && (

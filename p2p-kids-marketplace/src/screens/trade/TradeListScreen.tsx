@@ -79,11 +79,27 @@ interface PendingOffer {
   cancelled_at?: string | null;
 }
 
+/**
+ * FIX-Task-17 item 1 (QA F1): first-load state for a tab's list. The empty state
+ * must NEVER render before the first fetch settles — on a cold start that made
+ * My Trades look like "this account has no trades" while the account actually
+ * held an offer + completed history (and it never recovered when the first fetch
+ * failed, because the catches only logged a warning).
+ */
+type ListLoadStatus = 'loading' | 'loaded' | 'error';
+
 export default function TradeListScreen({ navigation }: any) {
   const route = useRoute();
   const { session } = useAuth();
   const userId = session?.user?.id;
   const [_loading, setLoading] = useState(false);
+  // FIX-Task-17 item 1 (QA F1): render a spinner / retryable error instead of a
+  // false "No Trades Yet" until each tab's first fetch has actually settled.
+  const [activeLoadStatus, setActiveLoadStatus] = useState<ListLoadStatus>('loading');
+  const [historyLoadStatus, setHistoryLoadStatus] = useState<ListLoadStatus>('loading');
+  // The Active tab runs TWO parallel fetchers (trades + offers) — the empty state
+  // may only show once BOTH have settled cleanly, so they share one pending count.
+  const activeFetchRef = useRef({ pending: 0, failed: false, loaded: false });
   const [trades, setTrades] = useState<any[]>([]);
   // History tab is paginated so large trade histories load fast.
   const [historyTrades, setHistoryTrades] = useState<any[]>([]);
@@ -177,6 +193,42 @@ export default function TradeListScreen({ navigation }: any) {
       });
     }
   }, [route.params, navigation]);
+
+  /**
+   * FIX-Task-17 item 1 (QA F1): book-keeping for the Active tab's first load.
+   * `begin` counts an in-flight fetcher; `end` only promotes the tab to
+   * 'loaded' when EVERY in-flight fetcher succeeded (any failure → 'error',
+   * which renders a retry affordance instead of a false empty state).
+   * A refresh after a successful first load never flips the tab back to a
+   * spinner, so a user who genuinely has no trades doesn't see a flicker.
+   */
+  const beginActiveFetch = useCallback(() => {
+    activeFetchRef.current.pending += 1;
+    if (!activeFetchRef.current.loaded) setActiveLoadStatus('loading');
+  }, []);
+
+  const endActiveFetch = useCallback((ok: boolean) => {
+    const state = activeFetchRef.current;
+    state.pending = Math.max(0, state.pending - 1);
+    if (!ok) state.failed = true;
+    if (state.pending > 0) return;
+    if (state.failed) {
+      setActiveLoadStatus('error');
+    } else {
+      state.loaded = true;
+      setActiveLoadStatus('loaded');
+    }
+    state.failed = false;
+  }, []);
+
+  /** FIX-Task-17 item 1: retry both Active-tab fetchers from the error state. */
+  const retryActiveLoad = () => {
+    activeFetchRef.current.loaded = false;
+    activeFetchRef.current.failed = false;
+    setActiveLoadStatus('loading');
+    fetchTrades();
+    void fetchAllOffers();
+  };
 
   /** TFV2-015 (D-13): Load listings where seller has ≥2 unanswered offers */
   const fetchSellerIgnoringStats = async () => {
@@ -305,6 +357,7 @@ export default function TradeListScreen({ navigation }: any) {
       return;
     }
 
+    beginActiveFetch();
     setLoading(true);
     try {
       // Get offers received (as seller) — no join, listing data attached separately
@@ -375,8 +428,11 @@ export default function TradeListScreen({ navigation }: any) {
       );
 
       setAllOffers(combined);
+      endActiveFetch(true);
     } catch (err) {
       console.warn('[TradeList] fetchAllOffers error', err);
+      // FIX-Task-17 item 1: a failed fetch must not read as "you have no trades".
+      endActiveFetch(false);
     } finally {
       setLoading(false);
     }
@@ -387,6 +443,7 @@ export default function TradeListScreen({ navigation }: any) {
       setTrades([]);
       return;
     }
+    beginActiveFetch();
     setLoading(true);
     try {
       // Step 1: Fetch ACTIVE trades only (pending/in_progress) — these are few
@@ -479,8 +536,11 @@ export default function TradeListScreen({ navigation }: any) {
         pendingOffers: pendingOfferCount,
         completed: completedCount ?? prev.completed,
       }));
+      endActiveFetch(true);
     } catch (err) {
       console.warn('[TradeList] fetch error', err);
+      // FIX-Task-17 item 1: surface a retryable error instead of the empty state.
+      endActiveFetch(false);
     } finally {
       setLoading(false);
     }
@@ -494,6 +554,10 @@ export default function TradeListScreen({ navigation }: any) {
       return;
     }
     if (historyLoading) return;
+    // FIX-Task-17 item 1: a reset after a failure should retry with a spinner.
+    if (reset) {
+      setHistoryLoadStatus((prev) => (prev === 'error' ? 'loading' : prev));
+    }
     setHistoryLoading(true);
     try {
       const start = reset ? 0 : historyTrades.length;
@@ -522,8 +586,10 @@ export default function TradeListScreen({ navigation }: any) {
         return [...prev, ...sorted.filter((t: any) => !seen.has(t.id))];
       });
       setHistoryHasMore((historyRaw?.length ?? 0) === HISTORY_PAGE_SIZE);
+      setHistoryLoadStatus('loaded');
     } catch (err) {
       console.warn('[TradeList] fetchHistoryPage error', err);
+      setHistoryLoadStatus('error');
     } finally {
       setHistoryLoading(false);
     }
@@ -977,6 +1043,69 @@ export default function TradeListScreen({ navigation }: any) {
     );
   };
 
+  /**
+   * FIX-Task-17 item 1 (QA F1): shown when the first load FAILED. A failed fetch
+   * must never be presented as "No Trades Yet" — the account may well have
+   * offers and history; the buyer just couldn't be reached.
+   */
+  const renderLoadErrorState = () => (
+    <View style={styles.emptyState} testID="trade-list-load-error">
+      <Receipt size={64} color="#E0E0E0" weight="regular" />
+      <Text style={styles.emptyStateTitle}>We couldn't load your trades</Text>
+      <Text style={styles.emptyStateText}>
+        Check your connection and try again — your trades are safe.
+      </Text>
+      <TouchableOpacity
+        style={styles.retryButton}
+        onPress={retryActiveLoad}
+        testID="trade-list-retry-button"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Try again"
+      >
+        <Text style={styles.retryButtonText}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  /** FIX-Task-17 item 1: first-paint loading affordance (never an empty state). */
+  const renderListLoading = (testID: string) => (
+    <ActivityIndicator style={styles.loadingContainer} color="#5DBB8E" testID={testID} />
+  );
+
+  /**
+   * FIX-Task-17 item 2 (QA F3): a 1-item offer is NOT a bundle. A cart session
+   * always stamps a bundle_id (CartScreen), so a single-item group rendered as
+   * "📦 Bundle Offer · 1 items" — the wrong noun for the offer type and an
+   * ungrammatical plural. Bundle copy stays reserved for 2+ item groups
+   * (mirrors S08's intent that bundle affordances not appear for single items).
+   */
+  const offerGroupHeading = (count: number) =>
+    count > 1 ? `📦 Bundle Offer · ${count} items` : 'Offer · 1 item';
+
+  /**
+   * FIX-Task-17 item 1 (QA F1): the Active tab is "empty" only when every section
+   * it can render for the current filter has nothing to show. This decides
+   * whether a loading/error state should stand in for the empty state.
+   */
+  const activeListIsEmpty = (() => {
+    if (selectedFilter === 'your_offers') return groupedSubmittedOffers.length === 0;
+    if (selectedFilter === 'needs_action') return groupedReceivedOffers.length === 0;
+    if (selectedFilter === 'in_progress') return activeTrades.length === 0;
+    if (selectedFilter === 'completed')
+      return historyTrades.filter((t) => t.status === 'completed').length === 0;
+    return (
+      activeTrades.length === 0 &&
+      groupedReceivedOffers.length === 0 &&
+      submittedOffers.length === 0 &&
+      recentlyCompleted.length === 0
+    );
+  })();
+
+  // The 'completed' filter is served by the paginated history fetcher, so ITS load
+  // outcome (not the Active tab's) gates that filter's empty state.
+  const activeTabLoadStatus = selectedFilter === 'completed' ? historyLoadStatus : activeLoadStatus;
+
   return (
     <ScreenLayout variant="detail" title="My Trades">
       {/* Summary Header — tappable to filter */}
@@ -1148,7 +1277,7 @@ export default function TradeListScreen({ navigation }: any) {
                                   style={[styles.tradeCardTitle, { color: '#5DBB8E' }]}
                                   numberOfLines={1}
                                 >
-                                  📦 Bundle Offer · {bundleOffers.length} items
+                                  {offerGroupHeading(bundleOffers.length)}
                                 </Text>
                                 <View style={[styles.statusBadge, styles.statusBadgePending]}>
                                   <Text
@@ -1356,7 +1485,7 @@ export default function TradeListScreen({ navigation }: any) {
                                   style={[styles.tradeCardTitle, { color: '#5DBB8E' }]}
                                   numberOfLines={1}
                                 >
-                                  📦 Bundle Offer · {bundleOffers.length} items
+                                  {offerGroupHeading(bundleOffers.length)}
                                 </Text>
                                 <View style={[styles.statusBadge, styles.statusBadgePending]}>
                                   <Text
@@ -1716,25 +1845,31 @@ export default function TradeListScreen({ navigation }: any) {
               </View>
             )}
 
-            {(() => {
-              // Determine if we should show empty state based on active filter
-              if (selectedFilter === 'your_offers') return groupedSubmittedOffers.length === 0;
-              if (selectedFilter === 'needs_action') return groupedReceivedOffers.length === 0;
-              if (selectedFilter === 'in_progress') return activeTrades.length === 0;
-              if (selectedFilter === 'completed')
-                return historyTrades.filter((t) => t.status === 'completed').length === 0;
-              return (
-                activeTrades.length === 0 &&
-                groupedReceivedOffers.length === 0 &&
-                submittedOffers.length === 0 &&
-                recentlyCompleted.length === 0
-              );
-            })() && renderEmptyState()}
+            {/*
+              FIX-Task-17 item 1 (QA F1 — cold-start false empty state).
+              Previously this rendered `renderEmptyState()` the instant every
+              section was empty, which is ALSO true on the first paint (before the
+              fetchers resolve) and after a failed fetch — so a cold start showed
+              "No Trades Yet" for an account with real trades and never recovered
+              until the screen remounted. Now: spinner until the first load
+              settles, a retryable error if it failed, and only then the empty
+              state.
+            */}
+            {activeListIsEmpty &&
+              (activeTabLoadStatus === 'loading'
+                ? renderListLoading('trade-list-loading')
+                : activeTabLoadStatus === 'error'
+                  ? renderLoadErrorState()
+                  : renderEmptyState())}
           </>
         ) : (
           <View style={styles.section}>
-            {historyLoading && historyTrades.length === 0 ? (
-              <ActivityIndicator style={styles.historyLoading} color="#5DBB8E" />
+            {/* FIX-Task-17 item 1: spinner until the first history page settles,
+                then a retryable error — never a false "No Trades Yet". */}
+            {historyTrades.length === 0 && historyLoadStatus === 'loading' ? (
+              renderListLoading('trade-history-loading')
+            ) : historyTrades.length === 0 && historyLoadStatus === 'error' ? (
+              renderLoadErrorState()
             ) : historyTrades.length > 0 ? (
               <>
                 {historyTrades.map((t) => (
@@ -2290,8 +2425,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  // FIX-Task-17 item 1: retry affordance for a failed first load (replaces the
+  // former false "No Trades Yet").
+  retryButton: {
+    marginTop: 20,
+    minHeight: 48,
+    paddingHorizontal: 28,
+    borderRadius: 24,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   loadingContainer: {
     flex: 1,
+    paddingTop: 80,
     justifyContent: 'center',
     alignItems: 'center',
   },

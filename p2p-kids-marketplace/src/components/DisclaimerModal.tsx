@@ -6,7 +6,7 @@
  * User must check "I understand" before they can proceed with the purchase.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   SafeAreaView,
@@ -49,6 +49,25 @@ function markdownToPlainText(value: string): string {
     .trim();
 }
 
+/**
+ * FIX-Task-17 item 4 (QA F5 — disclaimer re-prompted on every checkout attempt).
+ *
+ * Previously the checkbox was reset to unchecked on every open, so a buyer who
+ * had already accepted the disclaimer earlier in the same session had to re-tick
+ * it (with "Accept & Continue" disabled) on the next checkout attempt.
+ *
+ * This remembers, for the CURRENT app session only (module memory — never
+ * persisted to disk), which buyer acknowledged which policy version. The modal
+ * still opens and the buyer still taps "Accept & Continue" explicitly; only the
+ * checkbox comes back pre-ticked. The per-trade legal record is unchanged — the
+ * checkout screens still call `acknowledgeTradeDisclaimer(tradeId, policyId)`
+ * for every trade they create.
+ *
+ * Keyed by user id so a different account signing in on the same device never
+ * inherits another buyer's acknowledgment.
+ */
+let sessionAcknowledgment: { userId: string; policyId: string } | null = null;
+
 export default function DisclaimerModal({
   visible,
   onAccept,
@@ -59,11 +78,13 @@ export default function DisclaimerModal({
   const [policy, setPolicy] = useState<DisclaimerPolicy | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // FIX-Task-17 item 4: the signed-in buyer, captured with the policy fetch so
+  // the session acknowledgment can be keyed to them.
+  const currentUserIdRef = useRef('');
 
   useEffect(() => {
     if (visible) {
       fetchDisclaimer();
-      setAccepted(false); // Reset checkbox on open
       setError(null);
     }
   }, [visible]);
@@ -73,6 +94,17 @@ export default function DisclaimerModal({
       setLoading(true);
       setError(null);
 
+      // FIX-Task-17 item 4: capture the signed-in buyer so the session
+      // acknowledgment can be keyed to them. Best-effort ONLY — a failed session
+      // lookup must never stop the disclaimer itself from loading (worst case the
+      // checkbox simply isn't pre-ticked).
+      try {
+        const { data: authData } = await supabase.auth.getSession();
+        currentUserIdRef.current = authData?.session?.user?.id ?? '';
+      } catch {
+        currentUserIdRef.current = '';
+      }
+
       const { data, error: rpcError } = await supabase.rpc('get_current_policy', {
         p_policy_type: 'liability_disclaimer',
       });
@@ -81,6 +113,15 @@ export default function DisclaimerModal({
 
       if (data && data.length > 0) {
         setPolicy(data[0]);
+        // FIX-Task-17 item 4: pre-tick ONLY when this exact buyer already
+        // acknowledged this exact policy version in this session.
+        const acknowledged = sessionAcknowledgment;
+        setAccepted(
+          !!currentUserIdRef.current &&
+            acknowledged !== null &&
+            acknowledged.userId === currentUserIdRef.current &&
+            acknowledged.policyId === data[0].id
+        );
       } else {
         setError('Liability Disclaimer not available. Please contact support.');
       }
@@ -94,6 +135,8 @@ export default function DisclaimerModal({
 
   const handleAcceptPress = () => {
     if (accepted && policy) {
+      // FIX-Task-17 item 4: remember the acknowledgment for the rest of this session.
+      sessionAcknowledgment = { userId: currentUserIdRef.current, policyId: policy.id };
       onAccept(policy.id);
     }
   };

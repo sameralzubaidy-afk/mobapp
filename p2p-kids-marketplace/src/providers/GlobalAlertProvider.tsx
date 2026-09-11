@@ -252,9 +252,16 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
 }
 
 const styles = StyleSheet.create({
+  // FIX-Task-17 item 5 (QA F5/F6 design deviation): the failure dialog is this
+  // provider's alert. Its scrim used to be rgba(26,26,26,0.28) — light enough
+  // that a dense screen (Checkout's Order Summary card) still read clearly
+  // THROUGH it, so the dialog looked like a half-transparent banner bleeding
+  // across the card boundary and its own card had a weak edge on a light
+  // background. A stronger scrim + an elevated card makes the dialog boundary
+  // unambiguous and keeps the card/message legible over any screen.
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 26, 0.28)',
+    backgroundColor: 'rgba(26, 26, 26, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -267,6 +274,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 20,
+    // Card must read as a distinct surface over the scrim on BOTH platforms.
+    elevation: 24,
+    shadowColor: '#000000',
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
   },
   title: {
     fontSize: 28,

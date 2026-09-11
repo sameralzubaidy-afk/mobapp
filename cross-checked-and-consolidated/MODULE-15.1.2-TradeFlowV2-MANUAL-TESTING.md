@@ -2524,7 +2524,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - Confirming moves all bundle offers forward to payment processing, and the buyer's trade detail reflects the update.
 
 **Locator hints:**
-- Accept All N Items → `accept-bundle-button` · confirmation modal buttons → `btn-accept-all-confirm` / `btn-bundle-modal-cancel`.
+- Accept All N Items → `accept-bundle-button` · confirmation modal buttons → `accept-bundle-confirm-button` / `accept-bundle-cancel-button` (QA F7, 2026-09-11: shipped ids on Review Offer — `btn-accept-all-confirm` / `btn-bundle-modal-cancel` belong to the TradeList seller-card modal, a different screen).
 
 ---
 
@@ -3270,8 +3270,8 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 3. Repeat via **Cart Checkout** flow (add item to cart → tap Checkout).
 
 **Expected:**
-- **TradeInitiationScreen:** Shows Item Price → Subtotal → **Sales Tax** (calculated amount) → Platform Fee → Total.
-- **CartCheckoutScreen:** Shows Subtotal → SP Discount (if any) → Platform Fee → **Sales Tax** → Total.
+- **TradeInitiationScreen:** Shows Item Price → Subtotal → **Sales Tax** (calculated amount) → **Safety & Platform Fee** → Total.
+- **CartCheckoutScreen:** Shows Subtotal → SP Discount (if any) → **Safety & Platform Fee** → **Sales Tax** → Total.
 - Tax amount = `FLOOR((3000 * 0.0699) + 0.5) = 210 cents = $2.10` (live category-rule rate 6.99%).
 - Label reads **"Sales Tax"** (kid-friendly, not jurisdiction name).
 - Total includes the tax.
@@ -5657,7 +5657,7 @@ FROM items;
 **Expected Result:**
 - Subtotal: $70.00
 - Points Applied: -$35.00
-- Platform Fee: $1.49 (subscriber)
+- Safety & Platform Fee: $1.49 (subscriber)
 - Cash Total: $35.00 + $1.49 + tax = correct value
 - "Send Offer" button shows correct cash total.
 

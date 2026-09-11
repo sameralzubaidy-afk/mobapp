@@ -47,6 +47,15 @@ function codeIn(codes: string[], code?: string | null): boolean {
 }
 
 /**
+ * FIX-Task-17 item 3 (QA F6): ONE canonical buyer-facing title for a failed
+ * checkout, shared by every buyer checkout surface (cart checkout, single-item
+ * offer, trade initiation) so the same failure can never read as two different
+ * errors ("Checkout Failed" vs "Payment Hold Failed" vs a banner heading).
+ * Always pair it with `mapStripeErrorToMessage` for the message body.
+ */
+export const CHECKOUT_FAILED_TITLE = 'Checkout Failed';
+
+/**
  * Check if there is an active trade between buyer and seller
  * Active trades include: pending, in_progress statuses
  *
@@ -205,8 +214,7 @@ export async function getSellerRating(sellerId: string): Promise<{
  * @param error - Stripe error message or code
  * @returns User-friendly error message
  */
-export function mapStripeErrorToMessage(error?: string, code?: string): string {
-  // FIX-Task-9 item 2 (B06 copy reconcile): pm-invalid / decline codes surface the
+export function mapStripeErrorToMessage(error?: string, code?: string): string {  // FIX-Task-9 item 2 (B06 copy reconcile): pm-invalid / decline codes surface the
   // canonical TRD-TC-B06 friendly copy regardless of the raw server message text
   // (e.g. create-trade-offer's "Payment method is invalid or expired"), matching the
   // cross-checked manual-testing guide.
@@ -241,8 +249,10 @@ export function mapStripeErrorToMessage(error?: string, code?: string): string {
     return 'This card has been blocked. Please use a different payment method.';
   }
 
-  // Pass through non-Stripe errors as-is
-  return error;
+  // Pass through non-Stripe errors as-is — but never show a BUYER seller-side
+  // payout vocabulary ("payout method"): the buyer's own instrument is always
+  // their "payment method"/card (FIX-Task-17 item 3 / QA F6).
+  return error.replace(/payout method/gi, 'payment method');
 }
 
 function extractMessageFromPayload(payload: unknown): string | null {

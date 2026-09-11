@@ -34,6 +34,7 @@ import { getItemById, Item } from '@/services/items';
 import {
   createTradeOfferWithHold,
   mapStripeErrorToMessage,
+  CHECKOUT_FAILED_TITLE,
   getBuyerPendingOffersForSeller,
   acknowledgeTradeDisclaimer,
   cancelTradeV2,
@@ -464,6 +465,8 @@ export default function TradeOfferScreen() {
         // FIX-Task-9 item 2 (B06 copy reconcile): INVALID_PAYMENT_METHOD (server's
         // "Payment method is invalid or expired") and CARD_DECLINED surface the same
         // canonical friendly copy as a decline, matching the TRD-TC-B06 guide.
+        // FIX-Task-17 item 3 (QA F6): the TITLE is now the shared
+        // CHECKOUT_FAILED_TITLE so this surface can't drift from cart checkout.
         if (
           offerResult.error_code === 'STRIPE_HOLD_FAILED' ||
           offerResult.error_code === 'STRIPE_ERROR' ||
@@ -471,7 +474,7 @@ export default function TradeOfferScreen() {
           offerResult.error_code === 'CARD_DECLINED'
         ) {
           Alert.alert(
-            'Payment Hold Failed',
+            CHECKOUT_FAILED_TITLE,
             mapStripeErrorToMessage(offerResult.error, offerResult.error_code)
           );
           return;
@@ -924,7 +927,9 @@ export default function TradeOfferScreen() {
               </View>
             )}
             <View style={styles.valueStackRow}>
-              <Text style={styles.valueStackLabel}>{buyerFeeInfo?.label ?? 'Platform fee'}</Text>
+              <Text style={styles.valueStackLabel}>
+                {buyerFeeInfo?.label ?? 'Safety & Platform Fee'}
+              </Text>
               <Text style={styles.valueStackValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
             </View>
             {/* MODULE-15.3-PART3 TAX-011: sales tax row (hidden when 0) */}

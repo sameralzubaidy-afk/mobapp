@@ -820,7 +820,8 @@ export default function CartScreen() {
               bundleMode: cartItems.length >= 2,
             });
           }}
-          testID="bundle-cta-button"
+          /* FIX-Task-17 item 8 (QA F10): single-item vs bundle CTA ids below. */
+          testID={cartItems.length >= 2 ? 'bundle-cta-button' : 'single-item-cta-button'}
           accessible
           accessibilityRole="button"
           accessibilityLabel="Make offer"

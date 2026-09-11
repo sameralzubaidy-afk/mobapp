@@ -398,6 +398,10 @@ export default function TradeDetailScreen() {
             <Text style={styles.value}>{trade.sp_amount} SP</Text>
           </View>
           <View style={styles.row}>
+            {/* DEFERRED-DECISION (2026-09-11, FIX-Task-17 item 6): "Platform Fee" retained.
+                The flagged gap was the Review Offer payout row (now reconciled to the
+                canonical "Safety & Platform Fee"). Unifying every fee row to the
+                admin_config buyer_fee_label is an open copy decision for Samer. */}
             <Text style={styles.label}>Platform Fee</Text>
             <Text style={styles.value}>
               ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
