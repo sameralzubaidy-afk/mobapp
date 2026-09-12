@@ -5,7 +5,7 @@ applyTo: "supabase/migrations/**/*.sql"
 
 # Supabase SQL / Migration Hardening Protocol
 
-Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-16, BP-21, BP-22, BP-44, BP-45, BP-46, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78, BP-81. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-13, BP-14, BP-16, BP-21, BP-22, BP-30, BP-31, BP-37, BP-38, BP-44, BP-45, BP-46, BP-47, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78, BP-79, BP-80, BP-81, BP-84. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`; BP-20 notification-trigger check and BP-32 notification verification gate live there too.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -30,19 +30,27 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-10 Verification queries — include column/RLS/function/trigger checks in every DB response.
 - BP-11 Admin config two tables — check both admin_config and sp_config; don't trust is_active alone.
 - BP-12 RPC RETURNS TABLE changes — DROP FUNCTION before changing the signature.
+- BP-13 Default values — every hardcoded fallback needs a comment linking to its canonical source.
+- BP-14 SP notification copy — “reserved” ≠ “spent”; match `sp_ledger` transaction_type semantics.
 - BP-16 Stale trigger comments — if a referenced trigger doesn't exist in any migration, it's a defect.
 - BP-21 RPC → data-only refactor — the corresponding cron.schedule must exist in the same migration.
 - BP-22 Secret keys (service role) — resolve ONLY from config at runtime; NEVER a hardcoded fallback and NEVER baked into a cron `net.http_post` header (hardcoded fallback allowed only for non-secret base URLs).
+- BP-30 Formula changes — verify against 2+ independent doc examples before implementing.
+- BP-31 SP fixes — verify both the trigger layer AND the RPC/read layer together.
+- BP-37 Tax calculation — always on full item price; SP is a payment method, not a discount.
+- BP-38 Fee config — absolute percentage per tier, never base+discount; confirm the calculation base with the user.
 - BP-44 RPC tax/SP/fee recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
+- BP-47 Latest migration definition is authoritative — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug); a fragile pattern in a historical migration FILE isn't live if a newer `CREATE OR REPLACE` removed it (superseded body = dead code — don't patch it).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never direct `admin_config` table writes (records the editor + lands in the shared audit trail).
 - BP-73 Trades FK + payout-method schema — the `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect / payout-method state lives in `seller_payout_methods` (never `profiles`).
-- BP-75 RLS-disabled audit — the authoritative source for "which tables have RLS off" is the LIVE `pg_class.relrowsecurity` query, not migration greps (greps miss DO-block/seed enablement, commented-out `ENABLE RLS` lines, and orphaned DB-only tables); trace every table's readers/writers (client vs service-role vs SECURITY DEFINER) before enabling RLS.
 - BP-74 Tier-1 notification assertion — anchor on the linkage key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`); never a shared/fuzzy filter helper that can silently drop the row (DT-19, 2026-08-28).
+- BP-75 RLS-disabled audit — the authoritative source for "which tables have RLS off" is the LIVE `pg_class.relrowsecurity` query, not migration greps (greps miss DO-block/seed enablement, commented-out `ENABLE RLS` lines, and orphaned DB-only tables); trace every table's readers/writers (client vs service-role vs SECURITY DEFINER) before enabling RLS.
 - BP-76 Enum-like status/reason literals — DB writers must emit the canonical snake value (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column (silently breaks surfacing/counters, TRD re-verify 2026-08-28).
 - BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, and audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30).
 - BP-79 Default-privilege hardening is ineffective for NEW functions on Supabase PG 17.6 — `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` cannot stop them being client-executable (built-in PUBLIC baseline always applies AND the default-ACL row directly grants anon/authenticated); enforce fail-closed defaults via the `dt61_guard_revoke_fn_public` EVENT TRIGGER (auto-REVOKE PUBLIC, anon, authenticated on every new public-schema function/procedure) + explicit-grant discipline (DT-61, 2026-08-30).
+- BP-80 Two-phase provisioning deliverables — fixture/migration work is delivered as (1) code/scripts/migration file written + Tier 0 green and (2) executed against staging (REQUIRES Samer's explicit approval per the MCP Usage Protocol); in the Session Handoff state "written, NOT applied/run" and mark the regression tier DEFERRED, never implying provisioning happened; a fixture script's read-back must print the fixture's own primary key(s) — never only a row count.
 - BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but does NOT write a `schema_migrations` tracking row; verify the migration actually landed by invoking the changed object (function/trigger/table) live, never by the migration list (DEV-TASK-83, 2026-09-02).
 - BP-84 Money-ledger repair path — a money ledger with a recompute RPC (`seller_balance` ← `recompute_seller_balance`) must be repaired/reset ONLY through that RPC (locked `service_role`-only, DT-118 2026-09-05); never a raw ledger write, and never leave a ledger-recompute PUBLIC-executable (BP-78/BP-79).
 
@@ -506,3 +514,145 @@ Rules:
 - Lock every ledger recompute RPC to `service_role` only (REVOKE anon/authenticated/PUBLIC + GRANT service_role, BP-78/BP-79 discipline) so reconciles are privileged and auditable — a PUBLIC-executable SECURITY DEFINER that rewrites money is a standing hazard (verify via live `aclexplode`, not a grep).
 - QA-controlled balances belong on a DEDICATED disposable persona provisioned by a dev fixture (e.g. `qa:payout-fixture` `balance --amount` / `reconcile --seller`), never on shared personas via raw writes.
 - Detection checklist: when a displayed balance is materially wrong, compare the stored ledger to the real data — `SELECT count(*), sum(cash_amount_cents) FROM trades WHERE seller_id=<id> AND status='completed'` and the `seller_payouts` gross sums — then repair via `SELECT recompute_seller_balance(<user_id>)` (service role). Cross-ref BP-78 (grants), BP-5 (SECURITY DEFINER search_path), HP-4 (money invariants).
+
+## BP-13: Default Values Must Reference the Canonical Source
+
+**Problem:** Hardcoded default values (e.g., `useState<number>(3)`, fallback `365`) silently override admin config when the lookup fails, making the bug invisible.
+
+**Rules:**
+
+1. Every fallback default MUST have a comment explaining which DB trigger, seed data, or `admin_config` key defines the canonical default.
+2. If the fallback matches a DB trigger default (e.g., `fn_trade_config_int('pending_sp_release_days', 3)`), add a comment linking them.
+
+See also: BP-11 (admin config two-table architecture), BP-28 (Edge Functions must fail loud, never silently fall back).
+
+## BP-14: Notification Copy Must Be Reviewed for SP Transactions
+
+**Problem:** The `spend_purchase` ledger entry was created at reservation time (not spend time), but the notification said "You spent X SP on a purchase!" — which is misleading since the SP is reserved and can be returned if the trade is cancelled.
+
+**Rules:**
+
+1. For SP transactions, "reserved" ≠ "spent". SP used in a purchase is reserved until the trade completes.
+2. Review all `sp_ledger` `transaction_type` values and ensure notification copy matches the semantic meaning:
+   - `spend_purchase` → "reserved" (returnable if cancelled)
+   - `earn_refund` → "refunded" (returned to available)
+   - `earn_reward` → "earned" (new SP credited)
+
+See also: BP-32 (notification verification gate for state changes), BP-76 (enum-like literals must match exactly across writer, trigger, and client).
+
+## BP-30: Formula Documentation Cross-Reference (MANDATORY)
+
+**Problem:** Implementing formulas (fees, SP, pricing, discounts) based on a single doc reference misses contradictory examples elsewhere in the doc set, leading to incorrect business logic.
+
+**Rules:**
+
+1. When implementing ANY formula, search for at least 2 independent examples in `docx/` to verify the formula.
+2. If examples conflict, STOP and ask Samer which is authoritative — do not guess.
+3. Include concrete numerical examples in migration comments (e.g., "55 SP for a $50 item at 1.0x multiplier").
+4. Never implement a formula based on a single doc reference.
+
+**Detection checklist:**
+- `docx/SYSTEM_REQUIREMENTS_V2.md` has SP calculation rules
+- `docx/ADMIN-CATEGORY-MANAGEMENT.md` may have concrete numerical examples
+- `docx/Solution Architecture & Implementation Plan.md` may have fee formulas
+- Cross-reference at least two before writing any formula code
+
+See also: BP-37 (tax always on full item price), BP-38 (fee config semantics — absolute per tier).
+
+## BP-31: SP Fix Verification — Verify Both Trigger and RPC Layers
+
+**Problem:** SP-related fixes often only verify one layer (e.g., the trigger that handles `reserved_sp`) but miss the RPC that handles `available_balance` or vice versa, leaving the other layer broken.
+
+**Rules:**
+
+Before marking any SP-related fix complete:
+
+1. Verify the DB trigger works correctly (e.g., `fn_reserve_sp_on_offer` updates `reserved_sp`).
+2. Verify the RPC/function works correctly (e.g., `rpc_get_sp_wallet` returns correct `available_balance`).
+3. Run a test case that exercises BOTH the trigger AND the RPC in the same flow (e.g., submit an offer → check wallet via RPC → verify reserved balance).
+4. If the fix touches a trigger, also verify the compensating trigger (e.g., if you fix `fn_reserve_sp_on_offer`, also verify `fn_release_sp_on_cancel`).
+
+See also: BP-47 (verify the attached/deployed body, not the migration file), BP-4 (trigger silent failures), BP-44 (category-aware tax/SP/fee recompute).
+
+## BP-37: Tax Must Always Be Calculated on Full Item Price, Not Reduced by SP
+
+**Problem:** When a buyer applies Swap Points at checkout, the tax amount was incorrectly recalculated on the reduced cash amount (`itemPrice - spDiscount`). Both the client-side UI preview (`TradeOfferScreen.tsx`) and the server-side Edge Function (`create-trade-offer/index.ts`) passed `cashCents - txFeeCents` as the taxable amount to the `calculate_tax` RPC. The cart checkout (`CartCheckoutScreen.tsx`) already had the correct pattern — it calculated tax on the full pre-SP subtotal — but the single-item offer flow was missed.
+
+**Root cause:** SP was treated as a price discount (reducing taxable value) instead of as a payment method (taxable value stays at full price). The `vTaxableAmountCents` variable in the Edge Function derived its value from `cashCents` (which was already reduced by SP) instead of from the item's actual price.
+
+**Rules:**
+
+1. **SP is a payment method, not a price discount.** The taxable value is always the full item price, regardless of how many SP the buyer applies. Tax must be calculated on `Math.round(item.price * 100)` — never on `cashCents - txFeeCents` or `itemPriceCents - spDiscountCents`.
+2. **Fix must touch all layers.** When fixing a tax/SP bug:
+   - Client UI preview (`useTaxCalculation` call) — uses full item price
+   - Edge Function server calculation (`vTaxableAmountCents`) — uses `item.price * 100` from the DB-loaded item, NOT from the client-supplied `cashCents`
+   - Both the single-offer path AND the bundle path in the Edge Function
+3. **Reference the correct implementation.** `CartCheckoutScreen.tsx` already has the correct pattern:
+```typescript
+// MODULE-15.3-PART3 TAX-011: tax calculated on pre-points subtotal (points don't reduce taxable amount)
+const taxableAmountCents = Math.round(subtotal * 100);
+```
+   When fixing a similar bug in another flow, use the cart checkout as the reference for the correct behavior.
+4. **No `cashCents`-derived taxable amounts.** If you see `vTaxableAmountCents = Math.max(0, cashCents - txFeeCents)` in any Edge Function, it is almost certainly a bug — the taxable amount should be derived from the item's actual price, not from the cash the buyer pays after SP.
+
+**Detection checklist:**
+- Search for every call to `calculate_tax` or `useTaxCalculation` that passes a `taxableAmountCents` computed from a cash/SP-reduced amount rather than the full item price.
+- In Edge Functions, always check that `vTaxableAmountCents` is derived from `item.price` (the DB price), not from a client-supplied `cashCents` parameter that may already have SP deducted.
+- When reviewing a tax fix, confirm it covers: (a) client UI preview, (b) Edge Function single-offer path, (c) Edge Function bundle path.
+
+See also: BP-44 (category-aware recompute that matches the offer-time value), BP-42 (client tax previews use joined listing price), BP-30 (cross-reference the formula docs).
+
+## BP-38: Fee Config Semantics — Absolute Percentages Per Tier, Not Base+Discount
+
+**Problem:** The admin config fields `platform_fee_seller_percentage` and `platform_fee_seller_discount_percentage_kids_club_plus` were implemented as "base percentage" and "discount from base" (e.g., 10% base - 10% discount = 0% effective). The admin, however, expected each field to be an **absolute percentage per tier**: 15% for free users, 10% for subscribed users. Additionally, the seller fee was calculated on the wrong base — it included the buyer's transaction fee (`cashCents + txFeeCents` instead of just the item price after SP), causing a $2.10 fee on a $20 item instead of $2.00 at 10%.
+
+**Root cause:** Two independent bugs in the same flow:
+1. **Config semantics:** The formula `effectivePct = basePct - discountPct` was never validated against admin intent. The admin expected `effectivePct = isSubscriber ? kcpPct : freePct`.
+2. **Wrong calculation base:** `cashCents` included the buyer's platform fee (e.g., $1), so the seller fee was calculated on $21 instead of $20.
+
+**Rules:**
+
+1. **Absolute percentages per tier, never base+discount.** When implementing configurable fee/discount systems with multiple tiers (free/premium/etc.), always use absolute values per tier (freePct, premiumPct) rather than base+discount models (basePct, discountPct). Base+discount models create confusion and require mental math; absolute values are self-documenting and reduce admin errors.
+2. **Verify the calculation base with the user.** When implementing any fee/pricing formula that depends on admin-configurable percentages, always verify with the user WHAT VALUE the percentage applies to (full price vs. discounted price vs. cash amount vs. another base). Never assume the calculation base from the config key name alone.
+3. **Seller fee base must exclude buyer transaction fee.** The seller's commission is a percentage of what the seller receives (item price minus SP), NOT what the buyer pays (which includes the buyer's platform fee). The buyer's transaction fee goes to the platform, not to the seller.
+4. **Fix both Edge Function AND mobile fallback.** When changing fee calculation logic in the Edge Function (`create-trade-offer/index.ts`), also update the fallback calculation in the mobile app (`TradeTimelineScreen.tsx`) that computes fees for trades created before the column existed.
+
+**Detection checklist:**
+- Search for `basePct - discountPct` or `Math.max(0, basePct - discountPct)` patterns — these indicate a base+discount model that should be absolute-per-tier
+- When reviewing any `calculateSellerFeeCents` or similar fee function, verify what cents value is passed as the base — is it the right one for the fee type?
+- When adding a new `admin_config` fee field, always include the tier name in the key (e.g., `fee_seller_percentage_free`, `fee_seller_percentage_subscriber`), never generic "base" + "discount" pairs
+
+See also: BP-30 (cross-reference formula docs), BP-13 (defaults must cite their canonical source), BP-11 (admin config two-table architecture).
+
+## BP-47: E2E Tests Asserting Trigger-Created Defaults Must Verify the Trigger Exists in the Target DB (deployment lag ≠ code bug)
+
+**Problem:** `sub-018` ("No subscription found") and the notification-preferences E2E both failed after a signup, and the initial triage pointed at app code. The real root cause was that the deployed `handle_new_user()` was an OLD version — the target staging DB's `on_auth_user_created` trigger was not creating the `subscriptions`/`notification_preferences` rows the tests assert. That is deployment lag / a stale trigger, not an app bug.
+
+**Rules:**
+
+- When a live-DB E2E/integration test creates a user and then asserts rows the signup trigger should create (subscription, notification prefs, SP wallet, profile defaults), FIRST verify the trigger is attached AND its handler is current in the target DB:
+```sql
+SELECT tgname, tgenabled FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass;
+SELECT prosrc FROM pg_proc WHERE proname = '<signup handler>';
+```
+- Confirm the handler's `prosrc` matches the latest canonical migration (grep migrations for the newest `CREATE OR REPLACE FUNCTION <handler>` and diff) — "trigger attached" is not enough; the deployed body may be stale.
+- Only after confirming the trigger + handler are present and current should a failure on trigger-created rows be treated as an app/code bug.
+- Deployment lag ≠ code bug: if the target DB's function predates the migration defining the asserted behavior, the fix is to apply the migration / redeploy the function — not to edit app code.
+- FIX-AUTHORING direction (same principle, opposite side): a fragile pattern found in a HISTORICAL migration FILE is not automatically live. Later `CREATE OR REPLACE FUNCTION` rewrites may have replaced the body, or a later migration may have dropped the trigger. Before patching anything found in a migration, grep migrations for the NEWEST definition of that function/trigger and diff. If a newer body exists and no longer contains the pattern, the historical body is dead code and MUST NOT be patched (real case: `process_referral_bonus_on_listing_v2` — the fragile `(config_value)::INTEGER` cast lived only in `20260204000009`, removed the next day by `20260205000003`; the live trigger function never carried the bug, so "fixing" the old body would have edited code that doesn't run).
+- A function name still attached to a trigger does NOT mean the historical migration body you're reading is what runs — "function is live" and "this file's body is live" are different questions.
+- Cross-ref BP-16 (stale trigger comments) and BP-31 (verify trigger AND RPC layers): verify the trigger exists before trusting a comment, a test, or a symptom.
+
+**Detection checklist:** any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code. Likewise, a dev task pointing at a fragile pattern inside a migration FILE → grep migrations for the newest `CREATE OR REPLACE FUNCTION`/trigger definition and diff BEFORE authoring a fix; a superseded body is dead code even if the function name is still attached.
+
+## BP-80: Two-Phase Provisioning Deliverables (code/Tier-0 vs. approval-gated execution)
+
+**Problem:** A task that includes provisioning — a new migration file, a seed change, or a fixture script that mutates staging — is often reported as fully "done" even when the mutation was never executed (the migration wasn't applied, the seed wasn't re-run, the fixture wasn't provisioned). Those steps require Samer's explicit approval per the MCP Usage Protocol (one Supabase MCP call at a time), so they often can't happen in the same session as the code. The next session or a QA pass then discovers the "provisioned" state never existed (real case: DEV-TASK-77, 2026-08-31 — a `trades.notes` migration + two fixture scripts delivered with the migration un-applied and the fixtures un-run).
+
+**Rules:**
+
+1. **Deliver provisioning work in two explicit phases.** Phase 1 = code/scripts/migration file written + Tier 0 green (typecheck + lint + unit tests) — this is what "done" means for the code. Phase 2 = executing against staging (applying the migration, re-running the seed, running the fixture script) — REQUIRES Samer's explicit approval per the MCP Usage Protocol; never run it in the same breath as Phase 1, and never batch multiple approval-gated mutations without separate sign-off.
+2. **Never imply Phase 2 happened when only Phase 1 did.** In the Session Handoff, mark every pending artifact explicitly: "migration written, NOT applied", "fixture script written, NOT run", "seed change written, NOT re-seeded". List the exact command/SQL that needs approval, and mark the corresponding regression tier (1/2) as DEFERRED/pending — never PASS.
+3. **Stop at the approval boundary.** If approval isn't available in the session, stop the work there (don't keep going as if the fixture/migration already exists) and record the pending steps in the handoff's "Known gaps / not done yet" + "Suggested next session". A provisioning task that ends at Phase 1 is a complete, reportable deliverable — not a half-done task.
+4. **Verification before claiming.** If you DO execute provisioning, verify it actually landed (e.g. `list_migrations` for the applied migration, a read-back query for the fixture rows) before marking it done — same spirit as BP-66/BP-71 (a clean run message is never sufficient evidence). **A fixture/provisioning script's read-back MUST print the primary keys of what it created** (`bundle_id`, `trade_id`, `item_id`, `cart_id`, …) — never only a row count. A count proves *something* exists but leaves the fixture unidentifiable afterwards, so the next session/QA pass cannot re-find it, assert on it, or DB-verify it (the same key-not-aggregate principle as BP-74). Report those ids in the handoff so the fixture is addressable by id.
+
+See also: BP-81 (MCP-applied migrations aren't in `list_migrations`), BP-47 (verify the attached/deployed body), BP-74 (assert on the linkage key).

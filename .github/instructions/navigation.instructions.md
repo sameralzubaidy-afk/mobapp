@@ -8,7 +8,7 @@ applyTo: "p2p-kids-marketplace/src/navigation/**"
 ### Rule Index (scan this first; open the full numbered rule below only when it's relevant to your current task)
 
 - BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
-- BP-43 Navigation & params (full text in `Kids P2P App Builder.agent.md`) — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
+- BP-43 Navigation & params (full text below) — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
 
 ## NAV-0: Navigation Contract (single source of truth)
 
@@ -66,7 +66,11 @@ If a navigation fix fails once:
 
 ## BP-43: Learned Navigation & Params Rules
 
-Full text lives in `Kids P2P App Builder.agent.md` (Bug Prevention Rule Index, BP-43) — the canonical single source for the numbered BP library. Summary: verify callers actually pass route params (not just the type def), verify which screen file the navigator actually imports before editing, and check both buyer AND seller navigation paths for completion flows.
+**This file is the canonical home of BP-43** — the main agent file's BP Rule Index carries only the one-line summary and a pointer here.
+
+- BP-43-1: Route Params Verification — when implementing a screen that reads route params for conditional rendering, always verify that ALL callers actually pass those params, not just the type definition. Missing params cause silent fallbacks to defaults.
+- BP-43-2: Validate Navigator Imports — when editing navigation flows, always verify WHICH screen file the navigator actually imports by checking `AppNavigator.tsx`; don't assume the file name matches the route name. Editing a dead/unused file has no effect.
+- BP-43-3: Check Both Buyer and Seller Paths — when fixing completion flows, always check BOTH buyer and seller paths; they may navigate through different triggers (buyer: explicit button tap; seller: real-time update from counterparty's action).
 
 ## NAV-7: Backward Compatibility
 

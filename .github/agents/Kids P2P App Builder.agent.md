@@ -15,7 +15,7 @@ Always align code with the canonical docs (verify paths exist first):
 
 docx/SYSTEM_REQUIREMENTS_V2.md
 docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md
-docx/ Solution Architecture & Implementation Plan.md (note: actual filename has a leading space — see File Path Normalization rule)
+docx/Solution Architecture & Implementation Plan.md
 All Prompts/MODULE-XX-*.md prompt + verification files.
 Work module by module, using the matching VERIFICATION file as a checklist before you consider something “done”.
 
@@ -210,12 +210,13 @@ Guide Expected-Results Must Be Verified Against Shipped Source (MANDATORY — 20
 A guide's expected results, labels and numbers are CLAIMS ABOUT THE SHIPPED APP — never carry them forward from the previous guide's wording. Before re-wording any expected result, prove each claim from the code that owns it: `grep` the screen/service for the literal string the user actually sees (`Combined Offer`, `Safety & Platform Fee`), read the live value/seed for any number (`admin_config`, not the guide), and treat admin-portal field labels as DERIVED unless you see a hardcoded label (`min_listing_price` renders as "Min Listing Price" via key title-casing — grep the derivation, not just a literal label). Then apply the Copy-Consistency Class Sweep to the GUIDE itself: grep the whole guide for the OLD string before replacing it, because other surfaces can legitimately still ship that wording (trade-timeline fee rows hardcode "Platform Fee:", and `TradeListScreen` ships "📦 Bundle Offer · N items" while checkout ships "📦 Combined Offer") — never blanket-replace a string just because one screen changed. Verify each edit landed with a targeted `grep` per intended string, and re-read any block whose edit spans a blank line: a replacement that swallows the blank line silently joins `**Objective:**` and `**Steps:**` into one Markdown paragraph. Evidence: FIX-Task-16v2 — the K/N/S-group drift (stale "free tier / 5%" seller-fee premise, "Transaction Fee" on Item Detail, "Minimum Listing Price", "Bundle Offer" vs "Combined Offer") had survived ~3 QA rounds because each docs pass copied the previous guide instead of the rendered screen.
 File Path Normalization (MANDATORY)
 Filenames MUST NOT include leading/trailing spaces.
-If you detect a file like docx/ Solution Architecture & Implementation Plan.md (leading space), you MUST do ONE of: A) Rename it to docx/Solution Architecture & Implementation Plan.md and update all references, OR B) If renaming is not possible, STOP and ask Samer to rename it (do not implement features against a "fragile" path).
+The canonical doc `docx/Solution Architecture & Implementation Plan.md` is correctly named (no leading space) — the historical leading-space workaround is no longer needed and must not be re-added.
+If you detect ANY file whose name has a leading/trailing space, STOP and ask Samer to rename it (do not implement features against a "fragile" path).
 Never “guess” the path. Always verify the exact filename in the workspace first.
 Core product & architecture docs
 docx/SYSTEM_REQUIREMENTS_V2.md
 docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md
-docx/ Solution Architecture & Implementation Plan.md (note: filename has leading space)
+docx/Solution Architecture & Implementation Plan.md
 These are the source of truth for:
 
 Feature set (Free vs Kids Club+)
@@ -383,7 +384,7 @@ Start with the relevant Prompts/MODULE-XX-*.md and its Prompts/MODULE-XX-VERIFIC
 Then cross-check with:
 docx/SYSTEM_REQUIREMENTS_V2.md
 docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md
-docx/ Solution Architecture & Implementation Plan.md (note: filename has leading space)
+docx/Solution Architecture & Implementation Plan.md
 If there's a conflict:
 Prefer: System Requirements → BRD → Solution Architecture → Module prompts.
 Call out any conflicts in your response and add // TODO comments.
@@ -820,7 +821,7 @@ Issue: "A mutation appears to succeed in the UI but the database wasn't actually
 Issue: "Edge Function deploy fails with 'Module not found'"
 
 ✅ Check: Deploy via the CLI `supabase functions deploy --use-api` (BP-41 — the standing required path), which resolves `../_shared/*` from the local filesystem; if it still fails with "Module not found", scan the entrypoint for ALL relative imports (including transitive `_shared/*`) and confirm every target file exists on disk (BP-41 rule 4)
-See also: BP-41 / BP-77 (Edge Function deploys — CLI `supabase functions deploy --use-api` is the standing required path regardless of file size or `_shared/*` imports; the MCP deploy tool is a documented last-resort fallback only, per the DEV-TASK-36 resolution)
+See also: BP-41 (Edge Function deploys — CLI `supabase functions deploy --use-api` is the standing required path regardless of file size or `_shared/*` imports; the MCP deploy tool is a documented last-resort fallback only, per the DEV-TASK-36 resolution; former BP-77 now merged here)
 Issue: "An Edge Function and a DB trigger/RPC disagree on the same business rule"
 
 ✅ Check: Split-brain enforcement — search migrations for a trigger/RPC/constraint duplicating the Edge Function's check (BP-27)
@@ -964,7 +965,7 @@ Supabase MCP (`mcp_supabase_*`) — CONFIRMED (2026-07-29): both read (`list_tab
 
 **Supabase MCP is the ONLY path for SQL/DDL (MANDATORY, owner rule 2026-08-28 — unchanged). Edge Function deploys follow BP-41 (CLI) as the standing rule — the MCP-deploy mandate is RETIRED (owner decision 2026-08-28, DEV-TASK-36):**
 - **Applying/executing SQL or DDL** (migrations, `execute_sql` mutations, RLS, verification queries) MUST go through the Supabase MCP tools ONLY: `mcp_supabase_execute_sql` (raw SQL) or `mcp_supabase_apply_migration` (DDL). These live behind the `activate_database_migration_tools` category — call that activation tool FIRST, then use them. NEVER waste time hunting for alternatives (supabase CLI keychain tokens, Management API, `db push` passwords, psql, etc.) — the MCP tools are the only sanctioned path for SQL/DDL.
-- **Deploying/updating Edge Functions — BP-41 is the standing rule, full stop (owner decision 2026-08-28, DEV-TASK-36):** the REQUIRED deploy path is the official CLI `supabase functions deploy <name> --project-ref <ref> --use-api` run from the repo root, which resolves `../_shared/*` from the local filesystem and uploads the entrypoint + every dependency as assets for server-side bundling — for ALL functions, regardless of file size or shared-import status. This RETIRES the earlier owner rule (2026-08-28) that mandated `mcp_supabase_deploy_edge_function`; the MCP deploy tool is demoted to a documented last-resort fallback (use only when the CLI is genuinely unavailable — no access token / CI restriction — per BP-41 rule 3), and ANY deploy path MUST be followed by mandatory post-deploy verification (BP-41 rule 5 / BP-66: deployed version bump + a real invocation returning the function's own response, never just a clean exit code). Always pass `--use-api` (BP-66) and reconcile `verify_jwt` against `config.toml` IMMEDIATELY BEFORE the deploy command (BP-41 rule 2). Rationale for this resolution: BP-41's CLI path is precisely what prevents recurrence of the `../_shared/*` resolution failure that caused the original `create-trade-offer` regression this week — the MCP-only mandate directly reintroduced that exact risk, so it is withdrawn with no exceptions carve-out needed for this conflict going forward. Full text: `.github/instructions/edge-functions.instructions.md` (BP-41 / BP-66 / BP-77).
+- **Deploying/updating Edge Functions — BP-41 is the standing rule, full stop (owner decision 2026-08-28, DEV-TASK-36):** the REQUIRED deploy path is the official CLI `supabase functions deploy <name> --project-ref <ref> --use-api` run from the repo root, which resolves `../_shared/*` from the local filesystem and uploads the entrypoint + every dependency as assets for server-side bundling — for ALL functions, regardless of file size or shared-import status. This RETIRES the earlier owner rule (2026-08-28) that mandated `mcp_supabase_deploy_edge_function`; the MCP deploy tool is demoted to a documented last-resort fallback (use only when the CLI is genuinely unavailable — no access token / CI restriction — per BP-41 rule 3), and ANY deploy path MUST be followed by mandatory post-deploy verification (BP-41 rule 5 / BP-66: deployed version bump + a real invocation returning the function's own response, never just a clean exit code). Always pass `--use-api` (BP-66) and reconcile `verify_jwt` against `config.toml` IMMEDIATELY BEFORE the deploy command (BP-41 rule 2). Rationale for this resolution: BP-41's CLI path is precisely what prevents recurrence of the `../_shared/*` resolution failure that caused the original `create-trade-offer` regression this week — the MCP-only mandate directly reintroduced that exact risk, so it is withdrawn with no exceptions carve-out needed for this conflict going forward. Full text: `.github/instructions/edge-functions.instructions.md` (BP-41 / BP-66; former BP-77 merged into BP-41 2026-09-12).
 - **If an MCP tool appears "disabled", call the matching `activate_<category>_tools` first** — Supabase tools are gated behind category activation (e.g. `activate_database_migration_tools`, `activate_edge_function_management_tools`), NOT genuinely off. Do not treat a "disabled" message as a blocker or go looking for another tool.
 - The per-call approval rule above still applies: state exactly what you'll run and get Samer's approval before each Supabase MCP call.
 
@@ -1358,7 +1359,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-86)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-88)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1412,8 +1413,12 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
 - BP-47 Latest migration definition is authoritative — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug); a fragile pattern in a historical migration FILE isn't live if a newer `CREATE OR REPLACE` removed it (superseded body = dead code — don't patch it).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
-- BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it).
+- BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it) — full text: `.github/instructions/admin-portal.instructions.md`.
+- BP-50 — **UNASSIGNED** (no rule text exists under this number; do not allocate it without checking first).
+- BP-51 Pre-deploy verification — run `git diff` / grep the function for the new symbol before deploying an Edge Function; edits can be lost if the working tree is reverted between turns — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-52 — **UNASSIGNED** (no rule text exists under this number; do not allocate it without checking first).
 - BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`.
+- BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
@@ -1436,8 +1441,9 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-75 RLS-disabled audit — the authoritative list of tables with RLS off comes from the LIVE `pg_class.relrowsecurity` query, never migration greps (migrations are incomplete/misleading — `nodes` looks off in the repo but is on, and legacy tables exist only in the DB); trace every table's readers/writers (client vs service-role vs SECURITY DEFINER) before enabling RLS (DEV-TASK-26, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-74 Tier-1 harness notification assertion — assert on the linkage key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`) when verifying a DB-triggered notification; a shared/fuzzy filter helper can silently drop the row and cause a false fail (DT-19, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-76 Enum-like status/reason values — DB writers must emit the canonical snake literal (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column, or expired-offer surfacing / the seller-ignore streak silently break (TRD re-verify, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-77 Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path for large self-contained single-file functions too (no `_shared` deps, e.g. the 82KB/1,840-line `create-trade-offer`) — no per-deploy approval needed, per the DEV-TASK-36 resolution that retired the MCP-deploy mandate; MCP is a documented last-resort fallback only; post-deploy verification (version bump + real invocation, BP-66/BP-71) is mandatory on any path (DEV-TASK-33, 2026-08-28; DEV-TASK-36, 2026-08-28) — full text: `.github/instructions/edge-functions.instructions.md`.
+- BP-77: **RETIRED (merged into BP-41, 2026-09-12)** — was "Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path even for large self-contained single-file functions"; every clause was already stated by BP-41, which DEV-TASK-36 made apply to ALL functions, so "large single-file" is no longer a distinct rule. Historical BP-77 citations refer to BP-41 (deploy-logging requirement is BP-41 rule 8) — full text: `.github/instructions/edge-functions.instructions.md`.
 - BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps, and PostgREST maps `42501` to HTTP 401 — treat a 401 from a revoked caller as the expected rejection (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-79 Default-privilege hardening for functions is ineffective here — use the `dt61_guard_revoke_fn_public` event trigger + explicit-grant discipline — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-80 Two-phase provisioning deliverables — fixture/migration work is delivered as (1) code/scripts/migration file written + Tier 0 green and (2) executed against staging (REQUIRES Samer's explicit approval per the MCP Usage Protocol); in the Session Handoff state "written, NOT applied/run" and mark the regression tier DEFERRED, never implying provisioning happened (DEV-TASK-77, 2026-08-31); a fixture script's read-back must print the fixture's own primary key(s) — never only a row count (FIX-Task-17, 2026-09-11).
 - BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but doesn't write a `schema_migrations` row; verify the migration landed by invoking the changed object live, never by the migration list (DEV-TASK-83, 2026-09-02) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-82 Account/subscription screens (incl. ContinueKidsClub) — Pass It Up semantic tokens only; no Material/Tailwind/iOS-system-blue leakage (Manage Kids Club+ family `#4CAF50`/`#E53935`/`#0066CC`/`#D97706` etc., confirmed 2026-09-02) AND no legacy-design-system tokens (`#4A7C59`/`#4D4D4D`/`#808080` — ContinueKidsClub upsell branch, confirmed 2026-09-05); EVERY rendered branch of a screen must be on-brand (BP-82 rule 6) — full text: `.github/instructions/mobile-client.instructions.md`.
@@ -1472,23 +1478,10 @@ BP-11: Admin Config Two-Table Architecture — full text moved to `.github/instr
 
 BP-12: RPC Return Type Changes Require DROP First — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-BP-13: Default Values Must Reference Canonical Source
-Problem: Hardcoded default values (e.g., useState<number>(3), fallback 365) silently override admin config when the lookup fails, making the bug invisible.
+BP-13: Default Values Must Reference the Canonical Source — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-Rules:
+BP-14: Notification Copy Must Be Reviewed for SP Transactions — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-Every fallback default MUST have a comment explaining which DB trigger, seed data, or admin_config key defines the canonical default.
-If the fallback matches a DB trigger default (e.g., fn_trade_config_int('pending_sp_release_days', 3)), add a comment linking them.
-BP-14: Notification Copy Must Be Reviewed for SP Transactions
-Problem: The spend_purchase ledger entry was created at reservation time (not spend time), but the notification said "You spent X SP on a purchase!" — which is misleading since the SP is reserved and can be returned if the trade is cancelled.
-
-Rules:
-
-For SP transactions, "reserved" ≠ "spent". SP used in a purchase is reserved until the trade completes.
-Review all sp_ledger transaction_type values and ensure notification copy matches the semantic meaning:
-spend_purchase → "reserved" (returnable if cancelled)
-earn_refund → "refunded" (returned to available)
-earn_reward → "earned" (new SP credited)
 BP-15: Pull-to-Refresh Must Bypass Client-Side Caches — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-16: Config Comments Referencing Non-Existent Triggers Are Defects — full text moved to `.github/instructions/supabase-sql.instructions.md`.
@@ -1499,18 +1492,53 @@ BP-18: In-App Notification Must Be Explicit for Reminder EFs — full text moved
 
 BP-19: Cron-Invoked EFs Must Set `verify_jwt = false` — full text moved to `.github/instructions/edge-functions.instructions.md`.
 
-BP-20: Check Existing DB Triggers Before Building Notification Logic
-Problem: Building duplicate notification logic wastes time and creates double-notifications. The DB trigger send_trade_status_notification fires on trades.status changes and already calls create_trade_notification (which creates both in-app + push).
-
-Rules:
-
-Before implementing any notification system, search existing migrations for DB triggers on the relevant table that may already handle notifications via create_trade_notification.
-The trigger send_trade_status_notification handles: trade_completed (both parties), trade_cancelled (both parties), offer_accepted (buyer), offer_rejected (buyer), and seller_marked_completed_at (buyer).
-If a trigger already exists, only implement code for events the trigger does NOT cover (e.g., reminder-style events that update tracking columns, not status).
+BP-20: Check Existing DB Triggers Before Building Notification Logic — full text moved to `.github/instructions/edge-functions.instructions.md`.
 
 BP-21: Cron Job Must Be Created When Refactoring RPC from HTTP-Calling to Data-Only — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
 BP-22: Secret Keys Must Resolve from Config at Runtime — Never Hardcoded or Baked into a Cron Header — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+
+BP-23: Realtime Callback Must Mirror Mount-Time Side Effects — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-24: Partial Reverts Must Leave DEFERRED-DECISION Comments — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-25: Tier 0 Build Gate — `deno check` for Edge Functions, Not `get_errors` — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+BP-26: Edge Function Performance Diagnosis — `execution_time_ms` + Staircase Pattern — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+BP-27: Edge Function Enforcement — Check for Duplicate DB-Side Checks — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+BP-28: Admin-Configurable Values Must Have Zero Hardcoded Fallback in Edge Functions — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+BP-29: Downstream Reference Audit When Renaming or Restructuring Data Sources — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-30: Formula Documentation Cross-Reference — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+
+BP-31: SP Fix Verification — Verify Both Trigger and RPC Layers — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+
+BP-32: Notification Verification Gate for State Changes — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+BP-33: Globally Persistent UI Elements Must Be Rendered at Root Level — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-34: Alert → Toast Replacement Must Audit ALL Success Paths — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-35: Return Value Gate — Every Mutating Service Call Must Check Its Result — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-36: Realtime Subscription Table Membership Verification — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-37: Tax Must Always Be Calculated on Full Item Price, Not Reduced by SP — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+
+BP-38: Fee Config Semantics — Absolute Percentages Per Tier, Not Base+Discount — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+
+BP-39: `FunctionsHttpError.message` Is Hardcoded — Always Parse `.context` for the Real Error — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-40: Stripe `SubscriptionCreateParams.trial_end` and `.trial_period_days` Are Mutually Exclusive — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+BP-41: Required Deploy Path — Use the Official `supabase functions deploy` CLI (always `--use-api`), Not the MCP Bundler — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
+BP-43: Learned Navigation & Params Rules — full text moved to `.github/instructions/navigation.instructions.md` (BP-43-1 route-params verification; BP-43-2 navigator-import validation; BP-43-3 buyer AND seller paths).
 
 BP-44: Tax/SP/Fee RPC Recompute Must Be Category-Aware and Match the Offer-Time Value — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
@@ -1518,38 +1546,11 @@ BP-45: Searchable Admin Surfaces Need Text-Cast Views (never `ilike` a UUID or c
 
 BP-46: Postgres Function DECLARE Block Must Declare Every `v_*` Variable Used in the Body — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
+BP-47: E2E Tests Asserting Trigger-Created Defaults Must Verify the Trigger Exists in the Target DB (deployment lag ≠ code bug) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+
 BP-48: Admin Config Settings Writes Must Go Through the Shared RPC (never direct `admin_config` table writes; record the editor) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-BP-47: E2E Tests Asserting Trigger-Created Defaults Must Verify the Trigger Exists in the Target DB (deployment lag ≠ code bug)
-Problem: `sub-018` ("No subscription found") and the notification-preferences E2E both failed after a signup, and the initial triage pointed at app code. The real root cause was that the deployed `handle_new_user()` was an OLD version — the target staging DB's `on_auth_user_created` trigger was not creating the `subscriptions`/`notification_preferences` rows the tests assert. That is deployment lag / a stale trigger, not an app bug.
-
-Rules:
-- When a live-DB E2E/integration test creates a user and then asserts rows the signup trigger should create (subscription, notification prefs, SP wallet, profile defaults), FIRST verify the trigger is attached AND its handler is current in the target DB:
-```sql
-SELECT tgname, tgenabled FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass;
-SELECT prosrc FROM pg_proc WHERE proname = '<signup handler>';
-```
-- Confirm the handler's `prosrc` matches the latest canonical migration (grep migrations for the newest `CREATE OR REPLACE FUNCTION <handler>` and diff) — "trigger attached" is not enough; the deployed body may be stale.
-- Only after confirming the trigger + handler are present and current should a failure on trigger-created rows be treated as an app/code bug.
-- Deployment lag ≠ code bug: if the target DB's function predates the migration defining the asserted behavior, the fix is to apply the migration / redeploy the function — not to edit app code.
-- FIX-AUTHORING direction (same principle, opposite side): a fragile pattern found in a HISTORICAL migration FILE is not automatically live. Later `CREATE OR REPLACE FUNCTION` rewrites may have replaced the body, or a later migration may have dropped the trigger. Before patching anything found in a migration, grep migrations for the NEWEST definition of that function/trigger and diff. If a newer body exists and no longer contains the pattern, the historical body is dead code and MUST NOT be patched (real case: `process_referral_bonus_on_listing_v2` — the fragile `(config_value)::INTEGER` cast lived only in `20260204000009`, removed the next day by `20260205000003`; the live trigger function never carried the bug, so "fixing" the old body would have edited code that doesn't run).
-- A function name still attached to a trigger does NOT mean the historical migration body you're reading is what runs — "function is live" and "this file's body is live" are different questions.
-- Cross-ref BP-16 (stale trigger comments) and BP-31 (verify trigger AND RPC layers): verify the trigger exists before trusting a comment, a test, or a symptom.
-
-Detection checklist: any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code. Likewise, a dev task pointing at a fragile pattern inside a migration FILE → grep migrations for the newest `CREATE OR REPLACE FUNCTION`/trigger definition and diff BEFORE authoring a fix; a superseded body is dead code even if the function name is still attached.
-
-BP-49: Admin Portal Client→API Auth — Always Send `x-admin-secret` on Browser Fetches to `/api/admin/*`
-Problem: The admin web app's browser→API routes authenticate two different ways: (1) the shared `x-admin-secret` header — client components send `NEXT_PUBLIC_ADMIN_UI_SECRET` — or (2) a Supabase JWT via an explicit `Authorization: Bearer` header. `verifyAdminAuth()` returns `{ authorized: false, error: 'No valid authentication provided' }` (HTTP 401) when a request carries NEITHER. The app has NO middleware, so the Supabase session cookie never reaches the API route. New client-side fetches that omit the header silently 401 — the page shows a generic "Fetch failed" / 401 instead of data.
-
-Rules:
-- For EVERY browser-side fetch to `/api/admin/*` (client component, hook, or page), send the header: `headers: { 'x-admin-secret': process.env.NEXT_PUBLIC_ADMIN_UI_SECRET || '' }` — this is the established, working pattern (DisputeActions, CancellationInsightsClient, config page, id-badge pages, etc.).
-- `NEXT_PUBLIC_ADMIN_UI_SECRET` is the client-visible secret; the server compares it against the server-only `ADMIN_UI_SECRET`. Keep the two values equal in `.env.local` / `.env.staging` / CI.
-- Do NOT rely on a session cookie or on `Authorization: Bearer` being auto-added — `verifyAdminAuth` reads only the `x-admin-secret` header or an explicit Bearer header on the request.
-- When a fetch to an admin API returns 401 / "No valid authentication provided", inspect the outgoing headers BEFORE touching the endpoint code.
-- Do NOT copy legacy omission: some older admin pages (e.g. payout-retry calls) POST to `/api/admin/*` with no auth header and 401 in practice — new code must include the header.
-- Cross-ref BP-35 (always check the `{success}`/response result): a 401 is a non-ok response that must be surfaced, not swallowed.
-
-Detection checklist: any admin-page fetch failing with 401 / "No valid authentication provided" / "Fetch failed" → confirm the request carries `x-admin-secret` (or an explicit Bearer JWT). If it carries neither, the fix is in the CLIENT (add the header), not the endpoint.
+BP-49: Admin Portal Client→API Auth — Always Send `x-admin-secret` on Browser Fetches to `/api/admin/*` — full text moved to `.github/instructions/admin-portal.instructions.md`.
 
 BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements (incl. Modal/Pressable-container grouping — set `accessible={false}` on overlay/sheet so buttons surface) — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
@@ -1561,195 +1562,12 @@ BP-57: Behavior-Fix Test Drift — a fix that makes an auto-verify/auto-submit p
 
 BP-58: Bottom-Anchored UI Must Clear the Floating Pill Nav (PersistentTabBar) — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
+BP-60: Shared Test-Render Helpers Must Receive Explicit Clean Params (test isolation) — full text moved to `.github/instructions/mobile-client.instructions.md`.
+
 BP-61: Accessibility Props Must Be Attributes on the Opening Tag, Never Literal `<Text>` Children — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
-BP-23: Realtime Callback Must Mirror Mount-Time Side Effects — full text moved to `.github/instructions/mobile-client.instructions.md`.
+BP-80: Two-Phase Provisioning Deliverables (code/Tier-0 vs. approval-gated execution) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-BP-24: Partial Reverts Must Leave DEFERRED-DECISION Comments
-Problem: When a previous session's approach is partially reverted (e.g., removing Discover badges but keeping ItemDetailScreen badges), future sessions have no way to know that the remaining code survived a deliberate revert rather than being accidentally left behind. This leads to either: (A) the code being silently removed in a cleanup pass, reintroducing the original bug, or (B) the code being treated as the canonical pattern and duplicated elsewhere, spreading a pattern that was already partially abandoned.
 
-Rules:
-
-When reverting PART of a previous multi-file change, add a // DEFERRED-DECISION: comment at each remaining site that survived the revert.
-The comment MUST explain: (1) what was reverted and why, (2) what remains and why it was kept, (3) the date of the revert decision.
-Format:
-// DEFERRED-DECISION (2026-07-13): [Component/Feature] survived a partial revert.
-// Context: [Feature X] was rolled back from [surface Y] because [reason].
-// What remains: [this specific code] is still active on [surface Z] because [justification].
-// Do NOT remove without confirming [condition to re-evaluate].
-Detection checklist — after any revert PR:
-1. Search for other files touched in the same original implementation session.
-2. For each file that was NOT reverted, verify it is still the intended behavior.
-3. If yes → add DEFERRED-DECISION comment.
-4. If unsure → ask before the session ends.
-Common examples: removing a badge from a grid card but keeping it on a detail screen; removing a hook from one screen but keeping it in another; reverting a UI change but keeping the underlying service function.
-
-BP-25: Tier 0 Build Gate — `deno check` for Edge Functions, Not `get_errors` — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-26: Edge Function Performance Diagnosis — `execution_time_ms` + Staircase Pattern — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
----
-
-## BP-43: Learned Navigation & Params Rules
-
-(Renamed from a duplicate "BP-22" — that number is already used above for "COALESCE Chains for API Keys Must Include Hardcoded Fallback".)
-
-- BP-43-1: Route Params Verification
-  When implementing a screen that reads route params for conditional rendering, always verify that ALL callers actually pass those params — not just the type definition. Missing params cause silent fallbacks to defaults.
-
-- BP-43-2: Validate Navigator Imports
-  When editing navigation flows, always verify WHICH screen file the navigator actually imports by checking AppNavigator.tsx — don't assume the file name matches the route name. Editing a dead/unused file has no effect.
-
-- BP-43-3: Check Both Buyer and Seller Paths
-  When fixing completion flows, always check BOTH buyer and seller paths — they may navigate through different triggers (buyer: explicit button tap; seller: real-time update from counterparty's action).
-
-## BP-27: Edge Function Enforcement — Check for Duplicate DB-Side Checks — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-## BP-28: Admin-Configurable Values Must Have Zero Hardcoded Fallback in Edge Functions — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-## BP-29: Downstream Reference Audit When Renaming or Restructuring Data Sources — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
----
-
-## BP-30: Formula Documentation Cross-Reference (MANDATORY)
-
-**Problem:** Implementing formulas (fees, SP, pricing, discounts) based on a single doc reference misses contradictory examples elsewhere in the doc set, leading to incorrect business logic.
-
-**Rules:**
-1. When implementing ANY formula, search for at least 2 independent examples in `docx/` to verify the formula.
-2. If examples conflict, STOP and ask Samer which is authoritative — do not guess.
-3. Include concrete numerical examples in migration comments (e.g., "55 SP for a $50 item at 1.0x multiplier").
-4. Never implement a formula based on a single doc reference.
-
-**Detection checklist:**
-- `docx/SYSTEM_REQUIREMENTS_V2.md` has SP calculation rules
-- `docx/ADMIN-CATEGORY-MANAGEMENT.md` may have concrete numerical examples
-- `docx/ Solution Architecture & Implementation Plan.md` may have fee formulas
-- Cross-reference at least two before writing any formula code
-
----
-
-## BP-31: SP Fix Verification — Verify Both Trigger and RPC Layers
-
-**Problem:** SP-related fixes often only verify one layer (e.g., the trigger that handles `reserved_sp`) but miss the RPC that handles `available_balance` or vice versa, leaving the other layer broken.
-
-**Rules:**
-Before marking any SP-related fix complete:
-1. Verify the DB trigger works correctly (e.g., `fn_reserve_sp_on_offer` updates `reserved_sp`).
-2. Verify the RPC/function works correctly (e.g., `rpc_get_sp_wallet` returns correct `available_balance`).
-3. Run a test case that exercises BOTH the trigger AND the RPC in the same flow (e.g., submit an offer → check wallet via RPC → verify reserved balance).
-4. If the fix touches a trigger, also verify the compensating trigger (e.g., if you fix `fn_reserve_sp_on_offer`, also verify `fn_release_sp_on_cancel`).
-
----
-
-## BP-32: Notification Verification Gate for State Changes
-
-**Problem:** State changes (trade status, SP release, subscription events) that should generate notifications are implemented without testing whether the notification actually reaches the user.
-
-**Rules:**
-Whenever implementing a state change that should notify users:
-1. Identify the notification delivery path (DB trigger → Edge Function, or EF → user_notifications → push).
-2. Search existing migrations for existing DB triggers on the affected table that handle notifications (see BP-20).
-3. If a DB trigger already handles it, only verify the trigger fires correctly — do not re-implement.
-4. If no trigger exists, add explicit `user_notifications` inserts in the Edge Function (see BP-18 in `edge-functions.instructions.md`).
-5. In either case, add a manual test case or verification query that confirms the notification row was created.
-
-**Mandatory checklist in every state-change PR:**
-- [ ] Which notification path does this state change use? (DB trigger / EF / both)
-- [ ] Has this notification path been verified with a test case?
-- [ ] If using push, is a push token registered for the recipient user?
-- [ ] Is there a manual verification step the QA team can run?
-
----
-
-## BP-33: Globally Persistent UI Elements Must Be Rendered at Root Level — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
----
-
-## BP-34: Alert → Toast Replacement Must Audit ALL Success Paths — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-## BP-35: Return Value Gate — Every Mutating Service Call Must Check Its Result — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-## BP-36: Realtime Subscription Table Membership Verification — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-## BP-37: Tax Must Always Be Calculated on Full Item Price, Not Reduced by SP
-
-**Problem:** When a buyer applies Swap Points at checkout, the tax amount was incorrectly recalculated on the reduced cash amount (`itemPrice - spDiscount`). Both the client-side UI preview (`TradeOfferScreen.tsx`) and the server-side Edge Function (`create-trade-offer/index.ts`) passed `cashCents - txFeeCents` as the taxable amount to the `calculate_tax` RPC. The cart checkout (`CartCheckoutScreen.tsx`) already had the correct pattern — it calculated tax on the full pre-SP subtotal — but the single-item offer flow was missed.
-
-**Root cause:** SP was treated as a price discount (reducing taxable value) instead of as a payment method (taxable value stays at full price). The `vTaxableAmountCents` variable in the Edge Function derived its value from `cashCents` (which was already reduced by SP) instead of from the item's actual price.
-
-**Rules:**
-1. **SP is a payment method, not a price discount.** The taxable value is always the full item price, regardless of how many SP the buyer applies. Tax must be calculated on `Math.round(item.price * 100)` — never on `cashCents - txFeeCents` or `itemPriceCents - spDiscountCents`.
-2. **Fix must touch all layers.** When fixing a tax/SP bug:
-   - Client UI preview (`useTaxCalculation` call) — uses full item price
-   - Edge Function server calculation (`vTaxableAmountCents`) — uses `item.price * 100` from the DB-loaded item, NOT from the client-supplied `cashCents`
-   - Both the single-offer path AND the bundle path in the Edge Function
-3. **Reference the correct implementation.** `CartCheckoutScreen.tsx` already has the correct pattern:
-   ```typescript
-   // MODULE-15.3-PART3 TAX-011: tax calculated on pre-points subtotal (points don't reduce taxable amount)
-   const taxableAmountCents = Math.round(subtotal * 100);
-   ```
-   When fixing a similar bug in another flow, use the cart checkout as the reference for the correct behavior.
-4. **No `cashCents`-derived taxable amounts.** If you see `vTaxableAmountCents = Math.max(0, cashCents - txFeeCents)` in any Edge Function, it is almost certainly a bug — the taxable amount should be derived from the item's actual price, not from the cash the buyer pays after SP.
-
-**Detection checklist:**
-- Search for every call to `calculate_tax` or `useTaxCalculation` that passes a `taxableAmountCents` computed from a cash/SP-reduced amount rather than the full item price.
-- In Edge Functions, always check that `vTaxableAmountCents` is derived from `item.price` (the DB price), not from a client-supplied `cashCents` parameter that may already have SP deducted.
-- When reviewing a tax fix, confirm it covers: (a) client UI preview, (b) Edge Function single-offer path, (c) Edge Function bundle path.
-
-## BP-38: Fee Config Semantics — Absolute Percentages Per Tier, Not Base+Discount
-
-**Problem:** The admin config fields `platform_fee_seller_percentage` and `platform_fee_seller_discount_percentage_kids_club_plus` were implemented as "base percentage" and "discount from base" (e.g., 10% base - 10% discount = 0% effective). The admin, however, expected each field to be an **absolute percentage per tier**: 15% for free users, 10% for subscribed users. Additionally, the seller fee was calculated on the wrong base — it included the buyer's transaction fee (`cashCents + txFeeCents` instead of just the item price after SP), causing a $2.10 fee on a $20 item instead of $2.00 at 10%.
-
-**Root cause:** Two independent bugs in the same flow:
-1. **Config semantics:** The formula `effectivePct = basePct - discountPct` was never validated against admin intent. The admin expected `effectivePct = isSubscriber ? kcpPct : freePct`.
-2. **Wrong calculation base:** `cashCents` included the buyer's platform fee (e.g., $1), so the seller fee was calculated on $21 instead of $20.
-
-**Rules:**
-1. **Absolute percentages per tier, never base+discount.** When implementing configurable fee/discount systems with multiple tiers (free/premium/etc.), always use absolute values per tier (freePct, premiumPct) rather than base+discount models (basePct, discountPct). Base+discount models create confusion and require mental math; absolute values are self-documenting and reduce admin errors.
-2. **Verify the calculation base with the user.** When implementing any fee/pricing formula that depends on admin-configurable percentages, always verify with the user WHAT VALUE the percentage applies to (full price vs. discounted price vs. cash amount vs. another base). Never assume the calculation base from the config key name alone.
-3. **Seller fee base must exclude buyer transaction fee.** The seller's commission is a percentage of what the seller receives (item price minus SP), NOT what the buyer pays (which includes the buyer's platform fee). The buyer's transaction fee goes to the platform, not to the seller.
-4. **Fix both Edge Function AND mobile fallback.** When changing fee calculation logic in the Edge Function (`create-trade-offer/index.ts`), also update the fallback calculation in the mobile app (`TradeTimelineScreen.tsx`) that computes fees for trades created before the column existed.
-
-**Detection checklist:**
-- Search for `basePct - discountPct` or `Math.max(0, basePct - discountPct)` patterns — these indicate a base+discount model that should be absolute-per-tier
-- When reviewing any `calculateSellerFeeCents` or similar fee function, verify what cents value is passed as the base — is it the right one for the fee type?
-- When adding a new admin_config fee field, always include the tier name in the key (e.g., `fee_seller_percentage_free`, `fee_seller_percentage_subscriber`), never generic "base" + "discount" pairs
-
-## BP-39: `FunctionsHttpError.message` Is Hardcoded — Always Parse `.context` for the Real Error — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
----
-
-## BP-40: Stripe `SubscriptionCreateParams.trial_end` and `.trial_period_days` Are Mutually Exclusive — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
----
-
-## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-## BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
-- Verify the screen has access to the joined listing (either via `trade.listing.price` or a separate item query) before assuming the fix is simple.
-
-## BP-60: Shared Test-Render Helpers Must Receive Explicit Clean Params (test isolation)
-
-**Problem:** A `renderScreen()`-style test helper that accepts or defaults to a shared/mutable route/params object can leak state between test cases if that object isn't reset — e.g., a `draftId` set by an earlier test silently carrying into a later test and disabling behavior (like draft-auto-save) that the later test actually intends to exercise fresh. This produces flaky-looking failures whose real cause is test isolation, not the feature under test.
-
-**Real case (J15/J13, 2026-08-24):** The J13 reorder/replace draft-persistence tests in `ItemCreateScreen.test.tsx` passed in isolation (`-t`) but failed in the full-file run. Root cause: `renderScreen()` mutates the shared `mockRoute.params` object, so an earlier draft-resume test left `draftId` set; the J13 tests then rendered with `draftId` inherited → `isDraftHydrated = false` → the draft effect never ran → the draft was never saved. Fix: pass explicit clean params (`renderScreen({ params: { showPhotoSourcePrompt: false } })`).
-
-**Rules:**
-1. When writing or reviewing tests that use such a helper, ALWAYS pass an explicit, freshly-constructed params object per test rather than relying on a shared default or a previous test's leftover state.
-2. If a test failure looks flaky or inconsistent across runs (passes in isolation, fails in the full file), check for this pattern — a shared mutable fixture/params object — before assuming the failure is in the feature code itself.
-3. When introducing a new shared test-render helper, either reset the params object in `beforeEach` or make it require an explicit params argument (never silently reuse a mutated shared default).
-
-**Detection checklist:** a test fails only when run with the rest of its file (not in isolation), and the screen/hook under test has state keyed off `route.params`/`draftId` — the shared route object is leaking; pass explicit clean params.
-
-## BP-80: Two-Phase Provisioning Deliverables (code/Tier-0 vs. approval-gated execution)
-
-**Problem:** A task that includes provisioning — a new migration file, a seed change, or a fixture script that mutates staging — is often reported as fully "done" even when the mutation was never executed (the migration wasn't applied, the seed wasn't re-run, the fixture wasn't provisioned). Those steps require Samer's explicit approval per the MCP Usage Protocol (one Supabase MCP call at a time), so they often can't happen in the same session as the code. The next session or a QA pass then discovers the "provisioned" state never existed (real case: DEV-TASK-77, 2026-08-31 — a `trades.notes` migration + two fixture scripts delivered with the migration un-applied and the fixtures un-run).
-
-**Rules:**
-1. **Deliver provisioning work in two explicit phases.** Phase 1 = code/scripts/migration file written + Tier 0 green (typecheck + lint + unit tests) — this is what "done" means for the code. Phase 2 = executing against staging (applying the migration, re-running the seed, running the fixture script) — REQUIRES Samer's explicit approval per the MCP Usage Protocol; never run it in the same breath as Phase 1, and never batch multiple approval-gated mutations without separate sign-off.
-2. **Never imply Phase 2 happened when only Phase 1 did.** In the Session Handoff, mark every pending artifact explicitly: "migration written, NOT applied", "fixture script written, NOT run", "seed change written, NOT re-seeded". List the exact command/SQL that needs approval, and mark the corresponding regression tier (1/2) as DEFERRED/pending — never PASS.
-3. **Stop at the approval boundary.** If approval isn't available in the session, stop the work there (don't keep going as if the fixture/migration already exists) and record the pending steps in the handoff's "Known gaps / not done yet" + "Suggested next session". A provisioning task that ends at Phase 1 is a complete, reportable deliverable — not a half-done task.
-4. **Verification before claiming.** If you DO execute provisioning, verify it actually landed (e.g. `list_migrations` for the applied migration, a read-back query for the fixture rows) before marking it done — same spirit as BP-66/BP-71 (a clean run message is never sufficient evidence). **A fixture/provisioning script's read-back MUST print the primary keys of what it created** (`bundle_id`, `trade_id`, `item_id`, `cart_id`, …) — never only a row count. A count proves *something* exists but leaves the fixture unidentifiable afterwards, so the next session/QA pass cannot re-find it, assert on it, or DB-verify it (the same key-not-aggregate principle as BP-74). Report those ids in the handoff so the fixture is addressable by id.
 
 **Detection checklist:** a subsequent session/QA pass can't find a column/trade/row the previous session's handoff implied existed, or a handoff's Regression Plan shows a Tier as PASS when the migration it depends on was never applied — check for the two-phase wording ("written, NOT applied/run") in the prior handoff before assuming the data is there. Also: a fixture's only reported evidence is an aggregate count ("cart has 3 item(s)", "N rows created") with no key to re-find it — the script's read-back must surface its own primary key(s). (Real case: FIX-Task-17 item 11, 2026-09-11 — `qa:create-bundle-fixture` SELECTed `bundle_id` in its read-back but logged only a count, so the bundle could not be identified after the fact; the script was patched to print `bundle_id`/`cart_id`, which is how the fixture became verifiable by id under BP-72.)

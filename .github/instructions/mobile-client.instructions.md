@@ -5,13 +5,14 @@ applyTo: "p2p-kids-marketplace/src/**"
 
 # Mobile Client Hardening Protocol
 
-Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device), BP-58 (bottom-anchored UI must clear the floating pill nav), BP-59 (verify scripted JSX mass-edits with more than typecheck alone), BP-82 (account/subscription screens must use Pass It Up semantic tokens — no Material/Tailwind/system-blue leakage) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-24 (partial reverts leave `DEFERRED-DECISION` comments), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device), BP-58 (bottom-anchored UI must clear the floating pill nav), BP-59 (verify scripted JSX mass-edits with more than typecheck alone), BP-60 (shared test-render helpers must receive explicit clean params — test isolation), BP-82 (account/subscription screens must use Pass It Up semantic tokens — no Material/Tailwind/system-blue leakage) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
 - BP-8 TS service errors — return typed `ServiceResult<T>`, never swallow to null.
 - BP-15 Pull-to-refresh — must pass forceRefresh=true to bypass client caches.
 - BP-23 Realtime callbacks — must mirror the same side effects the mount-time effect performs.
+- BP-24 Partial reverts — leave a `// DEFERRED-DECISION` comment on code that survives a partial revert.
 - BP-29 Data-source renames — audit every downstream reference (empty states, filters, counters) after a restructure.
 - BP-33 Persistent UI (tab bars/headers) — render once at the root stack, never per-screen.
 - BP-34 Alert→Toast migrations — classify every call site individually (success/toast, error/blocking, choice/blocking).
@@ -25,6 +26,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
 - BP-58 Bottom-anchored UI on pill-nav screens — scroll content `paddingBottom: 100`, fixed bottom bars `bottom: 120`, in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: (a) typecheck, (b) grep for a bare prop-like line immediately followed by a JSX child (text-children corruption), (c) Prettier and confirm it doesn't rewrite the region unexpectedly.
+- BP-60 Test isolation — a `renderScreen()`-style helper that accepts/defaults to a shared mutable route/params object leaks state between tests; ALWAYS pass explicit, freshly-constructed params per test, and suspect this pattern before blaming the feature code for a “flaky” failure.
 - BP-61 Accessibility props in `<Text>` — never paste `accessible`/`accessibilityRole`/`accessibilityLabel` as literal children; they must be attributes on the opening tag (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole`) whenever writing or reviewing `<Text>` components.
 - BP-82 Account/subscription screens (incl. ContinueKidsClub, all branches) — Pass It Up semantic tokens only (`#5DBB8E` primary/success, `#E85D75` error, `#FFA726` warning, `#5B8FB9` info, `#1A1A1A`/`#6B6B6B`/`#999999` neutrals); no Material (`#4CAF50`/`#E53935`/`#29B6F6`), Tailwind gray/amber (`#111827`/`#6B7280`/`#D1D5DB`/`#D97706`), iOS system blue (`#0066CC`/`#007AFF`/`#93C5FD`), or legacy-design-system tokens (`#4A7C59`/`#4D4D4D`/`#808080`) leakage; EVERY rendered branch of a screen must be on-brand (QA Task 34: ContinueKidsClub active branch correct, its upsell branch leaked `#4A7C59`).
 - BP-85 Money display units — cents-stored values MUST use a cents formatter (`formatPrice(cents)` → "$1.49"), never the dollars formatter (`formatDollarAmount` expects DOLLARS → "$149"); know the unit of each source config/field before picking a formatter.
@@ -397,4 +399,44 @@ Problem (FIX-Task-2 Item 4, 2026-09-07): a fix added a `ProviderDisabledError` c
 Rules:
 1. When adding a defensive/error-classification branch, confirm the guarded error actually SURFACES at that point in the REAL runtime flow — read the SDK's actual behavior under the exact call config (`skipBrowserRedirect`, timeout, provider), don't assume it throws because a mock made it throw.
 2. If the error renders outside the client's control path (e.g. inside the opened browser sheet/custom tab), the classification cannot intercept it — fail fast BEFORE the side-effecting call (e.g. pre-validate the provider against the enabled set) or handle the post-return state.
-3. Treat a passing unit test that mocks the trigger into existence as necessary but NOT sufficient: mark the branch "verify on-device trigger" and drive the real flow (QA Test Agent R79-2, §5.70) before closing.
+3. Treat a passing unit test that mocks the trigger into existence as necessary but NOT sufficient: mark the branch "verify on-device trigger" and drive the real flow (QA Test Agent R79-2, §5.76) before closing.
+
+## BP-24: Partial Reverts Must Leave `DEFERRED-DECISION` Comments
+
+> Cross-cutting rule (applies to any layer); parked here because the canonical real case was a mobile-surface revert. Apply it to SQL/Edge Function reverts too.
+
+**Problem:** When a previous session's approach is partially reverted (e.g., removing Discover badges but keeping `ItemDetailScreen` badges), future sessions have no way to know that the remaining code survived a deliberate revert rather than being accidentally left behind. This leads to either: (A) the code being silently removed in a cleanup pass, reintroducing the original bug, or (B) the code being treated as the canonical pattern and duplicated elsewhere, spreading a pattern that was already partially abandoned.
+
+**Rules:**
+
+1. When reverting PART of a previous multi-file change, add a `// DEFERRED-DECISION:` comment at each remaining site that survived the revert.
+2. The comment MUST explain: (1) what was reverted and why, (2) what remains and why it was kept, (3) the date of the revert decision.
+3. Format:
+```typescript
+// DEFERRED-DECISION (2026-07-13): [Component/Feature] survived a partial revert.
+// Context: [Feature X] was rolled back from [surface Y] because [reason].
+// What remains: [this specific code] is still active on [surface Z] because [justification].
+// Do NOT remove without confirming [condition to re-evaluate].
+```
+
+**Detection checklist — after any revert PR:**
+1. Search for other files touched in the same original implementation session.
+2. For each file that was NOT reverted, verify it is still the intended behavior.
+3. If yes → add a `DEFERRED-DECISION` comment.
+4. If unsure → ask before the session ends.
+
+Common examples: removing a badge from a grid card but keeping it on a detail screen; removing a hook from one screen but keeping it in another; reverting a UI change but keeping the underlying service function.
+
+## BP-60: Shared Test-Render Helpers Must Receive Explicit Clean Params (test isolation)
+
+**Problem:** A `renderScreen()`-style test helper that accepts or defaults to a shared/mutable route/params object can leak state between test cases if that object isn't reset — e.g., a `draftId` set by an earlier test silently carrying into a later test and disabling behavior (like draft-auto-save) that the later test actually intends to exercise fresh. This produces flaky-looking failures whose real cause is test isolation, not the feature under test.
+
+**Real case (J15/J13, 2026-08-24):** The J13 reorder/replace draft-persistence tests in `ItemCreateScreen.test.tsx` passed in isolation (`-t`) but failed in the full-file run. Root cause: `renderScreen()` mutates the shared `mockRoute.params` object, so an earlier draft-resume test left `draftId` set; the J13 tests then rendered with `draftId` inherited → `isDraftHydrated = false` → the draft effect never ran → the draft was never saved. Fix: pass explicit clean params (`renderScreen({ params: { showPhotoSourcePrompt: false } })`).
+
+**Rules:**
+
+1. When writing or reviewing tests that use such a helper, ALWAYS pass an explicit, freshly-constructed params object per test rather than relying on a shared default or a previous test's leftover state.
+2. If a test failure looks flaky or inconsistent across runs (passes in isolation, fails in the full file), check for this pattern — a shared mutable fixture/params object — before assuming the failure is in the feature code itself.
+3. When introducing a new shared test-render helper, either reset the params object in `beforeEach` or make it require an explicit params argument (never silently reuse a mutated shared default).
+
+**Detection checklist:** a test fails only when run with the rest of its file (not in isolation), and the screen/hook under test has state keyed off `route.params`/`draftId` — the shared route object is leaking; pass explicit clean params.

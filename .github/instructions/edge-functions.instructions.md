@@ -5,7 +5,7 @@ applyTo: "supabase/functions/**"
 
 # Edge Function Hardening Protocol
 
-Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP-27, BP-28, BP-40, BP-41, BP-83 (Stripe test-clock renewal verification), plus the Backward Compatibility section. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-20 check-existing-triggers and BP-39 `FunctionsHttpError.context` live in the main agent file / `mobile-client.instructions.md` respectively.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all BP rules (BP-1 – BP-77).
+Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-20, BP-25, BP-26, BP-27, BP-28, BP-32, BP-40, BP-41, BP-83 (Stripe test-clock renewal verification), plus the Backward Compatibility section. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-39 `FunctionsHttpError.context` lives in `mobile-client.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all BP rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -16,12 +16,14 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-17 send-trade-notifications — check `result.sent > 0`, never trust `resp.ok` alone.
 - BP-18 Reminder EFs — must insert `user_notifications` explicitly, not rely on status-change triggers.
 - BP-19 Cron-invoked EFs — `verify_jwt = false` in config.toml + `--no-verify-jwt` on deploy.
+- BP-20 Existing notification triggers — search migrations for DB triggers that already handle the event before building notification logic (avoid double-notifications).
 - BP-25 Edge Function compile gate — use `deno check --no-lock`, not `get_errors`; run from the repo root with `--no-config` (or a `/tmp` copy) so a stray RN tsconfig (`jsx: react-native`) can't false-fail the gate (DT-118, 2026-09-05).
 - BP-26 EF performance — check `execution_time_ms` + staircase pattern before guessing at the bottleneck.
 - BP-27 Duplicate enforcement — search for DB triggers/RPCs that duplicate an Edge Function's business rule check.
 - BP-28 Admin-configurable values — Edge Functions must fail loud (`CONFIG_UNAVAILABLE`), never silently fall back.
+- BP-32 Notification verification gate — identify the delivery path (DB trigger / EF) and verify it with a test case before calling a state-change done; never re-implement an existing trigger's notification.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — REQUIRED path is the official CLI (`supabase functions deploy <name> --project-ref <ref>`), which resolves `../_shared/*` from the filesystem (structural fix, no manual file enumeration) — **for ALL Edge Function deploys, regardless of file size or shared-import status (DEV-TASK-36 retired the MCP-deploy mandate; MCP is a documented last-resort fallback only)**. **ALWAYS pass `--use-api`** (server-side bundling; a plain deploy with Docker not running can print "Deployed" while silently doing nothing — BP-66) or verify the deployed body (version bump + real invocation) after a plain deploy. **MANDATORY post-deploy behavior check** — verify with a real invocation (the function's own structured response / a version bump), never just a clean deploy exit code (BP-41 rule 5). Reconcile `verify_jwt` against `config.toml` and **re-verify it IMMEDIATELY BEFORE the deploy command** — a concurrent commit/edit can silently revert the reconciliation between check and deploy, recreating the exact drift the check exists to prevent (confirmed 2026-08-27 on `create-stripe-account-link`; BP-41 rule 2). MCP bundler is last-resort fallback only; legacy `functions/_shared/` prefix / inline-and-keep-in-sync workaround retired for new work.
+- BP-41 Edge Function deploys — REQUIRED path is the official CLI (`supabase functions deploy <name> --project-ref <ref>`), which resolves `../_shared/*` from the filesystem (structural fix, no manual file enumeration) — **for ALL Edge Function deploys, regardless of file size or shared-import status (DEV-TASK-36 retired the MCP-deploy mandate; MCP is a documented last-resort fallback only)**. **ALWAYS pass `--use-api`** (server-side bundling; a plain deploy with Docker not running can print "Deployed" while silently doing nothing — BP-66) or verify the deployed body (version bump + real invocation) after a plain deploy. **MANDATORY post-deploy behavior check** — verify with a real invocation (the function's own structured response / a version bump), never just a clean deploy exit code (BP-41 rule 5). Reconcile `verify_jwt` against `config.toml` and **re-verify it IMMEDIATELY BEFORE the deploy command** — a concurrent commit/edit can silently revert the reconciliation between check and deploy, recreating the exact drift the check exists to prevent (confirmed 2026-08-27 on `create-stripe-account-link`; BP-41 rule 2). MCP bundler is last-resort fallback only; legacy `functions/_shared/` prefix / inline-and-keep-in-sync workaround retired for new work. **Rule 8: log every deploy** (function name, size, deploy path) in the Session Handoff so each deploy is auditable.
 - BP-51 Pre-deploy verification — run `git diff` / grep the function for the new symbol before deploying an Edge Function; edits can be lost if the working tree is reverted between turns.
 - BP-62 TABLE-returning RPCs — supabase-js returns `RETURNS TABLE(...)` RPC results as an ARRAY even for a single row; read `.success`/fields from `data[0]` (or an unwrap helper), never off the raw array (`verify_email_change_code` always-“Verification failed” bug, 2026-08-26).
 - BP-63 Cross-schema PostgREST uniqueness — `admin.schema('auth').from('users').maybeSingle()` returns HTTP 406 (code treated it as “no row”) → use a SECURITY DEFINER RPC (e.g. `check_account_exists_by_email`) for email-uniqueness checks and fail CLOSED on RPC error (account-email-takeover hazard, 2026-08-26).
@@ -34,7 +36,7 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-70 Disposable-user cleanup — `profiles.id ≠ user_id` in this app; delete `profiles` by `user_id` (never `id`) and `await` builders before `admin.deleteUser`.
 - BP-71 Stripe money-function verification — Tier-1 live verification MUST exercise the ACTUAL charge/pay path on a fresh, isolated throwaway user (real charge + retry-dedupe + DB/Stripe confirm); a guard-path-only smoke (`INVALID_STATUS` / `NO_FAILED_PAYMENT`) is NOT sufficient evidence (DT-11, 2026-08-27).
 - BP-72 QA side-effect verification — a QA case exercising a UI action with a backend/DB/third-party (Stripe/PayPal) side effect MUST verify the side effect directly (read the DB row(s) + actual Stripe/PayPal object state), never just the UI response or a guard-path smoke; real-activation verification is REQUIRED for money/financial-state functions; this class of READ-ONLY DB/Stripe verification is PRE-APPROVED (no per-instance owner sign-off) — mutating test actions still use the safe-fixture/disposable-user discipline (DT-12, 2026-08-27).
-- BP-77 Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path even for large self-contained single-file functions (no `_shared` deps, e.g. the 82KB/1,840-line `create-trade-offer`) — no per-deploy approval needed (DEV-TASK-36 retired the MCP-deploy mandate); MCP is a documented last-resort fallback only; post-deploy verification (version bump + real invocation, BP-66/BP-71) is mandatory on any path (DEV-TASK-33, 2026-08-28; DEV-TASK-36, 2026-08-28).
+- BP-77: **RETIRED (merged into BP-41, 2026-09-12)** — "Large Single-File Edge Function Deploys" was entirely covered by BP-41 once DEV-TASK-36 retired the MCP-deploy mandate for all functions; the deploy-logging requirement now lives in BP-41 rule 8. Historical BP-77 citations refer here.
 - Backward compatibility — API response shapes are additive-only; new request params need defaults for old clients; deploy order is migration-first; version the contract if a break is unavoidable.
 - BP-83 Stripe test-clock renewal verification — a test clock CANNOT be retro-attached to an existing Checkout subscription (`POST /subscriptions/{id}` with `test_clock` → `400 parameter_unknown`); to verify a real renewal on a given user, create a fresh clock-bound customer + subscription metadata-bound to the same `user_id` so the webhook re-binds the single `subscriptions` row, then advance the clock and assert on the DB.
 - BP-87 DB-trigger/cron-invoked EF auth — do NOT enforce strict `bearer === SUPABASE_SERVICE_ROLE_KEY` inside a DB-trigger/cron-invoked EF: the DB trigger posts the `admin_config`-stored key, which can drift from the platform-injected env → every trigger/cron call 401s and money rows strand (DT-124, 2026-09-06). Mirror `initiate-payout` (eligibility + ownership + idempotency) or refresh the stored key.
@@ -187,6 +189,9 @@ Rules:
 5. After a successful deploy, ALWAYS verify with a real invocation, not just the deploy exit code: send a non-destructive request that exercises the handler (e.g. `{}` body for an input-validating function, or a signature-less POST for a webhook) and confirm you get the function's own structured error — NOT a 5xx "Module not found". Also confirm the `verify_jwt` probe result is unchanged from step 2. Confirm the returned `version` incremented.
 6. Legacy MCP workaround (retired for new work, kept for reference only): if the MCP bundler must be used, name every file relative to the Supabase functions root WITH the `functions/` prefix (`functions/<name>/index.ts`, `functions/_shared/<file>.ts`) and deploy entrypoint + deps in a single call; if it STILL fails with `Module not found ".../_shared/<file>.ts"`, INLINE the shared helper (e.g. `logFinancialAudit`, `verifyStripeAccountOwnership`) into the function file and deploy a single self-contained `index.ts` (see `archive/misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`), adding a comment above the inlined code naming the canonical `_shared/` source and the words "keep in sync". Whenever you edit a function with inlined `_shared/` helpers, re-check the inlined copy against the canonical `_shared/` source and update both together.
 7. **create-stripe-account-link is intentionally NOT yet migrated** (2026-08-27): deployed `verify_jwt` is `true` but `config.toml` says `false`, and the committed source carries a never-deployed `verifyStripeAccountOwnership` hardening. Migrating it would change both `verify_jwt` and behavior — needs an explicit decision before deploying.
+8. **Log every deploy** in the Session Handoff — function name, size, and deploy path (CLI, or MCP as a documented last-resort) — so each deploy is auditable.
+
+> **Absorbed rule (merged 2026-09-12):** the former **BP-77** ("Large Single-File Edge Function Deploys") restated this rule for the large-single-file case and its own heading declared it "Covered by the Standing CLI Rule (BP-41)". DEV-TASK-36 retired the MCP-deploy mandate for ALL functions, so "large single-file" stopped being a distinct case; its only unique content (rule 8 above) is folded in here and BP-77 is retired. Historical citations to BP-77 in `e2e-test-results/**` and `docs/**` refer to this rule.
 
 ## BP-51: Verify the Intended Change Is Actually in the File Before Deploying an Edge Function
 Problem: Edits made to an Edge Function can be lost if the working tree is reverted between sessions/turns (a `git checkout`/`git stash` or an external reset), while the deploy step then proceeds with a file that no longer contains the change. Result: a deploy goes out without the intended behavior (a silent no-op), or the agent "re-adds" a change it believes is already present. Confirmed 2026-08-09 on `create-trade-offer` (the R11/R6 server-side SP cap + entitlement enforcement was re-applied twice after being lost between turns).
@@ -346,17 +351,7 @@ Rules:
 3. **This class of backend/DB/Stripe read-only verification is pre-approved** and does NOT require manual owner approval per instance — it is a read-only confirmation step, not a mutating action. Mutating test actions (creating/cancelling real test trades, subscriptions, refunds) still follow the existing safe-fixture/disposable-user discipline, using throwaway users where money movement is involved (BP-70 cleanup, BP-69 fixtures, §5.36 fixture collision in the QA playbook).
 4. **Worked example (DT-11 pattern):** create a disposable/throwaway user isolated from shared test accounts → exercise the REAL path (not just the guard) → confirm BOTH the third-party (Stripe) object state AND the corresponding database row → then clean up the throwaway user.
 
-## BP-77: Large Single-File Edge Function Deploys — Covered by the Standing CLI Rule (BP-41); MCP Is Last-Resort Only
-
-Problem: The owner rule (2026-08-28, MCP Usage Protocol) mandated deploying Edge Functions through `mcp_supabase_deploy_edge_function`, which accepts only inline `files` content, while BP-41 historically required the CLI — a direct contradiction in the ruleset. For a large single-file function (an inlined, self-contained `index.ts` over ~80KB / ~1,800+ lines with no `_shared/*` deps), the MCP path forces the agent to hand-transcribe the entire file into the `files` payload. On a money-adjacent path a single transcription slip can deploy subtly-broken logic that a one-off test invocation may not catch — worse than the bug being fixed. Confirmed 2026-08-28 (DEV-TASK-33): `create-trade-offer` (1,840 lines / 82KB, all helpers inlined) could not be deployed reliably via the MCP inline-files path, and the owner granted a per-deploy CLI exception. **RESOLVED 2026-08-28 (DEV-TASK-36):** the owner retired the MCP-deploy mandate outright — BP-41 (CLI `--use-api`) is the standing rule for ALL Edge Function deploys, so the large-file case needs no exception and no per-deploy approval. The MCP deploy tool is a documented last-resort fallback only.
-
-Rules:
-1. **Default: the CLI, exactly as BP-41 requires.** `supabase functions deploy <name> --project-ref <ref> --use-api` from the repo root is the standing required path for large single-file functions too — no Samer's per-deploy approval is needed (the DEV-TASK-36 resolution retired the MCP-only mandate, so the former "per-deploy CLI exception" framing no longer applies).
-2. **MCP `mcp_supabase_deploy_edge_function` is a documented last-resort fallback only** (use when the CLI is genuinely unavailable — no access token / CI restriction, per BP-41 rule 3). If you MUST use it for a large single-file function, be aware of the inline-transcription risk that motivated DEV-TASK-33 (a >~80KB file hand-transcribed into the `files` payload can deploy subtly-broken logic) — and verify the transcribed body carefully before deploying.
-3. **Post-deploy validation is non-negotiable on any path (BP-66 / BP-41 rule 5 / BP-71):** confirm the version incremented (`supabase functions list --project-ref <ref>`), then run a real invocation that returns the function's own structured response (not just a clean exit code). For money functions, use a disposable-user real-activation check (BP-71).
-4. **Reconcile `verify_jwt` immediately before the deploy command (BP-41 rule 2)** — the CLI sets `verify_jwt` from `supabase/config.toml` (default true when a function is unlisted there).
-5. **Log the deploy:** record the function name, size, and deploy path (CLI, or MCP as last-resort) in the Session Handoff so every deploy is auditable.
-
+See also: BP-19 (`verify_jwt = false` for cron-invoked EFs), HP-3 (service-role usage), BP-22 (secret resolution — resolve from config, never hardcode).
 ## BP-83: Stripe Test Clocks Cannot Be Retro-Attached to an Existing Checkout Subscription — Verify Renewal With a Fresh Clock-Bound Subscription
 
 Problem: Stripe rejects adding a `test_clock` to an already-created Checkout subscription via the update API (`POST /v1/subscriptions/{id}` with `{ test_clock: ... }` → `400 parameter_unknown: Received unknown parameter: test_clock`). Test clocks can only be set at subscription-creation time (the customer must already be on the clock). Confirmed 2026-09-02 (QA Task 21) while verifying a real renewal on a brand-new subscription: the existing web-first Checkout subscription could not be fast-forwarded, so the renewal had to be produced on a fresh clock-bound subscription.
@@ -381,3 +376,38 @@ Rules:
 4. If you DO keep a strict bearer check, it must be matched by refreshing `admin_config.supabase_service_role_key` (or the GUC) on every service-key rotation — but that stores a secret in the DB (BP-22 anti-pattern); the row-binding + idempotency model is the preferred defense.
 
 See also: BP-19 (`verify_jwt = false` for cron-invoked EFs), HP-3 (service-role usage), BP-22 (secret resolution — resolve from config, never hardcode).
+
+## BP-20: Check Existing DB Triggers Before Building Notification Logic
+
+**Problem:** Building duplicate notification logic wastes time and creates double-notifications. The DB trigger `send_trade_status_notification` fires on `trades.status` changes and already calls `create_trade_notification` (which creates both in-app + push).
+
+**Rules:**
+
+1. Before implementing any notification system, search existing migrations for DB triggers on the relevant table that may already handle notifications via `create_trade_notification`.
+2. The trigger `send_trade_status_notification` handles: `trade_completed` (both parties), `trade_cancelled` (both parties), `offer_accepted` (buyer), `offer_rejected` (buyer), and `seller_marked_completed_at` (buyer).
+3. If a trigger already exists, only implement code for events the trigger does NOT cover (e.g., reminder-style events that update tracking columns, not status).
+
+See also: BP-27 (duplicate enforcement — EF checks duplicating DB-side checks), BP-32 (notification verification gate), BP-18 (explicit in-app notification inserts for reminder EFs).
+
+## BP-32: Notification Verification Gate for State Changes
+
+**Problem:** State changes (trade status, SP release, subscription events) that should generate notifications are implemented without testing whether the notification actually reaches the user.
+
+**Rules:**
+
+Whenever implementing a state change that should notify users:
+
+1. Identify the notification delivery path (DB trigger → Edge Function, or EF → `user_notifications` → push).
+2. Search existing migrations for existing DB triggers on the affected table that handle notifications (see BP-20).
+3. If a DB trigger already handles it, only verify the trigger fires correctly — do not re-implement.
+4. If no trigger exists, add explicit `user_notifications` inserts in the Edge Function (see BP-18).
+5. In either case, add a manual test case or verification query that confirms the notification row was created.
+
+**Mandatory checklist in every state-change PR:**
+
+- [ ] Which notification path does this state change use? (DB trigger / EF / both)
+- [ ] Has this notification path been verified with a test case?
+- [ ] If using push, is a push token registered for the recipient user?
+- [ ] Is there a manual verification step the QA team can run?
+
+See also: BP-17 (`send-trade-notifications` response check), BP-18 (reminder EFs must insert explicitly), BP-20 (check existing triggers first), BP-74 (assert on the linkage key, never a fuzzy filter helper).

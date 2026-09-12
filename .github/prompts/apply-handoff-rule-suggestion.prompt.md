@@ -14,15 +14,18 @@ Scan the ENTIRE conversation history in this chat (not just the latest response)
    - Otherwise, list out each distinct suggestion you found (one line each, with which fix/response it came from) before making any edits, so I can see what you're about to apply.
 2. For EACH distinct suggestion, before adding anything:
    - Use `grep_search` across `.github/agents/Kids P2P App Builder.agent.md` AND all files in `.github/instructions/` for wording that already covers this case. Do NOT create a duplicate — if an existing rule already covers it, propose extending that rule's wording instead of adding a new one, per this repo's duplicate-identifier/duplicate-rule discipline.
+   - **Check the retired/merged numbers first.** The Rule Indexes contain explicit tombstones (e.g. `BP-77: RETIRED (merged into BP-41, 2026-09-12)`). Never re-use a retired number and never add a second rule for a topic a tombstone already routes elsewhere — extend the surviving rule instead.
 3. Decide the correct destination for that suggestion:
    - **Cross-cutting** (applies across mobile + Edge Functions + SQL + admin portal — e.g. MCP policy, Session Handoff contract, hardening/regression tiers, duplicate-identifier policy) → stays directly in `Kids P2P App Builder.agent.md`.
+     - Note: the main agent file's **body** (NON-NEGOTIABLE RULES, Hardening Protocol, Section 13/14) is the home for genuinely cross-cutting rules. The **appendix is a pointer-only index** — every entry there must end in “— full text moved to `.github/instructions/…`”. If a cross-cutting rule would otherwise only be eligible for the appendix, find a body section instead (step 5) rather than adding inline text to the appendix.
    - **Postgres/migrations/RLS/RPC-specific** → `.github/instructions/supabase-sql.instructions.md`
    - **Edge Function-specific** (Deno/TypeScript, auth/RLS in functions, deploy hygiene) → `.github/instructions/edge-functions.instructions.md`
    - **Mobile client-specific** (screens/services/hooks, Realtime, caching, error parsing) → `.github/instructions/mobile-client.instructions.md`
    - **Navigation-specific** (routes, auth/onboarding stack boundaries, params) → `.github/instructions/navigation.instructions.md`
+   - **Admin-portal-specific** (Next.js routes under `p2p-kids-admin/src/**`, `/api/admin/*` auth) → `.github/instructions/admin-portal.instructions.md` (created 2026-09-12; its `applyTo` covers `p2p-kids-admin/src/**`). Note the admin app is a **git submodule** — rules that belong to that submodule's own repo do not go here.
    - If it doesn't cleanly fit any of the above, ask before creating a new file or section.
 4. If the target is one of the 4 instructions files:
-   - Assign the next available `BP-N` number (check the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md`'s appendix for the current highest BP number — increment for each new rule added in this same pass so numbers don't collide across multiple suggestions).
+   - Assign the next available `BP-N` number — **never reuse a retired number** and never reuse a number already present in any file. Find the current highest by scanning ALL of `.github/agents/Kids P2P App Builder.agent.md`, the four `.github/instructions/*.instructions.md` files, and this prompt's own Rule Index references (grep `\bBP-[0-9]+\b` and take the max), then increment for each new rule added in this same pass so numbers don't collide across multiple suggestions. `BP-N` is a global namespace shared by the main agent file and all instructions files — a number must be unique across every one of them.
    - Add the full rule (Problem / Rule / example, matching the style of neighboring rules) to the target instructions file.
    - Add a one-line entry to that file's own "Rule Index" section at the top.
    - Add a matching one-line pointer entry to the "🛡️ Appendix: Bug Prevention Rule Library" Rule Index in `Kids P2P App Builder.agent.md`, in the same pointer format used for other split-out BP rules.
@@ -36,3 +39,4 @@ Scan the ENTIRE conversation history in this chat (not just the latest response)
    - The one-line summary of the rule as it now appears in the relevant Rule Index.
    - Any suggestions you skipped because they duplicated an existing rule, and what you did instead (e.g., extended rule X).
 7. Do not touch any other content in these files beyond the additions described above.
+8. If, while doing step 2, you find that a rule you are about to add SUPERSEDES an existing rule (rather than merely extending it), do not leave both versions in the files — point it out in your summary table and propose the merge. Applying a merge is in scope here only with the user's explicit confirmation; otherwise leave the old rule untouched and flag it. Do not silently prune: pruning and validation are the job of `.github/prompts/consolidate-agent-rules.prompt.md`, which should be run periodically (roughly every 10 sessions or monthly).

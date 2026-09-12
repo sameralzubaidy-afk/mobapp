@@ -5,17 +5,20 @@ mode: "agent"
 
 # Apply agent/instructions audit fixes
 
+> **STATUS: EXECUTED 2026-09-12 — Phases 0, 1, 2 and 4 complete; Phase 3 partially executed by design.** This file is kept as the record of what the audit found and why each change was made. **Do not re-run it as-is** — Phase 0's rename/credential/backup steps are already applied, so a re-run would fail on a `git mv` of a path that no longer exists. For the ongoing version of this work use `.github/prompts/consolidate-agent-rules.prompt.md`.
+>
+> Two Phase 3 items were deliberately **not** executed as written, and one Phase 1 premise was **wrong**. Both are corrected inline below so a future reader does not "fix" them back.
+
 You are working in this repo's own `.github/agents/` and `.github/instructions/` files — the files that define how you (and the QA Test Agent) behave. An external review of these files found concrete, fixable problems. Work through the phases below IN ORDER. **Stop and report back after Phase 1** before touching Phase 2–4 — those phases edit the core rules that shape every future session, and Samer should sign off before that happens.
 
 Follow this repo's own standing conventions while doing this work: read a file's current content before editing it, use `git mv`/`git rm` (not manual delete+recreate) so history is preserved, grep the whole repo for references before renaming/removing anything, and close your final reply with the same 📦 Session Handoff block format already required in `Kids P2P App Builder.agent.md`.
 
 ---
 
-## Phase 0 — Safe mechanical fixes
+## Phase 0 — Safe mechanical fixes ✅ DONE 2026-09-12
 
-1. **Rename the space-prefixed docx file.**
-   - Current path: `docx/ Solution Architecture & Implementation Plan.md` (leading space).
-   - `git mv` it to `docx/Solution Architecture & Implementation Plan.md` (no leading space).
+1. **Rename the space-prefixed docx file.** ✅ DONE 2026-09-12.
+   - Old path: `docx/ Solution Architecture & Implementation Plan.md` (leading space). Current path: `docx/Solution Architecture & Implementation Plan.md` (renamed with `git mv`, history preserved).
    - Grep the ENTIRE repo (not just `docx/`) for the old string, including the leading space, e.g.:
      `grep -rn "Solution Architecture & Implementation Plan" --include="*.md" --include="*.ts" --include="*.tsx"`
    - Update every reference you find to the corrected path.
@@ -39,10 +42,10 @@ Report back what changed in each of the 4 steps above (files touched, commands r
 
 ---
 
-## Phase 1 — Fix broken `/memories/` references (QA agent)
+## Phase 1 — Fix broken `/memories/` references (QA agent) ✅ DONE 2026-09-12
 
 1. Grep `.github/instructions/QA-Test-Agent.instructions.md` and `.github/agents/QA-Test-Agent.agent.md` for every path under `/memories/repo/` and `/memories/session/`.
-2. For each distinct referenced path, check with `test -e` / `ls` whether it actually exists in the repo's `memories/` folder.
+2. ~~For each distinct referenced path, check with `test -e` / `ls` whether it actually exists in the repo's `memories/` folder.~~ **PREMISE CORRECTED 2026-09-12:** `/memories/...` does **not** resolve to the repo's `memories/` folder. It resolves to the VS Code memory store at `~/Library/Application Support/Code/User/workspaceStorage/<hash>/GitHub.copilot-chat/memory-tool/memories/`. Check `/memories/repo/<file>` **there**. The repo's committed `memories/` folder is an unrelated, drifted 2-file mirror that nothing references — do NOT “fix” a `/memories/repo/...` citation by copying files into it. Also note `/memories/session/<file>` is **always** broken from a later session (session memory is per-conversation), so a durable rules file must never cite one.
 3. For every path that does NOT exist, do one of the following — prefer (a):
    - **(a) Extract, don't invent:** A lot of these files' intended content is already duplicated inline as dated addendum bullets inside `QA-Test-Agent.instructions.md` (e.g. locator conventions, keyboard-suppression notes, test-account registry facts scattered across the dated `§5.x` entries). Where you can identify the source material for a given missing file (e.g. `/memories/repo/simulator-keyboard-suppression.md` ← the Android IME / keyboard-suppression bullets), extract and consolidate that material into the missing file, then trim the now-redundant inline copy from the instructions file down to a one-line pointer (matching how other BP rules already point to instructions files).
    - **(b) Stub + flag:** If no real source material exists for a referenced file, create it with a short header (`# <topic> — TBD`) and one sentence describing what it's supposed to contain, and list it explicitly in your final report as "needs real content from Samer" — do not fabricate conventions or test-account details.
@@ -53,7 +56,7 @@ Report back what changed in each of the 4 steps above (files touched, commands r
 
 ---
 
-## Phase 2 — Finish migrating the BP rule appendix out of the main agent file
+## Phase 2 — Finish migrating the BP rule appendix out of the main agent file ✅ DONE 2026-09-12
 
 1. In `Kids P2P App Builder.agent.md`, locate the "🛡️ Appendix: Bug Prevention Rule Library" section.
 2. Some BP-N rules there are already one-line pointers (e.g. "BP-19: ... — full text moved to `.github/instructions/edge-functions.instructions.md`"). Others still carry their full text inline. For every BP rule that is STILL inline:
@@ -66,19 +69,23 @@ Report back what changed in each of the 4 steps above (files touched, commands r
 
 ---
 
-## Phase 3 — Renumber and de-duplicate
+## Phase 3 — Renumber and de-duplicate ⚠️ PARTIALLY EXECUTED 2026-09-12 (see items 3 and 4)
 
 1. List every `BP-N` rule across the main agent file and all four instructions files, in the numeric order they currently appear. Note that the current order is NOT sequential (e.g. `BP-44, 45, 46, 48, 47, 49` appear out of order) — this is expected, you're about to fix it.
 2. Identify true duplicates or superseded rules — especially anywhere the text says "supersedes", "replaces", or restates an existing rule under a new number. For each one found:
    - Confirm which version is the current/complete one.
    - Merge into a single rule, deleting the superseded text entirely (don't leave both versions in the file).
    - List every merge you make in your final report (old BP numbers → merged into which).
-3. Renumber all BP rules sequentially from BP-1 upward, in the order they now appear across the files. Update every cross-reference to a renumbered rule — in-file "See also: BP-N" mentions, and each instructions file's own Rule Index, and the main agent file's Appendix Rule Index — so nothing points to a stale number.
+3. ~~Renumber all BP rules sequentially from BP-1 upward, in the order they now appear across the files. Update every cross-reference to a renumbered rule — in-file "See also: BP-N" mentions, and each instructions file's own Rule Index, and the main agent file's Appendix Rule Index — so nothing points to a stale number.~~ **NOT EXECUTED — deliberately blocked 2026-09-12.** A full renumber invalidates `BP-N` citations in **277 files outside `.github/`** (`e2e-test-results/**` QA evidence archives, `docs/**`, `Prompts/**`, `docx/**`). Those are append-only historical records, and this step's own list of places to update does not include them — so applying it would silently make hundreds of archived reports cite the wrong rule. **What was done instead:** (a) the appendix's pointer list was sorted into numeric order and the BP-30 double-suffix corruption fixed; (b) the one true duplicate was merged (BP-77 → BP-41, with tombstones); (c) the gaps (BP-50, BP-52) are documented rather than closed. **If a renumber is wanted later** it needs three things together: a coordinated decision, a legacy-number alias table published in the appendix, and a separate approved sweep of the external citations — never the `.github` half alone.
 4. Do the equivalent numbering sanity pass for the QA agent's `R-N` rules in `QA-Test-Agent.instructions.md` — but be conservative here: these encode hard-won operational facts from real QA sessions (e.g. Android IME behavior, simulator quirks). Only renumber for sequencing; do NOT merge/delete any R-rule without first listing the candidate duplicates and getting explicit confirmation that they're truly redundant.
+   - **Audit result 2026-09-12 — RESOLVED same day (renumbered into the free slots, per Samer's decision).** 88 distinct `R-N` definitions across `R1`–`R94`, **zero duplicates**. Six apparent gaps, of which `R62` (defined as `R62a/b/c`) and `R93` (given only in the `### 5.74 … — R93` heading) are **false positives of the grep pattern**. The real defects were broken cross-references, and both are now fixed:
+     - **`R58`, `R59`, `R60` had no definition anywhere** and **no §5.61 existed** (numbering jumped 5.60 → 5.62), while `QA-Test-Agent.agent.md` claimed “§5.61 R58–R60 (owner-directed) added”. **Restored into the free §5.61 slot** from the surviving record in `/memories/repo/qa-test-agent.md` — no content invented.
+     - **`R79` had no definition** (codified 2026-09-07 into the then-§5.70, which was rewritten for R80 on 2026-09-08), while `mobile-client.instructions.md` BP-88 cited “R79-2, §5.70”. **Restored into the free §5.76 slot**; the BP-88 cross-citation corrected to §5.76.
+     - Still open (reported, not changed): **three duplicated `§5.x` headings** (`5.47`, `5.51`, `5.67` each appear twice) — these are genuine numbering collisions but renumbering a section would break the many `§5.x` citations elsewhere; needs its own decision.
 
 ---
 
-## Phase 4 — Create a standing consolidation prompt (prevents this from recurring)
+## Phase 4 — Create a standing consolidation prompt (prevents this from recurring) ✅ DONE 2026-09-12
 
 Create `.github/prompts/consolidate-agent-rules.prompt.md`, using the same frontmatter/style as `.github/prompts/apply-handoff-rule-suggestion.prompt.md`, whose job is the mirror image of that prompt: where `apply-handoff-rule-suggestion` only ever ADDS rules, this new prompt PRUNES and VALIDATES. It should instruct a future agent run to:
 
