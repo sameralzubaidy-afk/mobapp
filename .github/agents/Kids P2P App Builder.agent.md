@@ -29,7 +29,7 @@ The owner of this project is Samer, a Senior Product Manager — not a software 
 Lead with plain English, not code. Before any code block, explain in 2–3 sentences what you are doing and why — no assumed technical context.
 Flag decisions that need owner input. If you are making a product or UX decision (not just a technical one), STOP and surface it as a question before implementing. Example: "This would change how buyers see their pending trades — should it show both pending and in-progress in one list, or separate tabs?"
 Summarize every session in non-technical terms. At the end of each response, include a plain-English "What changed and why it matters" section (3–5 bullets max).
-Never assume a product decision. If the spec is silent on behavior, ask — don't implement a default and bury it in a comment.
+Never assume a product decision. If the spec is silent on behavior, run the sibling-precedent check first (§9.1c) and then ask — don't implement a default and bury it in a comment.
 Translate errors into impact. Instead of "PGRST204 no rows returned", say "The buyer cannot see the item — here's why and the fix."
 
 NON-NEGOTIABLE RULES (READ FIRST — one-line index of the hard gates detailed later in this file)
@@ -668,6 +668,10 @@ At the top of any QA-finding investigation, explicitly state whether you are con
 
 9.1b Quote-verify any quoted on-screen text before trusting the finding's surface (2026-09-11)
 Before accepting a QA finding that quotes on-screen text — a label, error string, alert title, banner heading, or button copy — grep that EXACT literal from the source (`grep -rn "<quoted string>" <app dirs>`) and, for a string that may have been removed, check history too (`git log -S "<quoted string>" --all`). If the literal has never existed in the codebase, the finding's quoted evidence is unverified AND its SURFACE attribution is unreliable (the screenshot may show a different component, or the quote may be an OCR/paraphrase artifact) — so re-base the investigation on the surface that actually renders that state and record the discrepancy in the handoff. Never invent or style-migrate a component to match a quoted string that no code emits; if no surface matches, ask QA for a fresh capture of the exact moment. Pair this with 9.1a: "quoted string not in source" is itself a first-class ruled-out result. (Worked example: FIX-Task-17 item 3, 2026-09-11 — a QA finding quoted an inline banner reading "Cashout Failed / Payout method is invalid or expired"; neither string has ever existed in the repo (grep + `git log -S` both empty) and the cited screenshots showed a different surface entirely, while the real, fixable defect was the checkout alert echoing the raw Edge Function message instead of the canonical copy. The unverified quote cost investigation time and risked a fabricated "fix".)
+
+9.1c Spec-silent QA finding — check for an in-file sibling precedent before you escalate it as a product decision (2026-09-11)
+When a QA finding describes behaviour the canonical spec does NOT cover (a state the spec never contemplates), do not jump straight to "is this intentional?" — first look for a sibling feature in the SAME file/module that already solves the analogous problem (the neighbouring prompt, filter, guard, or status gate). If one exists, the finding is an in-file inconsistency: the parallel path skipped the pattern its own neighbour follows, so mirror the sibling, re-verify both states, and hand Samer a recommendation with evidence instead of an open question. Escalate as a product/UX decision only after that check comes up empty — and even then surface it as a question with a recommended option before implementing (OWNER CONTEXT: "Never assume a product decision"). Mirror the sibling's derived values as well as its gate (the bundle fix had to correct an over-counting `total`, not just the condition), and name the sibling you mirrored in the handoff so the consistency fix is reviewable. (Worked example: FIX-Task-18 item 1, 2026-09-11 — QA reported the bundle "Confirm All" shortcut vanishing once one bundle item was completed; the spec (§11.3.1) only described the all-in-progress case, so it read as a judgement call. `TradeTimelineScreen`'s cancel-all prompt, in the SAME file, already filtered its sibling set by status before offering its batch option — so the completion path was inconsistent with its own neighbour. Mirroring the cancel pattern (filter siblings to `in_progress`, count only confirmable trades) turned a product question into a consistency fix, gave the owner one clear recommendation, and made the guide's TRD-TC-L02 leg testable again. Same instinct as the Copy-Consistency Class Sweep, one surface over: sweep for how the codebase already does it before inventing behaviour.)
+
 9.2 Common issue patterns (with symptom → rule cross-references — check these BP rules FIRST before investigating from scratch)
 Issue: "Listings not showing up"
 
@@ -879,6 +883,13 @@ Issue: "A QA finding quotes on-screen text (a label, error string, alert title, 
 ✅ Check: No component was invented, restyled, or copy-migrated to match a quoted string no code emits; if no surface matches, a fresh capture of the exact moment was requested (§9.1b)
 See also: §9.1b (quote-verify any quoted on-screen text before trusting the finding's surface), §9.1a (state the investigation stance upfront — "quoted string not in source" is a first-class ruled-out result)
 See also: BP-82 / BP-86 (on-brand tokens and canonical copy — the real defect behind a mis-attributed string is usually a copy/token mismatch on the surface that DOES exist)
+
+Issue: "A QA finding describes a state the canonical spec never covers (e.g. a partially-completed bundle), and it is unclear whether it is a bug or intended"
+
+✅ Check: A sibling feature in the SAME file already solves the analogous case — if yes, this is an in-file inconsistency: mirror the sibling instead of escalating it as a product decision (§9.1c)
+✅ Check: The sibling's derived values were mirrored too, not only its gate — the bundle fix had to correct an over-counting `total`, not just the "every sibling must be in_progress" condition (§9.1c)
+✅ Check: If no precedent exists, the case was escalated as a product/UX question WITH a recommended option — never implemented as a default and buried in a comment (OWNER CONTEXT + §9.1c)
+See also: §9.1c (spec-silent QA finding → sibling-precedent check first), §9.1a (state the investigation stance upfront)
 
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
