@@ -164,8 +164,8 @@
 | | TRD-TC-O1-C03 | Admin edits existing rule — new version created |
 | | TRD-TC-O1-C04 | Admin deactivates a rule |
 | | TRD-TC-O1-C05 | Existing listings backfill to their category's mapped tax category |
-| | TRD-TC-O1-C06 | New single-listing creation receives default tax category |
-| | TRD-TC-O1-C07 | New bulk-listing creation receives default tax category |
+| | TRD-TC-O1-C06 | New single-listing creation receives its category's mapped tax category |
+| | TRD-TC-O1-C07 | New bulk-listing creation receives its category's mapped tax category |
 | | TRD-TC-O1-C08 | Admin changes individual listing's tax category |
 | | TRD-TC-O1-C09 | Tax-exempt category configuration |
 | | TRD-TC-O1-C10 | Price-threshold category configuration (clothing_footwear) |
@@ -3533,7 +3533,7 @@ LIMIT 10;
 
 ---
 
-### ✅ TRD-TC-O1-C06 · New single-listing creation receives default tax category
+### ✅ TRD-TC-O1-C06 · New single-listing creation receives its category's mapped tax category
 
 **Steps:**
 1. As **test-seller**, create a new single listing.
@@ -3546,12 +3546,14 @@ LIMIT 10;
    ```
 
 **Expected:**
-- Query returns `tax_category_key = 'general_tangible_goods'`.
+- The query returns the tax category the listing's **product category** is mapped to in **Tax → Category Mapping** — it is NOT uniformly `general_tangible_goods`. `general_tangible_goods` is the example for the default-mapped categories; a **Books** listing must return `tax_exempt_goods`.
 - Listing is discoverable and purchasable.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-22 item 4): the earlier wording stated a flat `general_tangible_goods` expectation, which only holds for categories actually mapped there. Proven live: a Books-category listing correctly receives `tax_exempt_goods` (O-1 C15).
 
 ---
 
-### ✅ TRD-TC-O1-C07 · New bulk-listing creation receives default tax category
+### ✅ TRD-TC-O1-C07 · New bulk-listing creation receives its category's mapped tax category
 
 **Steps:**
 1. Create a bulk listing with 2+ items.
@@ -3566,8 +3568,10 @@ LIMIT 10;
    ```
 
 **Expected:**
-- All bulk items have `tax_category_key = 'general_tangible_goods'`.
+- Every bulk item's tax category equals the tax category its **product category** is mapped to in **Tax → Category Mapping** — it is NOT uniformly `general_tangible_goods`. `general_tangible_goods` is the example for the default-mapped categories; a bulk item in **Books** must return `tax_exempt_goods`.
 - All items appear in My Listings and are purchasable.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-22 item 4): same correction as C06 — the flat `general_tangible_goods` expectation only holds for categories mapped there.
 
 ---
 

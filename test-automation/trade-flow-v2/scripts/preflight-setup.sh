@@ -9,6 +9,8 @@
 #   3. Verify the app binary is present on the simulator (fast-fail with a clear fix message)
 #   4. Start the admin portal on :3001 if not already running
 #   5. Run seed:staging to ensure test accounts exist (script is idempotent)
+#   6. (opt-in, TFV2_SEED_ANDROID_MEDIA=1) Seed the Android media library so
+#      real-photo flows (listing/bulk upload, AI analysis) can run at all
 #
 # Exit codes
 #   0 = all checks passed — environment is ready
@@ -252,6 +254,20 @@ if [[ "$HAS_SEED" == "yes" ]]; then
   ok "Seed data verified and applied."
 else
   warn "No seed:staging script found — assuming accounts are pre-seeded."
+fi
+
+# ── 6. Android media — opt-in (the AVD gallery is empty by default) ──────────
+# A real-photo flow (listing/bulk upload, AI analysis) cannot start against an
+# empty gallery: the picker shows "No photos yet". Seeding is device-side state,
+# so it stays opt-in: TFV2_SEED_ANDROID_MEDIA=1 bash run-suite.sh ...
+if [[ "${TFV2_SEED_ANDROID_MEDIA:-0}" == "1" ]]; then
+  if command -v adb >/dev/null 2>&1 && adb devices | awk 'NR>1 && $2=="device"' | grep -q .; then
+    log "Seeding Android media library (TFV2_SEED_ANDROID_MEDIA=1)..."
+    (cd "$MOBILE_DIR" && bash scripts/qa/android-seed-media.sh) || \
+      warn "Android media seeding failed — real-photo cases will be BLOCKED (QA playbook R98)."
+  else
+    warn "TFV2_SEED_ANDROID_MEDIA=1 but no Android device attached — skipping."
+  fi
 fi
 
 echo ""

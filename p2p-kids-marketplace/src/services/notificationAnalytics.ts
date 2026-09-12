@@ -9,6 +9,7 @@
 
 import { supabase } from '@/config/supabase';
 import Constants from 'expo-constants';
+import { isTransientNetworkError } from '@/utils/userFacingError';
 
 export interface NotificationEvent {
   notification_id: string;
@@ -19,27 +20,8 @@ export interface NotificationEvent {
 export class NotificationAnalyticsService {
   private static initialized = false;
 
-  private static isTransientNetworkError(error: unknown): boolean {
-    const message =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : String((error as { message?: unknown } | null)?.message || '');
-
-    const normalized = message.toLowerCase();
-
-    return (
-      normalized.includes('network request failed') ||
-      normalized.includes('fetch failed') ||
-      normalized.includes('failed to fetch') ||
-      normalized.includes('timeout') ||
-      normalized.includes('timed out')
-    );
-  }
-
   private static logServiceError(context: string, error: unknown): void {
-    if (this.isTransientNetworkError(error)) {
+    if (isTransientNetworkError(error)) {
       console.warn(`[NotificationAnalytics] ${context} skipped due transient network issue`);
       return;
     }

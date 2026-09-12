@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Review, reportReview } from '@/services/review';
+import { getUserFacingError } from '@/utils/userFacingError';
 import { StarRating } from '@/components/StarRating';
 import Avatar from '@/components/atoms/Avatar';
 
@@ -80,10 +81,18 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
         // reporting. We will review this content.").
         Alert.alert('Success', 'Review reported. Thank you!');
       } else {
-        Alert.alert('Error', result.error || 'Failed to report review');
+        // FIX-Task-22 item 1: the service maps raw backend failures to friendly copy,
+        // so this fallback only covers a missing message — never the raw error.
+        Alert.alert(
+          'Error',
+          result.error ||
+            "We couldn't report this review just now. Please try again in a moment."
+        );
       }
-    } catch (_error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+    } catch (caughtError) {
+      // FIX-Task-22 item 1: map the thrown error instead of stringifying it into the
+      // dialog.
+      Alert.alert('Error', getUserFacingError(caughtError, { action: 'report this review' }));
     } finally {
       setIsReporting(false);
     }

@@ -37,6 +37,7 @@
     "qa:start-state": "node scripts/qa/start-state.mjs",
     "qa:express-complete": "node scripts/qa/express-complete-fixture.mjs",
     "qa:category-suggestion": "node scripts/qa/category-suggestion-fixture.mjs",
+    "qa:android-seed-media": "bash scripts/qa/android-seed-media.sh",
     "testid-drift-check": "node scripts/testid-drift-check.mjs",
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start --clear",

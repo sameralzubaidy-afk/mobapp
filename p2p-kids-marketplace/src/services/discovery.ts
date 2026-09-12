@@ -19,25 +19,7 @@ import {
 } from '../types/discovery';
 import { trackEvent } from './analytics';
 import { findClosestMatch } from '../utils/fuzzyMatch';
-
-function isTransientNetworkError(error: unknown): boolean {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : String((error as { message?: unknown } | null)?.message || '');
-
-  const normalized = message.toLowerCase();
-
-  return (
-    normalized.includes('network request failed') ||
-    normalized.includes('failed to fetch') ||
-    normalized.includes('fetch failed') ||
-    normalized.includes('timed out') ||
-    normalized.includes('timeout')
-  );
-}
+import { isTransientNetworkError } from '../utils/userFacingError';
 
 async function runSearchRpcOnce(
   rpcPayload: Record<string, unknown>,

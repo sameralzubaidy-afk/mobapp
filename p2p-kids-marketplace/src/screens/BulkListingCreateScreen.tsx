@@ -1019,9 +1019,16 @@ export default function BulkListingCreateScreen() {
     const targetGroupId = pendingPhotoSourceTargetGroupId;
 
     // Wait for modal close animation AND all pending interactions to complete
+    // FIX-Task-22 item 3: this deferred launch used to leave its 500 ms timer
+    // UNCLEARED — the cleanup only cancelled the InteractionManager handle, so if the
+    // effect re-ran or the screen unmounted inside that window the picker still
+    // launched (a duplicate open, or one after unmount). That is one of the ways
+    // "re-entering a freshly mounted screen" looks like the picker doing nothing.
+    let launchTimeout: ReturnType<typeof setTimeout> | null = null;
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
       console.log('[BulkCreate] Interactions complete, waiting additional delay...');
-      setTimeout(() => {
+      launchTimeout = setTimeout(() => {
+        launchTimeout = null;
         console.log(
           '[BulkCreate] Launching picker for:',
           sourceToLaunch,
@@ -1041,6 +1048,10 @@ export default function BulkListingCreateScreen() {
     return () => {
       console.log('[BulkCreate] Clearing picker interaction handle');
       interactionHandle.cancel();
+      if (launchTimeout !== null) {
+        clearTimeout(launchTimeout);
+        launchTimeout = null;
+      }
     };
   }, [
     showPhotoSourceModal,
@@ -1530,7 +1541,20 @@ export default function BulkListingCreateScreen() {
     }
 
     if (!bulkUploadId || !draftId) {
-      Alert.alert('Cannot submit for review', 'Missing bulk session or draft session.');
+      // FIX-Task-22 item 7: this branch is only reachable when the flow reached the
+      // review step WITHOUT the photo-pick session that creates the bulk/draft rows
+      // (the dev test-photo fixtures skip those writes, and a resumed draft can have
+      // items but no bulk_upload_id). Without a hint the alert is untriageable by
+      // QA/ops, so it now names the recovery — same tone as the sibling
+      // "Missing session" alert above.
+      Alert.alert(
+        'Cannot submit for review',
+        'Missing bulk session or draft session.\n\nAdd your photos from the camera or library to start a session, then submit for review.',
+        [
+          { text: 'Start Over', style: 'destructive', onPress: () => resetBulkSessionState() },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
       return;
     }
 

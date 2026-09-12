@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
 import { LoadingSpinner } from '@/components/ui';
 import { navigationRef } from '@/navigation/navigationRef';
+import { isTransientNetworkError } from '@/utils/userFacingError';
 import { HomeTabNavigator } from '@/navigation/HomeTabNavigator';
 import { CartProvider } from '@/contexts/CartContext';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
@@ -235,25 +236,6 @@ const linking = {
 };
 
 export { navigationRef };
-
-function isTransientNetworkError(error: unknown): boolean {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : String((error as { message?: unknown } | null)?.message || '');
-
-  const normalized = message.toLowerCase();
-
-  return (
-    normalized.includes('network request failed') ||
-    normalized.includes('fetch failed') ||
-    normalized.includes('failed to fetch') ||
-    normalized.includes('timeout') ||
-    normalized.includes('timed out')
-  );
-}
 
 /**
  * MODULE-03 AUTH-V2-003: RootNavigator

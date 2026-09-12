@@ -29,6 +29,7 @@ import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAcce
 // DEV-TASK-96 (item 6): read the trade row to resolve the reviewee for the
 // `/submit-review?tradeId=` deep link (which carries only tradeId).
 import { supabase } from '@/config/supabase';
+import { getUserFacingError } from '@/utils/userFacingError';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
@@ -203,13 +204,36 @@ export function SubmitReviewScreen() {
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else {
-        Alert.alert('Error', result.error || 'Failed to submit review. Please try again.');
+        // FIX-Task-22 items 1 + 8: the SERVICE maps raw backend failures (e.g. the
+        // PostgREST "Gateway Timeout") to friendly copy before returning, so this
+        // string is either that mapped copy or an intentional validation message
+        // ("You have already reviewed this trade"). The fallback below only covers
+        // a missing message — it must never be the raw error itself.
+        // Tone mirrors MyListingsScreen's "Awaiting approval — …" hint, and the retry
+        // button means a transient failure costs the user nothing.
+        Alert.alert(
+          'Review Not Submitted',
+          result.error ||
+            "We couldn't submit your review just now. Please try again in a moment.",
+          [
+            { text: 'Try Again', onPress: () => void handleSubmit() },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
       }
     } catch (error) {
       captureException(error, {
         tags: { screen: 'SubmitReviewScreen', action: 'submit_review' },
       });
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      // FIX-Task-22 item 1: map the thrown error — never stringify it into the dialog.
+      Alert.alert(
+        'Review Not Submitted',
+        getUserFacingError(error, { action: 'submit your review' }),
+        [
+          { text: 'Try Again', onPress: () => void handleSubmit() },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     } finally {
       setSubmitting(false);
     }
@@ -290,10 +314,13 @@ export function SubmitReviewScreen() {
             <TextInput
               inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.commentInput}
-              // FIX-Task-20 item 17: surface the 500-character cap BEFORE typing. The old
-              // placeholder duplicated the subtitle above, so nothing is lost by using it
-              // for the counter hint instead.
-              placeholder="0/500"
+              // FIX-Task-22 item 2: ONE formulation of the 500-character cap. The
+              // placeholder is descriptive prose again; the caption below is the single
+              // statement of the limit. History — FIX-Task-20 item 17 turned the
+              // placeholder into "0/500" and FIX-Task-21 item 9 turned the caption into
+              // "500 characters max", which left two different formulations of the same
+              // cap on one field (QA finding N3). Do not reintroduce a counter here.
+              placeholder="Share details of your experience"
               placeholderTextColor="#9CA3AF"
               value={comment}
               onChangeText={setComment}
@@ -303,9 +330,9 @@ export function SubmitReviewScreen() {
               testID="comment-input"
             />
             <Text style={styles.charCount} testID="char-count">
-              {/* FIX-Task-21 item 9: state the cap BEFORE the first keystroke instead of
-                  opening on a bare "0/500", which reads like a value rather than a limit. */}
-              {comment.length === 0 ? '500 characters max' : `${comment.length}/500 characters`}
+              {/* Matches the existing `N/500 characters` form in
+                  ListingSafetyReviewScreen so the whole app reads the cap the same way. */}
+              {comment.length}/500 characters
             </Text>
           </View>
 

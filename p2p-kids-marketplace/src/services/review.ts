@@ -3,6 +3,7 @@
 
 import { supabase } from './supabase';
 import { resolveAvatarUrl } from '@/services/profile';
+import { getUserFacingError } from '@/utils/userFacingError';
 
 export interface Review {
   id: string;
@@ -117,7 +118,10 @@ export async function submitReview(params: SubmitReviewParams): Promise<{
 
       return {
         success: false,
-        error: error.message || 'Failed to submit review',
+        // FIX-Task-22 item 1: never surface the raw backend message. A transient
+        // PostgREST/gateway failure previously reached the user as the literal
+        // string "Gateway Timeout" (QA finding N2).
+        error: getUserFacingError(error, { action: 'submit your review' }),
       };
     }
 
@@ -528,7 +532,9 @@ export async function reportReview(params: {
       console.error('Report review error:', error);
       return {
         success: false,
-        error: error.message || 'Failed to report review',
+        // FIX-Task-22 item 1 (same class as submit): the report path must not echo
+        // the raw backend message either.
+        error: getUserFacingError(error, { action: 'report this review' }),
       };
     }
 

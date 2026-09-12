@@ -189,7 +189,15 @@ describe('reportReview', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('Database error');
+    // FIX-Task-22 item 1 (BP-57): this used to assert the RAW backend message
+    // ('Database error') came straight back to the caller. That is the exact behaviour
+    // the fix removed — a failed report must surface friendly, actionable copy, never
+    // the backend string. Assert BOTH: the friendly copy is present AND the raw string
+    // is absent.
+    expect(result.error).toBe(
+      "We couldn't report this review just now. Please try again in a moment."
+    );
+    expect(result.error).not.toContain('Database error');
   });
 
   it('should handle unexpected errors', async () => {

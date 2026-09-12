@@ -13,6 +13,7 @@ import { useUserStore } from '../stores/userStore';
 // unrelated run. No-op outside dev/test builds (devTestingService gate).
 import { clearQaLocalValues } from '../services/devTestingService';
 import { invalidatePaymentMethodCache } from '../services/subscription';
+import { isTransientNetworkError } from '../utils/userFacingError';
 
 const SUPABASE_CONFIGURED = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
@@ -50,34 +51,6 @@ function buildSessionSignature(session: AuthSession | null): string {
     String(session.lifetime_earned ?? 0),
     String(session.lifetime_spent ?? 0),
   ].join('|');
-}
-
-function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as { message?: unknown }).message || '');
-  }
-
-  return '';
-}
-
-function isTransientNetworkError(error: unknown): boolean {
-  const message = extractErrorMessage(error).toLowerCase();
-
-  return (
-    message.includes('network request failed') ||
-    message.includes('fetch failed') ||
-    message.includes('timeout') ||
-    message.includes('timed out') ||
-    message.includes('failed to fetch')
-  );
 }
 
 /**

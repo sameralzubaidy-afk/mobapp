@@ -4,6 +4,7 @@
 
 import { supabase } from './supabase/client';
 import { captureException } from './errorReporter';
+import { isTransientNetworkError } from '../utils/userFacingError';
 
 export const DEV_SMS_BYPASS_CODE = '123456';
 
@@ -36,25 +37,9 @@ function isDevSmsBypassEnabled(): boolean {
 // send-phone-otp Edge Function are expected noise in dev builds: the DEV SMS
 // bypass path recovers the flow, so surfacing them as console.error produces a
 // blocking red LogBox that interrupts QA verification of unrelated features.
-// Downgrade them to console.warn ONLY when the dev bypass is enabled (matches
-// the isTransientNetworkError pattern in notificationAnalytics/discovery/etc.).
+// Downgrade them to console.warn ONLY when the dev bypass is enabled (the shared
+// isTransientNetworkError predicate in src/utils/userFacingError.ts).
 // Real (non-network) failures still log as console.error.
-function isTransientNetworkError(error: unknown): boolean {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : String((error as { message?: unknown } | null)?.message || '');
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes('network request failed') ||
-    normalized.includes('fetch failed') ||
-    normalized.includes('failed to fetch') ||
-    normalized.includes('timeout') ||
-    normalized.includes('timed out')
-  );
-}
 
 function logSendOtpError(error: unknown): void {
   const transientInDev = isDevSmsBypassEnabled() && isTransientNetworkError(error);

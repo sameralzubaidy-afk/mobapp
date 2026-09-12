@@ -110,8 +110,9 @@ describe('REVIEW-001: Review Submission Flow', () => {
     const longComment = 'a'.repeat(501);
     await element(by.id('comment-input')).typeText(longComment);
 
-    // Verify character count shows 500/500
-    await detoxExpect(element(by.id('char-count'))).toHaveText('500/500');
+    // FIX-Task-22 item 2: the caption is now the single "N/500 characters" form
+    // (it previously read a bare "500/500").
+    await detoxExpect(element(by.id('char-count'))).toHaveText('500/500 characters');
   });
 
   /**
