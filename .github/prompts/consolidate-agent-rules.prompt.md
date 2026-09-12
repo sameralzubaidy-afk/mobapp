@@ -63,6 +63,21 @@ Target files:
 3. **Do NOT renumber.** A full renumber from BP-1 would invalidate `BP-N` citations in **277+ files outside `.github/`** — `e2e-test-results/**` QA evidence archives, `docs/**`, `Prompts/**`, `docx/**` — which are append-only historical records and must not be rewritten. If a renumber is genuinely wanted, it needs (a) a coordinated decision, (b) an alias/legacy-number mapping table published in the appendix, and (c) a sweep of the external citations as a separate, explicitly-approved task. Report this trade-off every time instead of doing it.
 4. Cross-reference integrity **can** be fixed without renumbering: a citation pointing at a rule that no longer exists (or at a section number that was never created) is a plain defect — list it and propose the correct target.
 
+## Step 3b — Section-number integrity (`§N.M`)
+
+Rule numbers are only half the picture: the QA playbook is cited by **section** number far more often than by rule id, and a section can be cited that was never created, or rewritten so it now holds a different rule than the citation implies.
+
+1. Extract every `§N.M` citation from `.github/agents/**` and `.github/instructions/**`.
+2. For each, confirm a heading with **that exact identifier** exists in the file it names. (Real defect found 2026-09-12: the QA agent file cited "§5.61 R58–R60" for two months, but **no §5.61 had ever been written** — the numbering jumped 5.60 → 5.62.)
+3. Extract the section identifiers actually present and look for true duplicates:
+   ```bash
+   grep -oE "^### [0-9]+\.[0-9]+[a-z]?" .github/instructions/QA-Test-Agent.instructions.md | sort | uniq -d
+   ```
+   **Capture the optional trailing letter.** Sections legitimately come in `X` + `Xb` pairs (`5.47`/`5.47b`, `5.51`/`5.51b`, `5.67`/`5.67b`). A pattern like `^### 5\.[0-9]+` truncates `5.47b` to `5.47` and reports every one of those pairs as a duplicate section — **that is a false positive of the grep, not a defect** (hit on 2026-09-12 and retracted).
+4. Also check for a citation pointing at a section that has since been **overwritten to hold a different rule**: R79 was codified into §5.70 on 2026-09-07, then §5.70 was rewritten for R80 on 2026-09-08 and the R79 text was silently lost while `mobile-client.instructions.md` kept citing it.
+5. Report: true duplicates, missing sections (cited but never created), and citations whose section now holds a different rule.
+6. Do **NOT** renumber or rename a section without an explicit decision — section numbers are cited from other files, so a rename is a breaking change.
+
 ## Step 4 — Near-duplicate proposals (never silent)
 
 1. Group rules by topic across all files (deploy hygiene, notification copy, money units, test isolation, RLS, keyboard/AX handling, …).
