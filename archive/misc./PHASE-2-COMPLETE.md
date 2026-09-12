@@ -193,7 +193,7 @@ SELECT is_trial_enabled();
 ✅ **Signed off against**:
 - [docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md](docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md)
 - [docx/SYSTEM_REQUIREMENTS_V2.md](docx/SYSTEM_REQUIREMENTS_V2.md)
-- [docx/ Solution Architecture & Implementation Plan.md](docx/ Solution%20Architecture%20%26%20Implementation%20Plan.md)
+- [docx/Solution Architecture & Implementation Plan.md](docx/Solution%20Architecture%20%26%20Implementation%20Plan.md)
 - [Prompts/MODULE-03-AUTH-V2.md](Prompts/MODULE-03-AUTH-V2.md)
 - [Prompts/MODULE-12-ADMIN-V2.md](Prompts/MODULE-12-ADMIN-V2.md)
 

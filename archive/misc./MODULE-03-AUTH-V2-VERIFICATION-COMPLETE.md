@@ -494,7 +494,7 @@ Before proceeding to Phase 3 (screen implementations), confirm:
 
 - **Business Requirements**: [BUSINESS_REQUIREMENTS_DOCUMENT_V2.md](docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md#L424-L450)
 - **System Requirements**: [SYSTEM_REQUIREMENTS_V2.md](docx/SYSTEM_REQUIREMENTS_V2.md)
-- **Solution Architecture**: [Solution Architecture & Implementation Plan.md](docx/ Solution%20Architecture%20%26%20Implementation%20Plan.md)
+- **Solution Architecture**: [Solution Architecture & Implementation Plan.md](docx/Solution%20Architecture%20%26%20Implementation%20Plan.md)
 - **Module 03 Spec**: [MODULE-03-AUTH-V2.md](Prompts/MODULE-03-AUTH-V2.md)
 - **Module 03 Verification**: [MODULE-03-VERIFICATION-V2.md](Prompts/MODULE-03-VERIFICATION-V2.md)
 - **Module 12 Admin**: [MODULE-12-ADMIN-V2.md](Prompts/MODULE-12-ADMIN-V2.md)

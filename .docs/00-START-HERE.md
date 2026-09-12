@@ -212,7 +212,7 @@ git push origin feature/MODULE-XX-authentication
 ### For Understanding the Project
 - `docx/SYSTEM_REQUIREMENTS_V2.md` — Feature set and business rules
 - `docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md` — Business model and revenue
-- `docx/ Solution Architecture & Implementation Plan.md` — Tech stack and architecture
+- `docx/Solution Architecture & Implementation Plan.md` — Tech stack and architecture
 
 ### For Implementing Features  
 - `Prompts/MODULE-XX-DESCRIPTION.md` — What to build

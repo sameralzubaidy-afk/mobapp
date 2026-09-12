@@ -139,13 +139,10 @@ ANDROID_EMULATOR_SERIAL=<from adb devices>
 ### Admin portal login (browser-based manual verification)
 
 When you need to log into the **admin portal** (`p2p-kids-admin`, runs on `http://localhost:3001`)
-to visually verify a page in the browser, use these credentials (they work against the staging
-Supabase project):
+to visually verify a page in the browser, the staging credentials live **outside** this repo:
 
-```
-Email:    samer@samer.com
-Password: samer
-```
+> Staging admin login: see `p2p-kids-admin/.env.local` (gitignored, not committed) for
+> `ADMIN_STAGING_EMAIL` / `ADMIN_STAGING_PASSWORD`. Never hardcode or log these.
 
 - Enter them on the `/auth/login` page (do not use the hardcoded `admin@example.com` demo creds —
   they do not exist in staging and return "Invalid login credentials").

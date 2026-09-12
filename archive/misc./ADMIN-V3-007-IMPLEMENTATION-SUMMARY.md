@@ -13,7 +13,7 @@
 - **Verification Checklist**: `Prompts/V3/MODULE-12-VERIFICATION-V3.md`
 - **System Requirements**: `docx/SYSTEM_REQUIREMENTS_V2.md` (FR-SP: Swap Points)
 - **Business Requirements**: `docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md` (Revenue Model)
-- **Solution Architecture**: `docx/ Solution Architecture & Implementation Plan.md`
+- **Solution Architecture**: `docx/Solution Architecture & Implementation Plan.md`
 
 ### 1.2 Dependencies
 | Dependency | Status | Notes |

@@ -982,7 +982,7 @@ This guide provides **comprehensive coverage** of the bulk listing V3.1 UX overh
 ### Related Documentation
 - **BRD:** `docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md` (bulk listing requirements)
 - **System Requirements:** `docx/SYSTEM_REQUIREMENTS_V2.md` (FR-LIST-*)
-- **Solution Architecture:** `docx/ Solution Architecture & Implementation Plan.md` (photo pipeline, AI flow)
+- **Solution Architecture:** `docx/Solution Architecture & Implementation Plan.md` (photo pipeline, AI flow)
 - **Module Prompt:** `Prompts/V3/MODULE-04-ITEM-LISTING-V3.md` (LISTING-V3-006 section)
 - **Verification:** `Prompts/V3/MODULE-04-VERIFICATION-V3.md` (acceptance criteria)
 - **Maestro Flow:** `.maestro/listing-v3-006-bulk-listing-create.yaml` (E2E automation)
