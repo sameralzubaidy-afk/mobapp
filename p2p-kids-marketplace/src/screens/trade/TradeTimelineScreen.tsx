@@ -699,7 +699,15 @@ export default function TradeTimelineScreen() {
       return;
     }
 
-    // Addendum C: if all bundle siblings are also in_progress, offer "Confirm All" shortcut.
+    // Addendum C + FIX-Task-18 item 1 (2026-09-11): offer the "Confirm All"
+    // shortcut while 2+ bundle trades are still awaiting confirmation.
+    // Previously this required EVERY sibling (whatever its status) to be
+    // in_progress, so a single completed or cancelled sibling switched the
+    // shortcut off for the rest of the bundle — the buyer lost the "confirm the
+    // rest" path (QA finding N1) and the batch count over-counted siblings that
+    // were no longer confirmable. The cancel-all prompt in
+    // handleCancellationConfirm already filters siblings by status before
+    // offering its batch option; this now mirrors that pattern.
     const bundleId = (trade as any)?.bundle_id;
     if (bundleId) {
       try {
@@ -708,11 +716,14 @@ export default function TradeTimelineScreen() {
           .select('id, status')
           .eq('bundle_id', bundleId)
           .neq('id', tradeId);
-        const allInProgress =
-          siblings && siblings.length > 0 && siblings.every((s: any) => s.status === 'in_progress');
-        if (allInProgress) {
-          const total = (siblings?.length ?? 0) + 1;
-          const allIds = [tradeId, ...(siblings?.map((s: any) => s.id) ?? [])];
+        // Only in_progress siblings can still be completed: a completed one is
+        // already done, and a cancelled one must not be re-completed.
+        const confirmableSiblings = (siblings ?? []).filter((s: any) => s.status === 'in_progress');
+        // The batch option only makes sense with at least one OTHER item left;
+        // otherwise it would duplicate the single-trade confirm below.
+        if (confirmableSiblings.length > 0) {
+          const total = confirmableSiblings.length + 1;
+          const allIds = [tradeId, ...confirmableSiblings.map((s: any) => s.id)];
           setBundleConfirmData({ total, allIds });
           return;
         }

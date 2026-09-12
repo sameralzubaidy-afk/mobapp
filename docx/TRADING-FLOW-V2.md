@@ -893,7 +893,7 @@ Changes:
 ```
 Tapping expands to show each item's individual `TradeTimelineScreen` row with its own [I Got It] button.
 
-**"Confirm all" shortcut**: When a buyer taps [I Got It] on any trade in a bundle and all other bundle trades are also `in_progress`, show a prompt: *"Confirm all 3 items from Emma received?"* [Confirm All] [Just This One]. [Confirm All] loops through the bundle and calls `completeTradeV2()` for each trade. Reduces N taps to 1.
+**"Confirm all" shortcut**: When a buyer taps [I Got It] on any trade in a bundle and **at least one other bundle trade is still `in_progress`**, show a prompt: *"Confirm all N items received?"* [Confirm All] [Just This One]. The count and the batch cover **only the bundle trades still awaiting confirmation** — siblings already `completed` or `cancelled` are excluded, so a 3-item bundle with one item already completed prompts *"Confirm all 2 items received?"*. The shortcut therefore stays available on a partially-completed bundle (the buyer keeps the one-tap "confirm the rest" path), and is **not** offered when the current trade is the last one outstanding — there is nothing left to batch. [Confirm All] loops through those remaining bundle trades and calls `completeTradeV2()` for each trade. Reduces N taps to 1.
 
 **TradeTimelineScreen — bundle context banner** (shown when `bundle_id IS NOT NULL`):
 > *"This item is part of a 3-item bundle. View all bundle items →"*

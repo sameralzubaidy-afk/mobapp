@@ -245,6 +245,87 @@ describe('TradeTimelineScreen', () => {
     });
   });
 
+  // FIX-Task-18 item 1 (2026-09-11): the bundle "Confirm All" shortcut must stay
+  // available while 2+ bundle trades are still awaiting confirmation. A completed
+  // or cancelled sibling must no longer switch it off for the whole bundle (QA
+  // finding N1), and the count shown must cover only the still-confirmable trades
+  // (previously it counted every sibling, including terminal ones).
+  describe('Addendum C — bundle Confirm All shortcut (FIX-Task-18 item 1)', () => {
+    const bundleTrade = { ...mockTrade, bundle_id: 'bundle-1' };
+
+    // A bundle trade makes the screen query `trades` three different ways:
+    //   .select('*').eq('id', tradeId).single()                  -> the trade row
+    //   .select('id', { count, head }).eq('bundle_id').in(...)   -> sibling count
+    //   .select('id, status').eq('bundle_id').neq('id', tradeId) -> sibling rows
+    const createBundleMock = (siblings: any[]) =>
+      jest.fn((table: string) => {
+        if (table !== 'trades') return (createFromMock(bundleTrade) as any)(table);
+        return {
+          select: jest.fn((_cols?: any, opts?: any) => {
+            if (opts?.head) {
+              return {
+                eq: () => ({
+                  in: () => Promise.resolve({ count: siblings.length + 1, error: null }),
+                }),
+              };
+            }
+            return {
+              eq: (col: string) =>
+                col === 'id'
+                  ? { single: () => Promise.resolve({ data: bundleTrade, error: null }) }
+                  : { neq: () => Promise.resolve({ data: siblings, error: null }) },
+            };
+          }),
+        };
+      });
+
+    it('still offers the shortcut when a sibling is already completed', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createBundleMock([
+        { id: 'trade-sibling-1', status: 'in_progress' },
+        { id: 'trade-sibling-2', status: 'completed' },
+      ]) as any;
+
+      const { getByTestId, getByText } = render(<TradeTimelineScreen />);
+
+      fireEvent.press(await waitFor(() => getByTestId('confirm-trade-button')));
+
+      // Count covers only the trades still awaiting confirmation (2), not all 3.
+      expect(await waitFor(() => getByTestId('confirm-all-trades-button'))).toBeTruthy();
+      expect(getByText('Confirm all 2 items received?')).toBeTruthy();
+    });
+
+    it('offers the shortcut for a fully in-progress bundle (count = whole bundle)', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createBundleMock([
+        { id: 'trade-sibling-1', status: 'in_progress' },
+        { id: 'trade-sibling-2', status: 'in_progress' },
+      ]) as any;
+
+      const { getByTestId, getByText } = render(<TradeTimelineScreen />);
+
+      fireEvent.press(await waitFor(() => getByTestId('confirm-trade-button')));
+
+      expect(await waitFor(() => getByTestId('confirm-all-trades-button'))).toBeTruthy();
+      expect(getByText('Confirm all 3 items received?')).toBeTruthy();
+    });
+
+    it('falls back to the single confirm when no other item is still confirmable', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createBundleMock([
+        { id: 'trade-sibling-1', status: 'completed' },
+        { id: 'trade-sibling-2', status: 'cancelled' },
+      ]) as any;
+
+      const { getByTestId, queryByTestId } = render(<TradeTimelineScreen />);
+
+      fireEvent.press(await waitFor(() => getByTestId('confirm-trade-button')));
+
+      expect(await waitFor(() => getByTestId('complete-trade-confirm-button'))).toBeTruthy();
+      expect(queryByTestId('confirm-all-trades-button')).toBeNull();
+    });
+  });
+
   describe('TFV2 banners', () => {
     it('shows auto-complete banner when trade is in progress', async () => {
       mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
