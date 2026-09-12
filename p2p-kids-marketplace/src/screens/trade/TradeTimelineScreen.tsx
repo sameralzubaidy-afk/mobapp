@@ -2088,6 +2088,59 @@ export default function TradeTimelineScreen() {
             );
           })()}
 
+        {/* FIX-Task-20 item 16: Reviews card + Review CTA hoisted ABOVE Payment Details
+            for completed trades. It used to be the last child of the ScrollView, so its
+            top edge landed under the floating tab bar on a small viewport (QA F13), and a
+            primary action should never sit below the fold. Logic is unchanged. */}
+        {trade.status === 'completed' && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Reviews</Text>
+            <View style={styles.reviewStatusRow}>
+              {hasReviewed ? (
+                <CheckCircle size={20} color="#5DBB8E" weight="fill" />
+              ) : (
+                <XCircle size={20} color="#E0E0E0" weight="regular" />
+              )}
+              <Text
+                style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
+              >
+                {`You ${hasReviewed ? 'have' : "haven't"} reviewed ${isBuyer ? 'the seller' : 'the buyer'}`}
+              </Text>
+            </View>
+            <View style={[styles.reviewStatusRow, { marginTop: 8 }]}>
+              {otherUserReviewed ? (
+                <CheckCircle size={20} color="#5DBB8E" weight="fill" />
+              ) : (
+                <XCircle size={20} color="#E0E0E0" weight="regular" />
+              )}
+              <Text
+                style={[
+                  styles.reviewStatusText,
+                  otherUserReviewed && styles.reviewStatusTextComplete,
+                ]}
+              >
+                {`${isBuyer ? 'The seller' : 'The buyer'} ${otherUserReviewed ? 'has' : "hasn't"} reviewed you`}
+              </Text>
+            </View>
+
+            {canReview && !hasReviewed && (
+              <Pressable
+                style={[styles.reviewButton, { marginTop: 16 }]}
+                onPress={handleReviewPress}
+                testID="review-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Review button"
+              >
+                <Star size={20} color="#FFFFFF" weight="regular" />
+                <Text style={styles.confirmButtonText}>
+                  Review {isBuyer ? 'the Seller' : 'the Buyer'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Details</Text>
           {/* TAX-REFUND-INTEGRITY (2026-07-24): Buyer-facing wording changes.
@@ -2387,54 +2440,6 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
-        {trade.status === 'completed' && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Reviews</Text>
-            <View style={styles.reviewStatusRow}>
-              {hasReviewed ? (
-                <CheckCircle size={20} color="#5DBB8E" weight="fill" />
-              ) : (
-                <XCircle size={20} color="#E0E0E0" weight="regular" />
-              )}
-              <Text
-                style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
-              >
-                {`You ${hasReviewed ? 'have' : "haven't"} reviewed ${isBuyer ? 'the seller' : 'the buyer'}`}
-              </Text>
-            </View>
-            <View style={[styles.reviewStatusRow, { marginTop: 8 }]}>
-              {otherUserReviewed ? (
-                <CheckCircle size={20} color="#5DBB8E" weight="fill" />
-              ) : (
-                <XCircle size={20} color="#E0E0E0" weight="regular" />
-              )}
-              <Text
-                style={[
-                  styles.reviewStatusText,
-                  otherUserReviewed && styles.reviewStatusTextComplete,
-                ]}
-              >
-                {`${isBuyer ? 'The seller' : 'The buyer'} ${otherUserReviewed ? 'has' : "hasn't"} reviewed you`}
-              </Text>
-            </View>
-
-            {canReview && !hasReviewed && (
-              <Pressable
-                style={[styles.reviewButton, { marginTop: 16 }]}
-                onPress={handleReviewPress}
-                testID="review-button"
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel="Review button"
-              >
-                <Star size={20} color="#FFFFFF" weight="regular" />
-                <Text style={styles.confirmButtonText}>
-                  Review {isBuyer ? 'the Seller' : 'the Buyer'}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
       </ScrollView>
 
       {/* DEV-TASK-114 (2026-09-05) item 1: subtle "updated" indicator shown when

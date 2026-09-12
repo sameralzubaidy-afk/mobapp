@@ -339,7 +339,12 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
                   ))}
                 </View>
                 <Text style={styles.ratingNumber}>{reviewStats.average_rating.toFixed(1)}</Text>
-                <Text style={styles.reviewCount}>({reviewStats.total_reviews} reviews)</Text>
+                {/* FIX-Task-20 F11: singular form for 1 review (was always "1 reviews").
+                    Same inline ternary convention as StarRating / ProfileScreen. */}
+                <Text style={styles.reviewCount}>
+                  ({reviewStats.total_reviews}{" "}
+                  {reviewStats.total_reviews === 1 ? 'review' : 'reviews'})
+                </Text>
               </>
             ) : (
               <Text style={styles.noReviewsText}>No ratings yet</Text>

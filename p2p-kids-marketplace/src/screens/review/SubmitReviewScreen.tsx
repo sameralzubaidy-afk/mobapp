@@ -254,7 +254,10 @@ export function SubmitReviewScreen() {
             <TextInput
               inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.commentInput}
-              placeholder="Share your experience with this trade..."
+              // FIX-Task-20 item 17: surface the 500-character cap BEFORE typing. The old
+              // placeholder duplicated the subtitle above, so nothing is lost by using it
+              // for the counter hint instead.
+              placeholder="0/500"
               placeholderTextColor="#9CA3AF"
               value={comment}
               onChangeText={setComment}

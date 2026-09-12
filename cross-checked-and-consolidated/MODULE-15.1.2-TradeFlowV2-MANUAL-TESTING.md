@@ -163,7 +163,7 @@
 | | TRD-TC-O1-C02 | Admin creates second rule for same category — overlap blocked |
 | | TRD-TC-O1-C03 | Admin edits existing rule — new version created |
 | | TRD-TC-O1-C04 | Admin deactivates a rule |
-| | TRD-TC-O1-C05 | Existing listings backfill to general_tangible_goods |
+| | TRD-TC-O1-C05 | Existing listings backfill to their category's mapped tax category |
 | | TRD-TC-O1-C06 | New single-listing creation receives default tax category |
 | | TRD-TC-O1-C07 | New bulk-listing creation receives default tax category |
 | | TRD-TC-O1-C08 | Admin changes individual listing's tax category |
@@ -206,8 +206,8 @@
 | | TRD-TC-P02 | Bulk tax update across nodes |
 | | TRD-TC-P03 | Tax rate change history / audit |
 | | TRD-TC-P04 | Global tax settings toggle + warning banner |
-| | TRD-TC-P05 | Tax reporting dashboard: summary + date presets |
-| | TRD-TC-P06 | Jurisdiction breakdown + 7 report types |
+| | TRD-TC-P05 | Tax reporting dashboard: summary + date range |
+| | TRD-TC-P06 | Jurisdiction breakdown + 8 report tabs |
 | | TRD-TC-P07 | CSV export for filing |
 | | TRD-TC-P08 | Admin changes rate → new transactions use new rate |
 | **Q — Reviews & Ratings** | TRD-TC-Q01 | Review prompt ([Rate Seller] / [Rate Buyer]) on completion |
@@ -3506,7 +3506,7 @@ ORDER BY t.created_at DESC LIMIT 1;
 
 ---
 
-### ✅ TRD-TC-O1-C05 · Existing listings backfill to general_tangible_goods
+### ✅ TRD-TC-O1-C05 · Existing listings backfill to their mapped tax category
 
 **Verification Query:**
 ```sql
@@ -3515,7 +3515,9 @@ SELECT COUNT(*) AS items_without_tax_category
 FROM public.items 
 WHERE tax_category_id IS NULL;
 
--- Sample check — all should show general_tangible_goods
+-- Sample check — each row should show the tax category its PRODUCT category is
+-- mapped to (Books → tax_exempt_goods, Clothing → general_tangible_goods, …);
+-- it is NOT expected to be uniformly general_tangible_goods.
 SELECT i.id, i.title, tc.key AS tax_category_key
 FROM public.items i
 LEFT JOIN public.tax_categories tc ON tc.id = i.tax_category_id
@@ -3524,8 +3526,10 @@ LIMIT 10;
 
 **Expected:**
 - Zero items have NULL `tax_category_id`.
-- All items default to `general_tangible_goods`.
+- Each item's `tax_category_id` equals the tax category its **product category** is mapped to in **Tax → Category Mapping** — it is NOT uniformly `general_tangible_goods`. Live distribution at the 2026-09-12 audit: `general_tangible_goods` 1931 · `tax_exempt_goods` 50 · `clothing_footwear` 25.
 - No regressions in discovery or purchase flows.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 12): the earlier wording claimed every item defaults to `general_tangible_goods`, which the seeded category→tax mapping has never produced.
 
 ---
 
@@ -3605,23 +3609,30 @@ LIMIT 10;
 **Expected:**
 - `tax_exempt_goods` category is pre-seeded.
 - Rule can be created with `is_taxable = false`.
-- `get_applicable_tax_rule` returns `is_taxable = false`.
+- `get_applicable_tax_rule` returns `is_taxable = false` at EVERY price point — an exempt category must carry **no price band** (Min and Max both blank). A band defeats the rule silently: `get_applicable_tax_rule` filters on the band in its `WHERE`, so an out-of-band item returns **no rows**, and both `calculate_tax()` and `create-trade-offer` then treat "no rule" as **non-taxable** (fail-safe). Tax is still $0, but the exemption stops being driven by the rule itself.
+- Live check: `calculate_tax(<node>, 6000, tax_exempt_goods, 6000)` → `tax_amount_cents = 0`.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 3): `tax_exempt_goods` carried a `$0–$50` band on staging. The band was removed so the exemption holds at every price point. ⚠️ The QA report's F3 claim that a >$50 exempt item "falls back to the node rate and becomes taxable" is INCORRECT for both call paths (tracked as the F3 correction in the 2026-09-11 report).
 
 ---
 
 ### ✅ TRD-TC-O1-C10 · Price-threshold category configuration (clothing_footwear)
 
 **Steps:**
-1. Tax Rules page → create rule for **Clothing and Footwear**.
-2. Display Name: **"CT Clothing — Under $50 threshold"**.
-3. Tax Rate: 6.35%, Min Price: $0.00, Max Price: $50.00.
-4. Save and verify in table.
+1. Tax Rules page → open the **Clothing and Footwear** rules (jurisdiction CT).
+2. Confirm two ACTIVE bands exist:
+   - **"CT Clothing — Under $50 (exempt)"** — "items in this category are taxable" **unchecked**, price band `$0.00 – $49.99`.
+   - **"CT Clothing — $50 and over (taxable)"** — taxable **checked**, Tax Rate left blank (→ node rate), price band `$50.00 – no ceiling`.
+3. Save / verify both in the rules table.
+4. Probe behaviour via SQL: `calculate_tax(<ct_node>, 2500, <clothing_category_id>, 2500)` and `calculate_tax(<ct_node>, 6000, <clothing_category_id>, 6000)`.
 
 **Expected:**
-- Rule saves successfully.
-- Table shows price range: `$0.00 – $50.00`.
-- Version History shows rule with price thresholds.
-- Overlap trigger does NOT block (different category from general_tangible_goods).
+- Both bands save and coexist. The overlap trigger permits them because their **price bands do not intersect** (`$0–$49.99` vs `$50.00+`); a genuinely overlapping band is still rejected.
+- Table shows `$0.00 – $49.99` (exempt) and `$50.00 – none` (taxable).
+- `calculate_tax(…)` at $25.00 → `$0.00` (exempt); at $60.00 → `6.35%` → `381¢` on a node with tax enabled (e.g. **Norwalk Central**; nodes with tax disabled resolve $0 regardless).
+- Exactly **$50.00 is TAXABLE** (it falls in the second band).
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 3): this case previously described ONE rule named "CT Clothing — Under $50 threshold" with a 6.35% rate. As actually configured on staging that single rule was `is_taxable = TRUE` with a `$0–$50` band, so clothing UNDER $50 was taxed and clothing ABOVE $50 matched no rule and came out exempt — the exact inverse of Connecticut law (under $50 exempt, $50+ taxable). Verified live and corrected 2026-09-12.
 
 ---
 
@@ -4135,8 +4146,10 @@ LIMIT 5;
 
 **Expected:**
 - Label now reads **"Paid:"** (not "Payment authorized").
-- Tax label reads **"Sales Tax"** (not "Estimated Sales Tax").
+- Tax label reads **"Sales Tax"** — and, because the stored rate is above 0, the shipped row appends the rate: **"Sales Tax (6.99%)"** on a general-tangible-goods trade at the live CT rate. On a completed trade it never carries an "Estimated" prefix.
 - Final tax amount uses stored snapshot (not live preview).
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 12): assert on the **"Sales Tax" prefix**, not on an exact bare "Sales Tax" string — the rate is appended whenever a rate applies (`TaxBreakdownRow`).
 
 ---
 
@@ -4304,9 +4317,13 @@ LIMIT 5;
 3. Sum CSV columns and compare.
 
 **Expected:**
-- Sum of CSV `tax_amount_cents` = `tax_collected_cents` from summary.
-- Sum of CSV `tax_refunded_cents` = `tax_refunded_cents` from summary.
-- Sum of CSV `net_tax_cents` = `tax_net_cents` from summary.
+- The export carries rows for **every** status, so the sums reconcile only **after filtering the CSV to the matching status**:
+  - `tax_status = 'collected'` → sum of `tax_amount_cents` = summary `tax_collected_cents`.
+  - `tax_status IN ('refunded','partially_refunded')` → sum of `tax_refunded_cents` = summary `tax_refunded_cents`.
+  - filtered collected sum − filtered refund sum = summary `tax_net_cents`.
+- Unfiltered, the CSV total is LARGER than "Tax Collected" because it also contains `quoted` (pending/authorized) and `voided` rows.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 12): the earlier wording implied a direct unfiltered equality, which cannot hold — the export deliberately includes quoted and voided rows.
 
 ---
 
@@ -4371,46 +4388,55 @@ LIMIT 5;
 
 ---
 
-### TRD-TC-P05 · Tax reporting dashboard: summary + date presets
+### TRD-TC-P05 · Tax reporting dashboard: summary + date range
 
 **Steps:**
-1. Navigate to **Tax → Reports**.
-2. Select date preset **"Last 30 Days"** → observe summary.
-3. Select custom date range → observe summary updates.
+1. Navigate to **Tax → Reports**. The summary runs automatically for the default range (**last 30 days → today**, all nodes).
+2. Change the **Start** / **End** date inputs → tap **Run Report** → observe the summary.
+3. Optionally pick a **Node** → **Run Report**.
 
 **Expected:**
-- Summary shows: Total Tax Collected, Total Refunded, Net Tax Payable, Pending Tax, Voided Tax.
-- Date presets: Today, Last 7 Days, Last 30 Days, This Month, Last Month, Custom.
-- All summaries update in real time when date range changes.
+- Summary shows: Taxable Sales, Tax Collected, Tax Refunded, Tax Voided, Net Tax Payable, Transactions.
+- **There are NO date presets** — the range is entered with plain Start/End date inputs (default: last 30 days).
+- There is **no "Pending Tax" summary figure**. Pending tax is labelled **"Pending/Authorized"** and lives inside the collapsed **"Operational Tax Details (not included in Net Tax Payable)"** disclosure, together with Voided/Expired, Capture Failed and Pending Refund.
+- **"Tax Collected" is GROSS** — it includes the tax on transactions that were later refunded; refunds appear separately as Tax Refunded, and Net Tax Payable = Tax Collected − Tax Refunded. The header reconciles exactly with the per-jurisdiction breakdown for the same window.
+- While the first aggregation runs (~4s) the page shows a loading skeleton, not a bare spinner.
+- Summaries refresh when **Run Report** is pressed or a report tab is selected — not live as the dates are typed.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 items 2 + 12 + 13): the earlier revision promised Today/Last 7 Days/Last 30 Days/This Month/Last Month/Custom presets and a "Pending Tax" figure; the shipped page has never had presets, and pending tax is an operational-only disclosure. The gross-collected convention was introduced by FIX-Task-20 item 2 so the header and the breakdown agree.
 
 ---
 
-### ⚠️ TRD-TC-P06 · Jurisdiction breakdown + 7 report types
+### ⚠️ TRD-TC-P06 · Jurisdiction breakdown + 8 report tabs
 
 **Steps:**
-1. On **Tax → Reports**, scroll to **Jurisdiction Breakdown**.
-2. Verify list shows each node/jurisdiction with collected/refunded/net amounts.
-3. Verify 7 report categories: Tax Collected, Tax Refunded, Net Tax Payable, Pending/Authorized, Voided/Expired, Capture Failed, Pending Refund, Reconciliation Required.
+1. On **Tax → Reports**, scroll to **By Jurisdiction**.
+2. Verify the table shows each jurisdiction with txns / taxable / collected / refunded / voided / net.
+3. Verify the **8 report tabs** across the top: Summary, Jurisdictions, Transactions, Refunds, By Period, Tax Exempt, Audit Trail, Reconciliation Required.
 
 **Expected:**
-- Jurisdiction breakdown shows per-node totals.
-- All 7 report types are accessible and show correct filtered data.
-- Report types align with tax status lifecycle (O-2).
+- Jurisdiction breakdown shows per-jurisdiction totals, with a "No tax collected in this period" empty state when the window has none.
+- All **8 report tabs** are accessible; selecting a tab clears the previous report's data and auto-runs the newly selected one.
+- Report tabs align with the tax status lifecycle (O-2); the tax STATUSES (Pending/Authorized, Voided/Expired, Capture Failed, Pending Refund, Reconciliation Required) appear as the summary cards and inside the Operational Tax Details disclosure — not as tabs.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 12): the earlier revision said "7 report types" while listing eight STATUSES. The shipped tab set is the eight views above.
 
 ---
 
 ### ✅ TRD-TC-P07 · CSV export for filing
 
 **Steps:**
-1. On **Tax → Reports**, select date range → tap **Export CSV**.
-2. Open downloaded file.
-3. Verify columns: Trade ID, Date, Node, Jurisdiction, Item Title, Taxable Amount, Tax Rate, Tax Amount, Refunded Tax, Net Tax, Status.
-4. Sum columns manually and compare to on-screen summary (TRD-TC-O3-C14).
+1. On **Tax → Reports**, select date range → tap **Export CSV (Transactions)**.
+2. Open the downloaded file.
+3. Verify the column set is present (32 columns, headed by `trade_id, buyer_id, seller_id, listing_ids, tax_categories, jurisdiction, tax_rule_version, item_subtotal_cents … tax_amount_cents, tax_refunded_cents, net_tax_cents, tax_status, trade_status …`).
+4. Filter the CSV by `tax_status` before summing, then compare to the on-screen summary (TRD-TC-O3-C14).
 
 **Expected:**
-- CSV downloads successfully with all columns.
-- Manual sum of CSV matches on-screen totals.
-- File naming: `tax-export-{start-date}-{end-date}.csv`.
+- CSV downloads successfully with all 32 columns.
+- The export is **deliberately unfiltered by status**: it contains `collected`, `quoted` AND `voided` rows, so a naive unfiltered sum of `tax_amount_cents` does NOT equal on-screen "Tax Collected". Filter to `tax_status = collected` first (see TRD-TC-O3-C14).
+- File naming: `tax-transactions-{start-date}-to-{end-date}.csv`.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 12): the earlier revision claimed the file is named `tax-export-{start-date}-{end-date}.csv` and listed an 11-column set; the shipped export is 32 columns with the name above.
 
 ---
 
@@ -6457,9 +6483,11 @@ FROM items;
 
 **Expected Result:**
 - Total Cash (All Items): Sum of all cash_amount_cents in the bundle.
-- Total Swap Points Applied: Sum of all sp_amount (if any SP was used).
+- **Total Swap Points Applied**: sum of all `sp_amount`. The row renders **only when the bundle used at least one SP** (`totalSp > 0`) — it is absent from the breakdown when no SP was used.
 - Total Platform Fees: Sum of all buyer_transaction_fee_cents.
 - Total Charged (Cash): Total cash + total fees.
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 12): the earlier wording listed the Total Swap Points row unconditionally.
 
 ---
 
@@ -6490,9 +6518,11 @@ FROM items;
 1. On a bundle detail page where at least one trade is not completed/cancelled, scroll to the bottom.
 
 **Expected Result:**
-- A red **"Admin Interventions"** section is visible.
+- A red **"Bundle Admin Interventions"** section is visible.
 - The button reads **"Force Cancel Entire Bundle"**.
-- The warning text states "Force-cancelling this bundle will attempt to cancel all N trades..."
+- The warning text reads: "Force-cancelling this bundle will attempt to cancel **all N trades** in the bundle. Each trade will be marked as cancelled, SP will be re-credited to the buyer, and Stripe refunds will be issued if applicable."
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-20 item 12): the heading is **"Bundle Admin Interventions"** (not "Admin Interventions") and the warning is a full sentence, not a trailing "…".
 
 ---
 
