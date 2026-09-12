@@ -2,7 +2,7 @@
 
 > **Ground-truth QA test-coverage inventory (v2 — no cutoff).** Every captured QA report on disk through **2026-09-03** cross-referenced against the current canonical guide index. **Read-only reconciliation** — no guides, code, or reports were modified. Successor to `TEST-COVERAGE-INVENTORY.md` (generated 2026-08-24), which is superseded by evidence created after that date (TRD Groups S–Z, ACC closures, MSG/SUB live rounds, QA Tasks 5–25).
 
-**Generated:** 2026-09-03
+**Generated:** 2026-09-03 (no-cutoff reconciliation). **Group Q rows corrected 2026-09-12** by FIX-Task-21 item 5 — Q10/Q11/Q13/Q14 were mislabelled "time-dependent, descoped" and are in fact **NOT IMPLEMENTED**; Q19/Q20 were retitled to the shipped **Keep** / **Hide** affordances. No other rows were touched, so the counts in §1 remain as generated.
 
 ## 1 · Executive summary
 
@@ -441,17 +441,17 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-Q07 | Completed reviews visible on counterparty's profile |  | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS | profile visible |
 | TRD-TC-Q08 | Average rating and total review count on user profile |  | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS | average |
 | TRD-TC-Q09 | Rating breakdown (5 → 1 stars) on profile |  | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS | breakdown |
-| TRD-TC-Q10 | Edit review succeeds within 24h window |  | NEVER RUN |  |  | NEVER RUN | 24h edit window — time-dependent, descoped |
-| TRD-TC-Q11 | Edit blocked after 24h window |  | NEVER RUN |  |  | NEVER RUN | 24h edit window — time-dependent, descoped |
+| TRD-TC-Q10 | Edit review succeeds within 24h window |  | NEVER RUN |  |  | NEVER RUN | ⛔ **NOT IMPLEMENTED** (FIX-Task-21 item 5, 2026-09-12) — no edit path exists (no route / no affordance / no `updateReview` service call). The DB-side 24h rule DOES exist (`030_reviews.sql` RLS policy). Backlogged as an app-only feature; not "time-dependent". |
+| TRD-TC-Q11 | Edit blocked after 24h window |  | NEVER RUN |  |  | NEVER RUN | ⛔ **NOT IMPLEMENTED** (FIX-Task-21 item 5, 2026-09-12) — nothing to block; the DB guard exists but the app exposes no edit entry point. Re-open with Q10. |
 | TRD-TC-Q12 | One review per trade — duplicate submission blocked |  | PASS | 2026-08-30 | `qa-task11-nopqr-2026-08-30` | ✅ PASS | no duplicate prompt |
-| TRD-TC-Q13 | 30-day same-counterparty cooldown enforced |  | NEVER RUN |  |  | NEVER RUN | 30-day cooldown — time/multi-account, descoped |
-| TRD-TC-Q14 | 24h post-completion cooldown — review locked |  | NEVER RUN |  |  | NEVER RUN | 24h post-completion lock — time-dependent, descoped |
+| TRD-TC-Q13 | 30-day same-counterparty cooldown enforced |  | NEVER RUN |  |  | NEVER RUN | ⛔ **NOT IMPLEMENTED** (FIX-Task-21 item 5, 2026-09-12) — no counterparty-cooldown logic exists in `submitReview`/`canReviewUser`; NOT "time/multi-account dependent". Needs a build-vs-retire decision. |
+| TRD-TC-Q14 | 24h post-completion cooldown — review locked |  | NEVER RUN |  |  | NEVER RUN | ⛔ **NOT IMPLEMENTED** (FIX-Task-21 item 5, 2026-09-12) — reviews are submittable immediately after completion (re-confirmed live); NOT "time-dependent". Needs a build-vs-retire decision. |
 | TRD-TC-Q15 | Flag a review (select reason) |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | reviewee-only report model PASS; spec deviation (guide: any user) |
 | TRD-TC-Q16 | Auto-hide review after 3+ reports |  | NEVER RUN |  |  | NEVER RUN | Auto-hide after 3+ reports — needs 3 distinct reporters, descoped |
 | TRD-TC-Q17 | Cannot flag own review |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | cannot flag own review (model) |
 | TRD-TC-Q18 | Admin moderation queue — reported reviews with counts |  | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` | ✅ PASS | moderation queue |
-| TRD-TC-Q19 | Admin approves (unhides) a reported review |  | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` | ✅ PASS | Keep |
-| TRD-TC-Q20 | Admin deletes a reported review |  | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` | ✅ PASS | Hide |
+| TRD-TC-Q19 | Admin keeps (unhides) a reported review |  | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` | ✅ PASS | Shipped action is **Keep** (retitled 2026-09-12, FIX-Task-21 item 5) |
+| TRD-TC-Q20 | Admin hides a reported review |  | PASS | 2026-08-30 | `qa-task12-close-2026-08-30` | ✅ PASS | Shipped action is **Hide**; no Delete exists (retitled 2026-09-12, FIX-Task-21 item 5) |
 | TRD-TC-R01 | Buyer cancels pending trade → cancelled, auth voided, SP restored |  | NEVER RUN |  |  | NEVER RUN | Buyer cancels pending — equivalent behavior PASS under TRD-TC-B04 |
 | TRD-TC-R02 | Seller declines pending offer → cancelled, SP restored |  | NEVER RUN |  |  | NEVER RUN | Seller declines pending — equivalent PASS under TRD-TC-B01/C02 |
 | TRD-TC-R03 | Offer expiry → auto-cancel + competing offers cancelled |  | NEVER RUN |  |  | NEVER RUN | Offer expiry auto-cancel — equivalent PASS under TRD-TC-B02/C03 |

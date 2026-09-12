@@ -422,14 +422,33 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
             )}
           </View>
 
-          {/* Completed Trades Section */}
-          <View style={styles.tradesSection}>
-            <Text style={styles.sectionTitle}>Completed Trades</Text>
-            <View style={styles.tradesCountCard}>
-              <Text style={styles.tradesCountValue}>{completedTradesCount}</Text>
-              <Text style={styles.tradesCountLabel}>Total completed trades</Text>
+          {/* Completed Trades Section
+              FIX-Task-21 item 11 (QA finding N9): this card rendered a confident
+              "Completed Trades 0" directly beside a "(1 review)" count, which is a
+              self-contradiction — a written review implies a completed trade.
+              The count is read straight from `trades`, whose SELECT policies are
+              participant-scoped (`supabase/migrations/313_prod_p1_node_isolation_hardening.sql`
+              → "trades_select_participant_same_node": buyer_id = auth.uid() OR
+              seller_id = auth.uid()). Reviews, by contrast, are readable by every
+              authenticated user (migration 308), which is why the two numbers can
+              disagree. For a viewer who is not a party to the seller's trades, the
+              count is therefore not a fact about the seller — it is 0 because the
+              rows are invisible, not because they don't exist.
+              Rather than publish a number we cannot compute, the card is omitted when
+              the count reads 0. A real fix (a SECURITY-DEFINER public-stats RPC) needs
+              a migration and its own verification pass — tracked in the FIX-Task-21
+              handoff, deliberately NOT bundled into this UI-only change. */}
+          {completedTradesCount > 0 && (
+            <View style={styles.tradesSection}>
+              <Text style={styles.sectionTitle}>Completed Trades</Text>
+              <View style={styles.tradesCountCard}>
+                <Text style={styles.tradesCountValue} testID="completed-trades-count">
+                  {completedTradesCount}
+                </Text>
+                <Text style={styles.tradesCountLabel}>Total completed trades</Text>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Reviews Section — MODULE-08 REVIEW-002/005 (TC-Q07/Q08/Q09/Q16) */}
           <View style={styles.reviewsSection}>

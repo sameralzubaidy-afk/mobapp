@@ -33,6 +33,12 @@ import { supabase } from '@/config/supabase';
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
 
+// FIX-Task-21 item 2: a caller that does not know the counterparty's name passes a role
+// label instead ("the seller" / "the buyer"). Those two values are the ONLY thing the
+// screen is allowed to upgrade to the real name — a caller-supplied name is never
+// overwritten, and if the lookup fails the role wording stays (never a blank title).
+const REVIEW_ROLE_PLACEHOLDERS = ['the seller', 'the buyer'];
+
 export function SubmitReviewScreen() {
   const route = useRoute<SubmitReviewRouteProp>();
   const navigation = useNavigation<SubmitReviewNavigationProp>();
@@ -59,25 +65,47 @@ export function SubmitReviewScreen() {
   // DEV-TASK-96 (item 6): deep-link entry — resolve the counterparty from the
   // trade row when reviewee params weren't provided. The current user is one
   // party, so the reviewee is the other (mirrors
-  // TradeTimelineScreen.handleReviewPress). Returns false if the trade can't be
-  // read (not a party / RLS) — caller treats that as "cannot review".
-  const resolveRevieweeFromTrade = async (): Promise<boolean> => {
-    if (!user?.id) return false;
+  // TradeTimelineScreen.handleReviewPress). Returns the resolved id, or null if the
+  // trade can't be read (not a party / RLS) — caller treats that as "cannot review".
+  // FIX-Task-21 item 2: returns the id (not a boolean) so the caller can also use it
+  // to resolve the counterparty's display name.
+  const resolveRevieweeFromTrade = async (): Promise<string | null> => {
+    if (!user?.id) return null;
     try {
       const { data: tradeRow } = await supabase
         .from('trades')
         .select('buyer_id, seller_id')
         .eq('id', tradeId)
         .maybeSingle();
-      if (!tradeRow) return false;
+      if (!tradeRow) return null;
       const isBuyer = tradeRow.buyer_id === user.id;
       const otherId = isBuyer ? tradeRow.seller_id : tradeRow.buyer_id;
-      if (!otherId) return false;
+      if (!otherId) return null;
       setRevieweeId(otherId);
       setRevieweeName(isBuyer ? 'the seller' : 'the buyer');
-      return true;
+      return otherId;
     } catch {
-      return false;
+      return null;
+    }
+  };
+
+  // FIX-Task-21 item 2 (QA finding N4): the title used to read only "Review the buyer" /
+  // "Review the seller", so a reviewer with two open reviews could not tell them apart
+  // (and VoiceOver lost the distinction entirely). Resolve the counterparty's real name
+  // here rather than relying on the caller: the timeline's own profile read can come back
+  // empty, and the `/submit-review?tradeId=` deep link never carries a name at all.
+  const resolveRevieweeDisplayName = async (revieweeUserId: string): Promise<string | null> => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', revieweeUserId)
+        .maybeSingle();
+      const name = typeof data?.name === 'string' ? data.name.trim() : '';
+      return name || null;
+    } catch {
+      // Non-blocking: fall back to the role wording rather than failing the screen.
+      return null;
     }
   };
 
@@ -100,9 +128,10 @@ export function SubmitReviewScreen() {
     // DEV-TASK-96 (item 6): /submit-review deep link may not carry reviewee
     // params — resolve from the trade now (still inside the loading gate) so the
     // header/title + submit call always have a reviewee.
-    if (!revieweeId) {
-      const resolved = await resolveRevieweeFromTrade();
-      if (!resolved) {
+    let targetRevieweeId = revieweeId;
+    if (!targetRevieweeId) {
+      const resolvedId = await resolveRevieweeFromTrade();
+      if (!resolvedId) {
         Alert.alert(
           'Cannot Submit Review',
           'We could not identify the other party on this trade.',
@@ -110,6 +139,13 @@ export function SubmitReviewScreen() {
         );
         return;
       }
+      targetRevieweeId = resolvedId;
+    }
+
+    // FIX-Task-21 item 2: upgrade a role-only label to the counterparty's actual name.
+    if (!revieweeName || REVIEW_ROLE_PLACEHOLDERS.includes(revieweeName.trim().toLowerCase())) {
+      const displayName = await resolveRevieweeDisplayName(targetRevieweeId);
+      if (displayName) setRevieweeName(displayName);
     }
 
     setCanSubmit(true);
@@ -267,7 +303,9 @@ export function SubmitReviewScreen() {
               testID="comment-input"
             />
             <Text style={styles.charCount} testID="char-count">
-              {comment.length}/500 characters
+              {/* FIX-Task-21 item 9: state the cap BEFORE the first keystroke instead of
+                  opening on a bare "0/500", which reads like a value rather than a limit. */}
+              {comment.length === 0 ? '500 characters max' : `${comment.length}/500 characters`}
             </Text>
           </View>
 
@@ -322,8 +360,15 @@ export function SubmitReviewScreen() {
             <Text style={styles.skipButtonText}>Skip for Now</Text>
           </TouchableOpacity>
 
-          {/* Info Note */}
-          <Text style={styles.note}>You can edit your review within 24 hours of submission.</Text>
+          {/* FIX-Task-21 item 1(c): a note here used to read "You can edit your review
+              within 24 hours of submission." No edit path ships — there is no edit
+              route, no Edit affordance, and no updateReview service call — so the app
+              was advertising a capability it does not have (QA finding N1).
+              NOTE: the 24-hour rule itself IS implemented, in the database
+              (`030_reviews.sql` → policy "Users can update own reviews within 24h"
+              requires `created_at > NOW() - INTERVAL '24 hours'`). Only the app-side
+              path is missing, so the remaining work is a backlog FEATURE, not a copy
+              change. Do NOT restore this sentence until that path ships. */}
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenLayout>
@@ -454,11 +499,5 @@ const styles = StyleSheet.create({
     color: theme.colors.neutral[700],
     fontSize: 15,
     fontWeight: '600',
-  },
-  note: {
-    fontSize: 12,
-    color: theme.colors.neutral[500],
-    textAlign: 'center',
-    marginTop: theme.spacing.xs,
   },
 });

@@ -23,10 +23,19 @@ jest.mock('@/services/badges', () => ({
 // `.from(...)` with a deterministic chain so the screen's own id_badge / trades
 // reads never hit the network in unit tests. This makes the Group-A verification
 // read that drives the Verified pill resolve deterministically.
+// FIX-Task-21 item 11: the trades count is now controllable per test (the screen
+// suppresses the card at 0). Jest permits out-of-scope variables prefixed `mock`.
+const mockSupabaseState = { tradeCount: 0 };
 jest.mock('@/services/supabase/client', () => {
   const actual = jest.requireActual('@/services/supabase/client');
   const supabase = actual.supabase;
-  const emptyResult = { data: null, error: null, count: 0 };
+  const emptyResult = {
+    data: null,
+    error: null,
+    get count() {
+      return mockSupabaseState.tradeCount;
+    },
+  };
   const chain = {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
@@ -83,6 +92,8 @@ describe('SellerProfileScreen - FLOW-15 UI Redesign', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // FIX-Task-21 item 11: default to the unreadable-count case (0).
+    mockSupabaseState.tradeCount = 0;
     mockGetUserProfile.mockResolvedValue({ user: mockProfile, error: null });
     mockGetUserReviews.mockResolvedValue({ success: true, reviews: [] });
     mockGetReviewStats.mockResolvedValue({
@@ -160,12 +171,37 @@ describe('SellerProfileScreen - FLOW-15 UI Redesign', () => {
     expect(idBadgeService.getVerificationStatus).toHaveBeenCalledWith(syntheticId);
   });
 
-  it('renders completed trades section (FLOW-15)', async () => {
-    const { getByText } = render(<SellerProfileScreen navigation={{}} route={mockRoute} />);
+  it('FIX-Task-21 item 11: omits the completed-trades card when the count is not readable', async () => {
+    // A stranger viewing this profile cannot read another user's trades — the
+    // `trades` SELECT policies are participant-scoped — so the count resolves to 0
+    // even for a seller with a public review history. Rendering
+    // "Total completed trades 0" directly beside the public "(25 reviews)" count
+    // was a self-contradiction (QA finding N9): a review implies a completed trade.
+    // The card is now suppressed rather than publishing a number we cannot compute.
+    const { getByText, queryByText } = render(
+      <SellerProfileScreen navigation={{}} route={mockRoute} />
+    );
+
+    await waitFor(() => {
+      expect(getByText('(25 reviews)')).toBeTruthy();
+    });
+    expect(queryByText('Completed Trades')).toBeNull();
+    expect(queryByText('Total completed trades')).toBeNull();
+  });
+
+  it('FIX-Task-21 item 11: still renders the completed-trades card when a real count is readable', async () => {
+    mockSupabaseState.tradeCount = 3;
+
+    const { getByText, getByTestId } = render(
+      <SellerProfileScreen navigation={{}} route={mockRoute} />
+    );
 
     await waitFor(() => {
       expect(getByText('Completed Trades')).toBeTruthy();
       expect(getByText('Total completed trades')).toBeTruthy();
+      // Assert via testID: a bare getByText('3') is ambiguous on this screen (the
+      // rating breakdown also renders a "3").
+      expect(getByTestId('completed-trades-count').props.children).toBe(3);
     });
   });
 

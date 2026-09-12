@@ -183,6 +183,10 @@ export default function TradeTimelineScreen() {
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [otherUserReviewed, setOtherUserReviewed] = useState(false);
+  // FIX-Task-21 item 10: the review the current user already left on this trade
+  // (rating + date), so the Reviews card can summarise WHAT was submitted instead of
+  // only asserting that something was.
+  const [myReview, setMyReview] = useState<{ rating: number; created_at: string } | null>(null);
   const [counterpartyProfile, setCounterpartyProfile] = useState<any>(null);
   // Addendum C: bundle size for bundle-aware complete confirmation
   const [bundleSize, setBundleSize] = useState<number>(0);
@@ -565,6 +569,12 @@ export default function TradeTimelineScreen() {
         if (reviewStatusResult.success) {
           setHasReviewed(reviewStatusResult.userReviewed);
           setOtherUserReviewed(reviewStatusResult.otherUserReviewed);
+          // FIX-Task-21 item 10: keep the user's own review so the card can show
+          // "You rated this seller 5★ on Sep 12".
+          const ownReview = reviewStatusResult.userReview;
+          setMyReview(
+            ownReview ? { rating: ownReview.rating, created_at: ownReview.created_at } : null
+          );
 
           const result = await canReviewUser(tradeId, user.id);
           if (result.success) {
@@ -930,10 +940,19 @@ export default function TradeTimelineScreen() {
     const counterpartyId = isBuyer ? trade.seller_id : trade.buyer_id;
     const counterpartyName = isBuyer ? 'the seller' : 'the buyer';
 
+    // FIX-Task-21 item 2: prefer the counterparty's ACTUAL name. By the time a trade is
+    // completed both parties know each other (seller identity unlocks at acceptance),
+    // and a title of "Review the buyer" gave no way to tell two reviews apart. Falls
+    // back to the role wording only while the profile is still loading.
+    const counterpartyDisplayName =
+      typeof counterpartyProfile?.name === 'string' && counterpartyProfile.name.trim()
+        ? counterpartyProfile.name.trim()
+        : counterpartyName;
+
     navigation.navigate('SubmitReview', {
       tradeId,
       revieweeId: counterpartyId,
-      revieweeName: counterpartyName,
+      revieweeName: counterpartyDisplayName,
     });
   };
 
@@ -2107,6 +2126,17 @@ export default function TradeTimelineScreen() {
                 {`You ${hasReviewed ? 'have' : "haven't"} reviewed ${isBuyer ? 'the seller' : 'the buyer'}`}
               </Text>
             </View>
+            {/* FIX-Task-21 item 10: say WHAT was submitted, not just that it happened. */}
+            {myReview && (
+              <Text style={styles.reviewSummaryText} testID="review-submitted-summary">
+                {`You rated ${isBuyer ? 'the seller' : 'the buyer'} ${
+                  myReview.rating
+                }★ on ${new Date(myReview.created_at).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                })}`}
+              </Text>
+            )}
             <View style={[styles.reviewStatusRow, { marginTop: 8 }]}>
               {otherUserReviewed ? (
                 <CheckCircle size={20} color="#5DBB8E" weight="fill" />
@@ -2130,7 +2160,11 @@ export default function TradeTimelineScreen() {
                 testID="review-button"
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Review button"
+                // FIX-Task-21 item 2: this was the generic "Review button", which threw
+                // away the partner-specific distinction the visible text carries, so a
+                // VoiceOver user could not tell a review of the buyer from one of the
+                // seller. Label now matches the visible text exactly.
+                accessibilityLabel={`Review ${isBuyer ? 'the Seller' : 'the Buyer'}`}
               >
                 <Star size={20} color="#FFFFFF" weight="regular" />
                 <Text style={styles.confirmButtonText}>
@@ -3658,6 +3692,12 @@ const styles = StyleSheet.create({
   reviewStatusTextComplete: {
     color: '#5DBB8E',
     fontWeight: '500',
+  },
+  reviewSummaryText: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 6,
+    marginLeft: 32,
   },
   reviewButton: {
     flexDirection: 'row',

@@ -243,7 +243,7 @@ Required in every SQL deliverable:
 
 Full Postgres RPC / SQL naming convention and required verification queries moved to .github/instructions/supabase-sql.instructions.md (auto-attaches when editing supabase/migrations/**/*.sql).
 
-See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-86) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
+See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-89) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
 UI Performance Defaults (MANDATORY)
 Debounce defaults:
 
@@ -785,6 +785,13 @@ Issue: "Admin page fetch to /api/admin/* fails with 401 / 'No valid authenticati
 ✅ Check: New code doesn't copy legacy header-less admin fetches that 401 in practice (BP-49)
 See also: BP-49 (admin client→API auth — always send the `x-admin-secret` header or an explicit Bearer JWT)
 
+Issue: "Verifying an admin-UI fix would require mutating live/staging config or QA data (a moderation Keep/Hide, a config save, a payout trigger)"
+
+✅ Check: The write was intercepted, not executed — Playwright `page.route('**/api/...', fulfill)` stubs the endpoint and the assertion runs against the surrounding behaviour (the follow-up refetch fires, the label/summary updates, the dialog copy is correct) (BP-89)
+✅ Check: The follow-up request was COUNTED (a `request` listener filtered by method + URL), not inferred from the page still looking right (BP-89)
+✅ Check: If the mutation's own effect had to be proven, it was proven against a disposable fixture — and the handoff states that the write was intercepted, so "verified" is never read as "applied to the DB" (BP-89, BP-80)
+See also: BP-89 (verify a data-mutating admin action without mutating data), BP-80 (a mutating step is approval-gated — "written, NOT applied" must be stated explicitly)
+
 Issue: "Bottom nav / persistent tab bar (or other root-level UI) missing after completing or skipping onboarding until the app is relaunched"
 
 ✅ Check: The root-level component's gate state (e.g. `showOnboardingCarousel`) is updated by a `[userId]`-keyed mount effect ONLY — a child screen navigating away does NOT re-run it (BP-55)
@@ -888,6 +895,14 @@ Issue: "A QA finding quotes on-screen text (a label, error string, alert title, 
 ✅ Check: No component was invented, restyled, or copy-migrated to match a quoted string no code emits; if no surface matches, a fresh capture of the exact moment was requested (§9.1b)
 See also: §9.1b (quote-verify any quoted on-screen text before trusting the finding's surface), §9.1a (state the investigation stance upfront — "quoted string not in source" is a first-class ruled-out result)
 See also: BP-82 / BP-86 (on-brand tokens and canonical copy — the real defect behind a mis-attributed string is usually a copy/token mismatch on the surface that DOES exist)
+
+Issue: "A user-visible value shows its fallback (a role label, placeholder, or "Unknown") even though the code that renders the real value is present and correct"
+
+✅ Check: The value's SOURCE actually resolves on the real path — a fetch that returns null leaves the `?? fallback` branch as the only thing that ever renders, so the correct-looking expression is dead in practice (BP-88 rule 4)
+✅ Check: The rendered string was asserted in the AX tree or a screenshot FOR THAT STATE — typecheck/lint/unit green proves the code path, not the rendered value (BP-88 rule 4, BP-53)
+✅ Check: The value is resolved where it RENDERS, not only passed in by the caller — a caller's own read can fail the same way, and a deep-link entry carries no value at all (BP-88 rule 4)
+✅ Check: The fixture actually exercises the branch that changed — an already-reviewed record and an unreviewed sibling render DIFFERENT branches, so one fixture can hide a total no-op on the other (BP-88 rule 5)
+See also: BP-88 (a branch is only correct if its trigger fires on the real runtime path — same class for error branches AND data-derived values), BP-53 (confirm on-device — unit tests alone are insufficient)
 
 Issue: "A QA finding describes a state the canonical spec never covers (e.g. a partially-completed bundle), and it is unclear whether it is a bug or intended"
 
@@ -1363,7 +1378,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-88)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-89)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1456,7 +1471,8 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-85 Money display units — cents-stored money MUST use a cents formatter (`formatPrice` → "$1.49"), never the dollars formatter (`formatDollarAmount` → "$149") (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-86 Membership/value-prop copy — subscription surfaces must render the CANONICAL in-app benefit set (ManageKidsClub "Kids Club+ Benefits" / JoinKidsClub `STATIC_BENEFITS`), never an invented list; grep the whole class before shipping (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-87 DB-trigger/cron-invoked EF auth — do NOT enforce strict `bearer === env SUPABASE_SERVICE_ROLE_KEY` inside a DB-trigger/cron-invoked EF: the DB posts the `admin_config`-stored key, which can drift from the platform-injected env → every trigger/cron call 401s and money rows strand (DT-124, 2026-09-06) — mirror `initiate-payout` (eligibility + ownership + idempotency) or refresh the stored key — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-88 Error/defensive branches need a real runtime trigger — a mocked-error unit test can green-light dead code (`signInWithOAuth({skipBrowserRedirect:true})` never throws for a disabled provider → ProviderDisabled classification unreachable, raw JSON shown in the browser sheet/custom tab; FIX-Task-2 Item 4, 2026-09-07) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-88 Error/defensive branches need a real runtime trigger — a mocked-error unit test can green-light dead code (`signInWithOAuth({skipBrowserRedirect:true})` never throws for a disabled provider → ProviderDisabled classification unreachable, raw JSON shown in the browser sheet/custom tab; FIX-Task-2 Item 4, 2026-09-07). Same class, second face: a user-visible value built from an ASYNC READ silently renders its FALLBACK when the fetch returns null — a review title showed the role ("the buyer") instead of the counterparty's name, and every static check was green (FIX-Task-21 Item 2, 2026-09-12) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-89 Verify a data-mutating admin action WITHOUT mutating data — never trigger the real write against shared QA/staging data just to prove UI wiring; stub the endpoint with Playwright `page.route(...)` and assert the surrounding behaviour (the follow-up refetch fires, the label/summary updates, the dialog copy is right), then disclose that the write was INTERCEPTED not applied (FIX-Task-21 item 4, 2026-09-12) — full text: `.github/instructions/admin-portal.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

@@ -219,17 +219,17 @@
 | | TRD-TC-Q07 | Completed reviews visible on counterparty's profile |
 | | TRD-TC-Q08 | Average rating and total review count on user profile |
 | | TRD-TC-Q09 | Rating breakdown (5 → 1 stars) on profile |
-| | TRD-TC-Q10 | Edit review succeeds within 24h window |
-| | TRD-TC-Q11 | Edit blocked after 24h window |
+| | TRD-TC-Q10 | Edit review succeeds within 24h window — ⛔ NOT IMPLEMENTED |
+| | TRD-TC-Q11 | Edit blocked after 24h window — ⛔ NOT IMPLEMENTED |
 | | TRD-TC-Q12 | One review per trade — duplicate submission blocked |
-| | TRD-TC-Q13 | 30-day same-counterparty cooldown enforced |
-| | TRD-TC-Q14 | 24h post-completion cooldown — review locked |
+| | TRD-TC-Q13 | 30-day same-counterparty cooldown enforced — ⛔ NOT IMPLEMENTED |
+| | TRD-TC-Q14 | 24h post-completion cooldown — review locked — ⛔ NOT IMPLEMENTED |
 | | TRD-TC-Q15 | Flag a review (select reason) |
 | | TRD-TC-Q16 | Auto-hide review after 3+ reports |
 | | TRD-TC-Q17 | Cannot flag own review |
 | | TRD-TC-Q18 | Admin moderation queue — reported reviews with counts |
-| | TRD-TC-Q19 | Admin approves (unhides) a reported review |
-| | TRD-TC-Q20 | Admin deletes a reported review |
+| | TRD-TC-Q19 | Admin keeps (unhides) a reported review |
+| | TRD-TC-Q20 | Admin hides a reported review |
 | **R — Refund & Cancellation State Machine** | TRD-TC-R01 | Buyer cancels pending trade → cancelled, auth voided, SP restored |
 | | TRD-TC-R02 | Seller declines pending offer → cancelled, SP restored |
 | | TRD-TC-R03 | Offer expiry → auto-cancel + competing offers cancelled |
@@ -4754,7 +4754,12 @@ FROM items;
 
 ---
 
-### deffered TRD-TC-Q10 · Edit review succeeds within 24h window
+### ⛔ NOT IMPLEMENTED TRD-TC-Q10 · Edit review succeeds within 24h window
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-21 item 5): **this case is NOT IMPLEMENTED — the previous "time-dependent / descoped" reason was wrong.** There is no edit-review path anywhere in the app: no edit route, no **[Edit Review]** affordance on any review card, and no `updateReview` call in `p2p-kids-marketplace/src/services/review.ts`. No fixture, clock, or QA technique can make it pass.
+> **The 24-hour rule itself IS implemented — in the DATABASE.** `supabase/migrations/030_reviews.sql` ships the RLS policy **"Users can update own reviews within 24h"** (`reviewer_id = auth.uid() AND created_at > NOW() - INTERVAL '24 hours'`), so the backend already refuses a late edit. Only the app-side path is missing — which is why `SubmitReviewScreen` used to promise a capability the UI never provided (QA finding N1). That sentence was **removed** in FIX-Task-21 item 1(c); the capability is **backlogged as an app-only feature** (no migration needed to begin).
+> **If it ships:** re-open Q10 **and Q11 together** — the pair becomes testable for the first time. The steps below are the acceptance criteria for that feature; do not run them until it exists.
+> ⚠️ **Spec status — this is a half-built requirement, not an invented test case.** The 24-hour edit window is an ORIGINAL requirement (`Prompts/Done/MODULE-08-REVIEWS-RATINGS.md`: "Edit within 24 hours" / "Users can edit own reviews within 24 hours" / "Edit review after 24h → Error"), and its database half was built to spec (`030_reviews.sql`). Only the app half is missing. Disposition = **build** (small; app-only).
 
 **Ref:** MODULE-08 REVIEW-001
 **Actors:** test-buyer
@@ -4776,7 +4781,10 @@ FROM items;
 
 ---
 
-### deffered TRD-TC-Q11 · Edit blocked after 24h window
+### ⛔ NOT IMPLEMENTED TRD-TC-Q11 · Edit blocked after 24h window
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-21 item 5): **NOT IMPLEMENTED — nothing to block.** This is the negative half of Q10; with no edit affordance at all, no user can reach an edit attempt inside *or* outside the window. The database-side 24-hour guard exists (see Q10), but the app never surfaces an entry point, so this case cannot be driven.
+> **When the edit feature ships** the expected result below becomes genuinely testable: the DB policy is what enforces "blocked after 24h", so the app-side check and the RLS refusal should be asserted together.
 
 **Ref:** MODULE-08 REVIEW-001
 **Actors:** test-buyer
@@ -4812,7 +4820,11 @@ FROM items;
 
 ---
 
-### deffered TRD-TC-Q13 · 30-day same-counterparty cooldown enforced
+### ⛔ NOT IMPLEMENTED TRD-TC-Q13 · 30-day same-counterparty cooldown enforced
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-21 item 5): **NOT IMPLEMENTED — the previous "time / multi-account dependent" reason was wrong.** There is no same-counterparty cooldown anywhere in the codebase: `submitReview` and `canReviewUser` (`p2p-kids-marketplace/src/services/review.ts`) enforce only two rules — the trade must be `completed`, and the user must not already have reviewed that trade. Nothing reads a previous review's date or the counterparty's identity for a 30-day window. No amount of clock control or extra accounts can produce the behaviour.
+> **Decision owed (not a test result):** if the 30-day anti-brigading cooldown is a real product requirement, it needs to be built (service + DB constraint) before this case can run. If it is not required, retire the case rather than leave it parked.
+> ⚠️ **Spec status — the requirement is real and explicit.** `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` → "Prompt Addendum: Anti-Brigading, Cooldowns, Dispute Flags" **item 1**: "Anti-duplication: one review per trade; **prevent multiple reviews by same user for same counterparty within 30 days**." It was never implemented. **Do not delete this case as "obsolete"** — it is an unimplemented spec requirement; the owner decides build vs formally descope the spec.
 
 **Ref:** MODULE-08 Anti-Brigading Addendum
 **Actors:** test-buyer
@@ -4832,7 +4844,11 @@ FROM items;
 
 ---
 
-### deffered TRD-TC-Q14 · 24h post-completion cooldown — review locked until 24h after trade completion
+### ⛔ NOT IMPLEMENTED TRD-TC-Q14 · 24h post-completion cooldown — review locked until 24h after trade completion
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-21 item 5): **NOT IMPLEMENTED — the previous "clock control dependent" reason was wrong.** Reviews are submittable **immediately** after completion; QA re-confirmed this live on 2026-09-12 by creating a review on a trade completed minutes earlier. Same root as Q13: neither `submitReview` nor `canReviewUser` contains any post-completion lock, and nothing in the DB enforces one (the only time rule in `030_reviews.sql` is the 24-hour **edit** window, which is unrelated).
+> **Decision owed (not a test result):** confirm whether a 24-hour cooling-off period is still wanted. If yes it must be built; if no, retire the case. Note the shipped app deliberately encourages an immediate review prompt on completion, which points the other way.
+> ⚠️ **Spec status — the requirement is real and explicit.** `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` → "Prompt Addendum: Anti-Brigading, Cooldowns, Dispute Flags" **item 2**: "Cooldown: **24h delay before review can be posted** to reduce impulsive ratings." It was never implemented. Note the genuine tension: the shipped app prompts for a review the moment a trade completes (Q01), so this requirement now conflicts with the delivered UX — which is exactly why it is an **owner decision** (implement the cooling-off period, or formally descope it by amending the spec), not a silent deletion.
 
 **Ref:** MODULE-08 Anti-Brigading Addendum
 **Actors:** test-buyer
@@ -4924,7 +4940,7 @@ FROM items;
 
 **Ref:** MODULE-08 REVIEW-007
 **Actors:** test-admin
-**Precondition:** At least one review has been auto-hidden (3+ reports, from TRD-TC-Q16).
+**Precondition:** At least one review has a report row in `review_reports` (any reported review — see the reconciliation note above; the old "auto-hidden via Q16" precondition is unreachable).
 
 **Objective:** Verify the admin moderation queue lists flagged reviews with full report details.
 
@@ -4941,47 +4957,53 @@ FROM items;
 
 ---
 
-###  passed TRD-TC-Q19 · Admin approves (unhides) a reported review
+### ✅ TRD-TC-Q19 · Admin keeps (unhides) a reported review
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-21 item 5): **the shipped action is [Keep], not [Approve]**, and the confirmation copy below previously did not match the app (QA finding N3). `p2p-kids-admin/src/app/reviews/page.tsx` renders exactly two row actions — **Keep** and **Hide** — and the Keep handler's prompt is the sentence quoted in the expected result. The "unhide" framing is also misleading: the queue lists any review that has **reports** (`/api/reviews/reported` is driven by `review_reports` rows), not only auto-hidden ones, so Keep is normally *confirming a visible review stays visible*, not restoring a hidden one. Auto-hiding at 3+ reports is unreachable by construction (see Q16).
 
 **Ref:** MODULE-08 REVIEW-007
 **Actors:** test-admin
-**Precondition:** An auto-hidden review is visible in the admin moderation queue.
+**Precondition:** A review with at least one report row appears in the admin moderation queue.
 
-**Objective:** Verify an admin can approve a flagged review, restoring public visibility and clearing all reports.
+**Objective:** Verify an admin can keep a reported review, restoring/confirming public visibility and clearing all reports.
 
 **Steps:**
-1. In the moderation queue, locate the flagged review.
-2. Tap **[Approve]** and confirm the confirmation prompt.
+1. In the moderation queue, locate the reported review.
+2. Tap **[Keep]** and confirm the confirmation prompt.
 3. Open **test-seller**'s public profile as **test-buyer**.
 
 **Expected Result:**
-- The confirmation prompt reads "This will unhide the review and delete all reports." with [Cancel] and [Approve] actions.
-- After confirming, the review disappears from the moderation queue.
-- The review is publicly visible again on the seller's profile.
-- The report count for that review resets to 0.
-- The seller's total review count and average rating reflect the restored review.
+- The confirmation prompt reads "This will keep the review visible, reject all reports, and notify everyone who reported it. Continue?" with [Cancel]/[OK] — the primary button label is **[Keep]**.
+- After confirming, the review leaves the moderation queue: the queue is built from `review_reports`, and the Keep route deletes those rows.
+- DB read-back (verified live 2026-09-12): `report_count = 0`, `has_been_reported = false`, `is_hidden = false`, `review_status = 'reviewed'`, and **0** `review_reports` rows for that review.
+- The review is publicly visible again / remains visible on the seller's profile, and its rating counts toward the seller's total and average.
+- Every reporter receives a "Report reviewed" notification explaining the review stays up.
 
 ---
 
-### deffered hide is enough TRD-TC-Q20 · Admin deletes a reported review
+### ✅ TRD-TC-Q20 · Admin hides a reported review
+
+> 🔄 Reconciled 2026-09-12 (FIX-Task-21 items 5 + 6): **the case was renamed** from "Admin deletes a reported review". **No delete affordance ships anywhere** — the moderation queue offers exactly two row actions, **Keep** and **Hide** (`p2p-kids-admin/src/app/reviews/page.tsx`), and the API has `hide`/`keep` routes only (no delete route). The previous steps ([Delete] + "This action cannot be undone.") described an action the queue has never had, so they were replaced by the shipped Hide flow.
+> ⚠️ **Hide is not a queue-removal.** It sets `is_hidden = true` / `review_status = 'hidden'` and deliberately **leaves the `review_reports` rows in place** (the hide route comments this explicitly). Because the queue is built from `review_reports`, **the review stays listed in the moderation queue** (now badged "Hidden") after a Hide — only a **Keep** removes a row from the queue (Keep deletes the reports). This is source-verified; a genuine destructive Delete, if it is still wanted, is a **feature request**, not a test case.
 
 **Ref:** MODULE-08 REVIEW-007
 **Actors:** test-admin
-**Precondition:** A review is visible in the admin moderation queue.
+**Precondition:** A review with at least one report row appears in the admin moderation queue.
 
-**Objective:** Verify an admin can permanently delete a flagged review.
+**Objective:** Verify an admin can hide a reported review so it is no longer publicly visible, without deleting it.
 
 **Steps:**
-1. In the moderation queue, locate a flagged review.
-2. Tap **[Delete]** and confirm the destructive confirmation prompt.
+1. In the moderation queue, locate the reported review.
+2. Tap **[Hide]** and accept the confirmation dialog.
 3. Open the reviewee's public profile as **test-buyer**.
 
 **Expected Result:**
-- The confirmation prompt warns "This action cannot be undone." with a destructive [Delete] action.
-- After confirming, the review is removed from the moderation queue.
-- The review is **not** visible on the reviewee's public profile.
-- The total review count and average rating on the profile reflect the deletion.
-- The deletion cannot be reversed from the admin UI.
+- The confirmation dialog reads "This will remove the review and notify everyone who reported it. Continue?" (a native browser confirm), and the row action label is **[Hide]**.
+- After confirming, the review is **not** visible on the reviewee's public profile.
+- DB read-back: `is_hidden = true` and `review_status = 'hidden'` on the review row.
+- The review row still **exists** (Hide is reversible — a later Keep can bring it back); unlike a Delete, nothing is destroyed.
+- The review **remains in the moderation queue** with the status badge "Hidden" (its `review_reports` rows were not removed) — do not expect the queue total to drop after a Hide. Only **Keep** reduces the queue.
+- Every reporter receives a "Review removed" notification.
 
 ---
 
@@ -7061,8 +7083,8 @@ FROM items;
 | Admin tax — bulk update | TRD-TC-P02 |
 | Admin tax — rate change history / audit | TRD-TC-P03 |
 | Admin tax — global settings + warning banner | TRD-TC-P04 |
-| Admin tax — reporting summary + date presets | TRD-TC-P05 |
-| Admin tax — jurisdiction breakdown + 7 report types | TRD-TC-P06 |
+| Admin tax — reporting summary (start/end range, no presets) | TRD-TC-P05 |
+| Admin tax — jurisdiction breakdown + 8 report tabs | TRD-TC-P06 |
 | Admin tax — CSV export | TRD-TC-P07 |
 | Admin tax — rate change applies to new transactions | TRD-TC-P08 |
 | Value stack includes sales tax line | TRD-TC-K01, TRD-TC-K02 |
@@ -7089,8 +7111,8 @@ FROM items;
 | Reviews — auto-hide after 3+ reports (REVIEW-006) | TRD-TC-Q16 |
 | Reviews — cannot flag own review (REVIEW-006) | TRD-TC-Q17 |
 | Reviews — admin moderation queue with counts and reasons (REVIEW-007) | TRD-TC-Q18 |
-| Reviews — admin approves (unhides) reported review (REVIEW-007) | TRD-TC-Q19 |
-| Reviews — admin permanently deletes reported review (REVIEW-007) | TRD-TC-Q20 |
+| Reviews — admin keeps (unhides) a reported review (REVIEW-007) | TRD-TC-Q19 |
+| Reviews — admin hides a reported review (REVIEW-007) | TRD-TC-Q20 |
 | Refund/cancel — buyer cancels pending (FLOW-27) | TRD-TC-R01 |
 | Refund/cancel — seller declines pending | TRD-TC-R02 |
 | Refund/cancel — offer expiry + competing offers | TRD-TC-R03 |
