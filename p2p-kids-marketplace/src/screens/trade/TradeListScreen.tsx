@@ -1171,6 +1171,15 @@ export default function TradeListScreen({ navigation }: any) {
             {summary.needsAction}
           </Text>
           <Text style={styles.summaryLabel}>Needs Action</Text>
+          {/* FIX-Task-19 item 10 (2026-09-11): this count is SELLER-side only
+              (seller_id = me AND status pending/in_progress AND no
+              auto_complete_at), so a buyer with 3 offers pending with the seller
+              correctly sees 0 here and reasonably asks why. The sub-label names
+              whose action is actually awaited. Kept to one short line so the four
+              tiles stay aligned. */}
+          <Text style={styles.summarySubLabel} testID="trade-summary-needs-action-hint">
+            Waiting on you
+          </Text>
         </Pressable>
         <View style={styles.summaryDivider} />
         <Pressable
@@ -2037,6 +2046,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
+  },
+  // FIX-Task-19 item 10: clarifies whose action the Needs Action count awaits.
+  summarySubLabel: {
+    fontSize: 10,
+    color: '#999999',
+    marginTop: 2,
+    textAlign: 'center',
   },
   summaryDivider: {
     width: 1,

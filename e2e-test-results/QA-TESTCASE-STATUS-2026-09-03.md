@@ -546,7 +546,7 @@ None — the last 3 (MSG-TC-G05/G08/G09) were executed in QA Task 30 (`qa-task30
 | TRD-TC-U03 | Notification bell behavior + badge accuracy | ✅ PASS | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | bell → notifications |
 | TRD-TC-U04 | Screens without ScreenLayout still have working headers | ✅ PASS | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | EditProfile canonical header |
 | TRD-TC-U05 | Checkout/payment screens intentionally hide the bell | ✅ PASS | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | checkout header hides bell |
-| TRD-TC-V01 | "Basket" (short form) appears in bottom tab bar | 🔴 STILL OPEN | FAIL | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | bottom-tab label 'Basket' not 'Trade Basket' (real copy defect; X01 same) |
+| TRD-TC-V01 | "Basket" (short form) appears in bottom tab bar | 🔴 STILL OPEN | FAIL | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | bottom-tab label 'Basket' not 'Trade Basket' (real copy defect; X01 same) — **SUPERSEDED 2026-09-11 (FIX-Task-19):** the guide's V01 body was amended (Dev Task 75) to ratify "Basket" as the intentional short tab label, so this is NOT a defect. Superseded verdict: **PASS**. See `TEST-COVERAGE-INVENTORY-v2.md`. |
 | TRD-TC-V02 | "Trade Basket" appears as screen title on Cart screen | ✅ PASS | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | cart title |
 | TRD-TC-V03 | Empty state shows "trade basket" in copy | ✅ PASS | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | empty state |
 | TRD-TC-V04 | "View Trade Basket" button on Item Detail screen | ✅ PASS | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | Item Detail button |

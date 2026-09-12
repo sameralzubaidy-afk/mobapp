@@ -11,6 +11,7 @@ import {
   getTaxSummary,
   formatCents,
   formatTaxRate,
+  resolveDisplayTaxRate,
   isTaxExemptCategory,
   __resetTaxCategoriesCache,
 } from '@/services/tax';
@@ -42,6 +43,65 @@ describe('tax service (TAX-014)', () => {
       expect(formatTaxRate(0)).toBe('0.00%');
       expect(formatTaxRate(0.0635)).toBe('6.35%');
       expect(formatTaxRate(null)).toBe('0.00%');
+    });
+  });
+
+  // FIX-Task-19 item 4 (2026-09-11): the Order-Summary tax row used to show a
+  // BLENDED rate (totalTax / full cart subtotal). On a cart mixing a tax-exempt
+  // line with taxable ones that produced a percentage applying to no single line
+  // — observed "Sales Tax (4.67%)" on 2 x 6.99% plus 1 exempt (Books) — while the
+  // guide expects plain "Sales Tax" for a mixed cart. The rate is now shown only
+  // when the cart is uniform.
+  describe('resolveDisplayTaxRate (FIX-Task-19 item 4)', () => {
+    it('returns the shared rate when every line is taxed identically', () => {
+      expect(
+        resolveDisplayTaxRate([
+          { taxRate: 0.0699, isExempt: false },
+          { taxRate: 0.0699, isExempt: false },
+        ])
+      ).toBe(0.0699);
+    });
+
+    it('returns 0 (plain "Sales Tax") when ANY line is tax-exempt', () => {
+      expect(
+        resolveDisplayTaxRate([
+          { taxRate: 0.0699, isExempt: false },
+          { taxRate: 0.0699, isExempt: false },
+          { taxRate: 0, isExempt: true },
+        ])
+      ).toBe(0);
+    });
+
+    it('returns 0 when the taxable lines disagree on the rate', () => {
+      expect(
+        resolveDisplayTaxRate([
+          { taxRate: 0.0699, isExempt: false },
+          { taxRate: 0.05, isExempt: false },
+        ])
+      ).toBe(0);
+    });
+
+    it('returns 0 when a non-exempt line has no active rule (rate 0)', () => {
+      expect(
+        resolveDisplayTaxRate([
+          { taxRate: 0.0699, isExempt: false },
+          { taxRate: 0, isExempt: false },
+        ])
+      ).toBe(0);
+    });
+
+    it('returns 0 for an empty cart or an all-exempt cart', () => {
+      expect(resolveDisplayTaxRate([])).toBe(0);
+      expect(resolveDisplayTaxRate([{ taxRate: 0, isExempt: true }])).toBe(0);
+    });
+
+    it('ignores floating-point noise between equal rates', () => {
+      expect(
+        resolveDisplayTaxRate([
+          { taxRate: 0.0699, isExempt: false },
+          { taxRate: 0.0699000000001, isExempt: false },
+        ])
+      ).toBe(0.0699);
     });
   });
 

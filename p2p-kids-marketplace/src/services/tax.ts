@@ -167,6 +167,42 @@ export function formatTaxRate(rate: number | null | undefined): string {
   return `${(r * 100).toFixed(2)}%`;
 }
 
+/** One line of the Order Summary tax preview (FIX-Task-19 item 4). */
+export interface TaxLineRateInput {
+  /** The per-line `tax_rate` returned by `calculate_tax` (0 when no taxable rule applies). */
+  taxRate: number;
+  /** True when this line's tax category is exempt (`tax_exempt_goods`). */
+  isExempt: boolean;
+}
+
+/**
+ * FIX-Task-19 item 4 (2026-09-11): resolves the rate shown in the Order Summary
+ * tax row's parenthetical, e.g. "Sales Tax (6.99%)".
+ *
+ * The row used to show a BLENDED rate (totalTax / full cart subtotal). On a cart
+ * mixing a tax-exempt line with taxable ones that produced a percentage which
+ * applied to no single line — e.g. "Sales Tax (4.67%)" on a cart with two lines
+ * at 6.99% plus one exempt line — and the guide expects plain "Sales Tax" there.
+ *
+ * Rule: show a rate ONLY when the cart is uniform — there is no exempt line, and
+ * every line is taxed at the same non-zero rate. Returns 0 to mean "show no
+ * rate" (TaxBreakdownRow hides the parenthetical when taxRate <= 0).
+ */
+export function resolveDisplayTaxRate(lines: TaxLineRateInput[]): number {
+  if (lines.length === 0) return 0;
+  // Any exempt line makes the cart mixed — one parenthetical would mislead.
+  if (lines.some((l) => l.isExempt)) return 0;
+  const rates = lines.map((l) =>
+    typeof l.taxRate === 'number' && Number.isFinite(l.taxRate)
+      ? Number(l.taxRate.toFixed(6))
+      : 0,
+  );
+  // A non-taxable line inside an otherwise-taxable cart is also non-uniform.
+  if (rates.some((r) => r <= 0)) return 0;
+  const unique = new Set(rates);
+  return unique.size === 1 ? rates[0] : 0;
+}
+
 /** Key of the platform's canonical tax-exempt category (see tax_categories seed). */
 const TAX_EXEMPT_CATEGORY_KEY = 'tax_exempt_goods';
 

@@ -805,8 +805,12 @@ describe('TradeTimelineScreen', () => {
 // FIX-Task-15 item 7 (2026-09-10): the EXPANDED safe-meetup card is scroll
 // content, so its measured height is added to the ScrollView's reserved bottom
 // space while it is open — the same guarantee the collapsed/tail state has.
-describe('computeTimelineBottomPadding (FIX-Task-15 item 7)', () => {
-  it('reserves the pinned-footer space (inset + clearance + footer + gap) while collapsed', () => {
+// FIX-Task-19 item 5 (2026-09-11): the floating pill band is now reserved in the
+// NO-pinned-footer case too (previously a flat 100), because the tail content
+// (payout-hold-info-button, the secondary action stack) was landing under the tab
+// band. The band is parameterized so it can never drift from the pinned footers.
+describe('computeTimelineBottomPadding (FIX-Task-15 item 7 / FIX-Task-19 item 5)', () => {
+  it('reserves the pinned-footer space (inset + band + footer + gap) while collapsed', () => {
     expect(
       computeTimelineBottomPadding({
         hasPinnedFooter: true,
@@ -830,7 +834,8 @@ describe('computeTimelineBottomPadding (FIX-Task-15 item 7)', () => {
     ).toBe(34 + 84 + 85 + 24 + 378);
   });
 
-  it('falls back to the default and still adds the expanded card when there is no pinned footer', () => {
+  it('reserves the tab band even with no pinned footer (FIX-Task-19 item 5)', () => {
+    // inset + band + gap = 134, which is above the historical 100 floor.
     expect(
       computeTimelineBottomPadding({
         hasPinnedFooter: false,
@@ -839,7 +844,7 @@ describe('computeTimelineBottomPadding (FIX-Task-15 item 7)', () => {
         safeMeetupExpanded: false,
         safeMeetupHeight: 378,
       })
-    ).toBe(100);
+    ).toBe(34 + 84 + 16);
     expect(
       computeTimelineBottomPadding({
         hasPinnedFooter: false,
@@ -848,6 +853,31 @@ describe('computeTimelineBottomPadding (FIX-Task-15 item 7)', () => {
         safeMeetupExpanded: true,
         safeMeetupHeight: 378,
       })
-    ).toBe(478);
+    ).toBe(34 + 84 + 16 + 378);
+  });
+
+  it('never drops below the 100 floor when the insets are small', () => {
+    expect(
+      computeTimelineBottomPadding({
+        hasPinnedFooter: false,
+        insetsBottom: 0,
+        footerHeight: 0,
+        safeMeetupExpanded: false,
+        safeMeetupHeight: 0,
+      })
+    ).toBe(100);
+  });
+
+  it('honours an explicit tab-bar band override', () => {
+    expect(
+      computeTimelineBottomPadding({
+        hasPinnedFooter: false,
+        insetsBottom: 0,
+        footerHeight: 0,
+        safeMeetupExpanded: false,
+        safeMeetupHeight: 0,
+        tabBarBand: 120,
+      })
+    ).toBe(120 + 16);
   });
 });

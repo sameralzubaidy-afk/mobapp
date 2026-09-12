@@ -52,6 +52,44 @@ interface CartItem {
   acceptsSP?: boolean;
 }
 
+/**
+ * FIX-Task-19 item 2 (2026-09-11): the per-item points caption in a cart row.
+ *
+ * Previously the badge suffix and the "Points unavailable for this item" note
+ * were two independent inline conditions that shared `spMaxByListing[id] ==
+ * null` — which is true BOTH while the cap is still resolving AND when no cap
+ * exists. A subscriber's Accept-SP row therefore briefly rendered "Accepts
+ * Points" AND "Points unavailable for this item" at the same time.
+ *
+ * One decision point now owns both, so they can never disagree: while resolving,
+ * a single neutral placeholder is shown and the unavailable note is suppressed.
+ * Exported so the rule is unit-testable without rendering the whole screen
+ * (mirrors how `computeTimelineBottomPadding` is exported for its test), and it
+ * is the real runtime path — not a test-only helper.
+ */
+export function getItemPointsCaption(params: {
+  isSubscriber: boolean;
+  acceptsSP: boolean;
+  itemUnavailable: boolean;
+  capResolving: boolean;
+  maxSp: number | null | undefined;
+}): { badgeSuffix: string | null; showUnavailableNote: boolean } {
+  const { isSubscriber, acceptsSP, itemUnavailable, capResolving, maxSp } = params;
+  if (!isSubscriber || !acceptsSP) {
+    return { badgeSuffix: null, showUnavailableNote: false };
+  }
+  if (capResolving) {
+    // The cap is not known yet: neither the "Up to N SP" figure nor the
+    // "unavailable" note is truthful, so show one neutral placeholder.
+    return { badgeSuffix: ' · Checking points…', showUnavailableNote: false };
+  }
+  if (maxSp != null) {
+    return { badgeSuffix: ` · Up to ${maxSp} SP`, showUnavailableNote: false };
+  }
+  // Resolved with no cap => checkout renders no SP input for this item.
+  return { badgeSuffix: null, showUnavailableNote: !itemUnavailable };
+}
+
 export default function CartScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { refreshCartCount } = useCartContext();
@@ -79,6 +117,13 @@ export default function CartScreen() {
   // CART M12 (QA Task 7): subscriber flag + per-item "Up to N SP" (category cap)
   const [isSubscriber, setIsSubscriber] = useState(false);
   const [spMaxByListing, setSpMaxByListing] = useState<Record<string, number>>({});
+  // FIX-Task-19 item 2 (2026-09-11): true while the per-item SP cap is being
+  // resolved. Without it the render could not tell "cap still loading" from "no
+  // cap exists" — both are `spMaxByListing[id] == null` — so an Accept-SP item
+  // briefly rendered "Accepts Points" AND "Points unavailable for this item" at
+  // the same time. Starts true so the first paint after the cart loads shows the
+  // neutral placeholder rather than the unavailable note.
+  const [spCapResolving, setSpCapResolving] = useState(true);
 
   // M13 (QA Task 7): an item is "unavailable" when its live status is present and
   // not 'available' — mirrors the inline "no longer available" label logic below.
@@ -197,6 +242,7 @@ export default function CartScreen() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      setSpCapResolving(true);
       const targets = cartItems.filter((item) => item.acceptsSP && !isItemUnavailable(item));
       const next: Record<string, number> = {};
       await Promise.all(
@@ -220,7 +266,13 @@ export default function CartScreen() {
           }
         })
       );
-      if (!cancelled) setSpMaxByListing(next);
+      // FIX-Task-19 item 2 (2026-09-11): only clear the resolving flag together
+      // with the resolved map, so the badge can never show the "no cap" note
+      // while the fetch is still in flight.
+      if (!cancelled) {
+        setSpMaxByListing(next);
+        setSpCapResolving(false);
+      }
     };
     load();
     return () => {
@@ -418,11 +470,29 @@ export default function CartScreen() {
   // Subtotal in cents for analytics and validation
   const subtotalCents = Math.round(calculateSubtotal() * 100);
 
+  // FIX-Task-19 item 7 (2026-09-11): skeleton rows instead of a bare "Loading
+  // trade basket..." string — the row geometry matches the real cards so the list
+  // doesn't jump when data arrives, and the per-item "Up to N SP" caption appears
+  // once, in one step, instead of changing meaning mid-load (item 2). The loading
+  // signal is preserved for screen readers.
   if (loading) {
     return (
       <ScreenLayout variant="tab" title="Trade Basket">
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading trade basket...</Text>
+        <View
+          style={styles.skeletonContainer}
+          testID="cart-loading-skeleton"
+          accessible
+          accessibilityLabel="Loading trade basket"
+        >
+          {[0, 1, 2].map((row) => (
+            <View key={row} style={styles.skeletonRow}>
+              <View style={styles.skeletonThumb} />
+              <View style={styles.skeletonLines}>
+                <View style={[styles.skeletonBlock, styles.skeletonLineWide]} />
+                <View style={[styles.skeletonBlock, styles.skeletonLineNarrow]} />
+              </View>
+            </View>
+          ))}
         </View>
       </ScreenLayout>
     );
@@ -606,11 +676,20 @@ export default function CartScreen() {
                     {item.acceptsSP && (
                       <View style={styles.acceptsSpBadge}>
                         <Coins size={14} color="#F59E0B" weight="fill" />
-                        <Text style={styles.acceptsSpText}>
+                        <Text
+                          style={styles.acceptsSpText}
+                          testID={`cart-item-accepts-sp-${item.id}`}
+                        >
                           Accepts Points
-                          {isSubscriber && spMaxByListing[item.listingId] != null
-                            ? ` · Up to ${spMaxByListing[item.listingId]} SP`
-                            : null}
+                          {/* FIX-Task-19 item 2: the SAME helper drives the badge and
+                              the note below, so the two can never contradict. */}
+                          {getItemPointsCaption({
+                            isSubscriber,
+                            acceptsSP: !!item.acceptsSP,
+                            itemUnavailable: isItemUnavailable(item),
+                            capResolving: spCapResolving,
+                            maxSp: spMaxByListing[item.listingId],
+                          }).badgeSuffix ?? ''}
                         </Text>
                       </View>
                     )}
@@ -618,18 +697,25 @@ export default function CartScreen() {
                   {/* DEV-TASK-73: Accept-SP item with no category cap (NULL category) —
                       checkout renders no SP input for it, so the "Accepts Points" tag
                       would over-promise. Muted note for subscribers (the only users
-                      who'd expect the input) on an otherwise-eligible item. */}
-                  {isSubscriber &&
-                    item.acceptsSP &&
-                    !isItemUnavailable(item) &&
-                    spMaxByListing[item.listingId] == null && (
-                      <Text
-                        style={styles.pointsUnavailableText}
-                        testID={`cart-item-points-unavailable-${item.id}`}
-                      >
-                        Points unavailable for this item
-                      </Text>
-                    )}
+                      who'd expect the input) on an otherwise-eligible item.
+                      FIX-Task-19 item 2 (2026-09-11): now sourced from the SAME
+                      caption helper as the badge, so it can never co-render with the
+                      loading placeholder (`.showUnavailableNote` is false while the
+                      cap is still resolving). */}
+                  {getItemPointsCaption({
+                    isSubscriber,
+                    acceptsSP: !!item.acceptsSP,
+                    itemUnavailable: isItemUnavailable(item),
+                    capResolving: spCapResolving,
+                    maxSp: spMaxByListing[item.listingId],
+                  }).showUnavailableNote && (
+                    <Text
+                      style={styles.pointsUnavailableText}
+                      testID={`cart-item-points-unavailable-${item.id}`}
+                    >
+                      Points unavailable for this item
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
 
@@ -849,15 +935,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  // FIX-Task-19 items 2/7 (2026-09-11): static placeholder rows shown while the
+  // basket loads — replaces the bare "Loading trade basket..." text so the real
+  // rows land in place (no layout jump) and the per-item SP caption appears once.
+  skeletonContainer: {
+    paddingHorizontal: 24,
+    paddingTop: theme.spacing.md,
   },
-
-  loadingText: {
-    ...theme.typography.body,
-    color: theme.textColors.secondary,
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+  },
+  skeletonThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: theme.colors.neutral[100],
+  },
+  skeletonLines: {
+    flex: 1,
+    marginLeft: theme.spacing.md,
+  },
+  skeletonBlock: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: theme.colors.neutral[100],
+  },
+  skeletonLineWide: {
+    width: '70%',
+    marginBottom: theme.spacing.sm,
+  },
+  skeletonLineNarrow: {
+    width: '35%',
   },
 
   header: {

@@ -313,7 +313,12 @@ export function PersistentTabBar() {
             onPress={() => navigateToTab('TradeList', NAV_EVENTS.TRADES_TAB_TAPPED)}
           />
 
-          {/* 5 — Basket */}
+          {/* 5 — Basket.
+              FIX-Task-19 item 6 (2026-09-11): "Basket" is the INTENTIONAL short
+              form for the tab bar — ratified product behavior (Dev Task 75,
+              TRD-TC-V01 body): the full name "Trade Basket" is reserved for the
+              Cart screen title and all in-app copy (alerts, buttons, empty
+              state). Do NOT "fix" this to "Trade Basket". */}
           <TabItem
             Icon={ShoppingCart}
             label="Basket"

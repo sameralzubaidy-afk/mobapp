@@ -519,7 +519,7 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-U03 | Notification bell behavior + badge accuracy |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | bell → notifications |
 | TRD-TC-U04 | Screens without ScreenLayout still have working headers |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | EditProfile canonical header |
 | TRD-TC-U05 | Checkout/payment screens intentionally hide the bell |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | checkout header hides bell |
-| TRD-TC-V01 | "Basket" (short form) appears in bottom tab bar |  | FAIL | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | 🔴 STILL OPEN | bottom-tab label 'Basket' not 'Trade Basket' (real copy defect; X01 same) |
+| TRD-TC-V01 | "Basket" (short form) appears in bottom tab bar |  | PASS | 2026-09-11 | `FIX-Task-19 (ratification)` | ✅ PASS | The short form **Basket** in the tab bar IS the ratified product behavior — guide V01 body states it explicitly (Dev Task 75), with "Trade Basket" reserved for the screen title + in-app copy. The 2026-08-31 FAIL read the stale index wording. No app copy change; label source-verified. X01 same. |
 | TRD-TC-V02 | "Trade Basket" appears as screen title on Cart screen |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | cart title |
 | TRD-TC-V03 | Empty state shows "trade basket" in copy |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | empty state |
 | TRD-TC-V04 | "View Trade Basket" button on Item Detail screen |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | Item Detail button |
@@ -926,7 +926,6 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TC | Status | Latest | Finding |
 |---|---|---|---|
 | TRD-TC-N07 | 🔴 STILL OPEN | 2026-09-02 | FLAG: needs auto-paused sub-min $4 listing fixture (R41); positive leg not driven |
-| TRD-TC-V01 | 🔴 STILL OPEN | 2026-08-31 | bottom-tab label 'Basket' not 'Trade Basket' (real copy defect; X01 same) |
 | TRD-TC-B02 | 🟡 PARTIAL | 2026-08-28 | expiry mechanics + History PASS; residual F1 'offer_expired' vs 'Offer expired' string mismatch (reverify-a02-b02-b06 flagged FAIL) |
 | TRD-TC-B10 | 🟡 PARTIAL | 2026-09-02 | attach/persist code-path verified (same path as DT83 D2 PASS); literal new-card entry native-sheet tooling-limited |
 | TRD-TC-H05 | 🟡 PARTIAL | 2026-08-29 | trial-start leg not on-device reachable (trial_enabled=false); state machine source-verified |

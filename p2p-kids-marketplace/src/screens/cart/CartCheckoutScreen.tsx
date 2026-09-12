@@ -51,7 +51,9 @@ import {
   mapStripeErrorToMessage,
 } from '@/services/trade';
 import { useSubscriptionStatus } from '@/hooks/useAuth';
-import { calculateTax, isTaxExemptCategory } from '@/services/tax';
+// FIX-Task-19 item 1 (2026-09-11): the Basket tab badge is fed by CartContext.
+import { useCartContext } from '@/contexts/CartContext';
+import { calculateTax, isTaxExemptCategory, resolveDisplayTaxRate } from '@/services/tax';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 import {
   getBuyerFeeForCheckout,
@@ -88,6 +90,13 @@ export default function CartCheckoutScreen() {
   const route = useRoute<RouteProps>();
   const { bundleId, bundleMode } = route.params;
   const { canSpendSP, status } = useSubscriptionStatus();
+  // FIX-Task-19 item 1 (2026-09-11): after a successful checkout the cart is
+  // cleared server-side (rpc_cart_clear). That DELETE does NOT reach the tab
+  // badge's filtered Realtime subscription unless cart_items has
+  // REPLICA IDENTITY FULL (see 20260911000002_..._replica_identity.sql), so the
+  // badge could stay stale until the Basket screen mounted or the app was
+  // foregrounded. Refresh the count explicitly on success (BP-36).
+  const { refreshCartCount } = useCartContext();
   // DEV-TASK-66 item 1: grace users keep the member fee tier (R6-consistent).
   // Canonical grace literal is 'grace_period' (BP-76); keep 'grace' as legacy alias.
   const isSubscriber =
@@ -294,17 +303,24 @@ export default function CartCheckoutScreen() {
           if (!jurisdiction && r.data.tax_jurisdiction) jurisdiction = r.data.tax_jurisdiction;
         }
       }
-      const taxableTotalCents = items.reduce(
-        (sum, it) => sum + (it.priceCents ?? Math.round((it.price ?? 0) * 100)),
-        0
+      // FIX-Task-19 item 4 (2026-09-11): this used to be a BLENDED rate
+      // (totalTax / FULL cart subtotal, including exempt lines). On a cart mixing
+      // a tax-exempt item with taxable ones that produced a percentage applying
+      // to no single line — observed "Sales Tax (4.67%)" on 2 x 6.99% + 1 exempt
+      // (Books) — while the guide expects plain "Sales Tax" for a mixed cart.
+      // Now a rate is shown only when the cart is uniform: no exempt line and
+      // every line at the same non-zero rate. 0 => the row renders plain
+      // "Sales Tax" (TaxBreakdownRow hides the parenthetical when taxRate <= 0).
+      const displayTaxRate = resolveDisplayTaxRate(
+        items.map((it, idx) => ({
+          taxRate: results[idx]?.success ? (results[idx].data.tax_rate ?? 0) : 0,
+          isExempt: exemptResults[idx] ?? false,
+        }))
       );
-      // Blended rate shown in the UI subtext only — the dollar amount charged is the
-      // exact sum of each item's own correctly-computed tax, never a blended estimate.
-      const blendedRate = taxableTotalCents > 0 ? totalTaxCents / taxableTotalCents : 0;
       setTaxState({
         loading: false,
         taxAmountCents: totalTaxCents,
-        taxRate: blendedRate,
+        taxRate: displayTaxRate,
         jurisdiction,
         isTaxExempt: allExempt,
       });
@@ -625,6 +641,14 @@ export default function CartCheckoutScreen() {
 
       const tradeIds = result.data.tradeIds;
 
+      // FIX-Task-19 item 1 (2026-09-11): the server already cleared the cart via
+      // rpc_cart_clear, but the tab badge only recovered when the Basket screen
+      // mounted (CartScreen also calls refreshCartCount on focus). Refresh the
+      // shared cart count here so the badge reads 0 immediately on the success
+      // screen, My Trades and Home. Covers both the full-success path below and
+      // the partial-success modal path (both resume from this point).
+      await refreshCartCount();
+
       // ── Record disclaimer acknowledgment for each trade (best effort) ──
       // DT-52: never silent — the shared helper logs RPC failures to Sentry and
       // emits a `disclaimer_ack_failed` analytics metric (DT-45 lesson).
@@ -806,6 +830,18 @@ export default function CartCheckoutScreen() {
                       {spLimit.source === 'wallet'
                         ? 'Limited by your SP balance'
                         : "Limited by this item's category"}
+                    </Text>
+                    {/* FIX-Task-19 item 8 (2026-09-11): the running balance was only
+                        shown in the banner ABOVE the item list (and in Order Summary),
+                        so while a parent typed into a lower item's SP field the total
+                        scrolled out of view and looked like it never moved. Mirror the
+                        live remaining balance next to each input — `remainingBalance`
+                        is recomputed on every keystroke via handleSpChange. */}
+                    <Text style={styles.spRemainingText} testID={`sp-remaining-${item.listingId}`}>
+                      Points remaining:{' '}
+                      <Text style={styles.balanceValue}>
+                        {balanceLoading ? '—' : remainingBalance}
+                      </Text>
                     </Text>
                   </View>
                 )}
@@ -1174,6 +1210,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999999',
     marginTop: 4,
+  },
+  // FIX-Task-19 item 8: live running balance shown next to each SP input so it is
+  // visible while typing, without scrolling back up to the banner.
+  spRemainingText: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    marginTop: 6,
   },
   breakdownRow: {
     flexDirection: 'row',

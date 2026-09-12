@@ -99,10 +99,20 @@ const TAB_BAR_FOOTER_CLEARANCE = 84;
 // very first layout pass, before onLayout reports the real height.
 const PINNED_FOOTER_GAP = 24;
 const PINNED_FOOTER_HEIGHT_FALLBACK = 210;
-function computePinnedFooterSpace(insetsBottom: number, footerHeight: number): number {
+// FIX-Task-19 item 5 (2026-09-11): breathing room between the pill-nav band and
+// the last scrollable row when NO pinned footer is present.
+const TAB_BAR_CONTENT_GAP = 16;
+// FIX-Task-19 item 5: the historical BP-58 floor — the reserved space must never
+// drop below this, whatever the insets happen to work out to.
+const TAB_BAR_CONTENT_FLOOR = 100;
+function computePinnedFooterSpace(
+  insetsBottom: number,
+  footerHeight: number,
+  tabBarBand: number
+): number {
   return (
     insetsBottom +
-    TAB_BAR_FOOTER_CLEARANCE +
+    tabBarBand +
     (footerHeight || PINNED_FOOTER_HEIGHT_FALLBACK) +
     PINNED_FOOTER_GAP
   );
@@ -121,10 +131,21 @@ export function computeTimelineBottomPadding(params: {
   footerHeight: number;
   safeMeetupExpanded: boolean;
   safeMeetupHeight: number;
+  /** FIX-Task-19 item 5: the floating pill band to clear. Defaults to the
+   *  canonical TAB_BAR_FOOTER_CLEARANCE — the SAME constant the pinned footers
+   *  use for their own `bottom` offset, so padding and geometry cannot drift. */
+  tabBarBand?: number;
 }): number {
+  const tabBarBand = params.tabBarBand ?? TAB_BAR_FOOTER_CLEARANCE;
+  // FIX-Task-19 item 5 (2026-09-11): reserve the tab band in BOTH cases. The
+  // no-pinned-footer case previously fell back to a flat 100, which left the tail
+  // content (payout-hold-info-button, the secondary action stack) under the
+  // floating pill nav — QA measured content at y2143-2391 against a tab band
+  // starting at y2190. The band is now always accounted for, floored at the
+  // historical 100 so the existing BP-58 clearance can never regress.
   const base = params.hasPinnedFooter
-    ? computePinnedFooterSpace(params.insetsBottom, params.footerHeight)
-    : 100;
+    ? computePinnedFooterSpace(params.insetsBottom, params.footerHeight, tabBarBand)
+    : Math.max(TAB_BAR_CONTENT_FLOOR, params.insetsBottom + tabBarBand + TAB_BAR_CONTENT_GAP);
   return base + (params.safeMeetupExpanded ? params.safeMeetupHeight : 0);
 }
 
@@ -209,6 +230,13 @@ export default function TradeTimelineScreen() {
   // internal `collapsed` flag), so this state and the callback agree.
   const [safeMeetupExpanded, setSafeMeetupExpanded] = useState(false);
   const [safeMeetupHeight, setSafeMeetupHeight] = useState(0);
+  // FIX-Task-19 item 5 (2026-09-11): the dev diagnostic below must report the
+  // REAL pinned-footer state, but `hasPinnedFooter` is derived further down and
+  // is therefore not initialized on renders that hit the loading early-return
+  // (referencing it directly in the effect callback would throw a TDZ
+  // ReferenceError). This ref mirror is assigned in the render body once the
+  // value exists, so the log stays accurate and crash-free.
+  const hasPinnedFooterRef = useRef(false);
 
   // Register the qa-scroll-to handler for this screen. Registered once for the
   // screen lifetime; the refs are stable, so the testID→ref mapping is built
@@ -257,17 +285,28 @@ export default function TradeTimelineScreen() {
       contentHeight: timelineContentHeight,
       maxScrollOffset: Math.max(0, timelineContentHeight - timelineViewportHeight),
       pinnedFooterHeight,
-      pinnedFooterReservedSpace: computePinnedFooterSpace(insets.bottom, pinnedFooterHeight),
+      pinnedFooterReservedSpace: computePinnedFooterSpace(
+        insets.bottom,
+        pinnedFooterHeight,
+        TAB_BAR_FOOTER_CLEARANCE
+      ),
+      // FIX-Task-19 item 5: report the REAL pinned-footer state (this was
+      // hardcoded `true`, so the log claimed footer clearance even when no footer
+      // rendered) plus the tab band being cleared, so QA can distinguish the
+      // buyer footer (~210dp), the seller footer (~85dp) and the no-footer case.
+      hasPinnedFooter: hasPinnedFooterRef.current,
+      tabBarBand: TAB_BAR_FOOTER_CLEARANCE,
       // FIX-Task-15 item 7: the expanded safe-meetup card's contribution, so QA
       // can confirm the reserved space grows with the card from the log alone.
       safeMeetupExpanded,
       safeMeetupHeight,
       timelineBottomPadding: computeTimelineBottomPadding({
-        hasPinnedFooter: true,
+        hasPinnedFooter: hasPinnedFooterRef.current,
         insetsBottom: insets.bottom,
         footerHeight: pinnedFooterHeight,
         safeMeetupExpanded,
         safeMeetupHeight,
+        tabBarBand: TAB_BAR_FOOTER_CLEARANCE,
       }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1096,6 +1135,9 @@ export default function TradeTimelineScreen() {
     isSeller && trade.status === 'in_progress' && !hasUnresolvedDispute;
   // Either pinned footer reserves the same extra scroll room below the content.
   const hasPinnedFooter = showPinnedBuyerCompleteCta || showPinnedSellerCancelCta;
+  // FIX-Task-19 item 5: mirror the real flag for the dev diagnostic (see the ref
+  // declaration next to the other measured state).
+  hasPinnedFooterRef.current = hasPinnedFooter;
   // FIX-Task-13 item 1 (2026-09-10): reserve EXACTLY the vertical space the
   // pinned footer occupies, instead of the previous hard-coded 210.
   // The footer floats at `insets.bottom + TAB_BAR_FOOTER_CLEARANCE`, so the

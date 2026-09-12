@@ -90,7 +90,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     userIdRef.current = user.id;
 
-    // Subscribe to changes in cart_items for this user
+    // Subscribe to changes in cart_items for this user.
+    // FIX-Task-19 item 1 (2026-09-11, BP-36): this server-side `user_id` filter
+    // can only be evaluated for DELETE events when cart_items has
+    // REPLICA IDENTITY FULL — with the Postgres default (primary key only) the
+    // delete performed by rpc_cart_clear at checkout is NOT delivered here.
+    // That is why checkout also calls refreshCartCount() explicitly; the
+    // migration 20260911000002 sets the replica identity so this subscription
+    // sees deletes too. If you remove the explicit refresh, keep that migration.
     const channel = supabase
       .channel('cart-count-changes')
       .on(

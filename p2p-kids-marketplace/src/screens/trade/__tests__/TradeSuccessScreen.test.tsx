@@ -266,6 +266,59 @@ describe('TradeSuccessScreen', () => {
       });
     });
 
+    // FIX-Task-19 item 3 (2026-09-11): the cart/bundle flow passes ONLY tradeId,
+    // so `spUsed` is 0 on the first paint. The "no SP used" nudge therefore used
+    // to render before the trade's sp_amount read resolved — QA observed
+    // "Consider using SP on your next purchase" immediately after a 16-SP order.
+    it('FIX-19 item 3: an SP order never shows the "no SP used" nudge', async () => {
+      mockUseAuth.mockReturnValue({
+        session: { user: { id: 'user-1' }, subscription_status: 'active' },
+      });
+      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
+        params: { success: true, role: 'buyer', tradeStatus: 'initiated', tradeId: 'sp-trade-16' },
+      });
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue({
+              data: { sp_amount: 16, buyer_transaction_fee_cents: 149 },
+              error: null,
+            }),
+          })),
+        })),
+      });
+      const { getByTestId, queryByText } = render(<TradeSuccessScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('cta-message').props.children).toContain('You saved');
+      });
+      expect(getByTestId('cta-message').props.children).not.toContain(
+        'SP on your next purchase'
+      );
+      expect(queryByText(/SP on your next purchase/)).toBeNull();
+    });
+
+    it('FIX-19 item 3: the nudge is suppressed while the trade SP read is still open', () => {
+      mockUseAuth.mockReturnValue({
+        session: { user: { id: 'user-1' }, subscription_status: 'active' },
+      });
+      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
+        params: { success: true, role: 'buyer', tradeId: 'pending-read' },
+      });
+      // Never resolves — the gate must stay closed rather than guess "no SP used".
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn(() => new Promise(() => {})),
+          })),
+        })),
+      });
+      const { getByTestId, queryByText } = render(<TradeSuccessScreen />);
+
+      expect(getByTestId('cta-message').props.children).toBe('');
+      expect(queryByText(/SP on your next purchase/)).toBeNull();
+    });
+
     // Permutation 2: Subscriber buyer, SP used → show savings + Keep Shopping
     it('P2: subscriber buyer with SP used should show savings message and Keep Shopping', () => {
       mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
@@ -288,7 +341,7 @@ describe('TradeSuccessScreen', () => {
     });
 
     // Permutation 3: Subscriber buyer, no SP → suggest SP on next purchase
-    it('P3: subscriber buyer with no SP should see Browse Items CTA', () => {
+    it('P3: subscriber buyer with no SP should see Browse Items CTA', async () => {
       mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: {
@@ -301,7 +354,11 @@ describe('TradeSuccessScreen', () => {
       });
       const { getByTestId, getByText } = render(<TradeSuccessScreen />);
       expect(getByText('Browse Items')).toBeTruthy();
-      expect(getByTestId('cta-message').props.children).toContain('SP on your next purchase');
+      // FIX-Task-19 item 3: the nudge now waits for the trade's sp_amount read to
+      // settle (the cart flow passes only tradeId), so assert it asynchronously.
+      await waitFor(() => {
+        expect(getByTestId('cta-message').props.children).toContain('SP on your next purchase');
+      });
       fireEvent.press(getByTestId('cta-primary-button'));
       expect(mockNavigate).toHaveBeenCalledWith('Discover');
     });

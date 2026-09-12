@@ -175,6 +175,11 @@ export default function TradeSuccessScreen() {
   // sp_amount from the real trade (1 SP = $1). null = no real trade row → fall
   // back to the route params (e.g. the qa-trade-success deep link).
   const [tradeSpUsed, setTradeSpUsed] = useState<number | null>(null);
+  // FIX-Task-19 item 3 (2026-09-11): false until the trade's sp_amount read
+  // settles. The cart/bundle flow passes only { tradeId }, so `spUsed` is 0 on
+  // the first paint — which let the "no SP used" nudge flash even for an order
+  // that DID use SP (QA observed it right after a 16-SP order).
+  const [tradeSpResolved, setTradeSpResolved] = useState(false);
 
   // R1 + Dev Task 78 (H01): the Kids Club+ upsell savings = what this buyer
   // ACTUALLY paid on this trade (trade.buyer_transaction_fee_cents) minus the
@@ -183,6 +188,9 @@ export default function TradeSuccessScreen() {
   // was server-computed at offer time, and the member fee comes from admin_config.
   useEffect(() => {
     if (!user?.id || !tradeId) {
+      // FIX-Task-19 item 3: nothing to read — treat the SP figure as resolved so
+      // the CTA falls back to the route params instead of staying suppressed.
+      setTradeSpResolved(true);
       return;
     }
     let cancelled = false;
@@ -214,6 +222,10 @@ export default function TradeSuccessScreen() {
         setFeeSavingsCents(computed > 0 ? computed : feeSavingsParamCents);
       } catch {
         setFeeSavingsCents(feeSavingsParamCents);
+      } finally {
+        // FIX-Task-19 item 3: the SP figure is now known (or the read failed) —
+        // release the nudge gate either way.
+        if (!cancelled) setTradeSpResolved(true);
       }
     };
     void loadFee();
@@ -291,6 +303,9 @@ export default function TradeSuccessScreen() {
             // trade over route params (which cart/bundle completions may omit).
             const effectiveSpUsed = tradeSpUsed ?? spUsed;
             const effectiveSpAmountDollars = tradeSpUsed != null ? tradeSpUsed : spAmountDollars;
+            // FIX-Task-19 item 3: a positive route param means we already know the
+            // figure; otherwise wait for the trades.sp_amount read above.
+            const spUsedKnown = spUsed > 0 || tradeSpResolved;
             const cta = buildCompletionCTA(
               isBuyer,
               isSeller,
@@ -307,21 +322,42 @@ export default function TradeSuccessScreen() {
             );
             return (
               <View style={styles.ctaGroup}>
-                {/* CTA contextual message */}
+                {/* CTA contextual message.
+                    FIX-Task-19 item 3 (2026-09-11): suppressed until we know how
+                    much SP this order used, so the buyer-subscriber "no SP used"
+                    nudge (permutation 3) can never flash on an SP order. */}
                 <Text style={styles.ctaMessage} testID="cta-message">
-                  {cta.message}
+                  {isBuyer && isSubscriber && !spUsedKnown ? '' : cta.message}
                 </Text>
 
-                {/* Primary CTA button */}
+                {/* FIX-Task-19 item 9 (2026-09-11): the four CTAs previously had no
+                    visual priority — one filled button followed by three identical
+                    outlines, with no ordering rationale. "View Trade Details" is now
+                    the single primary action (design-system rule: at most one primary
+                    per screen) and the contextual CTA is demoted to secondary. The
+                    testIDs stay attached to their original actions so existing QA
+                    locators and Maestro flows keep working. */}
                 <Pressable
                   style={styles.primaryButton}
+                  onPress={() => navigation.navigate('TradeDetail', { tradeId })}
+                  testID="cta-view-trade-details-button"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Cta view trade details button"
+                >
+                  <Text style={styles.primaryButtonText}>View Trade Details</Text>
+                </Pressable>
+
+                {/* Contextual CTA — label + destination vary by role/tier/status */}
+                <Pressable
+                  style={styles.secondaryButton}
                   onPress={cta.onPress}
                   testID="cta-primary-button"
                   accessible
                   accessibilityRole="button"
                   accessibilityLabel="Cta primary button"
                 >
-                  <Text style={styles.primaryButtonText}>{cta.ctaLabel}</Text>
+                  <Text style={styles.secondaryButtonText}>{cta.ctaLabel}</Text>
                 </Pressable>
 
                 {/* Rate Seller button (completion only) */}
@@ -343,18 +379,6 @@ export default function TradeSuccessScreen() {
                     <Text style={styles.secondaryButtonText}>Rate Seller</Text>
                   </Pressable>
                 )}
-
-                {/* View Trade Details button (both buyer and seller) */}
-                <Pressable
-                  style={styles.secondaryButton}
-                  onPress={() => navigation.navigate('TradeDetail', { tradeId })}
-                  testID="cta-view-trade-details-button"
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel="Cta view trade details button"
-                >
-                  <Text style={styles.secondaryButtonText}>View Trade Details</Text>
-                </Pressable>
 
                 {/* View My Trades button (replaces old "Done" text link) */}
                 <Pressable
