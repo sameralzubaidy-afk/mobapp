@@ -1180,6 +1180,38 @@ This is the discipline that caught **two consecutive near-miss false positives i
 
 *Evidence / origin: 2026-09-13 QA round (`e2e-test-results/qa-groupl-final-mnst-round3-2026-09-13/report.md` finding F4; `ledger.md` friction #1 + §7). A warm `qa-login-as` persona switch left Home **and** Trades on perpetual spinners with LogBox reading `[trade] Error counting active trades: {"message":""}`; `qa-logout` did not clear it; `force-stop` + cold relaunch recovered immediately (~12 calls spent before the relaunch, vs ~4 min of cold start). The round's §8.3 handoff flagged the rule. Applied via `.github/prompts/apply-handoff-rule-suggestion.prompt.md`; consolidated context in `/memories/repo/qa-test-agent.md` (2026-09-13 entry).*
 
+---
+
+### 5.81 Standing rule — a staging BACKEND outage has a recognisable signature; name it, bound the retries, and pivot to session-independent work (2026-09-13) — R102
+
+**R102 — When a Supabase-backed request fails or hangs, first check whether the failure matches the STAGING-OUTAGE SIGNATURE below. If it does, classify it as an ENVIRONMENT blocker (never an app defect), stop re-testing that endpoint after the bound, and switch to verdict work that needs neither a session nor a DB read-back.**
+
+**The signature (any two limbs are enough to call it).**
+
+| Limb | Observed form |
+|---|---|
+| Auth | `POST /auth/v1/token?grant_type=password` → **HTTP 504** (check `x-envoy-attempt-count` — Supabase's own upstream attempts) |
+| App DB reads | dev LogBox **`57014`** *canceling statement due to statement timeout* on the app's own query |
+| Direct SQL | **`Connection terminated due to connection timeout`** from the MCP/SQL path |
+| Fixture scripts | **`Gateway Timeout`** from `qa:*` harness scripts (e.g. `qa:create-bundle-fixture`) |
+| Side-effects | TOS/policy content fetches failing, sections silently absent, `qa-login-as` failing with no visible cause |
+
+**The discriminator that matters — the EDGE stays healthy while the up-stream leg does not.** Probe the same endpoint **unauthenticated**: if it answers **`401`/`400` in well under a second**, the edge + network are fine and the fault is in the **upstream auth/DB** leg. This is what separates a real outage from a dead local network, a stale Metro bundle, or an app bug — and it is a one-call answer.
+
+**Read the CLIENT's own log before theorising about the app (the highest-value half of this rule).** The app frequently names the failing endpoint itself, e.g. `[QaLoginAsDeepLink] Login-as test-seller failed: {"status":504, … ,"url":"https://<ref>.supabase.co/auth/v1/token?grant_type=password"}` — that single line proves server-side fault and identifies the endpoint, and it costs one `logcat | grep`. Do this **before** forming a hypothesis about the app, and before writing a finding.
+
+**Bounded retries, then pivot.** Cap re-tests at **2 per endpoint** (one to confirm, one after a few minutes to see whether it cleared). Then stop and pivot to work that is genuinely session-independent — source-only cases, doc/source verification, and any `Suggested Next Session` items that need neither a session nor a DB read-back. Note explicitly in the report which cases were **not** attempted because of the outage.
+
+**Consequences to apply.**
+- A stall that matches the signature is **BLOCKED (environment)** — never FAIL, and never written up as a product defect. Retract any hypothesis the outage invalidates (this round retracted an "Review Offer never loads for a bundle" suspicion once the screen loaded first-try post-recovery).
+- **Re-test on a fresh process after recovery before filing anything** — the recovery window is the cheapest place to distinguish "broken" from "backend was down".
+- Do **not** keep driving: the outage also corrupts the *evidence* (partial renders, missing sections). A screen captured mid-outage can produce a **false finding** (this round: Item Detail rendered with its entire Seller Info block absent because the seller join was timing out — the honest verdict was BLOCKED + a robustness observation, not "the buttons are missing").
+- Report the outage as a **finding of its own** with the frontier evidence, and ask the owner to confirm staging health before the next attempt.
+
+**Relation to existing rules (no duplication):** **R101 (§5.80) is the sibling** — same family, opposite cause. R101 says a **blank-message** console error (no `code`, no `message`) means the **CLIENT** fetch layer died and must be recovered locally; R102 says a **504 / `57014` / gateway timeout** means the **SERVER** is down and no amount of local recovery will help. Together they cover both halves of "the request didn't complete": *whose* fault is it, and *what is the lever* (relaunch vs. wait-and-pivot). **R87 (§5.72) is the pattern this reuses** — detect a signature early, stop retrying after 1–2 attempts, pivot — but R87's signature is a **dev-tooling crash** (`SIGSEGV` in `libart.so` on Hermes/JVMTI attach) and its pivot is a *platform* change, so R102 does not restate it. R102 also deliberately does **not** restate the generic bounded-attempt discipline (§6.1 "bounded attempts on a single interaction type, then pivot"; §5.19 Rule 6 bounded LogBox dismissals); it adds only the **outage-specific signature, the edge-vs-upstream discriminator, and the "read the client's own log first" ordering**.
+
+*Evidence / origin: 2026-09-13 QA round #2 (`e2e-test-results/qa-groupn-n2-phase0-2026-09-13/report.md` §1 + findings F1/F2; `ledger.md` decision-log rows 8–12). Five consecutive `504`s on `/auth/v1/token` over ~13 min, `57014` in the app's own cart query, two direct-SQL connection timeouts, and a `Gateway Timeout` from `qa:create-bundle-fixture` — while an unauthenticated POST to the same endpoint returned `401` in `0.12 s`. ~26 calls (18 % of the run) were spent re-testing a backend already proven down, against a bound of 2. Staging recovered mid-session and Phase 0 (a)/(b)/(d) were then driven and verified. Applied via `.github/prompts/apply-handoff-rule-suggestion.prompt.md`; consolidated context in `/memories/repo/qa-test-agent.md` (2026-09-13 2nd-round entry).*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion
