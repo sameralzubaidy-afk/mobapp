@@ -825,6 +825,24 @@ Any hit on a live screen is a DEVIATION (canonical map: `#4A7C59`→primary `#5D
 
 *Evidence / origin: QA Task 34 (2026-09-05) — ContinueKidsClub active branch on-brand while its upsell branch leaked `#4A7C59` (price card / primary CTA) + `#4D4D4D`/`#808080` (benefit / fine-print text); the first-pass review only rendered the active branch. Report: `e2e-test-results/qa-task34-payout-e2e-2026-09-05/report.md` (D1).*
 
+**R62d — Run the FULL forbidden-hex list, never R62b's 3-hex subset. ⚠ R62d supersedes R62b's sweep list (merge pending the owner's confirmation — see the DATED changelog entry in `.github/agents/QA-Test-Agent.agent.md`).** R62b's `#4A7C59|#4D4D4D|#808080` is only the *legacy-design-system* family; the actual forbidden set is the one dev-side **BP-82 rule 7** already prescribes:
+
+`grep -rEn "#4CAF50|#E53935|#29B6F6|#0066CC|#007AFF|#93C5FD|#D97706|#111827|#6B7280|#D1D5DB|#4A7C59|#4D4D4D|#808080" p2p-kids-marketplace/src`
+
+…i.e. Material (`#4CAF50`/`#E53935`/`#29B6F6`), **iOS system blue (`#0066CC`/`#007AFF`/`#93C5FD`)**, Tailwind gray/amber (`#111827`/`#6B7280`/`#D1D5DB`/`#D97706`) and legacy design system (`#4A7C59`/`#4D4D4D`/`#808080`).
+
+**Why this exists.** The bare 3-hex shortcut is **structurally blind to the iOS-system-blue family** — a whole deviation class the one check exists to catch. FIX-Task-28 (2026-09-13) proved it live: `ImagePickerGrid`'s full-width **"+ Add Photo"** rendered `#007AFF` on the Edit Listing form directly above a green `#5DBB8E` "Save Changes", and the R62b sweep could not have seen it. **Consequence: never report a design pass as clean on the strength of the 3-hex sweep alone** — that is not a verified negative (same discipline as R105 / §5.34: a search that cannot match your target is not evidence of absence).
+
+**Liveness triage is mandatory before filing.** A source grep **over-reports**. In the FIX-Task-28 round **three** of the `#007AFF` hits were **not reachable** — `src/screens/LoginScreen.tsx` + `src/screens/SignupScreen.tsx` are **orphans** (`AppNavigator.tsx:19-20` routes `@/screens/auth/*`) and `atoms/Button`'s `#0066FF` has **no importer** — so a raw count would have claimed 8+ broken screens when the true user-facing count was **1 confirmed + 1 internal + accents**. Classify every hit **live / dead-branch / orphan / annotation** (R62c#1's "a comment that merely NAMES a hex is not a hit" applies) before writing any finding.
+
+**R62e — The per-screen design pass runs for EVERY screen you render, including one driven only for a FUNCTIONAL case; and any full-width filled button/card is a colour-scan target of its own.** §6.4 already makes the design-system review mandatory per screen — FIX-Task-28 showed the failure mode is not the rule but its **trigger**: Edit Listing was driven to satisfy a functional case (N11), so no visual pass was run on it and an off-brand primary sat there unnoticed until the owner pointed at the screenshot.
+
+1. **The AX tree never reports COLOUR.** A clean element read (`edit-listing-image-picker-add-photo` with correct bounds + label) proves presence and geometry, **never brand-compliance** — do not infer on-brand from a clean tree (the inverse of §5.22's "visual presence ≠ AX presence").
+2. **Scan the fills.** For every screen rendered, `qa:badge-scan` each **full-width / prominent filled button or card** for the forbidden tokens. A **large solid fill is exactly where a per-region scan IS reliable** (FIX-Task-28: region `{53,1034,975×127}` → **97.48% blue / 0.00% green** in one call) — this **qualifies R62c#2's "per-region scans returned false zeros"**, which applies to thin **text bands**, not to solid fills. Pair the target scan with a **control scan on the canonical green button in the same frame** (Save Changes: 94.10% green / 0.00% blue) so the tokens are proven to discriminate.
+3. **One screen, one primary.** A *second* filled primary in a different colour is itself the finding (FIX-Task-28: blue "+ Add Photo" above green "Save Changes" on one long form).
+
+*Evidence / origin: R62d/R62e — FIX-Task-28 verification round (2026-09-13), findings F11 (MED, on-device) + F12 (the round's own first-pass miss). Frame `e2e-test-results/qa-fix28-verify-lowsp-n-s-2026-09-13/screenshots/FINDING-editlisting-blue-add-photo.png`; scans + liveness triage in that round's `report.md` §4 + `blue-button-ux-enhancements.md`. Dev side needs **no change** — BP-82 rule 7 already carries the full list and the agent file's symptom index already reads "Screen colors/tokens look off-brand (blue CTAs / Material palette)" with a `system-blue hex (BP-82)` check; the gap was QA-side only.*
+
 ### 5.64 Standing rule — QA Task 37 codification (part 1): session-start checklist + instrumented-modals-first + hosted canonical values (2026-09-06) — R63–R66
 
 Codifies QA Task 36 + QA Task 37 decision-log patterns (was recommended after two consecutive rounds; this is the landing). Evidence: `e2e-test-results/qa-task37-g01-redrive-2026-09-06/decision-and-outcome-log-ai-analysis.md` (§Phase-0, F-1/F-4, I-8) and the QA Task 36 log. Where an earlier standing rule covers the same ground (R27 testID-first, R17 screenshot-truth, R-NEW-1 relaunch-first), this section adds the session-level defaults so they are not re-derived every run.
@@ -1279,6 +1297,22 @@ The two shapes are different: `format=json` emits objects with `identifier` / `c
 **Relation to existing rules (no duplication).** **R87 (§5.71 area)** tells you to *recognise* this crash signature early as a dev-tooling crash, not app code; **R101** covers empty-message stall recovery; **R-NEW-1 (§5.47)** covers the *twice-repeated* blind/status-bar-only tree on a healthy screen. R107 is the **preventive** counterpart specific to stall windows — it names the condition that makes the dump dangerous and supplies the replacement technique. It does not weaken any rule that says "AX-dump before every tap" on a **healthy** screen; that standing requirement is unchanged.
 
 **Evidence / origin:** FIX-Task-28 item 6 (2026-09-13); originating evidence `e2e-test-results/qa-fix27-verify-n2-phaseE-2026-09-13/report.md` (F7, lines 194-195) and `ledger.md:21`; rule recorded verbatim in `/memories/repo/qa-fix-task-27-verify-2026-09-13.md:6`. The `--coords` replacement shipped alongside this rule.
+
+### 5.85 Standing rule — capture a render-triggered JS warning by batching the trigger and the log read in ONE `mobile_batch_commands` call (2026-09-13, FIX-Task-28 item 5) — R108
+
+**R108 — When a JS-side warning/console line is emitted during a RENDER (not on an explicit user action), capture it by batching the re-render trigger and `mobile_get_device_logs` in a SINGLE `mobile_batch_commands` call.** `mobile_get_device_logs` only receives entries emitted **after the call starts**, so a warning that fired when a screen first rendered is invisible to any later standalone read — there is no "look back at the buffer" mode.
+
+**The technique.** One batch = `[ <tap that re-renders the target surface> , mobile_get_device_logs{filter:["message=<needle>"], limit:N} ]`. The tap forces the re-render and the log read that follows *inside the same batch* therefore starts **before** the warning is emitted.
+
+**Pick a trigger that is safe to batch.** It must act WITHIN an already-rendered surface (e.g. a tab switch to a screen that re-renders the affected rows) — **never a modal-opening tap**, which is R106's forbidden case (the read would land pre-modal and the batch would poison its own evidence).
+
+**Worked example (FIX-Task-28 item 5).** The empty-URI image warning (`source.uri should not be an empty string`) fires when a row with no image renders. Two batched calls — `[close-modal → get_device_logs(filter message=source.uri)]` and `[Basket tab → get_device_logs(...)]` — both returned **zero** matching entries, converting that item from unverifiable to **verified** in two calls, alongside the absence of any LogBox overlay across the five image-less surfaces.
+
+**Interpretation discipline.** A zero result is only evidence if the capture actually had a chance to see the content (§5.12's DB-over-CDP rule; the §5.24(b) checkpoint): confirm the filter's needle shape matches a **known-present** control line first (R105's control-grep discipline), and state which surfaces/windows were covered.
+
+**Relation to existing rules (no duplication).** **§5.12 remains the default** for JS console capture (Hermes CDP, which streams `Runtime.consoleAPICalled`); R108 is the cheap **logcat-side** path for a warning whose **trigger is a render event**. It does not weaken **R95** or **R106**: a batch's *UI-state read* still reflects pre-action state — R108 exploits the batch for **log capture**, where the tap's purpose is to *cause* the emission rather than to observe the result.
+
+*Evidence / origin: FIX-Task-28 item 5 (2026-09-13); report `e2e-test-results/qa-fix28-verify-lowsp-n-s-2026-09-13/report.md` (Phase 0 item 5) + `ledger.md`. Siblings: R105 (§5.82 — a capture you cannot grep correctly is not a verified negative), R95/R106 (§5.77/§5.83 — batch read/write timing).*
 
 ## 6. Judgment — three distinct layers, ALL required
 

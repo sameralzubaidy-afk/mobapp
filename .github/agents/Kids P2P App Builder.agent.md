@@ -936,6 +936,14 @@ Issue: "A screen's unit test never settles — the tree is stuck on its loading 
 ✅ Check: Debugging asserted on mock call counts / rendered state rather than `console.log` — this repo suppresses jest console output and the log will be silently missing (BP-93 rule 4)
 See also: BP-93 (identity-stable jest mocks), BP-60 (test isolation — shared mutable params leaking between cases), BP-57 (behaviour-fix test drift — a green-looking test written around the old behaviour)
 
+Issue: "A unit test stays green while exercising the WRONG branch — the module under test gained a new import and the suite's `jest.mock()` factory for it never listed that export"
+
+✅ Check: Every factory for the module path was diffed against the module's real exports — an unlisted export is `undefined`, not "no-op" (BP-94 rule 1)
+✅ Check: The consumer's `try/catch` (or fail-soft path) was ruled out as the reason the `TypeError: … is not a function` never surfaced — a soft-fail service turns an incomplete mock into a plausible domain result (BP-94 rule 2)
+✅ Check: Each factory export carries an explicit implementation AND a `beforeEach` default — `jest.clearAllMocks()` clears calls but not implementations, so a test that armed a failure toggle can leak into the next case (BP-94 rule 3)
+✅ Check: The assertion still touches the value that changed — a green suite whose assertions drifted away from the changed value is the tell (BP-94 detection checklist)
+See also: BP-94 (mock factories must mirror the module's full export surface), BP-88 (an invented mock shape green-lights an unreachable branch), BP-93 (jest mock mechanics — unstable mocks present as a silent timeout instead)
+
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
 Test in Supabase Studio: Run raw SQL queries to verify data/RLS
@@ -1502,6 +1510,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-91 Mobile UI changes need an in-session on-device attempt — a screen-behaviour change must get a device pass in the SAME session, or the Session Handoff must enumerate every owed device leg concretely (screen → action → expected observation) and say "code-level verified; device legs owed"; never treat typecheck/lint/unit-green as on-device verification, budget the device pass BEFORE the code work, and re-read the AX tree rather than trusting a screenshot taken immediately after a tap (FIX-Task-25, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-92 Paint only authoritative values — every displayed number derives from the SAME array/state its visible list renders (no parallel state written by a second fetcher), all counters of one quantity share one helper, and a money/state value is never painted from a placeholder fallback a fetch will correct — withhold it (`—`/skeleton) and disable any control that submits it until it is authoritative (F8 banner-vs-button count, F9 tiles-vs-list frame lag, F4 checkout first-paint total — FIX-Task-26, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-93 Jest mocks must return identity-stable objects — an inline `useNavigation: () => ({…})` mock re-creates every dependent `useCallback` per render, so a `useFocusEffect` loops and the screen never leaves its loading state; use a module-level `mock`-prefixed constant and debug by asserting mock call counts (jest output is suppressed) (FIX-Task-26, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-94 A `jest.mock()` factory must mirror the module's FULL export surface — adding a new import to the module under test requires adding that export to every factory that stubs it in the SAME pass; an unlisted export is `undefined` at call time, its `TypeError` is swallowed by the consumer's own `try/catch` (soft-fail), and the test then asserts on the fallback/error branch while staying green — give each factory export an explicit impl + `beforeEach` default (`clearAllMocks` does NOT reset implementations) (FIX-Task-28, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
