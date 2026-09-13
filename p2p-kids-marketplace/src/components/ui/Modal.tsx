@@ -13,6 +13,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { theme } from '@/theme';
+import { sanitizeUserFacingMessage } from '@/utils/authError';
 import { Button } from './Button';
 
 export type ModalType = 'alert' | 'bottomSheet';
@@ -63,6 +64,14 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const isBottomSheet = type === 'bottomSheet';
 
+  // FIX-Task-26 item 1 (2026-09-13): last-line guard. A serialized fetch
+  // `Response` (headers, cookies, Supabase project ref) must never be laid out as
+  // dialog copy — QA Phase 0 F1 — and a non-string value would throw as a React
+  // child. Any unusable message degrades to friendly copy instead.
+  const displayMessage = message
+    ? sanitizeUserFacingMessage(message, 'Something went wrong. Please try again.')
+    : undefined;
+
   return (
     <RNModal
       transparent
@@ -99,7 +108,7 @@ export const Modal: React.FC<ModalProps> = ({
           )}
 
           {title && <Text style={styles.title}>{title}</Text>}
-          {message && <Text style={styles.message}>{message}</Text>}
+          {displayMessage && <Text style={styles.message}>{displayMessage}</Text>}
 
           {children && <View style={styles.content}>{children}</View>}
 

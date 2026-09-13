@@ -48,6 +48,8 @@ import {
   verifyEmailChangeCode,
 } from '@/services/emailChange';
 import { captureException } from '@/services/errorReporter';
+import { sanitizeUserFacingMessage } from '@/utils/authError';
+import { getErrorSearchText, getUserFacingError } from '@/utils/userFacingError';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner, OTPInput } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -57,18 +59,13 @@ import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAcce
 // Use `any` here to unblock type-checking until DB types are generated.
 type UserProfile = any;
 
-const formatErrorMessage = (error: unknown): string => {
-  if (error && typeof error === 'object' && 'message' in error) {
-    const candidate = (error as Record<string, unknown>).message;
-    if (typeof candidate === 'string') {
-      return candidate;
-    }
-  }
-  if (typeof error === 'string') {
-    return error;
-  }
-  return JSON.stringify(error) || 'Unknown error';
-};
+/**
+ * FIX-Task-26 item 1 (2026-09-13): the old fallback was `JSON.stringify(error)`,
+ * which returns a serialized object (or a whole fetch `Response`) — the QA
+ * Phase 0 F1 class. Callers now use this ONLY to classify a failure; anything the
+ * user reads comes from `getUserFacingError()` / `sanitizeUserFacingMessage()`.
+ */
+const formatErrorMessage = (error: unknown): string => getErrorSearchText(error);
 
 export default function EditProfileScreen({ navigation, route }: any) {
   const preloadedUser = route?.params?.preloadedUser;
@@ -576,10 +573,13 @@ export default function EditProfileScreen({ navigation, route }: any) {
         console.warn('Partial update warning:', error);
         // Update local phone if available from returned user
         if (user && user.phone) setPhone(user.phone);
-        const errMsg =
-          error instanceof Error
-            ? error.message
-            : (error && (error as any).message) || 'Some fields were not updated.';
+        const errMsg = sanitizeUserFacingMessage(
+          (error as { message?: unknown } | null)?.message,
+          getUserFacingError(error, {
+            action: 'save that change',
+            fallback: 'Some fields were not updated. Please try again.',
+          })
+        );
         Alert.alert('Updated with Warning', errMsg, [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
@@ -689,10 +689,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
       captureException(error, {
         tags: { screen: 'EditProfileScreen', action: 'profile_update' },
       });
-      const errMsg =
-        error instanceof Error
-          ? error.message
-          : String(error) || 'Failed to update profile. Please try again.';
+      const errMsg = getUserFacingError(error, {
+        action: 'update your profile',
+        fallback: 'Failed to update profile. Please try again.',
+      });
       Alert.alert('Error', errMsg);
     } finally {
       setSaving(false);
@@ -817,7 +817,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
     if (!result.success) {
       setEmailVerification((prev) => ({
         ...prev,
-        message: result.error?.message || 'Verification failed. Please try again.',
+        message: sanitizeUserFacingMessage(
+          result.error?.message,
+          'Verification failed. Please try again.'
+        ),
       }));
       return;
     }
@@ -876,7 +879,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
       sending: false,
       message: result.success
         ? undefined
-        : result.error?.message || 'Failed to resend the code. Please try again.',
+        : sanitizeUserFacingMessage(
+            result.error?.message,
+            'Failed to resend the code. Please try again.'
+          ),
     }));
   };
 

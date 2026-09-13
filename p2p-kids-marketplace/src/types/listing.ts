@@ -86,6 +86,15 @@ export interface Listing {
     name: string;
     avatar_url: string | null;
   };
+  /**
+   * FIX-Task-26 item 4 (2026-09-13) — QA Phase 0 F11: the seller is read in a
+   * SEPARATE query from the listing, and a failed read used to leave `seller`
+   * undefined with no signal — so the whole Seller Info block (masked identity,
+   * Contact Seller, View Profile, More-from-seller) silently disappeared. This
+   * flag distinguishes "the seller read failed" from "there is no seller", so the
+   * screen can offer a retry instead of pretending the section does not exist.
+   */
+  sellerLoadFailed?: boolean;
   category?: {
     id: string;
     name: string;

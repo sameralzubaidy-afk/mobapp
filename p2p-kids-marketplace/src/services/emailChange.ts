@@ -13,6 +13,7 @@
 
 import { supabase } from './supabase/client';
 import { captureException } from './errorReporter';
+import { redactForLogging, sanitizeUserFacingMessage } from '../utils/authError';
 
 export type EmailChangeErrorCode =
   | 'UNAUTHORIZED'
@@ -81,12 +82,21 @@ async function invokeEmailChange(body: Record<string, unknown>): Promise<EmailCh
       if (typeof err === 'object' && err && err.message) {
         return {
           success: false,
-          error: { code: err.code || 'INTERNAL', message: err.message },
+          error: {
+            code: err.code || 'INTERNAL',
+            // FIX-Task-26 item 1 (2026-09-13): the EF's structured message is
+            // app-authored, but guard it anyway — nothing but short plain copy may
+            // reach a user-visible surface.
+            message: sanitizeUserFacingMessage(err.message, GENERIC_ERROR),
+          },
         };
       }
       return {
         success: false,
-        error: { code: 'INTERNAL', message: payload?.message || GENERIC_ERROR },
+        error: {
+          code: 'INTERNAL',
+          message: sanitizeUserFacingMessage(payload?.message, GENERIC_ERROR),
+        },
       };
     }
 
@@ -103,9 +113,14 @@ async function invokeEmailChange(body: Record<string, unknown>): Promise<EmailCh
   } catch (err) {
     captureException(err, {
       tags: { service: 'emailChange', action: 'invoke' },
-      extra: { body: JSON.stringify(body) },
+      // FIX-Task-26 item 1 (2026-09-13): the request body carries the NEW EMAIL
+      // ADDRESS — it must not be shipped to the reporter.
+      extra: redactForLogging(err),
     });
-    const message = err instanceof Error ? err.message : GENERIC_ERROR;
+    const message = sanitizeUserFacingMessage(
+      err instanceof Error ? err.message : '',
+      GENERIC_ERROR
+    );
     return { success: false, error: { code: 'INTERNAL', message } };
   }
 }

@@ -81,15 +81,22 @@ export default function ForgotPasswordScreen() {
           },
         });
 
-        const baseMessage = error.message || 'Failed to send password reset email.';
-        const lm = baseMessage.toLowerCase();
+        // FIX-Task-26 item 1 (2026-09-13): the branch classifier still reads the
+        // upstream message, but it is NEVER rendered — a 5xx stringifies the whole
+        // fetch Response into `error.message`, and "no infrastructure identifiers in
+        // any build" is the ratified policy. The dev/staging branch keeps its
+        // developer-facing remediation checklist (QA AUTH-TC-S03/S04/S05 assert it)
+        // and the production branch keeps parent-friendly copy + Contact Support.
+        const rawMessage = typeof error.message === 'string' ? error.message : '';
+        const lm = rawMessage.toLowerCase();
 
         // Dev/staging keep the full developer-targeted detail + "Open Supabase Docs"
         // (QA AUTH-TC-S03/S04/S05 assert this exact copy). Production renders a
         // parent-friendly message + the in-app Contact Support route instead — never a
         // developer docs link on a parent/guardian screen (FIX-Task-3, 43d Item 6).
         if (IS_DEV_OR_STAGING) {
-          let detailMessage = baseMessage;
+          let detailMessage =
+            'We could not send the password reset email. Here is what to check next.';
           if (lm.includes('rate limit')) {
             detailMessage =
               'You have requested password reset emails too frequently. Please check your inbox (including spam) or try again in a few minutes.';

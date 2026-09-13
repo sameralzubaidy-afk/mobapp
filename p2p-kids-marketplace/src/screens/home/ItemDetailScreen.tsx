@@ -50,7 +50,9 @@ import MatchesCartBadge from '@/components/molecules/MatchesCartBadge';
 import { getSellerGroup, isSameSellerGroup } from '@/utils/sellerGroup';
 import { getMaskedSellerListings } from '@/services/listing';
 import { RootStackParamList } from '@/navigation/types';
-import { formatPrice } from '@/utils/formatPrice';
+// NOTE (FIX-Task-26 item 7 / UX item 3): `formatPrice` is no longer imported here —
+// the savings note stopped printing a second fee figure, and the breakdown renders
+// the fee with its own `toFixed(2)`.
 import {
   Heart,
   HeartStraight,
@@ -100,6 +102,8 @@ export default function ItemDetailScreen() {
   // from a genuinely broken/invalid link ("Listing not found" error state).
   const [unavailable, setUnavailable] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  // FIX-Task-26 item 4 (QA Phase 0 F11): busy flag for the seller-info retry.
+  const [sellerRetryBusy, setSellerRetryBusy] = useState(false);
 
   // Buyer subscription context (MODULE-11 dependency)
   const [buyerCanSpendSP, setBuyerCanSpendSP] = useState(false);
@@ -313,6 +317,30 @@ export default function ItemDetailScreen() {
       setError('Failed to load listing');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * FIX-Task-26 item 4 (QA Phase 0 F11): retry the seller sub-request from the
+   * degraded Seller Info card. Re-reads the listing WITHOUT the full-screen
+   * `loading` gate (that would blank the page the buyer is already reading); the
+   * listing read also re-resolves the seller, which is the part that failed.
+   */
+  const retrySellerInfo = async () => {
+    if (sellerRetryBusy || !listing_id) return;
+    setSellerRetryBusy(true);
+    try {
+      const data = await getListingById(listing_id);
+      if (data) {
+        setListing(data);
+      }
+    } catch (err) {
+      captureException(err, {
+        tags: { screen: 'ItemDetailScreen', action: 'retry_seller_info' },
+      });
+      // Keep the error card — the buyer can try again.
+    } finally {
+      setSellerRetryBusy(false);
     }
   };
 
@@ -550,11 +578,16 @@ export default function ItemDetailScreen() {
 
   // R1 — Tiered Buyer-Fee Engine: server-resolved fee + label. Savings vs the
   // active-member flat fee (only meaningful for percentage-tier free users).
-  const platformFeeCents = buyerFeeInfo?.feeCents ?? activeMemberFlatCents;
+  // FIX-Task-26 item 7 (UX item 3, 2026-09-13): the fee has no numeric fallback any
+  // more — the breakdown is the SINGLE authoritative money statement on this screen,
+  // so it must not print a value that changes once the server fee lands (the same
+  // "first paint shows a wrong total" class as QA Phase 0 F4).
+  const platformFeeCents = buyerFeeInfo?.feeCents ?? 0;
   const platformFee = platformFeeCents / 100;
   const taxDollars = (tax.taxAmountCents || 0) / 100;
   const totalPrice = listing.price + platformFee + taxDollars;
   const savingsDollars = Math.max(0, (platformFeeCents - activeMemberFlatCents) / 100);
+  const moneyReady = buyerFeeInfo !== null && !tax.loading;
 
   // Determine seller name display (TASK-ITEM-DETAILS-001)
   const shouldShowSellerName = hasActiveTrade;
@@ -803,7 +836,7 @@ export default function ItemDetailScreen() {
                   {buyerFeeInfo?.label ?? 'Safety & Platform Fee'}
                 </Text>
                 <Text style={[styles.feeValue, buyerIsSubscriber && styles.feeValueSubscriber]}>
-                  ${platformFee.toFixed(2)}
+                  {moneyReady ? `$${platformFee.toFixed(2)}` : '—'}
                 </Text>
               </View>
 
@@ -821,14 +854,20 @@ export default function ItemDetailScreen() {
 
               <View style={styles.feeRow}>
                 <Text style={styles.feeTotalLabel}>Total (before SP discount)</Text>
-                <Text style={styles.feeTotalValue}>${totalPrice.toFixed(2)}</Text>
+                <Text style={styles.feeTotalValue}>
+                  {moneyReady ? `$${totalPrice.toFixed(2)}` : '—'}
+                </Text>
               </View>
 
+              {/* UX item 3 (FIX-Task-26 item 7, 2026-09-13): the SP banner above carries
+                  points messaging only, and this card is the one place on the screen that
+                  states fees/tax/total. This note used to restate a SECOND fee figure
+                  ("pay only $1.49 per transaction") alongside the fee row directly above
+                  it; the membership nudge is kept without the duplicate number. */}
               {!buyerIsSubscriber && savingsDollars > 0 && (
                 <View style={styles.savingsNote}>
                   <Text style={styles.savingsNoteText}>
-                    💡 Save ${savingsDollars.toFixed(2)} on fees! Subscribe to Kids Club+ and pay
-                    only {formatPrice(activeMemberFlatCents)} per transaction.
+                    💡 Kids Club+ members pay a lower platform fee on every trade.
                   </Text>
                 </View>
               )}
@@ -995,21 +1034,41 @@ export default function ItemDetailScreen() {
             </View>
           )}
 
-          {/* Fallback Seller Section if seller data failed to load */}
+          {/* FIX-Task-26 item 4 (2026-09-13) — QA Phase 0 F11: the seller is a
+              SEPARATE sub-request, so a failed read used to delete this whole section
+              (masked identity, Contact Seller, View Profile, More-from-seller) with no
+              error state and no way to recover. It now degrades to an explicit,
+              retryable card instead of silently disappearing. */}
           {!listing.seller && listing.seller_id && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Seller</Text>
-              <View style={styles.sellerCard}>
+              <Text style={styles.sectionTitle}>Seller Info</Text>
+              <View style={styles.sellerCard} testID="seller-info-error-card">
                 <View style={styles.sellerAvatarPlaceholder}>
                   <Text style={styles.sellerAvatarText}>?</Text>
                 </View>
                 <View style={styles.sellerInfo}>
-                  <Text style={styles.sellerName}>Seller</Text>
-                  <TouchableOpacity onPress={handleContactSeller}>
-                    <Text style={styles.contactSellerLink}>Contact Seller →</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.sellerName}>We couldn't load this seller's details</Text>
+                  <Text style={styles.sellerErrorHint}>
+                    Contact Seller and View Profile appear as soon as the seller's details load.
+                  </Text>
                 </View>
               </View>
+              <TouchableOpacity
+                style={styles.sellerRetryButton}
+                onPress={retrySellerInfo}
+                disabled={sellerRetryBusy}
+                testID="seller-info-retry-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading seller details"
+                accessibilityState={{ disabled: sellerRetryBusy }}
+              >
+                {sellerRetryBusy ? (
+                  <LoadingSpinner color="#FFFFFF" size={18} />
+                ) : (
+                  <Text style={styles.sellerRetryButtonText}>Try again</Text>
+                )}
+              </TouchableOpacity>
             </View>
           )}
         </ScrollView>
@@ -1340,7 +1399,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   thumbnailButtonActive: {
-    borderColor: '#007AFF',
+    // FIX-Task-26 item 7 (QA Phase 0 F10, same BP-82 class): was iOS system blue.
+    borderColor: '#5DBB8E',
   },
   thumbnailImage: {
     width: 64,
@@ -1714,6 +1774,26 @@ const styles = StyleSheet.create({
   // affordance honest instead of inviting a tap that only raises an alert.
   sellerButtonDisabled: {
     opacity: 0.45,
+  },
+  // FIX-Task-26 item 4 (QA Phase 0 F11): degraded Seller Info state.
+  sellerErrorHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  sellerRetryButton: {
+    marginTop: 10,
+    backgroundColor: '#5DBB8E',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  sellerRetryButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   contactButton: {
     flex: 1,

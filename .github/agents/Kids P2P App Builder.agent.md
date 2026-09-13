@@ -920,6 +920,22 @@ Issue: "A QA finding describes a state the canonical spec never covers (e.g. a p
 ✅ Check: If no precedent exists, the case was escalated as a product/UX question WITH a recommended option — never implemented as a default and buried in a comment (OWNER CONTEXT + §9.1c)
 See also: §9.1c (spec-silent QA finding → sibling-precedent check first), §9.1a (state the investigation stance upfront)
 
+Issue: "Two widgets on the same screen show contradictory numbers, or a money/state value visibly changes a moment after it is painted"
+
+✅ Check: Both widgets derive the quantity from the SAME array the visible list renders — a tile written at the tail of one fetcher while the card comes from another will disagree for a frame (BP-92 rule 1)
+✅ Check: Banner/button/modal counters call ONE shared helper instead of re-implementing the filter per call site (BP-92 rule 2)
+✅ Check: Any value painted before its fetch resolves is withheld (`—`/skeleton) and any control that SUBMITS it stays disabled until it is authoritative — a display-only fallback (`?? 99`) is a wrong number, not a neutral default (BP-92 rule 3)
+✅ Check: Adjacent widgets stating the same fact were verified at BOTH ends of the range (2-item AND 3+/4-item bundles) — agreement at one size passes review and still ships the bug (BP-92 detection checklist)
+See also: BP-92 (one source of truth per displayed number — no parallel state, no placeholder defaults), BP-29 (audit every downstream counter/filter after a data-source restructure), BP-88 rule 4 (a value built from an async read renders its fallback when the fetch returns null), BP-15 (pull-to-refresh must refresh everything the user can see)
+
+Issue: "A screen's unit test never settles — the tree is stuck on its loading state and every case times out at ~1 s"
+
+✅ Check: The mocked navigation/route/hook objects are module-level constants, not fresh literals per call — a new object each render re-creates the screen's `useCallback`, so its focus effect re-subscribes and loops (BP-93 rule 1)
+✅ Check: The mocked query builder's call count was inspected — dozens of identical `.from()` calls inside ONE case is the signature (BP-93 rule 2)
+✅ Check: Mock constants carry a `mock` prefix so `jest.mock()` factories may close over them (BP-93 rule 3)
+✅ Check: Debugging asserted on mock call counts / rendered state rather than `console.log` — this repo suppresses jest console output and the log will be silently missing (BP-93 rule 4)
+See also: BP-93 (identity-stable jest mocks), BP-60 (test isolation — shared mutable params leaking between cases), BP-57 (behaviour-fix test drift — a green-looking test written around the old behaviour)
+
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
 Test in Supabase Studio: Run raw SQL queries to verify data/RLS
@@ -1387,7 +1403,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-91)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-93)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1484,6 +1500,8 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-89 Verify a data-mutating admin action WITHOUT mutating data — never trigger the real write against shared QA/staging data just to prove UI wiring; stub the endpoint with Playwright `page.route(...)` and assert the surrounding behaviour (the follow-up refetch fires, the label/summary updates, the dialog copy is right), then disclose that the write was INTERCEPTED not applied. **HARD GATE: `page.unroute()` (or close the page) BEFORE reporting the verification complete** — a left-registered stub fakes every later real click and is NOT cleared by a dev-server restart (FIX-Task-21 item 4 + FIX-Task-22 item 0, 2026-09-12) — full text: `.github/instructions/admin-portal.instructions.md`.
 - BP-90 Patching a live function body by string replacement — anchor the token to its full expression (`p.status = 'failed'`, never the bare `p.status`, which also matches the suffix of `sp.status`), re-assert every predicate you did NOT intend to change in a `RAISE EXCEPTION` guard, fail loud when nothing matched, and INVOKE the patched object immediately (plpgsql resolves names at run time, so a successful `CREATE OR REPLACE` proves nothing) (FIX-Task-24 item 1, 2026-09-12) — full text: `.github/instructions/supabase-sql.instructions.md`.
 - BP-91 Mobile UI changes need an in-session on-device attempt — a screen-behaviour change must get a device pass in the SAME session, or the Session Handoff must enumerate every owed device leg concretely (screen → action → expected observation) and say "code-level verified; device legs owed"; never treat typecheck/lint/unit-green as on-device verification, budget the device pass BEFORE the code work, and re-read the AX tree rather than trusting a screenshot taken immediately after a tap (FIX-Task-25, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-92 Paint only authoritative values — every displayed number derives from the SAME array/state its visible list renders (no parallel state written by a second fetcher), all counters of one quantity share one helper, and a money/state value is never painted from a placeholder fallback a fetch will correct — withhold it (`—`/skeleton) and disable any control that submits it until it is authoritative (F8 banner-vs-button count, F9 tiles-vs-list frame lag, F4 checkout first-paint total — FIX-Task-26, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-93 Jest mocks must return identity-stable objects — an inline `useNavigation: () => ({…})` mock re-creates every dependent `useCallback` per render, so a `useFocusEffect` loops and the screen never leaves its loading state; use a module-level `mock`-prefixed constant and debug by asserting mock call counts (jest output is suppressed) (FIX-Task-26, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

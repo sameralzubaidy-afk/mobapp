@@ -51,11 +51,31 @@ describe('errorReporter', () => {
     initErrorReporter();
     const err = new Error('boom');
     captureException(err, { tags: { source: 'test' } });
+    // FIX-Task-26 item 1 (2026-09-13) — QA Phase 0 F1: the fallback used to log the
+    // RAW error object, which put a serialized fetch Response (Supabase project ref,
+    // `cf-ray`, a live `__cf_bm` cookie) into console.error — and a dev-build LogBox
+    // renders that on screen. It now logs a redacted summary that keeps the
+    // classification (name/message/status) and drops everything else.
     expect(errorSpy).toHaveBeenCalledWith(
       '[errorReporter:fallback]',
-      err,
+      { name: 'Error', code: null, status: null, message: 'boom', detailRedacted: false },
       expect.objectContaining({ tags: { source: 'test' } })
     );
+  });
+
+  it('never logs a serialized Response from the fallback path', () => {
+    delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+    initErrorReporter();
+    const dumped =
+      '{"status":504,"ok":false,"headers":{"map":{"cf-ray":"abc-BOS",' +
+      '"sb-project-ref":"drntwgporzabmxdqykrp","set-cookie":"__cf_bm=secret"}}}';
+    captureException(new Error(dumped), { tags: { source: 'test' } });
+
+    const logged = JSON.stringify(errorSpy.mock.calls);
+    expect(logged).not.toContain('cf-ray');
+    expect(logged).not.toContain('__cf_bm');
+    expect(logged).not.toContain('drntwgporzabmxdqykrp');
+    expect(logged).toContain('redacted');
   });
 
   it('captureMessage falls back to console.log when reporter disabled', () => {

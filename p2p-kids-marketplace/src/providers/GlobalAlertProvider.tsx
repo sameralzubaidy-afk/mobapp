@@ -10,6 +10,7 @@ import {
   type AlertOptions,
 } from 'react-native';
 import { colors } from '@/theme';
+import { sanitizeUserFacingMessage } from '@/utils/authError';
 
 /**
  * Alert button extended with accessibility + branding metadata the native
@@ -159,7 +160,14 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
       // satisfies the optional `buttons` prop without a `| undefined` union.
       showAlert({
         title: title || '',
-        message,
+        // FIX-Task-26 item 1 (2026-09-13): every remaining Alert.alert(...) in the
+        // app flows through here, so this is where a raw serialized Response (or
+        // any non-string value) is stopped from reaching a branded modal — QA
+        // Phase 0 F1 leaked headers/cookies through exactly this path.
+        message:
+          typeof message === 'string' && message.length > 0
+            ? sanitizeUserFacingMessage(message, 'Something went wrong. Please try again.')
+            : undefined,
         buttons: normalizeButtons(buttons as BrandedAlertButton[] | undefined),
         options,
       });

@@ -116,7 +116,11 @@ export default function CartCheckoutScreen() {
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   // R1 — Tiered Buyer-Fee Engine: server-resolved buyer fee for the whole checkout.
   const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
-  const [chargeOneFeePerBundle, setChargeOneFeePerBundle] = useState<boolean>(false);
+  // FIX-Task-26 item 3 (2026-09-13) — QA Phase 0 F4: `null` = the bundle-fee mode
+  // has not resolved yet. It used to default to `false`, which on the FIRST paint
+  // multiplied the per-item fee and showed a total that visibly changed a moment
+  // later ($0.99/$51.23 → $1.49/$51.73).
+  const [chargeOneFeePerBundle, setChargeOneFeePerBundle] = useState<boolean | null>(null);
   const [sellerNodeId, setSellerNodeId] = useState<string | null>(null);
 
   // PARTIAL-SUCCESS (2026-08-01): state for the "some items weren't included" modal —
@@ -150,13 +154,17 @@ export default function CartCheckoutScreen() {
     getChargeOneFeePerBundle()
       .then(setChargeOneFeePerBundle)
       .catch(() => {
-        setChargeOneFeePerBundle(false);
+        // FIX-Task-26 item 3: a failed config read must still UNBLOCK checkout —
+        // resolve to the one-fee-per-bundle default rather than leaving it pending.
+        setChargeOneFeePerBundle(true);
       });
   }, []);
 
-  // R1 — Tiered Buyer-Fee Engine: resolved fee (set by the effect below). Legacy
-  // 99/299 fallback is display-only; the Edge Function recomputes authoritatively.
-  const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
+  // R1 — Tiered Buyer-Fee Engine: the fee is resolved by the effect below. There is
+  // deliberately NO numeric fallback here any more (FIX-Task-26 item 3): a wrong
+  // number shown first and corrected a moment later is exactly the defect QA
+  // captured on this screen.
+  const platformFeeCents = buyerFeeInfo?.feeCents ?? 0;
   const platformFeeDollars = platformFeeCents / 100;
 
   // Load saved payment method (mirrors TradeInitiationScreen logic)
@@ -261,11 +269,22 @@ export default function CartCheckoutScreen() {
   // computed on each item's full price (points don't reduce the taxable amount).
   const [taxState, setTaxState] = useState<{
     loading: boolean;
+    /** FIX-Task-26 item 3: true once the tax pass produced a number for the current
+     *  cart — distinct from `loading`, which starts false and is only flipped by the
+     *  effect (so `loading === false` alone looked "settled" on the first paint). */
+    resolved: boolean;
     taxAmountCents: number;
     taxRate: number;
     jurisdiction: string | null;
     isTaxExempt: boolean;
-  }>({ loading: false, taxAmountCents: 0, taxRate: 0, jurisdiction: null, isTaxExempt: false });
+  }>({
+    loading: false,
+    resolved: false,
+    taxAmountCents: 0,
+    taxRate: 0,
+    jurisdiction: null,
+    isTaxExempt: false,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +292,7 @@ export default function CartCheckoutScreen() {
     if (items.length === 0 || !sellerNodeId) {
       setTaxState({
         loading: false,
+        resolved: true,
         taxAmountCents: 0,
         taxRate: 0,
         jurisdiction: null,
@@ -319,6 +339,7 @@ export default function CartCheckoutScreen() {
       );
       setTaxState({
         loading: false,
+        resolved: true,
         taxAmountCents: totalTaxCents,
         taxRate: displayTaxRate,
         jurisdiction,
@@ -334,9 +355,24 @@ export default function CartCheckoutScreen() {
   // BUNDLE-FEE-MODE (2026-07-30): When one-fee-per-bundle is disabled, the fee is
   // charged per item. Show the accurate total fee amount in the UI.
   const itemCount = cart?.items?.length ?? 1;
-  const effectiveFeeDollars =
-    bundleMode && !chargeOneFeePerBundle ? platformFeeDollars * itemCount : platformFeeDollars;
+  // FIX-Task-26 item 3: `=== false` (not `!value`) — an unresolved mode must not be
+  // read as "per item", or the label adds a bogus "(×N items)" before the config lands.
+  const feeIsPerItem = bundleMode && chargeOneFeePerBundle === false;
+  const effectiveFeeDollars = feeIsPerItem ? platformFeeDollars * itemCount : platformFeeDollars;
   const cashTotal = Math.max(0, subtotal - totalSpApplied) + effectiveFeeDollars + taxDollars;
+
+  // FIX-Task-26 item 3 (QA F4): "£/ $ will visibly change" guard. Every money value
+  // below is rendered ONLY once its inputs are authoritative:
+  //   - the buyer fee has come back from the server,
+  //   - the bundle-fee mode is known,
+  //   - the per-item tax pass has finished (or cannot run — no seller node).
+  // Until then the rows show a neutral placeholder, and the CTA cannot submit (a
+  // submit would have carried the placeholder total in the request body/analytics).
+  const moneyReady =
+    buyerFeeInfo !== null &&
+    chargeOneFeePerBundle !== null &&
+    (taxState.resolved || !sellerNodeId);
+  const moneyOrDash = (dollars: number) => (moneyReady ? `$${dollars.toFixed(2)}` : '—');
 
   const loadCart = useCallback(async () => {
     setLoading(true);
@@ -875,15 +911,16 @@ export default function CartCheckoutScreen() {
 
           {/* BUNDLE-FEE-MODE (2026-07-30): Show per-item count when charging per item,
               show single fee label when one-fee-per-bundle is enabled. R1: fee label
-              comes from admin_config (buyer_fee_label). */}
+              comes from admin_config (buyer_fee_label). FIX-Task-26 item 3: the value
+              stays a neutral placeholder until the fee + mode have resolved. */}
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>
-              {bundleMode && !chargeOneFeePerBundle
+              {feeIsPerItem
                 ? `${buyerFeeInfo?.label ?? 'Safety & Platform Fee'} (\u00D7${itemCount} items)`
                 : (buyerFeeInfo?.label ?? 'Safety & Platform Fee')}
             </Text>
             <Text style={styles.breakdownValue} testID="platform-fee-amount">
-              ${effectiveFeeDollars.toFixed(2)}
+              {moneyOrDash(effectiveFeeDollars)}
             </Text>
           </View>
 
@@ -900,13 +937,13 @@ export default function CartCheckoutScreen() {
           <View style={[styles.breakdownRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Cash Total</Text>
             <Text style={styles.totalValue} testID="cash-total-amount">
-              ${cashTotal.toFixed(2)}
+              {moneyOrDash(cashTotal)}
             </Text>
           </View>
         </View>
 
         {/* ── Payment Method (same section as TradeInitiationScreen) ── */}
-        {cashTotal > 0 && (
+        {moneyReady && cashTotal > 0 && (
           <View style={styles.paymentSection} testID="payment-method-section">
             <Text style={styles.paymentSectionTitle}>Payment Method</Text>
             {loadingSavedPaymentMethod && (
@@ -1015,8 +1052,20 @@ export default function CartCheckoutScreen() {
 
         {/* ── CTA ── */}
         <View style={styles.ctaContainer}>
-          <Button onPress={handleSendOffer} disabled={submitting} testID="send-offer-button">
-            {submitting ? 'Processing…' : `Send Offer · $${cashTotal.toFixed(2)}`}
+          {/* FIX-Task-26 item 3 (QA F4): the button is disabled while the fee/tax are
+              unresolved, so it can never show (or submit) a total that is about to
+              change — the request body and the `checkout_fee_shown` event both read
+              `cashTotal`. */}
+          <Button
+            onPress={handleSendOffer}
+            disabled={submitting || !moneyReady}
+            testID="send-offer-button"
+          >
+            {submitting
+              ? 'Processing…'
+              : moneyReady
+                ? `Send Offer · $${cashTotal.toFixed(2)}`
+                : 'Send Offer'}
           </Button>
           <Button
             variant="secondary"

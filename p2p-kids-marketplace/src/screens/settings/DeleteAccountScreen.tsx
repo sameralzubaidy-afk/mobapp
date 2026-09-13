@@ -107,11 +107,11 @@ export default function DeleteAccountScreen({ navigation }: any) {
               captureException(err, {
                 tags: { screen: 'DeleteAccountScreen', action: 'delete_account' },
               });
-              const errMsg =
-                err?.message || (err?.code ? `Error code: ${err.code}` : 'Unknown error');
+              // FIX-Task-26 item 1 (2026-09-13): the old copy embedded
+              // `err.message` (a raw PostgREST/gateway string) in the dialog.
               Alert.alert(
                 'Error',
-                `Failed to delete account.\n${errMsg}\n\nPlease contact support.`
+                "We couldn't delete your account just now. Please try again in a moment, or contact support if it keeps happening."
               );
             } finally {
               setLoading(false);

@@ -11,6 +11,7 @@
 //    monitoring failure cannot itself crash the app.
 
 import Constants from 'expo-constants';
+import { looksLikeInfrastructureDump, redactForLogging } from '@/utils/authError';
 
 // Lazy: only require Sentry when DSN is present so dev/test/CI without
 // the native module still load cleanly.
@@ -92,14 +93,24 @@ export function captureException(
   context?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
 ): void {
   try {
+    // FIX-Task-26 item 1 (2026-09-13) — QA Phase 0 F1: an upstream error whose
+    // message is a serialized fetch `Response` (Supabase project ref, internal
+    // URLs, `cf-ray`, a live `__cf_bm` cookie) must never leave the app. Report a
+    // redacted stand-in that keeps the classification (name/code/status) instead.
+    const rawMessage = (error as { message?: unknown } | null)?.message;
+    const safeError = looksLikeInfrastructureDump(rawMessage)
+      ? Object.assign(new Error('<redacted: upstream response dump>'), redactForLogging(error))
+      : error;
+
     const sentry = _sentry;
     if (sentry) {
-      sentry.captureException(error, context);
+      sentry.captureException(safeError, context);
       return;
     }
-    // Fallback: at least log so dev can see it.
+    // Fallback: at least log so dev can see it — REDACTED, because this goes to
+    // console.error and a dev-build LogBox renders that on screen.
     // eslint-disable-next-line no-console
-    console.error('[errorReporter:fallback]', error, context);
+    console.error('[errorReporter:fallback]', redactForLogging(error), context);
   } catch (e) {
     console.warn('[errorReporter] captureException failed', e);
   }

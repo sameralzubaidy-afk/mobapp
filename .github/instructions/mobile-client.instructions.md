@@ -33,6 +33,8 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-86 Membership/value-prop copy — subscription surfaces must render the CANONICAL in-app benefit set (ManageKidsClub "Kids Club+ Benefits" card / JoinKidsClub `STATIC_BENEFITS`), never an invented list; grep the whole class (every screen/branch) before shipping.
 - BP-88 Error/defensive branches need a trigger that actually fires on the REAL runtime path — a unit test mocking the error into existence can green-light dead code (`signInWithOAuth({skipBrowserRedirect:true})` returns a URL without throwing for a disabled provider → ProviderDisabled classification unreachable, raw JSON shown; FIX-Task-2 Item 4, 2026-09-07). **Same class, second face: a user-visible value derived from an async read** — when the fetch comes back null the FALLBACK is the only branch that ever renders, so verify the rendered string on the real path and pick a fixture that exercises the branch you changed (FIX-Task-21 Item 2, 2026-09-12).
 - BP-91 Mobile UI changes need an in-session on-device attempt — otherwise the Session Handoff must enumerate each owed device leg concretely (screen → action → expected observation), never a generic "device verification pending"; a UI change is never "verified" from typecheck/lint/unit tests alone, budget the device pass BEFORE the code work, and re-read the AX tree/element list instead of trusting a screenshot taken immediately after a tap (FIX-Task-25, 2026-09-13).
+- BP-92 Paint only authoritative values — every displayed number must derive from the SAME array/state its visible list renders (no parallel state written by a second fetcher), all counters of one quantity must share one helper, and a money/state value must never be painted from a placeholder fallback that a fetch will correct — withhold it (`—`/skeleton) and disable any control that submits it until it is authoritative (FIX-Task-26, 2026-09-13).
+- BP-93 Jest mocks must return identity-stable objects — a mock that returns a fresh object literal per render (e.g. `useNavigation: () => ({ navigate, goBack })`) re-creates every `useCallback` depending on it, so a `useFocusEffect` re-subscribes → fetch → setState → render → loop and the screen never leaves its loading state; return a module-level constant named with a `mock` prefix (babel-jest hoist) and debug by asserting mock call counts, not `console.log` (jest output is suppressed in this repo) (FIX-Task-26, 2026-09-13).
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -457,3 +459,36 @@ Common examples: removing a badge from a grid card but keeping it on a detail sc
 3. When introducing a new shared test-render helper, either reset the params object in `beforeEach` or make it require an explicit params argument (never silently reuse a mutated shared default).
 
 **Detection checklist:** a test fails only when run with the rest of its file (not in isolation), and the screen/hook under test has state keyed off `route.params`/`draftId` — the shared route object is leaking; pass explicit clean params.
+
+## BP-92: Paint Only Authoritative Values — One Source of Truth per Displayed Number (no parallel state, no placeholder defaults)
+
+**Problem:** A screen shows a fact in two places, and the two places are fed by different sources — so they can disagree, and the user sees two contradictory numbers in the same render. Its sibling failure: a money/state value is painted from a placeholder default that a fetch will correct, so the first paint shows a wrong number that visibly changes a moment later.
+
+**Real cases (FIX-Task-26, 2026-09-13 — QA Phase 0 findings F8, F9, F4, same defect written three ways):**
+- **F8:** the Review Offer banner counted the WHOLE bundle (`bundleSiblings.length + 1`, no status filter) while the CTA counted PENDING-only items, so one render read "Bundle offer · 3 items" directly above "Accept All 2 Items".
+- **F9:** My Trades' summary tiles were written at the tail of `fetchTrades` (3 sequential queries) while the offer cards came from `fetchAllOffers` (2 queries) — the faster fetcher painted first, so the card said "2 items" while the tiles still read 3/0 until a manual pull-to-refresh.
+- **F4:** Cart Checkout painted a display-only `?? (isSubscriber ? 99 : 299)` fee and a total built from it, then settled to `$1.49` / `$51.73` once the real fee resolved.
+
+**Rules:**
+
+1. Every displayed number MUST be computed from the SAME array/state its visible list or card renders — not from a parallel state written by a different fetcher. Prefer deriving both with one `useMemo` over the rendered array, and DELETE the duplicate state.
+2. One predicate, one counter. If two widgets state the same quantity (banner + button + confirm modal), they MUST call one shared helper (`getPendingBundleCount()`); never re-implement the filter per call site.
+3. Never paint a placeholder/display-only default for a value a fetch will correct. Either withhold it (render `—`, or a skeleton matching the final geometry) or extend the existing loading gate — and keep any control that SUBMITS that value disabled until it is authoritative (a stale value can otherwise reach the request body, an analytics event, or a receipt).
+4. Only genuinely server-owned scalars may live in separate state (e.g. an exact `count: 'exact', head: true` result with no row set), and each such state must have exactly ONE writer.
+
+**Detection checklist:** grep the screen for two `useState`/`setState` pairs feeding adjacent widgets from the same table; grep for `?? <number>` / `?? (isSubscriber ? … : …)` display fallbacks on money or state rows; grep for two `.filter(` expressions that compute the same count. Confirm the whole bundle case at BOTH ends of the range (2-item and 3+/4-item) — a fix that only agrees at one size passes review and still ships the bug.
+
+## BP-93: Jest Mocks Must Return Identity-Stable Objects (unstable mocks loop effects, then present as a silent timeout)
+
+**Problem:** A jest mock that returns a FRESH object literal on every call makes every `useCallback`/`useMemo` that depends on it a new function on each render. When that callback is a `useFocusEffect`/`useEffect` dependency, the effect re-subscribes, re-fetches, sets state, re-renders, and gets another new object — an endless loop in which the screen never leaves its loading state. Because jest output is suppressed in this repo, it presents as a mystery timeout rather than an error.
+
+**Real case (FIX-Task-26, 2026-09-13):** `ReviewOfferScreen.test.tsx` mocked `useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn() })`. `fetchOffer` is a `useCallback` with `navigation` in its deps, so the focus effect re-ran on every render: the suite showed `Unable to find an element with text …` after ~1 s per case with the tree still on "Loading offer...", and the mock's `.from()` had been called dozens of times in a single test. Making the navigation/route mocks module-level constants fixed all 10 cases.
+
+**Rules:**
+
+1. A jest mock for `useNavigation`/`useRoute`/any object a screen hook depends on MUST return a module-level constant — never an inline literal.
+2. If a screen test times out with the LOADING tree, check this before blaming the screen: count the mocked reads (`(supabase.from as jest.Mock).mock.calls`) — a loop shows dozens of identical calls inside one case.
+3. Such constants MUST be named with a `mock` prefix (case-insensitive) so `babel-plugin-jest-hoist` permits them inside a `jest.mock()` factory; a non-prefixed variable fails the whole suite with "The module factory of `jest.mock()` is not allowed to reference any out-of-scope variables".
+4. Do NOT debug a failing jest case with `console.log` in this repo — output is suppressed, so the log never appears. Assert on mock call counts or on rendered state instead.
+
+**Detection checklist:** a screen test that fails with "Loading…" still rendered; per-case durations clustered at the `findBy*` timeout (~1 s); a mocked query builder invoked far more often than the screen's real query count.

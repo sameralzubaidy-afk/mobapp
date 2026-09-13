@@ -6,6 +6,7 @@ import { supabase } from '../config/supabase';
 import { AuthSession, LoginInput, UserProfile, AuthError } from '../types/user';
 import { ReferralCodeServiceV2 } from './referralCodeV2';
 import { captureException } from './errorReporter';
+import { getAuthFailureMessage, normalizeAuthFailure } from '../utils/authError';
 import { isAtLeast18 } from '../utils/age';
 
 type SignupPolicyType = 'terms_of_service' | 'privacy_policy';
@@ -102,7 +103,15 @@ export async function signup(input: {
     });
 
     if (authError) {
-      throw new AuthError(authError.message, authError.name || 'SIGNUP_FAILED', authError);
+      // FIX-Task-26 item 1 (2026-09-13): the SDK's `name` (`AuthApiError`,
+      // `AuthRetryableFetchError`, …) is not a classification we can render, and
+      // the SDK's `message` can be a serialized fetch Response. Normalize the code
+      // and keep the friendly sentence on the error.
+      throw new AuthError(
+        getAuthFailureMessage(authError, 'create your account'),
+        normalizeAuthFailure(authError, 'SIGNUP_FAILED'),
+        authError
+      );
     }
 
     if (authData.user) {
@@ -114,10 +123,13 @@ export async function signup(input: {
     if (error instanceof AuthError) {
       return { user: null, error };
     }
-    const err = error as Error;
     return {
       user: null,
-      error: new AuthError(err.message || 'Signup failed', 'SIGNUP_ERROR', err),
+      error: new AuthError(
+        getAuthFailureMessage(error, 'create your account'),
+        normalizeAuthFailure(error, 'SIGNUP_ERROR'),
+        error
+      ),
     };
   }
 }
@@ -171,7 +183,12 @@ export async function signupWithTrial(input: {
     });
 
     if (authError) {
-      throw new AuthError(authError.message, authError.name || 'SIGNUP_FAILED', authError);
+      // FIX-Task-26 item 1 (2026-09-13): same normalization as `signup`.
+      throw new AuthError(
+        getAuthFailureMessage(authError, 'create your account'),
+        normalizeAuthFailure(authError, 'SIGNUP_FAILED'),
+        authError
+      );
     }
 
     if (!authData.user) {
@@ -237,10 +254,13 @@ export async function signupWithTrial(input: {
     if (error instanceof AuthError) {
       return { user: null, error };
     }
-    const err = error as Error;
     return {
       user: null,
-      error: new AuthError(err.message || 'Signup failed', 'SIGNUP_ERROR', err),
+      error: new AuthError(
+        getAuthFailureMessage(error, 'create your account'),
+        normalizeAuthFailure(error, 'SIGNUP_ERROR'),
+        error
+      ),
     };
   }
 }
@@ -368,7 +388,15 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
     });
 
     if (authError) {
-      throw new AuthError(authError.message, authError.name || 'LOGIN_FAILED', authError);
+      // FIX-Task-26 item 1 (2026-09-13) — QA Phase 0 F1 root cause: a 502/503/504
+      // makes the SDK stringify the whole fetch Response into `.message` and name
+      // itself `AuthRetryableFetchError`, which no screen branch matched. Normalize
+      // to a real code and never let a raw response reach the caller.
+      throw new AuthError(
+        getAuthFailureMessage(authError, 'sign you in'),
+        normalizeAuthFailure(authError, 'LOGIN_FAILED'),
+        authError
+      );
     }
 
     if (!authData.user) {

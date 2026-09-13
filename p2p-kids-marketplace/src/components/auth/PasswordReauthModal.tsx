@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/config/supabase';
+import { getAuthFailureMessage, normalizeAuthFailure } from '@/utils/authError';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface PasswordReauthModalProps {
@@ -65,11 +66,13 @@ export default function PasswordReauthModal({
       });
 
       if (signInError) {
-        if (signInError.message.includes('Invalid login credentials')) {
-          setError('Incorrect password. Please try again.');
-        } else {
-          setError(signInError.message);
-        }
+        // FIX-Task-26 item 1 (2026-09-13): classify instead of rendering
+        // `signInError.message` — a 5xx makes it a serialized fetch Response.
+        setError(
+          normalizeAuthFailure(signInError) === 'INVALID_CREDENTIALS'
+            ? 'Incorrect password. Please try again.'
+            : getAuthFailureMessage(signInError, 'verify your password')
+        );
         setIsVerifying(false);
         return;
       }

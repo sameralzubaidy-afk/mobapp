@@ -110,12 +110,13 @@ export default function TradeListScreen({ navigation }: any) {
   const [allOffers, setAllOffers] = useState<PendingOffer[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [refreshing, setRefreshing] = useState(false);
-  const [summary, setSummary] = useState({
-    inProgress: 0,
-    needsAction: 0,
-    pendingOffers: 0,
-    completed: 0,
-  });
+  // FIX-Task-26 item 6 (QA Phase 0 F9): the summary tiles used to be written by
+  // `fetchTrades` while the visible list was written by `fetchAllOffers` — two
+  // fetchers, two states, different latencies, so right after an external accept the
+  // card said "2 items" while the tiles still said 3/0 for a frame. Only the exact
+  // "Completed" COUNT (a server-side count, not a row set) is kept in state now;
+  // every other tile is derived below from the SAME arrays the list renders.
+  const [completedCount, setCompletedCount] = useState(0);
   // DEV-TASK-84: latest full-refetch closure (the fetchers below are plain
   // closures, not useCallback — this ref lets the qa-refresh registration stay
   // mounted once while always invoking the newest closure).
@@ -354,6 +355,10 @@ export default function TradeListScreen({ navigation }: any) {
   }, []);
 
   const fetchPendingOffers = async (tradesData?: any[]) => {
+    // TODO(REFACTOR): this fetcher writes `_pendingOffers`, which nothing renders any
+    // more (the Offers cards come from `groupedReceivedOffers`), so it costs one extra
+    // query + listing attach per focus. Left in place deliberately by FIX-Task-26
+    // (scope containment); safe to delete once nothing depends on the state.
     // D-30: Use passed-in tradesData to avoid stale closure over `trades` state.
     const source = tradesData ?? trades;
     // FIXED TC-B02: Exclude cancelled offers from "Needs Action" section
@@ -524,36 +529,13 @@ export default function TradeListScreen({ navigation }: any) {
       // to keep Needs Action in sync with summary count.
       void fetchPendingOffers(sorted);
 
-      // Calculate summary stats.
-      // D-30: 'in_progress' with auto_complete_at IS NULL = needs action.
-      //        Only count where current user is the SELLER (needs action on their side).
-      //        'in_progress' with auto_complete_at IS NOT NULL = truly in progress (accepted).
-      const needsActionCount =
-        (tradesRaw || []).filter(
-          (t: any) =>
-            t.seller_id === userId &&
-            ['pending', 'in_progress'].includes(t.status) &&
-            !t.auto_complete_at
-        ).length || 0;
-      // D-31: Count buyer's pending offers (submitted, awaiting seller acceptance)
-      const pendingOfferCount =
-        (tradesRaw || []).filter(
-          (t: any) =>
-            t.buyer_id === userId &&
-            ['pending', 'in_progress'].includes(t.status) &&
-            !t.auto_complete_at
-        ).length || 0;
-      const inProgressCount =
-        (tradesRaw || []).filter((t: any) => t.status === 'in_progress' && t.auto_complete_at)
-          .length || 0;
-
-      setSummary((prev) => ({
-        ...prev,
-        inProgress: inProgressCount,
-        needsAction: needsActionCount,
-        pendingOffers: pendingOfferCount,
-        completed: completedCount ?? prev.completed,
-      }));
+      // FIX-Task-26 item 6 (QA Phase 0 F9): the tiles are NOT computed here any more
+      // — they are derived from the arrays the list renders (see the `summary` memo),
+      // so a tile can never disagree with the section it counts. Only the
+      // server-side completed count is state.
+      if (typeof completedCount === 'number') {
+        setCompletedCount(completedCount);
+      }
       endActiveFetch(true);
     } catch (err) {
       console.warn('[TradeList] fetch error', err);
@@ -698,6 +680,19 @@ export default function TradeListScreen({ navigation }: any) {
   }, [submittedOffers]);
 
   // Addendum D: group received pending offers by bundle_id for the Offers tab.
+  // FIX-Task-26 item 6 (QA F9): this is the SAME array the "Needs Action" tile counts
+  // (one filter, one source), extracted so the count cannot drift from the list.
+  const receivedNeedsActionOffers = useMemo(() => {
+    // D-30: received offers are 'in_progress' with auto_complete_at IS NULL
+    // FIXED TC-B02: Exclude cancelled offers from grouped received offers
+    return allOffers.filter(
+      (o) =>
+        o.type === 'received' &&
+        o.status !== 'cancelled' && // Exclude cancelled/expired offers
+        (o.status === 'pending' || (o.status === 'in_progress' && !o.auto_complete_at))
+    );
+  }, [allOffers]);
+
   const groupedReceivedOffers = useMemo(() => {
     type GroupRow =
       | { type: 'single'; offer: PendingOffer }
@@ -706,14 +701,7 @@ export default function TradeListScreen({ navigation }: any) {
     const bundleMap: Record<string, PendingOffer[]> = {};
     const seen = new Set<string>();
 
-    // D-30: received offers are 'in_progress' with auto_complete_at IS NULL
-    // FIXED TC-B02: Exclude cancelled offers from grouped received offers
-    const received = allOffers.filter(
-      (o) =>
-        o.type === 'received' &&
-        o.status !== 'cancelled' && // Exclude cancelled/expired offers
-        (o.status === 'pending' || (o.status === 'in_progress' && !o.auto_complete_at))
-    );
+    const received = receivedNeedsActionOffers;
     for (const offer of received) {
       if (offer.bundle_id) {
         if (!bundleMap[offer.bundle_id]) {
@@ -742,7 +730,7 @@ export default function TradeListScreen({ navigation }: any) {
     }
 
     return result;
-  }, [allOffers]);
+  }, [receivedNeedsActionOffers]);
 
   // Addendum D: group in_progress trades by bundle_id.
   const inProgressBundles = useMemo(() => {
@@ -778,6 +766,26 @@ export default function TradeListScreen({ navigation }: any) {
   const recentlyCompleted = useMemo(() => {
     return trades.filter((t: any) => t.status === 'completed').slice(0, 3);
   }, [trades]);
+
+  /**
+   * FIX-Task-26 item 6 (QA Phase 0 F9): the summary tiles now read the SAME arrays
+   * their list sections render — `receivedNeedsActionOffers` backs the Offers cards,
+   * `submittedOffers` backs "Your Offers", `activeTrades` backs In Progress — so one
+   * state update moves the tile and the list together and they can never disagree for
+   * a frame. `completed` stays the exact server COUNT (there is no row set for it on
+   * the Active tab). Before this, the tiles were written at the tail of `fetchTrades`
+   * (3 sequential queries) while the cards came from `fetchAllOffers` (2 queries), so
+   * the faster fetcher painted first and the tiles caught up a moment later.
+   */
+  const summary = useMemo(
+    () => ({
+      inProgress: activeTrades.length,
+      needsAction: receivedNeedsActionOffers.length,
+      pendingOffers: submittedOffers.length,
+      completed: completedCount,
+    }),
+    [activeTrades.length, receivedNeedsActionOffers.length, submittedOffers.length, completedCount]
+  );
 
   /** Show confirmation modal before accepting a bundle */
   const requestAcceptBundle = (bundleId: string, offerIds: string[], title: string) => {
@@ -1192,11 +1200,16 @@ export default function TradeListScreen({ navigation }: any) {
           {/* FIX-Task-19 item 10 (2026-09-11): this count is SELLER-side only
               (seller_id = me AND status pending/in_progress AND no
               auto_complete_at), so a buyer with 3 offers pending with the seller
-              correctly sees 0 here and reasonably asks why. The sub-label names
-              whose action is actually awaited. Kept to one short line so the four
-              tiles stay aligned. */}
+              correctly sees 0 here and reasonably asks why. Kept to one short line so
+              the four tiles stay aligned.
+              UX item 2 (FIX-Task-26 item 6, 2026-09-13): "Waiting on you" did not say
+              WHAT was waiting, so the hint now names the action behind the tile. */}
           <Text style={styles.summarySubLabel} testID="trade-summary-needs-action-hint">
-            Waiting on you
+            {summary.needsAction === 0
+              ? 'Waiting on you'
+              : summary.needsAction === 1
+                ? '1 offer to review'
+                : `${summary.needsAction} offers to review`}
           </Text>
         </Pressable>
         <View style={styles.summaryDivider} />
@@ -1265,9 +1278,15 @@ export default function TradeListScreen({ navigation }: any) {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              Promise.all([fetchTrades(), fetchHistoryPage(true)]).finally(() =>
-                setRefreshing(false)
-              );
+              // FIX-Task-26 item 6 (BP-15): a pull-to-refresh must refresh everything
+              // the user can see — `fetchAllOffers` backs the Offers / Your Offers
+              // cards and was previously skipped here, so the list could stay stale
+              // under an explicitly refreshed view.
+              Promise.all([
+                fetchTrades(),
+                void fetchAllOffers(),
+                fetchHistoryPage(true),
+              ]).finally(() => setRefreshing(false));
             }}
           />
         }

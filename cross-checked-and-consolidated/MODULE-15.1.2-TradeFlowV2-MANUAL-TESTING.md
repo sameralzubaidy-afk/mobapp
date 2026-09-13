@@ -296,7 +296,7 @@
 | | TRD-TC-X13 | "Me" tab removal — Profile still accessible via Home avatar |
 | | TRD-TC-X14 | "Me" tab removal — no orphaned routes |
 | | TRD-TC-X15 | Sell FAB opens action sheet on every screen |
-| | TRD-TC-X16 | flow-registry.md entries updated |
+| | TRD-TC-X16 | RETIRED (2026-09-13) — flow-registry smoke sub-sections do not exist |
 | **U — Top Nav Header Pattern Consistency** | TRD-TC-U01 | Root/tab screens use pattern 1 (no back button, greeting/avatar/title, bell) |
 | | TRD-TC-U02 | Secondary/detail screens use pattern 2 (back button + title + bell) |
 | | TRD-TC-U03 | Notification bell behavior + badge accuracy |
@@ -5879,10 +5879,17 @@ FROM items;
 2. Observe the bottom nav bar.
 
 **Expected Result:**
-- 5 items visible: Home (highlighted), Discover, orange Sell FAB, Trades, Basket.
+- 5 items visible: Home (highlighted), Discover, green Sell FAB (`#5DBB8E`), Trades, Basket.
 - Home icon is `House` (fill variant, green `#5DBB8E`).
 - Labels read "Home", "Discover", "Trades", "Basket" — the basket tab uses the short form **"Basket"** (intentional product behavior per Dev Task 75; the full "Trade Basket" name is used on the Cart screen title and in-app copy, never the tab bar).
-- TestIDs: `tab-home`, `tab-discover`, `tab-sell`, `tab-trades`, `tab-trade-basket`.
+- TestIDs: `tab-home`, `tab-discover`, `tab-sell`, `tab-trades`, `tab-basket`.
+
+> **Drift fixed 2026-09-13 (FIX-Task-26 item 8).** This case previously listed
+> `tab-trade-basket` and an "orange Sell FAB". The live identifiers are derived from
+> the tab label in `PersistentTabBar` (`tab-${label.toLowerCase()}`) with
+> `label="Basket"` → **`tab-basket`**, and the FAB has been brand green since Dev
+> Task 1 (`docx/design-system-passitup.md`). Verified against the shipped source, not
+> the previous guide wording.
 
 ---
 
@@ -6050,7 +6057,7 @@ FROM items;
 ### TRD-TC-X15 · Sell FAB opens action sheet on every screen
 
 **Steps:**
-1. From Home, tap the orange Sell FAB → action sheet opens with "List One Item" and "Bulk Upload".
+1. From Home, tap the green Sell FAB (`#5DBB8E`) → action sheet opens with "List One Item" and "Bulk Upload".
 2. Dismiss, navigate to Discover, tap Sell FAB again → same sheet.
 3. Navigate to Item Detail, Cart, Inbox — repeat.
 
@@ -6060,15 +6067,26 @@ FROM items;
 
 ---
 
-### TRD-TC-X16 · flow-registry.md entries updated
+### TRD-TC-X16 · RETIRED (2026-09-13) — flow-registry smoke sub-sections do not exist
 
-**Steps:**
-1. Open `docs/flow-registry.md`.
-2. Verify FLOW-00 and FLOW-07 entries reference the persistent bottom nav.
+> **Retired by FIX-Task-26 item 8 (2026-09-13).** This case asserted two literal
+> strings ("bottom nav renders identically on 100% of screens" in FLOW-00 and a
+> "persistent Cart tab badge" in FLOW-07) inside a `Smoke:` sub-section of
+> `docs/flow-registry.md`. No such sub-section exists in the registry, and none ever
+> carried those strings — `docs/flow-registry.md` was restructured on 2026-09-06 into
+> a living spec with a fixed shape (Description / Steps / Mobile screens /
+> Functions-features / References) and the registry's own header states it is
+> **not a changelog**. The pre-restructure registry is frozen at
+> `docs/archive/flow-registry-legacy-2026-09-06.md`, and it too never contained
+> those strings. Re-adding a `Smoke:` section would reintroduce the structure that
+> consolidation deliberately removed **and** would still not satisfy the case as
+> written, so the case is retired instead of restored — the underlying product
+> assertions remain covered by `TRD-TC-X01` (persistent bottom nav) and the Cart
+> badge cases (`TRD-TC-V01`).
 
-**Expected Result:**
-- FLOW-00 (Infrastructure) smoke includes "bottom nav renders identically on 100% of screens".
-- FLOW-07 (Cart) smoke references the persistent Cart tab badge.
+**Result it would have checked:** not applicable — no registry `Smoke:` inventory exists.
+
+**Superseded by:** `TRD-TC-X01` (nav renders on every screen), `TRD-TC-V01` (Cart tab badge).
 
 ---
 

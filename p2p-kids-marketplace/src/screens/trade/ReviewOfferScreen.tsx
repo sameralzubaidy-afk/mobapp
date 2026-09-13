@@ -26,18 +26,34 @@ import { previewTotalSPToSeller } from '@/services/spCalculatorService';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { captureException } from '@/services/errorReporter';
 import { getSPReleaseDays } from '@/services/adminConfig';
+import { getBundleCounts, getPendingBundleCount, getPendingBundleItems } from '@/utils/bundleCount';
+import { getFriendlyCancellationReason } from '@/utils/tradeCancellationCopy';
+import { requestTradesRefresh } from '@/services/tradeRefreshRegistry';
+import { isTimeoutError, withTimeout } from '@/utils/withTimeout';
+import type { TradeStatus } from '@/types/trade';
 // Dev Task 51 item 4: branded, AX-exposed success notices instead of native
 // Alert.alert — deterministic testIDs for QA + design-system-consistent buttons.
 import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 
 type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
 
+/**
+ * FIX-Task-26 item 5 (QA Phase 0 F6): upper bound on the offer read so a stalled
+ * request cannot strand the screen on a spinner (the staging outage left QA on
+ * "Loading offer..." for 60s+ with no retry affordance). 20s is well above the
+ * observed p99 and well under a user's patience.
+ */
+const OFFER_FETCH_TIMEOUT_MS = 20000;
+
 interface OfferData {
   id: string;
   listing_id: string;
   buyer_id: string;
   seller_id: string;
-  status: string;
+  // FIX-Task-26 item 2 (2026-09-13): was `string`, so typecheck could not catch a
+  // missing status arm — which is how F7 (an accepted offer rendered as
+  // "expired") shipped. Typed now so the render matrix is exhaustive.
+  status: TradeStatus;
   cancellation_reason?: string | null;
   sp_amount: number;
   cash_amount_cents: number;
@@ -72,6 +88,9 @@ export default function ReviewOfferScreen() {
   const { tradeId } = route.params;
 
   const [loading, setLoading] = useState(true);
+  // FIX-Task-26 item 5 (QA Phase 0 F6): the load failure is now screen state (with a
+  // retry affordance) instead of an Alert followed by a goBack dead end.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [offer, setOffer] = useState<OfferData | null>(null);
   // ✅ FIX: Track total SP (buyer SP + platform bonus) for accurate display
@@ -90,14 +109,27 @@ export default function ReviewOfferScreen() {
   const [releaseDays, setReleaseDays] = useState(3);
 
   const fetchOffer = useCallback(async () => {
-    if (!session?.user?.id) return;
+    // FIX-Task-26 item 5 (QA Phase 0 F6): the guard used to sit BEFORE the try, so
+    // an un-hydrated session returned early and left `loading === true` forever —
+    // a spinner with no timeout, no error and no way forward. Every path now
+    // resolves the loading state.
+    if (!session?.user?.id) {
+      setLoadError(null);
+      setLoading(session === undefined);
+      if (session !== undefined) {
+        setLoadError("We couldn't load this offer. Please try again.");
+      }
+      return;
+    }
 
     try {
+      setLoadError(null);
       setLoading(true);
-      const { data, error } = await supabase
-        .from('trades')
-        .select(
-          `
+      const { data, error } = await withTimeout<{ data: any; error: any }>(
+        supabase
+          .from('trades')
+          .select(
+            `
           id,
           listing_id,
           buyer_id,
@@ -121,16 +153,20 @@ export default function ReviewOfferScreen() {
             images:item_images(url, thumbnail_url)
           )
         `
-        )
-        .eq('id', tradeId)
-        .eq('seller_id', session.user.id)
-        .single();
+          )
+          .eq('id', tradeId)
+          .eq('seller_id', session.user.id)
+          .single(),
+        OFFER_FETCH_TIMEOUT_MS,
+        'Offer load timed out'
+      );
 
       if (error) throw error;
 
       if (!data) {
-        Alert.alert('Error', 'Offer not found');
-        navigation.goBack();
+        // FIX-Task-26 item 5: was an Alert + goBack (a dead end). The screen now
+        // owns the state, so the seller can retry without losing the screen.
+        setLoadError("We couldn't find this offer. It may have been withdrawn.");
         return;
       }
 
@@ -203,14 +239,15 @@ export default function ReviewOfferScreen() {
     } catch (error: any) {
       captureException(error, {
         tags: { screen: 'ReviewOfferScreen', action: 'fetch_offer' },
-        extra: { message: error?.message },
+        extra: { message: error?.message, timedOut: isTimeoutError(error) },
       });
-      Alert.alert('Error', 'Failed to load offer details');
-      navigation.goBack();
+      // FIX-Task-26 item 5 (QA F6): a stalled/failed load now surfaces a bounded,
+      // retryable state instead of an indefinite spinner (or a silent goBack).
+      setLoadError("We couldn't load this offer. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.id, tradeId, navigation]);
+  }, [session, tradeId]);
 
   // FIX-Task-25 item 2 (QA F2): refetch on FOCUS, not only on mount.
   // `executeAccept` / `executeDecline` / `executeAcceptBundle` all end with
@@ -260,12 +297,23 @@ export default function ReviewOfferScreen() {
    * count over-promises). The focus refetch above is the backstop; this makes the
    * correction immediate rather than on the next focus.
    */
-  const applyLocalStatus = useCallback((updatedTradeId: string, status: string) => {
-    setOffer((prev) => (prev && prev.id === updatedTradeId ? { ...prev, status } : prev));
-    setBundleSiblings((prev) =>
-      prev.map((sibling) => (sibling.id === updatedTradeId ? { ...sibling, status } : sibling))
-    );
-  }, []);
+  const applyLocalStatus = useCallback(
+    (updatedTradeId: string, status: TradeStatus, cancellationReason?: string) => {
+      setOffer((prev) =>
+        prev && prev.id === updatedTradeId
+          ? { ...prev, status, cancellation_reason: cancellationReason ?? prev.cancellation_reason }
+          : prev
+      );
+      setBundleSiblings((prev) =>
+        prev.map((sibling) =>
+          sibling.id === updatedTradeId
+            ? { ...sibling, status, cancellation_reason: cancellationReason ?? sibling.cancellation_reason }
+            : sibling
+        )
+      );
+    },
+    []
+  );
 
   // TFV2-012A (D-30): Accept all bundle offers via Edge Function (Stripe capture + in_progress)
   const handleAcceptBundle = async () => {
@@ -286,8 +334,12 @@ export default function ReviewOfferScreen() {
       // accepted (the EF reports a per-trade status), so the still-mounted screen
       // cannot keep offering Accept/Decline for in_progress trades.
       for (const accepted of result?.trades ?? []) {
-        applyLocalStatus(accepted.trade_id, accepted.status || 'in_progress');
+        applyLocalStatus(accepted.trade_id, (accepted.status as TradeStatus) || 'in_progress');
       }
+      // FIX-Task-26 item 2 (QA F9): the Trade List is mounted behind this screen,
+      // and its summary tiles are derived from its own fetchers — push a refetch so
+      // the tiles and the list can never disagree on the next paint.
+      void requestTradesRefresh();
       setShowAcceptBundleModal(false);
       showAlert({
         title: 'Bundle Accepted!',
@@ -336,6 +388,7 @@ export default function ReviewOfferScreen() {
       }
       // FIX-Task-25 item 2: retire the actions for THIS trade immediately.
       applyLocalStatus(offer.id, 'in_progress');
+      void requestTradesRefresh();
       showAlert({
         title: 'Offer Accepted!',
         message: 'Payment authorized. Trade is now in progress. The buyer can confirm receipt.',
@@ -371,7 +424,10 @@ export default function ReviewOfferScreen() {
       await respondToOffer(offer.id, 'decline');
       // FIX-Task-25 item 2: same class as the accept path — retire the actions
       // for the declined trade instead of leaving live Accept/Decline behind it.
-      applyLocalStatus(offer.id, 'cancelled');
+      // FIX-Task-26 item 2 (F7): "seller_declined" is the reason the server writes,
+      // so the new status-aware copy reads "You declined this offer."
+      applyLocalStatus(offer.id, 'cancelled', 'seller_declined');
+      void requestTradesRefresh();
       showAlert({
         title: 'Offer Declined',
         message: 'The buyer has been notified. The item stays listed.',
@@ -405,6 +461,39 @@ export default function ReviewOfferScreen() {
     );
   }
 
+  // FIX-Task-26 item 5 (QA F6): bounded failure state with a retry.
+  if (loadError && !offer) {
+    return (
+      <ScreenLayout variant="detail" title="Review Offer">
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadErrorText} testID="review-offer-load-error">
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            style={styles.loadRetryButton}
+            onPress={fetchOffer}
+            testID="review-offer-retry-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading this offer"
+          >
+            <Text style={styles.loadRetryButtonText}>Try again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.loadBackButton}
+            onPress={() => navigation.goBack()}
+            testID="review-offer-back-button"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.loadBackButtonText}>Back to Offers</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenLayout>
+    );
+  }
+
   if (!offer) {
     return null;
   }
@@ -420,6 +509,14 @@ export default function ReviewOfferScreen() {
   const sellerNetCents = Math.max(0, offer.cash_amount_cents - sellerFeeCents);
   const sellerNet = (sellerNetCents / 100).toFixed(2);
   const sellerFee = (sellerFeeCents / 100).toFixed(2);
+
+  // FIX-Task-26 item 2 (QA F8): ONE count for the banner, the CTA and the confirm
+  // modal. `pendingCount` is what the action can actually act on.
+  const bundleCounts = getBundleCounts(offer, bundleSiblings);
+  const pendingCount = getPendingBundleCount(offer, bundleSiblings);
+  // Still-pending siblings of THIS offer (the sibling query excludes this trade),
+  // used by the "review the others" route after this one is accepted (UX item 1).
+  const otherPendingSiblings = getPendingBundleItems(null, bundleSiblings);
 
   return (
     <ScreenLayout variant="detail" title="Review Offer">
@@ -439,12 +536,25 @@ export default function ReviewOfferScreen() {
           />
         ) : null}
 
-        {/* Addendum E: bundle context banner */}
+        {/* Addendum E: bundle context banner.
+            FIX-Task-26 item 2 (QA F8): the count is PENDING-only, from the same
+            helper the CTA and the confirm modal use, so the banner can never
+            contradict the button again ("3 items" above "Accept All 2 Items").
+            The subtitle preserves the information the old total carried. */}
         {bundleSiblings.length > 0 && (
           <View style={styles.bundleBanner} testID="bundle-context-banner">
             <Text style={styles.bundleBannerTitle}>
-              Bundle offer · {bundleSiblings.length + 1} items
+              {bundleCounts.pending > 0
+                ? `Bundle offer · ${bundleCounts.pending} ${
+                    bundleCounts.pending === 1 ? 'item' : 'items'
+                  }`
+                : `Bundle offer · all ${bundleCounts.total} items accepted`}
             </Text>
+            {bundleCounts.pending > 0 && bundleCounts.accepted > 0 && (
+              <Text style={styles.bundleBannerSubtitle} testID="bundle-context-banner-subtitle">
+                {bundleCounts.accepted} already accepted
+              </Text>
+            )}
             <TouchableOpacity
               onPress={() => setShowBundleList((v) => !v)}
               accessibilityLabel="Toggle bundle item list"
@@ -657,33 +767,28 @@ export default function ReviewOfferScreen() {
         {/* Action Buttons - Only show if offer is still pending */}
         {offer.status === 'pending' ? (
           <View style={styles.actionsContainer}>
-            {/* Addendum E: Accept All button — only pending items */}
-            {(() => {
-              const pendingCount = [offer, ...bundleSiblings].filter(
-                (o) => o.status === 'pending'
-              ).length;
-              if (pendingCount <= 1) return null;
-              return (
-                <TouchableOpacity
-                  style={[
-                    styles.acceptAllButton,
-                    (submitting || acceptingBundle) && styles.buttonDisabled,
-                  ]}
-                  onPress={handleAcceptBundle}
-                  disabled={submitting || acceptingBundle}
-                  accessibilityLabel={`Accept all ${pendingCount} items`}
-                  testID="accept-bundle-button"
-                  accessible
-                  accessibilityRole="button"
-                >
-                  {acceptingBundle ? (
-                    <LoadingSpinner color="#FFFFFF" size={20} />
-                  ) : (
-                    <Text style={styles.acceptButtonText}>Accept All {pendingCount} Items</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })()}
+            {/* Addendum E: Accept All button — pending items only (FIX-Task-26 item 2:
+                the count comes from the shared helper the banner also uses). */}
+            {pendingCount > 1 && (
+              <TouchableOpacity
+                style={[
+                  styles.acceptAllButton,
+                  (submitting || acceptingBundle) && styles.buttonDisabled,
+                ]}
+                onPress={handleAcceptBundle}
+                disabled={submitting || acceptingBundle}
+                accessibilityLabel={`Accept all ${pendingCount} items`}
+                testID="accept-bundle-button"
+                accessible
+                accessibilityRole="button"
+              >
+                {acceptingBundle ? (
+                  <LoadingSpinner color="#FFFFFF" size={20} />
+                ) : (
+                  <Text style={styles.acceptButtonText}>Accept All {pendingCount} Items</Text>
+                )}
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[
@@ -720,10 +825,54 @@ export default function ReviewOfferScreen() {
             </TouchableOpacity>
           </View>
         ) : (
+          // FIX-Task-26 item 2 (QA Phase 0 F7): this branch used to render
+          // "This offer has expired and can no longer be accepted." for EVERY
+          // non-pending status — so a seller who had just accepted the offer read
+          // that their own accepted offer had expired (the trade was in_progress
+          // because of that very tap). The copy is now status-aware; only a genuine
+          // expiry (cancelled + reason 'Offer expired', the pair the badge above
+          // uses) keeps the expiry wording.
           <View style={styles.expiredActionsContainer}>
-            <Text style={styles.expiredMessage}>
-              This offer has expired and can no longer be accepted.
+            <Text style={styles.expiredMessage} testID="review-offer-status-message">
+              {offer.status === 'in_progress'
+                ? 'You accepted this offer — the trade is now in progress.'
+                : offer.status === 'completed'
+                  ? 'You accepted this offer — this trade is complete.'
+                  : offer.status === 'cancelled'
+                    ? offer.cancellation_reason === 'Offer expired'
+                      ? 'This offer has expired and can no longer be accepted.'
+                      : getFriendlyCancellationReason(
+                          offer.cancellation_reason ?? undefined,
+                          'seller'
+                        )
+                    : offer.status === 'payment_failed'
+                      ? "This offer couldn't be completed because the payment failed."
+                      : 'This offer is no longer available to accept.'}
             </Text>
+
+            {/* UX item 1 (2026-09-13): after accepting one sibling the action block
+                collapsed with no way to reach the others from here, costing a full
+                trip back to My Trades. Low-emphasis route to the next still-pending
+                sibling (same route the bundle list rows already use). */}
+            {otherPendingSiblings.length > 0 && (
+              <TouchableOpacity
+                style={styles.reviewOtherSiblingsButton}
+                onPress={() =>
+                  navigation.navigate('ReviewOffer', { tradeId: otherPendingSiblings[0].id })
+                }
+                accessibilityLabel={`Review the other ${otherPendingSiblings.length} items`}
+                testID="review-other-siblings-link"
+                accessible
+                accessibilityRole="button"
+              >
+                <Text style={styles.reviewOtherSiblingsText}>
+                  {otherPendingSiblings.length === 1
+                    ? 'Accept the other item'
+                    : `Accept the other ${otherPendingSiblings.length} items`}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.expiredBackButton}
               onPress={() => navigation.goBack()}
@@ -765,22 +914,14 @@ export default function ReviewOfferScreen() {
         cancelTestID="decline-trade-cancel-button"
       />
 
-      {/* FIX-Task-25 item 2: the confirm label must count PENDING items only.
-          `${[offer, ...bundleSiblings].length}` counted the whole bundle, so the
-          button promised more items than the action would accept ("Accept All 4"
-          while only 3 were still pending) — the over-count QA caught. */}
+      {/* FIX-Task-25 item 2 + FIX-Task-26 item 2: the confirm label counts PENDING
+          items only, from the shared helper (`getPendingBundleCount`) that the
+          banner and the CTA also use — one number, one screen. */}
       <TradeConfirmationModal
         visible={showAcceptBundleModal}
-        title={(() => {
-          const pendingCount = offer
-            ? [offer, ...bundleSiblings].filter((o) => o.status === 'pending').length
-            : 0;
-          return `Accept all ${pendingCount} items?`;
-        })()}
+        title={`Accept all ${pendingCount} items?`}
         message="Accepting will authorize the buyer's payment and move all trades in progress."
-        confirmLabel={`Accept All ${
-          offer ? [offer, ...bundleSiblings].filter((o) => o.status === 'pending').length : 0
-        }`}
+        confirmLabel={`Accept All ${pendingCount}`}
         variant="accept"
         onConfirm={executeAcceptBundle}
         onCancel={() => setShowAcceptBundleModal(false)}
@@ -806,6 +947,41 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666',
+  },
+  // FIX-Task-26 item 5 (QA F6): bounded load-failure state.
+  loadErrorText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  loadRetryButton: {
+    backgroundColor: '#5DBB8E',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 26,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  loadRetryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  loadBackButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadBackButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#5DBB8E',
   },
   header: {
     flexDirection: 'row',
@@ -922,6 +1098,13 @@ const styles = StyleSheet.create({
   bundleBannerTitle: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#5DBB8E',
+    marginBottom: 4,
+  },
+  // FIX-Task-26 item 2 (QA F8): secondary line so the banner can name the
+  // already-accepted items without padding the actionable count.
+  bundleBannerSubtitle: {
+    fontSize: 12,
     color: '#5DBB8E',
     marginBottom: 4,
   },
@@ -1072,6 +1255,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1A1A1A',
+  },
+  // UX item 1 (2026-09-13): low-emphasis route to the remaining bundle siblings.
+  reviewOtherSiblingsButton: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewOtherSiblingsText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#5DBB8E',
+    textDecorationLine: 'underline',
   },
   // Points-redemption: payout breakdown card
   payoutCard: {

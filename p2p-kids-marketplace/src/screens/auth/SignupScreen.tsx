@@ -27,6 +27,7 @@ import { theme } from '@/theme';
 import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { captureException } from '@/services/errorReporter';
+import { getAuthFailureMessage, redactForLogging } from '@/utils/authError';
 import { getAllTestUsers, TestUser } from '@/utils/testUsers';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 // TODO: Implement analytics service
@@ -326,49 +327,45 @@ export default function SignupScreen() {
    * Unified error handling for signup process
    */
   const handleSignupError = (error: any) => {
-    const debugInfo = {
-      name: error?.name,
-      message: error?.message,
-      status: error?.status,
-      code: error?.code,
-    };
     // Report to Sentry instead of console.error — a raw console.error on a
     // dev/staging build makes RN LogBox render a duplicate, internals-leaking
     // red banner (AuthError) stacked under the branded "Signup Failed" modal
     // (QA: Group A+B+D 2026-08-23, finding #4 — reconfirmed live as
     // "Signup error: ...AuthError").
+    //
+    // FIX-Task-26 item 1 (2026-09-13): the extra payload is now a REDACTED summary
+    // — `error.message` can be a serialized fetch Response (project ref, URLs,
+    // `cf-ray`, cookies) and the reporter fallback logs to a dev-build LogBox.
     captureException(error, {
       tags: { screen: 'SignupScreen', action: 'signup' },
-      extra: debugInfo,
+      extra: redactForLogging(error),
     });
 
-    // Show user-friendly error message
-    let errorMessage = 'Signup failed. Please try again.';
+    // Show user-friendly error message. App-thrown referral/policy failures carry
+    // our own copy; everything else is classified from the normalized code — a raw
+    // backend string is never rendered (FIX-Task-26 item 1, QA Phase 0 F1 class).
+    const searchText = `${error?.code ?? ''} ${error?.message ?? ''}`.toLowerCase();
+    let errorMessage: string;
 
-    if (error.message?.includes('already registered')) {
-      errorMessage = 'This email is already registered. Please log in instead.';
-    } else if (error.message?.includes('weak password')) {
-      errorMessage = 'Password is too weak. Please choose a stronger password.';
-    } else if (error.message?.includes('network')) {
-      errorMessage = 'Network error. Please check your connection and try again.';
-    } else if (error.message?.includes('Invalid referral code')) {
+    if (searchText.includes('invalid referral code')) {
       errorMessage =
         'The referral code you entered is invalid. Please check the code and try again.';
-    } else if (error.message?.includes('Referral code')) {
+    } else if (searchText.includes('referral code')) {
       errorMessage =
         'There was an error applying the referral code. Please try again or skip this step.';
-    } else if (error.message?.includes('Database error saving new user')) {
-      errorMessage =
-        'Signup failed due to a backend database trigger error. Please check Supabase Auth logs for the underlying SQL error (often caused by a failing auth.users trigger).';
     } else if (
-      error.message?.includes('POLICY_ACCEPTANCE_FAILED') ||
-      error.message?.includes('policy acceptance') ||
-      error.message?.includes('terms_of_service') ||
-      error.message?.includes('privacy_policy')
+      searchText.includes('policy_acceptance_failed') ||
+      searchText.includes('policy acceptance') ||
+      searchText.includes('terms_of_service') ||
+      searchText.includes('privacy_policy')
     ) {
       errorMessage = 'Signup could not save your policy agreement. Please try again in a moment.';
-    } else if (error.message) {
-      errorMessage = error.message;
+    } else if (searchText.includes('database error saving new user')) {
+      // Was a developer instruction ("check Supabase Auth logs") rendered to a
+      // parent; the trigger failure is already captured by errorReporter above.
+      errorMessage = "We couldn't create your account just now. Please try again in a moment.";
+    } else {
+      errorMessage = getAuthFailureMessage(error, 'create your account');
     }
 
     // Show a branded modal (native Alert buttons can't carry a testID/accessibility identifier)

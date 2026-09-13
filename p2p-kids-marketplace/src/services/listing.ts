@@ -1295,6 +1295,12 @@ export async function getListingById(
     // NOTE: Use a public/unrestricted approach to get seller public profiles
     // since any user should be able to see who's selling an item
     let seller: { id: string; name: string; avatar_url: string | null } | null = null;
+    // FIX-Task-26 item 4 (QA Phase 0 F11): this block reads the seller in a SECOND
+    // query; before, a failure here was only console-logged and the caller could not
+    // tell "no seller" from "seller read failed" (the whole Seller Info section
+    // silently vanished on a Gateway Timeout). The flag is the signal the screen
+    // needs to show an error/retry state instead.
+    let sellerLoadFailed = false;
     if (item.seller_id) {
       try {
         // Try fetching with regular client first (respects RLS for privacy)
@@ -1322,17 +1328,23 @@ export async function getListingById(
 
           if (!fallbackError && profiles && profiles.length > 0) {
             sellerData = profiles[0] as { id: string; name: string; avatar_url: string | null };
-          } else if (fallbackError) {
-            console.warn('[listing] ⚠️ Fallback also failed:', fallbackError.message);
+          } else {
+            if (fallbackError) {
+              console.warn('[listing] ⚠️ Fallback also failed:', fallbackError.message);
+            }
+            // Both attempts came back empty: this is a real failure to report.
+            sellerLoadFailed = true;
           }
         } else if (sellerError) {
           console.warn('[listing] ⚠️ Seller fetch error:', sellerError.message);
+          sellerLoadFailed = true;
         }
 
         seller = sellerData;
       } catch (err) {
         const error = err as Error;
         console.error('[listing] ❌ Seller fetch exception:', error.message);
+        sellerLoadFailed = true;
       }
     }
 
@@ -1348,6 +1360,7 @@ export async function getListingById(
       ...item,
       category,
       seller,
+      sellerLoadFailed,
       images,
     } as unknown as Listing;
 

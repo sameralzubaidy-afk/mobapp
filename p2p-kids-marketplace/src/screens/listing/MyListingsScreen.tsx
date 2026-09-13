@@ -969,7 +969,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#007AFF',
+    // FIX-Task-26 item 7 (QA F10, same BP-82 class as the chip above): was #007AFF.
+    backgroundColor: '#5DBB8E',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -1021,23 +1022,29 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#eee',
-    backgroundColor: '#fff',
+    // FIX-Task-26 item 7 (2026-09-13) — QA Phase 0 F10: the selected chip rendered
+    // as a filled iOS system-blue pill (#007AFF) on an otherwise green/neutral
+    // screen, a BP-82 deviation. This now mirrors the documented selected-chip
+    // contract (docx/design-system-passitup.md §4.1 primary #5DBB8E, as implemented
+    // by components/molecules/SearchFilterModal): neutral pill when unselected,
+    // filled brand green + white label when selected.
+    borderColor: '#F0F0F0',
+    backgroundColor: '#F0F0F0',
     minWidth: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterButtonActive: {
-    borderColor: '#007AFF',
-    backgroundColor: '#007AFF',
+    borderColor: '#5DBB8E',
+    backgroundColor: '#5DBB8E',
   },
   filterButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: '#6B6B6B',
   },
   filterButtonTextActive: {
-    color: '#fff',
+    color: '#FFFFFF',
   },
   quickLinkEmoji: {
     fontSize: 28,

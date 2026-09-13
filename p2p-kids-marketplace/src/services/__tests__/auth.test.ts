@@ -364,4 +364,57 @@ describe('AUTH-V2-003: loginWithContext', () => {
       })
     ).rejects.toThrow('User profile not found');
   });
+
+  /**
+   * FIX-Task-26 item 1 (2026-09-13) — QA Phase 0 F1.
+   *
+   * These pin the PRODUCER end of the leak (the service boundary), not just the
+   * classifier: the fixtures are the real `@supabase/auth-js` shapes — a 504 coming
+   * back through `signInWithPassword` gives `name: 'AuthRetryableFetchError'` and a
+   * `message` of the serialized fetch Response. Before this fix the service copied
+   * both verbatim into `AuthError`, so the screen's `switch` matched nothing and the
+   * `default` arm rendered the dump.
+   */
+  describe('auth failure normalization at the service boundary', () => {
+    const leakedDump =
+      '{"status":504,"ok":false,"headers":{"map":{"cf-ray":"a3a7a27abc4e9aaa-BOS",' +
+      '"sb-project-ref":"drntwgporzabmxdqykrp","set-cookie":"__cf_bm=secret"}}}';
+
+    it('maps a 504 Response dump to friendly copy and never leaks it', async () => {
+      (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+        data: { user: null, session: null },
+        error: {
+          name: 'AuthRetryableFetchError',
+          status: 504,
+          message: leakedDump,
+        },
+      });
+
+      const thrown = await loginWithContext({ email: 'a@b.com', password: 'x' }).catch(
+        (e) => e as { code?: string; message?: string }
+      );
+
+      expect(thrown.code).toBe('SERVICE_UNAVAILABLE');
+      expect(thrown.message).toBe(
+        "We couldn't sign you in right now. Please check your connection and try again."
+      );
+      expect(thrown.message).not.toContain('cf-ray');
+      expect(thrown.message).not.toContain('__cf_bm');
+      expect(thrown.message).not.toContain('drntwgporzabmxdqykrp');
+    });
+
+    it('maps a wrong password to INVALID_CREDENTIALS (the branch that used to be dead)', async () => {
+      (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+        data: { user: null, session: null },
+        error: { name: 'AuthApiError', status: 401, message: 'Invalid login credentials' },
+      });
+
+      const thrown = await loginWithContext({ email: 'a@b.com', password: 'x' }).catch(
+        (e) => e as { code?: string; message?: string }
+      );
+
+      expect(thrown.code).toBe('INVALID_CREDENTIALS');
+      expect(thrown.message).toBe('Invalid email or password.');
+    });
+  });
 });

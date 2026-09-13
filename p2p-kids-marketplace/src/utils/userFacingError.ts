@@ -76,10 +76,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+/** One level of `details` is scanned, and this caps how much of it we ingest. */
+const MAX_DETAILS_CHARS = 2000;
+
 /**
  * Builds a lower-cased haystack from every string/number field an error object
  * might carry, so classification works for PostgrestError, FunctionsHttpError,
  * a nested relay payload, or a plain string.
+ *
+ * FIX-Task-26 item 1 (2026-09-13): ONE level of `details` is included as well,
+ * because our own `AuthError` carries the original upstream error there — the
+ * 5xx/`Response`-dump classification in `authError.ts` reads a status that only
+ * exists on `error.details`, so without this traversal the gateway case was
+ * invisible to the shared predicates.
  */
 export function getErrorSearchText(error: unknown): string {
   if (error === null || error === undefined) return '';
@@ -88,8 +97,20 @@ export function getErrorSearchText(error: unknown): string {
   if (!isRecord(error)) return String(error).toLowerCase();
 
   const e = error as ErrorLike;
-  return [e.name, e.message, e.error_description, e.details, e.hint, e.code, e.status]
+  const own = [e.name, e.message, e.error_description, e.details, e.hint, e.code, e.status];
+  const nested = isRecord(e.details)
+    ? [
+        (e.details as ErrorLike).name,
+        (e.details as ErrorLike).message,
+        (e.details as ErrorLike).code,
+        (e.details as ErrorLike).status,
+      ]
+    : [];
+
+  return own
+    .concat(nested)
     .filter((part): part is string | number => typeof part === 'string' || typeof part === 'number')
+    .map((part) => String(part).slice(0, MAX_DETAILS_CHARS))
     .join(' ')
     .toLowerCase();
 }

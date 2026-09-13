@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '@/services/auth';
 import { captureException } from '@/services/errorReporter';
+import { getAuthFailureMessage } from '@/utils/authError';
 import { AuthError } from '@/types/user';
 import { useAuth } from '@/hooks/useAuth';
 import { Button, Modal, TextInput } from '@/components/ui';
@@ -136,23 +137,15 @@ export default function LoginScreen() {
         },
       });
 
-      let errorMessage = 'Login failed. Please check your credentials.';
+      let errorMessage = getAuthFailureMessage('LOGIN_FAILED', 'sign you in');
 
       if (error instanceof AuthError) {
-        switch (error.code) {
-          case 'INVALID_CREDENTIALS':
-          case 'LOGIN_FAILED':
-            errorMessage = 'Invalid email or password.';
-            break;
-          case 'PROFILE_NOT_FOUND':
-            errorMessage = 'Profile not found. Please contact support.';
-            break;
-          case 'ACCOUNT_DELETED':
-            errorMessage = 'Your account has been deleted. Please contact support.';
-            break;
-          default:
-            errorMessage = error.message;
-        }
+        // FIX-Task-26 item 1 (2026-09-13) — QA Phase 0 F1: the `default` arm used
+        // to render `error.message` verbatim. A 504 from the auth endpoint made
+        // that a serialized fetch Response (Supabase project ref, internal URLs,
+        // `cf-ray`, a live `__cf_bm` cookie). Copy now comes from the normalized
+        // code only; the raw error goes to errorReporter above and nowhere else.
+        errorMessage = getAuthFailureMessage(error, 'sign you in');
       }
 
       // Show a branded modal (native Alert buttons can't carry a testID/accessibility identifier)

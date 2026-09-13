@@ -14,6 +14,7 @@ import { useUserStore } from '../stores/userStore';
 import { clearQaLocalValues } from '../services/devTestingService';
 import { invalidatePaymentMethodCache } from '../services/subscription';
 import { isTransientNetworkError } from '../utils/userFacingError';
+import { redactForLogging } from '../utils/authError';
 
 const SUPABASE_CONFIGURED = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
@@ -242,7 +243,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
 
-          console.error('[AUTH] Failed to get session:', sessionError);
+          // FIX-Task-26 item 1 (2026-09-13): redacted — a raw auth error can be a
+          // serialized fetch Response, and a dev-build LogBox renders this on screen.
+          console.error('[AUTH] Failed to get session:', redactForLogging(sessionError));
           throw sessionError;
         }
 
@@ -268,7 +271,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
 
-          console.error('[AUTH] Failed to fetch profile:', profileError);
+          console.error('[AUTH] Failed to fetch profile:', redactForLogging(profileError));
           setSession(null);
           return;
         }
@@ -426,7 +429,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        console.error('[AUTH] Session refresh failed:', err);
+        console.error('[AUTH] Session refresh failed:', redactForLogging(err));
         const authError =
           err instanceof AuthError
             ? err
@@ -651,7 +654,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
 
-          console.error('[AUTH] ❌ Session fetch error:', sessionError);
+          console.error('[AUTH] ❌ Session fetch error:', redactForLogging(sessionError));
           throw new AuthError('Failed to restore session', 'RESTORE_SESSION_ERROR', sessionError);
         }
 
@@ -834,7 +837,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(null);
           setError(null);
         } else {
-          console.error('[AUTH] ❌ Failed to initialize auth:', err);
+          console.error('[AUTH] ❌ Failed to initialize auth:', redactForLogging(err));
           const authError =
             err instanceof AuthError
               ? err

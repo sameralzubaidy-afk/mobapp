@@ -2361,7 +2361,13 @@ flagged as deprecation-review candidates (see `docs/DECISIONS.md`).
 1. Log in and land on Home.
 2. Inspect the tree at the bottom bar.
 **Expected Result:**
-- Tabs appear as buttons: `tab-home`, `tab-discover`, `tab-sell` (Sell FAB), `tab-inbox`, `tab-trade-basket` — each with its visible label and selected state, activatable by identifier.
+- Tabs appear as buttons: `tab-home`, `tab-discover`, `tab-sell` (Sell FAB), `tab-trades`, `tab-basket` — each with its visible label and selected state, activatable by identifier.
+
+> **Drift fixed 2026-09-13 (FIX-Task-26 item 8, class sweep).** This line listed
+> `tab-inbox` and `tab-trade-basket`. Identifiers are derived from each tab's label in
+> `PersistentTabBar` (`tab-${label.toLowerCase()}`), and the shipped labels are Home /
+> Discover / Sell / Trades / Basket → `tab-home`, `tab-discover`, `tab-sell`,
+> `tab-trades`, `tab-basket` (asserted in `PersistentTabBar.test.tsx`).
 
 ### AUTH-TC-ACC-05 · No visual/layout regression from identifiers
 

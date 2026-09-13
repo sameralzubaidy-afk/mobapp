@@ -24,6 +24,7 @@ import {
 import { Button, OTPInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
+import { getUserFacingError } from '@/utils/userFacingError';
 
 interface RouteParams {
   userId: string;
@@ -90,8 +91,14 @@ export default function PhoneVerificationScreen() {
         startCountdown(retryAfterSeconds);
         setResendMessage(buildOtpRateLimitMessage(retryAfterSeconds));
       } else {
-        const err = error as Error;
-        Alert.alert('Error', err.message || 'Failed to send verification code');
+        // FIX-Task-26 item 1 (2026-09-13): never render the raw service message.
+        Alert.alert(
+          'Error',
+          getUserFacingError(error, {
+            action: 'send your verification code',
+            fallback: 'Failed to send verification code. Please try again.',
+          })
+        );
       }
     } finally {
       setResending(false);
@@ -129,8 +136,14 @@ export default function PhoneVerificationScreen() {
     } catch (error) {
       setLoading(false);
       setError(true);
-      const err = error as Error;
-      Alert.alert('Verification Failed', err.message || 'Invalid code');
+      // FIX-Task-26 item 1 (2026-09-13): friendly copy only (guide asserts "Invalid code").
+      Alert.alert(
+        'Verification Failed',
+        getUserFacingError(error, {
+          action: 'verify that code',
+          fallback: 'Invalid code. Please check the 6 digits and try again.',
+        })
+      );
       // Clear code inputs on error
       setCode('');
     }
@@ -168,8 +181,13 @@ export default function PhoneVerificationScreen() {
     } catch (error) {
       setLoading(false);
       setError(true);
-      const err = error as Error;
-      Alert.alert('Verification Failed', err.message || 'Invalid code');
+      Alert.alert(
+        'Verification Failed',
+        getUserFacingError(error, {
+          action: 'verify that code',
+          fallback: 'Invalid code. Please check the 6 digits and try again.',
+        })
+      );
       setCode('');
     }
   };

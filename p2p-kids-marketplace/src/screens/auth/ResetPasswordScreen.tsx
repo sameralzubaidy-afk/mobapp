@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase/client';
 import { captureException } from '@/services/errorReporter';
+import { getAuthFailureMessage } from '@/utils/authError';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
@@ -234,10 +235,9 @@ export default function ResetPasswordScreen() {
           tags: { screen: 'ResetPasswordScreen', action: 'update_password' },
         });
 
-        Alert.alert(
-          'Reset Failed',
-          error.message || 'Failed to update password. Please try again.'
-        );
+        // FIX-Task-26 item 1 (2026-09-13): never render `error.message` — a 5xx
+        // from the auth endpoint stringifies the whole fetch Response there.
+        Alert.alert('Reset Failed', getAuthFailureMessage(error, 'update your password'));
       } else {
         console.log('Password reset successful');
 
