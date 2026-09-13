@@ -12,10 +12,12 @@
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReviewOfferScreen from '../ReviewOfferScreen';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { setQaLocalValue, getSimulatedOfferLoadStall, QA_OFFER_LOAD_STALL_KEY } from '@/services/devTestingService';
 
 const mockNavigate = jest.fn();
 
@@ -261,5 +263,73 @@ describe('ReviewOfferScreen', () => {
 
     expect(await findByTestId('review-offer-status-message')).toBeTruthy();
     expect(queryByTestId('review-other-siblings-link')).toBeNull();
+  });
+});
+
+/**
+ * FIX-Task-27 item 4 (2026-09-13) — the `offer_load_stall` QA toggle.
+ *
+ * FIX-Task-26 item 5 bounded this screen's offer read at 20s, but the
+ * timeout→retry branch was only reachable through a REAL stall (staging was
+ * healthy during review), so it stayed unit-test-only. The toggle makes the read
+ * never settle.
+ *
+ * This test pins the INJECTION — an armed stall must short-circuit BEFORE the
+ * query is issued, so no request is sent and no server load is added. The 20s
+ * firing + retry card is the on-device leg recorded in the FIX-Task-27 report.
+ */
+describe('ReviewOfferScreen — qa offer_load_stall toggle (FIX-Task-27 item 4)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+    mockUseAuth.mockReturnValue({ session: { user: { id: 'seller-1' } } } as any);
+  });
+
+  it('armed: the stall trips the 20s bound and surfaces the retryable error state', async () => {
+    // Fake timers so the REAL 20s bound can be reached without waiting for it.
+    jest.useFakeTimers();
+    try {
+      await setQaLocalValue(QA_OFFER_LOAD_STALL_KEY, 'stall');
+      // Precondition: the toggle really is armed for this suite's module instance.
+      expect(await getSimulatedOfferLoadStall()).toBe('stall');
+      mockTrades(makeOffer('pending'));
+
+      const { queryByTestId } = render(<ReviewOfferScreen />);
+
+      // Let the mount effect reach — and enter — the stalled read.
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      // Still stalled: nothing from the offer body has rendered and the bound has
+      // not elapsed, so there is no error state yet.
+      expect(queryByTestId('accept-trade-button')).toBeNull();
+      expect(queryByTestId('review-offer-load-error')).toBeNull();
+
+      // Trip the bound.
+      await act(async () => {
+        jest.advanceTimersByTime(20001);
+      });
+
+      expect(queryByTestId('review-offer-load-error')).toBeTruthy();
+      expect(queryByTestId('review-offer-retry-button')).toBeTruthy();
+
+      // NOTE: `supabase.from` call counts are NOT a valid signal here — this
+      // screen's ScreenLayout header runs an unrelated unread-message badge query
+      // against `trades` (useUnreadMessagesBadge → services/chat.ts), so the stall
+      // is asserted through the render state instead.
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('disarmed: the offer read runs normally and the offer renders', async () => {
+    await setQaLocalValue(QA_OFFER_LOAD_STALL_KEY, 'none');
+    mockTrades(makeOffer('pending'));
+
+    const { findByTestId } = render(<ReviewOfferScreen />);
+
+    expect(await findByTestId('accept-trade-button')).toBeTruthy();
   });
 });

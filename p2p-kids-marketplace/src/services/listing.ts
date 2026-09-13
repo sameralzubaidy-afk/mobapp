@@ -22,6 +22,7 @@ import { getAdminConfig } from './adminConfig';
 import { uploadImage, deleteImage } from './supabase/storage';
 import { checkItemSafety, isCpscCheckEnabled } from './safety';
 import { isImageModerationEnabled, moderateListingImages } from './imageModeration';
+import { getSimulatedSellerReadFailure } from './devTestingService';
 
 export interface ListingImageDraft {
   id?: string;
@@ -1301,7 +1302,15 @@ export async function getListingById(
     // silently vanished on a Gateway Timeout). The flag is the signal the screen
     // needs to show an error/retry state instead.
     let sellerLoadFailed = false;
-    if (item.seller_id) {
+    // FIX-Task-27 item 4: dev/test-only fault hook (see devTestingService) so QA
+    // can make Item Detail's retryable `seller-info-error-card` appear on demand.
+    // It short-circuits BEFORE the query — no request is sent and no server state
+    // changes — so the screen's failure branch is provable outside unit tests.
+    const simulateSellerReadFailure = (await getSimulatedSellerReadFailure()) === 'read_failure';
+    if (item.seller_id && simulateSellerReadFailure) {
+      console.warn('[listing] simulated seller read failure (qa_local_seller_read_failure)');
+      sellerLoadFailed = true;
+    } else if (item.seller_id) {
       try {
         // Try fetching with regular client first (respects RLS for privacy)
         const result = await supabase

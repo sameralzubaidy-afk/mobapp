@@ -32,6 +32,7 @@ import { registerTradesRefresh } from '@/services/tradeRefreshRegistry';
 import { Receipt, ArrowsLeftRight, Check, ChatTeardropText } from 'phosphor-react-native';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
+import { getBundleCounts, getPendingBundleItems } from '@/utils/bundleCount';
 
 type TabType = 'active' | 'history';
 
@@ -1305,6 +1306,12 @@ export default function TradeListScreen({ navigation }: any) {
                     if (row.type === 'bundle') {
                       // Bundle card — grouped offers share the same bundle_id
                       const bundleOffers = row.offers;
+                      // FIX-Task-27 item 7 (2026-09-13): the card showed no count at
+                      // all, so a buyer could not tell how many items were still
+                      // unanswered without opening the bundle. Counts come from the
+                      // SAME shared helper Review Offer uses (one predicate, one
+                      // counter — the F8 bug class).
+                      const bundleCounts = getBundleCounts(null, bundleOffers);
                       return (
                         <TouchableOpacity
                           key={`bundle-submitted-${row.bundleId}`}
@@ -1341,6 +1348,15 @@ export default function TradeListScreen({ navigation }: any) {
                                   {formatDate(bundleOffers[0].created_at)}
                                 </Text>
                               </View>
+                              {/* FIX-Task-27 item 7: scope on the card itself. */}
+                              <Text
+                                style={styles.bundlePendingCountText}
+                                testID={`trade-bundle-${row.bundleId}-awaiting-count`}
+                              >
+                                {bundleCounts.pending === bundleCounts.total
+                                  ? `All ${bundleCounts.total} awaiting the seller`
+                                  : `${bundleCounts.pending} of ${bundleCounts.total} awaiting the seller`}
+                              </Text>
                               {bundleOffers.slice(0, 3).map((o, i) => (
                                 <View
                                   key={o.id}
@@ -1517,6 +1533,15 @@ export default function TradeListScreen({ navigation }: any) {
                   {groupedReceivedOffers.map((row, _idx) => {
                     if (row.type === 'bundle') {
                       const bundleOffers = row.offers;
+                      // FIX-Task-27 item 7 (2026-09-13): the card gave no hint of how
+                      // many items still need action, so a seller had to open Review
+                      // Offer to judge scope. Counts come from the shared helper, and
+                      // only PENDING siblings are handed to the batch actions — a
+                      // sibling already accepted cannot be accepted again (same rule
+                      // Review Offer applies, FIX-Task-26 item 2).
+                      const bundleCounts = getBundleCounts(null, bundleOffers);
+                      const pendingBundleOffers = getPendingBundleItems(null, bundleOffers);
+                      const canBatchAct = bundleCounts.pending > 0;
                       return (
                         <View
                           key={`bundle-${row.bundleId}`}
@@ -1541,6 +1566,15 @@ export default function TradeListScreen({ navigation }: any) {
                                   </Text>
                                 </View>
                               </View>
+                              {/* FIX-Task-27 item 7: scope on the card itself. */}
+                              <Text
+                                style={styles.bundlePendingCountText}
+                                testID={`trade-bundle-${row.bundleId}-pending-count`}
+                              >
+                                {bundleCounts.pending === bundleCounts.total
+                                  ? `All ${bundleCounts.total} awaiting your review`
+                                  : `${bundleCounts.pending} of ${bundleCounts.total} awaiting your review`}
+                              </Text>
                               {bundleOffers.slice(0, 3).map((o, i) => (
                                 <View
                                   key={o.id}
@@ -1589,6 +1623,11 @@ export default function TradeListScreen({ navigation }: any) {
                           </View>
                           <View style={styles.tradeCardDivider} />
                           {/* Bundle Actions */}
+                          {/* FIX-Task-27 items 7+8 (2026-09-13): the batch actions now
+                              carry the PENDING count, act only on PENDING siblings, and
+                              disappear once nothing is left to act on — mirroring
+                              TradeTimelineScreen's status-filtered batch prompt instead
+                              of offering a dead "Accept All" (FIX-Task-18 item 1). */}
                           <View style={[styles.tradeCardActions, { flexDirection: 'row', gap: 8 }]}>
                             <TouchableOpacity
                               style={[
@@ -1614,58 +1653,68 @@ export default function TradeListScreen({ navigation }: any) {
                                 Review Each
                               </Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[
-                                styles.tradeCardBtnPrimary,
-                                { flex: 1, backgroundColor: '#5DBB8E' },
-                                processingBundleId === row.bundleId && styles.tradeCardBtnDisabled,
-                              ]}
-                              onPress={() =>
-                                requestAcceptBundle(
-                                  row.bundleId,
-                                  bundleOffers.map((o) => o.id),
-                                  `${bundleOffers.length} items`
-                                )
-                              }
-                              disabled={processingBundleId === row.bundleId}
-                              testID={`trade-bundle-${row.bundleId}-accept-all`}
-                              accessible
-                              accessibilityRole="button"
-                              accessibilityLabel="Accept All"
-                            >
-                              <Text style={[styles.tradeCardBtnPrimaryText, { color: '#fff' }]}>
-                                Accept All
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[
-                                styles.tradeCardBtnSecondary,
-                                { flex: 1 },
-                                processingBundleId === row.bundleId && styles.tradeCardBtnDisabled,
-                              ]}
-                              onPress={() =>
-                                requestDeclineBundle(
-                                  row.bundleId,
-                                  bundleOffers.map((o) => o.id),
-                                  `${bundleOffers.length} items`
-                                )
-                              }
-                              disabled={processingBundleId === row.bundleId}
-                              testID={`trade-bundle-${row.bundleId}-decline-all`}
-                              accessible
-                              accessibilityRole="button"
-                              accessibilityLabel="Decline All"
-                            >
-                              <Text
+                            {canBatchAct && (
+                              <TouchableOpacity
                                 style={[
-                                  styles.tradeCardBtnSecondaryText,
-                                  { color: '#E53E3E' },
-                                  processingBundleId === row.bundleId && { opacity: 0.5 },
+                                  styles.tradeCardBtnPrimary,
+                                  { flex: 1, backgroundColor: '#5DBB8E' },
+                                  processingBundleId === row.bundleId &&
+                                    styles.tradeCardBtnDisabled,
                                 ]}
+                                onPress={() =>
+                                  requestAcceptBundle(
+                                    row.bundleId,
+                                    pendingBundleOffers.map((o) => o.id),
+                                    `${bundleCounts.pending} item${
+                                      bundleCounts.pending === 1 ? '' : 's'
+                                    }`
+                                  )
+                                }
+                                disabled={processingBundleId === row.bundleId}
+                                testID={`trade-bundle-${row.bundleId}-accept-all`}
+                                accessible
+                                accessibilityRole="button"
+                                accessibilityLabel="Accept All"
                               >
-                                Decline All
-                              </Text>
-                            </TouchableOpacity>
+                                <Text style={[styles.tradeCardBtnPrimaryText, { color: '#fff' }]}>
+                                  Accept All
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                            {canBatchAct && (
+                              <TouchableOpacity
+                                style={[
+                                  styles.tradeCardBtnSecondary,
+                                  { flex: 1 },
+                                  processingBundleId === row.bundleId &&
+                                    styles.tradeCardBtnDisabled,
+                                ]}
+                                onPress={() =>
+                                  requestDeclineBundle(
+                                    row.bundleId,
+                                    pendingBundleOffers.map((o) => o.id),
+                                    `${bundleCounts.pending} item${
+                                      bundleCounts.pending === 1 ? '' : 's'
+                                    }`
+                                  )
+                                }
+                                disabled={processingBundleId === row.bundleId}
+                                testID={`trade-bundle-${row.bundleId}-decline-all`}
+                                accessible
+                                accessibilityRole="button"
+                                accessibilityLabel="Decline All"
+                              >
+                                <Text
+                                  style={[
+                                    styles.tradeCardBtnSecondaryText,
+                                    { color: '#E53E3E' },
+                                    processingBundleId === row.bundleId && { opacity: 0.5 },
+                                  ]}
+                                >
+                                  Decline All
+                                </Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
                       );
@@ -1749,8 +1798,14 @@ export default function TradeListScreen({ navigation }: any) {
                         </View>
                         <View style={styles.tradeCardDivider} />
                         <View style={styles.tradeCardActions}>
+                          {/* FIX-Task-27 item 8 (2026-09-13): a single offer's primary
+                              action used the SECONDARY (outline) treatment while a
+                              bundle's "Accept All" was the green primary CTA, so the
+                              same "act on this offer" affordance scanned differently on
+                              one list. Both cards now lead with the same green primary
+                              button (testID + label unchanged). */}
                           <TouchableOpacity
-                            style={styles.tradeCardBtnSecondary}
+                            style={styles.tradeCardBtnPrimary}
                             onPress={() =>
                               navigation.navigate('ReviewOffer', { tradeId: offer.id })
                             }
@@ -1759,7 +1814,7 @@ export default function TradeListScreen({ navigation }: any) {
                             accessibilityRole="button"
                             accessibilityLabel="Review Offer"
                           >
-                            <Text style={styles.tradeCardBtnSecondaryText}>Review Offer</Text>
+                            <Text style={styles.tradeCardBtnPrimaryText}>Review Offer</Text>
                           </TouchableOpacity>
                         </View>
                       </TouchableOpacity>
@@ -2208,6 +2263,13 @@ const styles = StyleSheet.create({
   tradeCardDate: {
     fontSize: 13,
     color: '#6B6B6B',
+  },
+  // FIX-Task-27 item 7 (2026-09-13): pending scope shown on the bundle card itself,
+  // so a seller can judge how much work the bundle carries before opening it.
+  bundlePendingCountText: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    marginBottom: 6,
   },
   // Badges
   typeBadge: {

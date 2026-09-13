@@ -685,11 +685,21 @@ export default function CartCheckoutScreen() {
       // the partial-success modal path (both resume from this point).
       await refreshCartCount();
 
-      // ── Record disclaimer acknowledgment for each trade (best effort) ──
+      // ── Record disclaimer acknowledgment for EVERY trade in this purchase ──
       // DT-52: never silent — the shared helper logs RPC failures to Sentry and
       // emits a `disclaimer_ack_failed` analytics metric (DT-45 lesson).
+      //
+      // FIX-Task-27 item 3 (2026-09-13): this block always claimed "for each
+      // trade" but only stamped `tradeIds[0]`, so in a bundle purchase the 2nd and
+      // 3rd sibling trades kept `disclaimer_acknowledged = FALSE` (the column
+      // default) — QA observed 1 of 3 stamped. The RPC is single-trade and
+      // idempotent (`acknowledge_trade_disclaimer` updates one trade row and
+      // records the policy acceptance with ON CONFLICT DO NOTHING), so stamping
+      // every sibling is safe to repeat.
       if (policyId && tradeIds.length > 0) {
-        await acknowledgeTradeDisclaimer(tradeIds[0], policyId, 'CartCheckoutScreen');
+        for (const tradeId of tradeIds) {
+          await acknowledgeTradeDisclaimer(tradeId, policyId, 'CartCheckoutScreen');
+        }
       }
 
       // PARTIAL-SUCCESS (2026-08-01): If the bundle checkout skipped one or more items

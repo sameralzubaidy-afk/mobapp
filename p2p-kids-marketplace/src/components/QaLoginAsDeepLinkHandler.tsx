@@ -13,6 +13,14 @@
 // + `AuthContext.setSession` — exactly like LoginScreen, so the enriched session
 // (subscription status, SP wallet, profile) is what the rest of the app sees.
 //
+// FIX-Task-27 item 1 (2026-09-13): the switch is retried a bounded number of
+// times and, when it finally fails, the REAL cause (AuthError code + underlying
+// error) is logged instead of a bare message. A failed switch also clears the
+// half-switched session on BOTH sides (Supabase client + React), because
+// `signInWithPassword` may already have replaced the client session while React
+// never received `setSession` — the desync behind QA's "stuck on Loading trade…"
+// wedge. See QA_LOGIN_AS_ATTEMPTS / loginAsWithRetry / describeLoginAsFailure.
+//
 // SECURITY GATE: identical to QaLogoutDeepLinkHandler / QaDevToggleDeepLinkHandler —
 // the listener is registered only in dev / staging builds (`__DEV__` or
 // EXPO_PUBLIC_ENVIRONMENT in development/staging). A production build never
@@ -26,7 +34,9 @@ import { loginWithContext } from '@/services/auth';
 import { getTOSService } from '@/services/tos';
 import { getPrivacyPolicyService } from '@/services/privacyPolicy';
 import { getQaPersona } from '@/services/qaPersonas';
-import type { AuthSession } from '@/types/user';
+import { supabase } from '@/config/supabase';
+import { redactForLogging } from '@/utils/authError';
+import type { AuthError, AuthSession } from '@/types/user';
 
 /**
  * Enables the QA login-as deep link in dev / staging builds only.
@@ -100,6 +110,68 @@ async function autoAcceptCurrentPolicies(): Promise<{ tos: boolean; privacy: boo
 }
 
 /**
+ * FIX-Task-27 item 1 (2026-09-13): how many times the persona switch is attempted
+ * before it is declared failed, and the linear backoff between attempts.
+ * QA saw `qa-login-as?persona=test-seller` fail with "User profile not found"
+ * while the profile was intact in the DB, then wedge on "Loading trade…" until a
+ * force-stop + cold relaunch — a transient failure that a retry would have
+ * absorbed (see `readProfileWithRetry` in src/services/auth).
+ */
+const QA_LOGIN_AS_ATTEMPTS = 3;
+const QA_LOGIN_AS_RETRY_BASE_DELAY_MS = 300;
+
+/**
+ * A readable description of WHY a persona switch failed. The old handler logged
+ * `err.message` only, so a transient profile-read failure was indistinguishable
+ * from a genuinely missing profile. The `AuthError.details` payload carries the
+ * underlying cause (e.g. the PostgREST error); `redactForLogging` keeps it safe
+ * for a dev-build LogBox.
+ */
+function describeLoginAsFailure(err: unknown): string {
+  const authError = err as Partial<AuthError> & { details?: unknown };
+  const parts = [
+    `code=${authError?.code ?? 'UNKNOWN'}`,
+    `message=${authError?.message ?? String(err)}`,
+  ];
+  if (authError?.details) {
+    parts.push(`cause=${JSON.stringify(redactForLogging(authError.details))}`);
+  }
+  return parts.join(' | ');
+}
+
+/**
+ * FIX-Task-27 item 1: bounded retry around the canonical login. `loginWithContext`
+ * now retries its own profile read, so this outer retry covers the other
+ * transient legs of the switch (session handoff, wallet/subscription enrichment).
+ */
+async function loginAsWithRetry(
+  personaName: string,
+  email: string,
+  password: string
+): Promise<AuthSession> {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= QA_LOGIN_AS_ATTEMPTS; attempt++) {
+    try {
+      return await loginWithContext({ email, password });
+    } catch (err) {
+      lastError = err;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[QaLoginAsDeepLink] login-as ${personaName} attempt ${attempt}/${QA_LOGIN_AS_ATTEMPTS} failed: ${describeLoginAsFailure(err)}`
+      );
+      if (attempt < QA_LOGIN_AS_ATTEMPTS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, QA_LOGIN_AS_RETRY_BASE_DELAY_MS * attempt)
+        );
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+/**
  * Executes the qa-login-as flow for a URL. Sets the in-progress flag first
  * (synchronously) so PolicyReacceptanceGate skips the prompt until acceptance
  * lands, then signs in via the canonical path and auto-accepts the policies.
@@ -127,10 +199,7 @@ async function applyQaLoginAs(
 
   qaLoginAsInProgress = true;
   try {
-    const session = await loginWithContext({
-      email: persona.email,
-      password: persona.password,
-    });
+    const session = await loginAsWithRetry(personaName, persona.email, persona.password);
     // Canonical AuthContext login handoff (mirrors LoginScreen).
     setSession(session);
 
@@ -140,10 +209,40 @@ async function applyQaLoginAs(
       `[QaLoginAsDeepLink] Logged in as ${personaName}; TOS accepted: ${accepted.tos}, Privacy accepted: ${accepted.privacy}`
     );
   } catch (err) {
+    // FIX-Task-27 item 1 (2026-09-13): log the REAL cause (code + underlying
+    // error), not just `.message` — the old single-line log is why a transient
+    // profile-read failure was misread as "the profile doesn't exist".
     // eslint-disable-next-line no-console
     console.warn(
-      `[QaLoginAsDeepLink] Login-as ${personaName} failed: ${(err as Error)?.message ?? err}`
+      `[QaLoginAsDeepLink] Login-as ${personaName} failed after ${QA_LOGIN_AS_ATTEMPTS} attempts: ${describeLoginAsFailure(err)}`
     );
+
+    // RECOVERY (FIX-Task-27 item 1): `signInWithPassword` may already have
+    // succeeded, which REPLACES the Supabase client's stored session, while
+    // React's AuthContext never received `setSession` (the failure happened
+    // before it). That half-switched state is the "stuck on Loading trade…"
+    // wedge: the UI still renders the previous persona while every request now
+    // runs as the new one. Clear BOTH sides so the client is consistent again
+    // and the QA agent can simply re-fire the deep link.
+    //
+    // `scope: 'local'` (not 'global') so clearing a failed local switch never
+    // signs the persona out of any other device/session.
+    // Note: AuthContext has NO onAuthStateChange listener, so signing out the
+    // Supabase client does not clear React state on its own — setSession(null)
+    // below is what actually releases the stale persona.
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+      setSession(null);
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[QaLoginAsDeepLink] Cleared the half-switched session — re-fire the deep link to retry the switch'
+      );
+    } catch (recoveryErr) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[QaLoginAsDeepLink] Could not clear the half-switched session: ${describeLoginAsFailure(recoveryErr)}`
+      );
+    }
   } finally {
     qaLoginAsInProgress = false;
   }

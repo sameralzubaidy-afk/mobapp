@@ -6,8 +6,9 @@ import { supabase } from '../config/supabase';
 import { AuthSession, LoginInput, UserProfile, AuthError } from '../types/user';
 import { ReferralCodeServiceV2 } from './referralCodeV2';
 import { captureException } from './errorReporter';
-import { getAuthFailureMessage, normalizeAuthFailure } from '../utils/authError';
+import { getAuthFailureMessage, normalizeAuthFailure, redactForLogging } from '../utils/authError';
 import { isAtLeast18 } from '../utils/age';
+import { consumeSimulatedProfileReadFailure } from './devTestingService';
 
 type SignupPolicyType = 'terms_of_service' | 'privacy_policy';
 
@@ -371,6 +372,77 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
 }
 
 /**
+ * FIX-Task-27 item 1 (2026-09-13) — bounded retry for the login-time profile read.
+ *
+ * Before: `loginWithContext` read the profile exactly once and, on ANY failure
+ * (no row from a briefly-degraded gateway leg, RLS hiccup, 5xx), threw
+ * "User profile not found" even though the profile existed. QA hit exactly that
+ * through `qa-login-as` — the sign-in had already replaced the Supabase client's
+ * session while React's AuthContext never received `setSession`, leaving the app
+ * wedged on "Loading trade…" until a force-stop + cold relaunch.
+ *
+ * Retrying is safe here: the read is idempotent and has no side effects, and the
+ * deleted-account gate below still runs on whatever the successful read returns.
+ */
+const PROFILE_READ_ATTEMPTS = 3;
+const PROFILE_READ_RETRY_BASE_DELAY_MS = 300;
+
+interface ProfileReadResult {
+  profile: (UserProfile & { deleted_at?: string | null }) | null;
+  error: unknown;
+}
+
+async function readProfileWithRetry(userId: string): Promise<ProfileReadResult> {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= PROFILE_READ_ATTEMPTS; attempt++) {
+    // FIX-Task-27 item 4: dev/test-only fault hook so QA can prove BOTH halves of
+    // this retry — a transient failure that self-heals ('once'), and exhaustion
+    // ('persist'). Fail-closed: a release build always resolves to `false`.
+    const simulatedFailure = await consumeSimulatedProfileReadFailure();
+
+    if (simulatedFailure) {
+      lastError = new Error('Simulated profile read failure (qa_local_profile_read_failure)');
+    } else {
+      // `*, node:nodes(*)` keeps the Home header able to show the node name
+      // immediately after login — matches AuthContext.refreshSession.
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, node:nodes(*)')
+        .eq('user_id', userId)
+        .single();
+
+      if (!error && data) {
+        return {
+          profile: data as UserProfile & { deleted_at?: string | null },
+          error: null,
+        };
+      }
+
+      lastError = error ?? new Error('Profile query returned no row');
+    }
+
+    // Log the REAL cause (redacted so an infra dump can never reach a dev-build
+    // LogBox) — the old code logged nothing at all, which is why the wedge was
+    // undiagnosable from the device logs.
+    console.warn(
+      `[auth] profile read attempt ${attempt}/${PROFILE_READ_ATTEMPTS} failed:`,
+      redactForLogging(lastError)
+    );
+
+    if (attempt < PROFILE_READ_ATTEMPTS) {
+      // Linear backoff (300ms, 600ms) — short enough to stay invisible to a real
+      // user, long enough to clear a momentary gateway/connection blip.
+      await new Promise((resolve) =>
+        setTimeout(resolve, PROFILE_READ_RETRY_BASE_DELAY_MS * attempt)
+      );
+    }
+  }
+
+  return { profile: null, error: lastError };
+}
+
+/**
  * AUTH-V2-003: Login with Subscription Context
  *
  * Enriches login session with:
@@ -407,13 +479,15 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
 
     // Step 2: Fetch user profile (include node join so the Home header can
     // show the node name immediately after login — matches AuthContext.refreshSession)
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*, node:nodes(*)')
-      .eq('user_id', userId)
-      .single();
+    //
+    // FIX-Task-27 item 1: the read is retried a bounded number of times (see
+    // readProfileWithRetry) so a transient failure no longer masquerades as a
+    // missing profile.
+    const { profile, error: profileError } = await readProfileWithRetry(userId);
 
     if (profileError || !profile) {
+      // Message + code are preserved verbatim (the canonical AUTH guide asserts
+      // this copy); `profileError` carries the underlying cause for the caller.
       throw new AuthError('User profile not found', 'PROFILE_NOT_FOUND', profileError);
     }
 

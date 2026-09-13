@@ -35,6 +35,7 @@ import {
 import { getMaskedSellerListings } from '@/services/listing';
 import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { captureException } from '@/services/errorReporter';
+import { getSimulatedCartRemoveFailure } from '@/services/devTestingService';
 import { supabase } from '@/config/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -409,12 +410,23 @@ export default function CartScreen() {
 
       let failed = false;
       try {
-        const result = await removeFromCart(item.id);
-        if (!result.success) {
+        // FIX-Task-27 item 4: dev/test-only fault hook (see devTestingService) so
+        // QA can exercise THIS rollback on a real failure. It short-circuits
+        // BEFORE the write, so the server cart is never touched — the user-visible
+        // result (row restored + error card + retry) is identical to a real fail.
+        if ((await getSimulatedCartRemoveFailure()) === 'remove_failure') {
           failed = true;
-          // Log the CODE only — a raw machine message here would land in LogBox,
-          // which a dev build renders on screen (the F1 leak-class lesson).
-          console.warn('[CartScreen] removeFromCart failed:', result.error.code);
+          console.warn(
+            '[CartScreen] removeFromCart simulated failure (qa_local_cart_remove_failure)'
+          );
+        } else {
+          const result = await removeFromCart(item.id);
+          if (!result.success) {
+            failed = true;
+            // Log the CODE only — a raw machine message here would land in LogBox,
+            // which a dev build renders on screen (the F1 leak-class lesson).
+            console.warn('[CartScreen] removeFromCart failed:', result.error.code);
+          }
         }
       } catch (e) {
         // `removeFromCart` returns a ServiceResult and is not expected to throw;

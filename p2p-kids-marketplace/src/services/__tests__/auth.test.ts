@@ -425,3 +425,92 @@ describe('AUTH-V2-003: loginWithContext', () => {
     });
   });
 });
+
+/**
+ * FIX-Task-27 item 1 (2026-09-13) — the login-time profile read is retried.
+ *
+ * QA saw `qa-login-as?persona=test-seller` fail with "User profile not found"
+ * while the profile was intact in the DB. The read was a single attempt, so ANY
+ * transient failure (a briefly-degraded gateway leg, RLS hiccup, 5xx) was
+ * indistinguishable from a genuinely missing profile — and because
+ * `signInWithPassword` had already replaced the client session while React never
+ * received `setSession`, the app wedged on "Loading trade…".
+ *
+ * These pin the retry contract: transient → recovered, persistent → the SAME
+ * message/code as before (the canonical guide asserts that copy) with the real
+ * underlying cause attached for the caller's logs.
+ */
+describe('FIX-Task-27 item 1 — login profile-read retry', () => {
+  const profileChain = (single: jest.Mock) => ({
+    select: jest.fn(() => ({ eq: jest.fn(() => ({ single })) })),
+  });
+
+  const signInAs = (userId: string) => {
+    (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      data: {
+        user: { id: userId },
+        session: { access_token: 'token', refresh_token: 'refresh' },
+      },
+      error: null,
+    });
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Enrichment RPCs are not the subject here — keep them inert.
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
+  });
+
+  it('recovers from ONE transient profile-read failure instead of failing the login', async () => {
+    signInAs('user-retry');
+    const single = jest
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: { message: 'Gateway Timeout' } })
+      .mockResolvedValue({
+        data: { id: 'profile-1', user_id: 'user-retry', name: 'Retry' },
+        error: null,
+      });
+    (supabase.from as jest.Mock).mockReturnValue(profileChain(single));
+
+    await expect(
+      loginWithContext({ email: 'retry@example.com', password: 'Password123' })
+    ).resolves.toBeTruthy();
+
+    // Two reads: the failed attempt and the successful retry.
+    expect(single).toHaveBeenCalledTimes(2);
+  });
+
+  it('still fails after the bounded number of attempts, keeping the canonical copy', async () => {
+    signInAs('user-gone');
+    const underlying = { message: 'Gateway Timeout', code: 'PGRST000' };
+    const single = jest.fn().mockResolvedValue({ data: null, error: underlying });
+    (supabase.from as jest.Mock).mockReturnValue(profileChain(single));
+
+    const thrown = await loginWithContext({
+      email: 'gone@example.com',
+      password: 'Password123',
+    }).catch((e) => e as { code?: string; message?: string; details?: unknown });
+
+    expect(thrown.message).toBe('User profile not found');
+    expect(thrown.code).toBe('PROFILE_NOT_FOUND');
+    // The bound is real: it does not retry forever.
+    expect(single).toHaveBeenCalledTimes(3);
+    // …and the underlying cause travels with the error so the caller can log it.
+    expect(thrown.details).toEqual(underlying);
+  });
+
+  it('does not retry when the profile loads on the first attempt', async () => {
+    signInAs('user-fast');
+    const single = jest.fn().mockResolvedValue({
+      data: { id: 'profile-2', user_id: 'user-fast', name: 'Fast' },
+      error: null,
+    });
+    (supabase.from as jest.Mock).mockReturnValue(profileChain(single));
+
+    await expect(
+      loginWithContext({ email: 'fast@example.com', password: 'Password123' })
+    ).resolves.toBeTruthy();
+
+    expect(single).toHaveBeenCalledTimes(1);
+  });
+});

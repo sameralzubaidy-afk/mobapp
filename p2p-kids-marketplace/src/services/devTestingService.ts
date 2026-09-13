@@ -803,6 +803,10 @@ export async function clearQaLocalValues(): Promise<void> {
       QA_SP_WALLET_NOT_FOUND_KEY,
       QA_PAYOUT_FETCH_FAILURE_KEY,
       QA_FAQ_FETCH_FAILURE_KEY,
+      QA_CART_REMOVE_FAILURE_KEY,
+      QA_OFFER_LOAD_STALL_KEY,
+      QA_SELLER_READ_FAILURE_KEY,
+      QA_PROFILE_READ_FAILURE_KEY,
     ]);
   } catch (err) {
     console.warn(`[DevTestingService] clearQaLocalValues error: ${(err as Error).message}`);
@@ -1313,6 +1317,180 @@ export async function getSimulatedPaymentCardPreference(): Promise<string | null
 }
 
 // ========================================
+// QA CART-REMOVE FAILURE SIMULATION (TRD-TC-X11b — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that forces `CartScreen`'s item-removal write
+ * to fail. Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'remove_failure' | 'none'
+ *   - 'remove_failure' → `CartScreen.attemptRemoveItem` short-circuits BEFORE
+ *     calling `removeFromCart` (so no server state changes) and takes the
+ *     failure branch: the optimistically-removed row is restored at its
+ *     original index and `cart-remove-error-card` + `cart-remove-retry-button`
+ *     render.
+ *
+ * Why this exists: the X11-b rollback + inline retry (FIX-Task-26 round 2, QA
+ * 2026-09-13) had no way to be induced on-device. Airplane mode CANNOT be used —
+ * the app's global offline gate ("No Internet Connection") replaces the whole
+ * screen before a per-request failure can surface, so the rollback card stayed
+ * unit-test-only. FIX-Task-27 item 4 closes that verification gap.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real write always runs.
+ * The simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=cart_remove_failure&value=remove_failure"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=cart_remove_failure&value=none"
+ */
+export const QA_CART_REMOVE_FAILURE_KEY = 'qa_local_cart_remove_failure';
+
+export type QaCartRemoveFailureMode = 'remove_failure' | 'none';
+
+export async function getSimulatedCartRemoveFailure(): Promise<QaCartRemoveFailureMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_CART_REMOVE_FAILURE_KEY);
+  return value === 'remove_failure' ? 'remove_failure' : 'none';
+}
+
+// ========================================
+// QA OFFER-LOAD STALL SIMULATION (TRD-TC-F6 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that stalls `ReviewOfferScreen`'s offer read so
+ * the screen's own 20s upper bound (`OFFER_FETCH_TIMEOUT_MS`) actually fires.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'stall' | 'none'
+ *   - 'stall' → the offer query is replaced by a promise that NEVER settles, so
+ *     `withTimeout` rejects with `TimeoutError` and the screen renders
+ *     `review-offer-load-error` + `review-offer-retry-button`.
+ *
+ * Why this exists: FIX-Task-26 item 5 added the bounded timeout, but green
+ * staging could not be stalled on demand, so the timeout-to-retry branch was
+ * unit-test-only (FIX-Task-27 item 4).
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real query always runs.
+ * The simulation never alters server state (no request is sent at all).
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=offer_load_stall&value=stall"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=offer_load_stall&value=none"
+ */
+export const QA_OFFER_LOAD_STALL_KEY = 'qa_local_offer_load_stall';
+
+export type QaOfferLoadStallMode = 'stall' | 'none';
+
+export async function getSimulatedOfferLoadStall(): Promise<QaOfferLoadStallMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_OFFER_LOAD_STALL_KEY);
+  return value === 'stall' ? 'stall' : 'none';
+}
+
+// ========================================
+// QA SELLER-READ FAILURE SIMULATION (TRD-TC-F11 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that makes `getListingById`'s SECOND query (the
+ * seller profile read) fail, so Item Detail renders its retryable Seller Info
+ * error card instead of silently dropping the section.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'read_failure' | 'none'
+ *   - 'read_failure' → the seller sub-query is skipped, the listing comes back
+ *     with `seller: null` + `sellerLoadFailed: true`, and `ItemDetailScreen`
+ *     renders `seller-info-error-card` + `seller-info-retry-button`.
+ *
+ * Why this exists: FIX-Task-26 item 4 (F11) added the error card, but the happy
+ * path was all QA could observe — the failure branch needed a real gateway/RLS
+ * failure to appear, so it was unit-test-only (FIX-Task-27 item 4).
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real seller query runs.
+ * The simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=seller_read_failure&value=read_failure"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=seller_read_failure&value=none"
+ */
+export const QA_SELLER_READ_FAILURE_KEY = 'qa_local_seller_read_failure';
+
+export type QaSellerReadFailureMode = 'read_failure' | 'none';
+
+export async function getSimulatedSellerReadFailure(): Promise<QaSellerReadFailureMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_SELLER_READ_FAILURE_KEY);
+  return value === 'read_failure' ? 'read_failure' : 'none';
+}
+
+// ========================================
+// QA PROFILE-READ FAILURE SIMULATION (FIX-Task-27 item 1 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that makes the LOGIN flow's profile read
+ * (`loginWithContext`, src/services/auth) fail on demand.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'once' | 'persist' | 'none'
+ *   - 'once'    → the FIRST profile-read attempt fails and the key disarms
+ *     itself, so the bounded retry succeeds on attempt 2. This is how QA proves
+ *     the transient-failure SELF-HEAL (the persona switch completes, no wedge).
+ *   - 'persist' → EVERY attempt fails, so the retry exhausts, the real
+ *     underlying cause is logged, and `QaLoginAsDeepLinkHandler` signs the
+ *     half-switched Supabase session out. This is how QA proves the wedge
+ *     RECOVERY without waiting for an opportunistic staging failure.
+ *
+ * Why this exists: the 2026-09-13 QA round saw `qa-login-as?persona=test-seller`
+ * fail with "User profile not found" while the profile was intact in the DB —
+ * the sign-in had already replaced the client's session while React's
+ * AuthContext never received `setSession`, leaving the app wedged on
+ * "Loading trade…" until a force-stop + cold relaunch. That failure is
+ * transient/opportunistic, so it cannot be reproduced on demand without a hook.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return false and the real profile read runs.
+ * The simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=profile_read_failure&value=once"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=profile_read_failure&value=persist"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=profile_read_failure&value=none"
+ */
+export const QA_PROFILE_READ_FAILURE_KEY = 'qa_local_profile_read_failure';
+
+export type QaProfileReadFailureMode = 'once' | 'persist' | 'none';
+
+/**
+ * True when the NEXT profile-read attempt should fail.
+ * `'once'` is CONSUMED on the first call (the key is disarmed immediately) so a
+ * retry can succeed; `'persist'` keeps failing until explicitly disarmed.
+ * Fail-closed to `false` outside dev/test.
+ */
+export async function consumeSimulatedProfileReadFailure(): Promise<boolean> {
+  if (!isDevEnvironment()) {
+    return false;
+  }
+  const value = await readQaLocalValue(QA_PROFILE_READ_FAILURE_KEY);
+  if (value === 'persist') {
+    return true;
+  }
+  if (value === 'once') {
+    // Disarm before returning: the retry on the next attempt must be able to win.
+    await setQaLocalValue(QA_PROFILE_READ_FAILURE_KEY, 'none');
+    return true;
+  }
+  return false;
+}
+
+// ========================================
 // QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04/J07-J12)
 // ========================================
 
@@ -1333,6 +1511,10 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   payment_card: QA_PAYMENT_CARD_KEY,
   sp_wallet_not_found: QA_SP_WALLET_NOT_FOUND_KEY,
   payout_fetch_failure: QA_PAYOUT_FETCH_FAILURE_KEY,
+  cart_remove_failure: QA_CART_REMOVE_FAILURE_KEY,
+  offer_load_stall: QA_OFFER_LOAD_STALL_KEY,
+  seller_read_failure: QA_SELLER_READ_FAILURE_KEY,
+  profile_read_failure: QA_PROFILE_READ_FAILURE_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1348,6 +1530,10 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_PAYMENT_CARD_KEY]: ['mastercard_4444', 'visa_4242', 'none'],
   [QA_SP_WALLET_NOT_FOUND_KEY]: ['not_found', 'none'],
   [QA_PAYOUT_FETCH_FAILURE_KEY]: ['fetch_failure', 'none'],
+  [QA_CART_REMOVE_FAILURE_KEY]: ['remove_failure', 'none'],
+  [QA_OFFER_LOAD_STALL_KEY]: ['stall', 'none'],
+  [QA_SELLER_READ_FAILURE_KEY]: ['read_failure', 'none'],
+  [QA_PROFILE_READ_FAILURE_KEY]: ['once', 'persist', 'none'],
 };
 
 /**
@@ -1426,6 +1612,12 @@ export default {
 
   // QA SP-Wallet-Not-Found Simulation (SUB-TC-I08)
   getSimulatedWalletNotFoundMode,
+
+  // QA failure-injection toggles (FIX-Task-27 item 4) — one family, session-local
+  getSimulatedCartRemoveFailure, // TRD-TC-X11b cart-removal rollback + inline retry
+  getSimulatedOfferLoadStall, // TRD-TC-F6 offer-load 20s timeout → retry
+  getSimulatedSellerReadFailure, // TRD-TC-F11 Item Detail seller-info retry card
+  consumeSimulatedProfileReadFailure, // FIX-Task-27 item 1 login profile-read retry
 
   // Session-local QA toggle storage (A03/D02/C04)
   setQaLocalValue,

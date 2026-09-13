@@ -879,7 +879,7 @@ The QA-only deep links below are registered in dev/staging builds only (`__DEV__
 | `qa-trade-success` | `role`, `listingType`, `tradeStatus`, `tradeId`, `spUsed`, `spAmountDollars`, `remainingSP`, `totalSpToSeller`, `spPendingReleaseDays`, `feeSavingsCents` | Force-renders the TradeSuccess screen for Group H completion CTAs. See the param table below. |
 | `qa-refresh` | — | Force-refetches the currently-open screen (wired: TradeList). |
 | `qa-scroll-to` | `testID=<id>` | Scrolls the target element into the visible band and works around below-the-fold AX coords. |
-| `qa-dev-toggle` | `key=<short>`, `value=<value>` | Arms a session-local failure/simulation toggle (e.g. `card_decline`, `crash_trigger`, `policy_failure`, `config_fetch_failure`). Session-local; cleared on logout. |
+| `qa-dev-toggle` | `key=<short>`, `value=<value>` | Arms a session-local failure/simulation toggle (e.g. `card_decline`, `crash_trigger`, `policy_failure`, `config_fetch_failure`). Session-local; cleared on logout. **FIX-Task-27 item 4 failure-injection family:** `cart_remove_failure` (`remove_failure`), `offer_load_stall` (`stall`, fires Review Offer's 20s timeout), `seller_read_failure` (`read_failure`, Item Detail retry card), `profile_read_failure` (`once` = first profile read fails then self-heals via the retry; `persist` = every attempt fails, proving the login wedge recovery). Arm with `value=none` to disarm. |
 | `qa-clear-overlays` | — | Clears stuck overlays/alerts after a failed dismiss. |
 
 **`qa-trade-success` param semantics** (source of truth: `src/components/QaForceTradeSuccessDeepLinkHandler.tsx`, cross-checked line-by-line against `TradeSuccessScreen.tsx`):

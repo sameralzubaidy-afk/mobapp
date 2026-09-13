@@ -30,6 +30,7 @@ import { getBundleCounts, getPendingBundleCount, getPendingBundleItems } from '@
 import { getFriendlyCancellationReason } from '@/utils/tradeCancellationCopy';
 import { requestTradesRefresh } from '@/services/tradeRefreshRegistry';
 import { isTimeoutError, withTimeout } from '@/utils/withTimeout';
+import { getSimulatedOfferLoadStall } from '@/services/devTestingService';
 import type { TradeStatus } from '@/types/trade';
 // Dev Task 51 item 4: branded, AX-exposed success notices instead of native
 // Alert.alert — deterministic testIDs for QA + design-system-consistent buttons.
@@ -125,11 +126,22 @@ export default function ReviewOfferScreen() {
     try {
       setLoadError(null);
       setLoading(true);
-      const { data, error } = await withTimeout<{ data: any; error: any }>(
-        supabase
-          .from('trades')
-          .select(
-            `
+
+      // FIX-Task-27 item 4: dev/test-only stall hook (see devTestingService) so QA
+      // can fire the 20s upper bound below on demand — a never-settling promise is
+      // handed to `withTimeout` instead of the query, so no request is sent and the
+      // resulting TimeoutError is exactly what a real stall produces.
+      const stallOfferLoad = (await getSimulatedOfferLoadStall()) === 'stall';
+      if (stallOfferLoad) {
+        console.warn('[ReviewOfferScreen] offer load simulated stall (qa_local_offer_load_stall)');
+      }
+
+      const offerQuery = stallOfferLoad
+        ? new Promise<{ data: any; error: any }>(() => {})
+        : supabase
+            .from('trades')
+            .select(
+              `
           id,
           listing_id,
           buyer_id,
@@ -153,10 +165,13 @@ export default function ReviewOfferScreen() {
             images:item_images(url, thumbnail_url)
           )
         `
-          )
-          .eq('id', tradeId)
-          .eq('seller_id', session.user.id)
-          .single(),
+            )
+            .eq('id', tradeId)
+            .eq('seller_id', session.user.id)
+            .single();
+
+      const { data, error } = await withTimeout<{ data: any; error: any }>(
+        offerQuery,
         OFFER_FETCH_TIMEOUT_MS,
         'Offer load timed out'
       );

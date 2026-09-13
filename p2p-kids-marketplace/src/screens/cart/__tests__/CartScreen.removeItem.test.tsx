@@ -22,7 +22,9 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import CartScreen from '../CartScreen';
+import { setQaLocalValue, QA_CART_REMOVE_FAILURE_KEY } from '@/services/devTestingService';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -244,5 +246,66 @@ describe('CartScreen — item removal failure handling (FIX-Task-26 round 2)', (
     await waitFor(() => expect(queryByTestId('cart-remove-error-card')).toBeNull());
     expect(queryByTestId('cart-item-A')).toBeNull();
     expect(mockRemoveFromCart).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * FIX-Task-27 item 4 (2026-09-13) — the `cart_remove_failure` QA toggle.
+ *
+ * The rollback above was provable only by making `removeFromCart` fail inside a
+ * unit test: on-device there was no way to induce it (airplane mode trips the
+ * app's global offline gate before any per-request failure can surface). This
+ * pins the toggle's wiring — armed, the removal short-circuits BEFORE the service
+ * call, so the server cart is never touched, and the user-visible result is the
+ * identical rollback + retry card.
+ */
+describe('CartScreen — qa cart_remove_failure toggle (FIX-Task-27 item 4)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    lastAlertButtons = [];
+    await AsyncStorage.clear();
+    mockSubscribeToCartChanges.mockReturnValue(jest.fn());
+    mockGetCartItems.mockResolvedValue(cartWithTwoItems);
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      lastAlertButtons = (buttons ?? []) as typeof lastAlertButtons;
+    });
+  });
+
+  it('armed: fails the removal WITHOUT calling the service, and rolls the row back', async () => {
+    await setQaLocalValue(QA_CART_REMOVE_FAILURE_KEY, 'remove_failure');
+    mockRemoveFromCart.mockResolvedValue(REMOVAL_OK); // would succeed if it ran
+
+    const { getByTestId, findByTestId } = render(<CartScreen />);
+    await findByTestId('cart-item-A');
+
+    fireEvent.press(getByTestId('cart-item-remove-A'));
+    await pressRemoveInAlert();
+
+    expect(mockRemoveFromCart).not.toHaveBeenCalled();
+    expect(getByTestId('cart-item-A')).toBeTruthy();
+    expect(getByTestId('cart-remove-error-card')).toBeTruthy();
+    expect(getByTestId('cart-remove-retry-button')).toBeTruthy();
+  });
+
+  it('disarmed: the same tap writes normally and clears the basket', async () => {
+    await setQaLocalValue(QA_CART_REMOVE_FAILURE_KEY, 'none');
+    mockRemoveFromCart.mockResolvedValue(REMOVAL_OK);
+    // The refetch after a successful removal returns the remaining item.
+    mockGetCartItems
+      .mockResolvedValueOnce(cartWithTwoItems)
+      .mockResolvedValue({
+        ...cartWithTwoItems,
+        data: { ...cartWithTwoItems.data, items: [ITEM_B] },
+      });
+
+    const { getByTestId, queryByTestId, findByTestId } = render(<CartScreen />);
+    await findByTestId('cart-item-A');
+
+    fireEvent.press(getByTestId('cart-item-remove-A'));
+    await pressRemoveInAlert();
+
+    expect(mockRemoveFromCart).toHaveBeenCalledWith('A');
+    await waitFor(() => expect(queryByTestId('cart-item-A')).toBeNull());
+    expect(queryByTestId('cart-remove-error-card')).toBeNull();
   });
 });

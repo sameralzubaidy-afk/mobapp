@@ -83,6 +83,26 @@ interface SellerRatingInfo {
   ratingBreakdown?: Record<number, number>;
 }
 
+/**
+ * FIX-Task-27 items 2 + 6 (2026-09-13) — clearance for the pinned CTA band.
+ *
+ * The band ("View Trade Basket" / "Request to Buy") is rendered as an in-flow
+ * sibling BELOW the ScrollView, so its height is not automatically subtracted
+ * from the scrollable content. Without a trailing inset the last section's tail
+ * (the Seller Info footer note — measured by QA at 797 x 4 px, i.e. effectively
+ * invisible) cannot be scrolled clear of the band.
+ *
+ * The band is measured with `onLayout` and its real height becomes the scroll
+ * content's bottom padding, so the inset follows the band instead of a guessed
+ * constant — the same technique TradeTimelineScreen uses for its pinned footer.
+ */
+export const CTA_BAND_FALLBACK_HEIGHT = 200;
+
+export function computeItemDetailBottomPadding(bandHeight: number): number {
+  // Fallback covers the first frame, before onLayout has measured the band.
+  return bandHeight > 0 ? bandHeight : CTA_BAND_FALLBACK_HEIGHT;
+}
+
 export default function ItemDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ItemDetailScreenRouteProp>();
@@ -104,6 +124,9 @@ export default function ItemDetailScreen() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   // FIX-Task-26 item 4 (QA Phase 0 F11): busy flag for the seller-info retry.
   const [sellerRetryBusy, setSellerRetryBusy] = useState(false);
+  // FIX-Task-27 items 2 + 6 (2026-09-13): measured height of the pinned CTA band,
+  // used as the scroll content's bottom inset so the last card always clears it.
+  const [ctaBandHeight, setCtaBandHeight] = useState(0);
 
   // Buyer subscription context (MODULE-11 dependency)
   const [buyerCanSpendSP, setBuyerCanSpendSP] = useState(false);
@@ -615,7 +638,19 @@ export default function ItemDetailScreen() {
   return (
     <ScreenLayout variant="detail" title="Item Detail">
       <View style={{ flex: 1, flexDirection: 'column' }}>
-        <ScrollView>
+        {/* FIX-Task-27 items 2 + 6: the measured band height becomes the content's
+            bottom inset, so the last card (incl. the Seller Info footer note) can
+            always be scrolled fully clear of the pinned CTA band.
+            NOTE: do NOT add `flex: 1` to the ScrollView — verified on-device
+            2026-09-13 that it makes the scroll view expand to the full column,
+            which pushes the IN-FLOW CTA band off the bottom of the screen (the
+            Request to Buy / View Trade Basket buttons disappear entirely). The
+            ScrollView already shrinks correctly to sit above the band. */}
+        <ScrollView
+          contentContainerStyle={{
+            paddingBottom: computeItemDetailBottomPadding(ctaBandHeight),
+          }}
+        >
           {activeImage ? (
             <View style={styles.imageGallery}>
               <ListingImage
@@ -1076,7 +1111,10 @@ export default function ItemDetailScreen() {
         {/* MODULE-15.1: Sticky Bottom Actions - Add to Cart + Request to Buy */}
         {/* D-07: Button label is "Request to Buy" (not "Pay Cash" or "Make Offer") */}
         {/* D-08: "Use SP 🔒" chip visible but locked for free users when listing accepts SP */}
-        <View style={styles.stickyBottomActions}>
+        <View
+          style={styles.stickyBottomActions}
+          onLayout={(e) => setCtaBandHeight(e.nativeEvent.layout.height)}
+        >
           {listing?.accepts_swap_points && !buyerIsSubscriber && (
             <Pressable
               style={styles.useSpLockedChip}

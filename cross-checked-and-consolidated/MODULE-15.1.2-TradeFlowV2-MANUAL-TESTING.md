@@ -338,7 +338,7 @@
 | | TRD-TC-N2-C06 | Admin SP adjustment double-click → single credit |
 | | TRD-TC-N2-C07 | Audit completeness — every payment/SP/fee/tax transition logged |
 | | TRD-TC-N2-C08 | Audit log insert-only + RLS (service-role/admin read) |
-| | TRD-TC-N2-C09 | Duplicate idempotency key → prior result, no partial write |
+| | TRD-TC-N2-C09 | Duplicate idempotency key → rejected, no partial write |
 | | TRD-TC-N2-C10 | Reconciliation — payments vs trade_refunds vs financial_audit_log |
 | **Y — Trade List & Timeline** | TRD-TC-Y01 | Trade List summary filter chips |
 | | TRD-TC-Y02 | Trade List Load More history pagination |
@@ -7471,11 +7471,11 @@ WHERE entity_id='<trade_id>' ORDER BY created_at ASC;
 
 ---
 
-### new TRD-TC-N2-C09 · Duplicate idempotency key → prior result, never a partial write
+### new TRD-TC-N2-C09 · Duplicate idempotency key → rejected, never a partial write
 
-**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-008
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-002/SR-N2-008
 **Actors:** test-buyer (subscriber)
-**Objective:** Verify a replayed mutation with the same idempotency key returns the prior result and leaves no partial/duplicate state.
+**Objective:** Verify a replayed mutation carrying the same idempotency key is REJECTED (or no-ops) instead of being applied twice, and leaves no partial/duplicate state.
 
 **Steps:**
 1. Call `SELECT public.fn_log_financial_audit('sp_reserved','trade','<uuid>',NULL,'{}','{}',-1,'<dup_key>',NULL);` twice.
@@ -7483,10 +7483,19 @@ WHERE entity_id='<trade_id>' ORDER BY created_at ASC;
 ```sql
 SELECT count(*) FROM financial_audit_log WHERE idempotency_key='<dup_key>';
 ```
+3. Re-POST `create-trade-offer` with a BYTE-IDENTICAL body (same `submission_nonce`, same items) and capture the HTTP status + response body.
+4. Confirm the replay created nothing new:
+```sql
+SELECT count(*) FROM trades WHERE buyer_id='<buyer>' AND bundle_id='<bundle>';
+SELECT count(*) FROM financial_audit_log WHERE idempotency_key='<submission_nonce>';
+```
 
 **Expected Result:**
-- First call `true`, second call `false`, exactly **1** row — no double-log, no partial write.
-- The same guarantee applies to the SP RPCs (returns `idempotent: true` with the prior `ledger_entry_id`).
+- DB helper: first call `true`, second call `false`, exactly **1** row — no double-log, no partial write.
+- EF replay: the re-POST is **REJECTED with HTTP `409` + `DUPLICATE_OFFER`** — the caller receives a duplicate-offer rejection, **not** the prior result. No second trade, no second payment intent and no second audit row is written (verified live 2026-09-13 on a 3-item bundle: **1** trade / **1** payment intent / **1** audit row per key).
+- The `409 DUPLICATE_OFFER` comes from `create-trade-offer`'s active-offer guard — a buyer cannot hold two active offers on the same item (the same guard the in-progress skip path in TRD-TC-L11 reports).
+- The SP RPCs are the one path that DOES hand the prior outcome back: they return `idempotent: true` with the prior `ledger_entry_id`.
+- A concurrent double-tap on the SINGLE-item path can additionally hit the `trades.stripe_payment_intent_id` unique index (`23505`), which replays the winning row and returns the prior result; the bundle path has no such branch and relies on the `409` guard above.
 
 ---
 

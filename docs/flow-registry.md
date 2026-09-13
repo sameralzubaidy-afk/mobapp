@@ -132,7 +132,8 @@ PROD-001…013 (security hardening, app-store compliance, tooling/quality gates)
 - `SuspendedAccount` — `screens/auth/SuspendedAccountScreen.tsx` — explains an admin suspension and blocks the app.
 - `LinkedAccounts` — `screens/profile/LinkedAccountsScreen.tsx` — view/manage linked social providers, set password for social-only accounts, unlink with last-method guard.
 
-**Functions/features.** Client: `services/auth.ts`, `oauthService.ts`, `oauthProviderConfig.ts`, `phone.ts`/`phoneService.ts`, `passwordService.ts`, `verification.ts`, `emailChange.ts`; Edge Functions: `send-phone-otp`, `auth-email-change`, `auth-update-phone`, `admin-trigger-password-reset`; DB: `handle_new_user` signup trigger/migrations; QA: `qaPersonas.ts` + `QaLoginAsDeepLinkHandler`, provider-outage + phone/email-mismatch dev toggles.
+**Functions/features.** Client: `services/auth.ts`, `oauthService.ts`, `oauthProviderConfig.ts`, `phone.ts`/`phoneService.ts`, `passwordService.ts`, `verification.ts`, `emailChange.ts`; Edge Functions: `send-phone-otp`, `auth-email-change`, `auth-update-phone`, `admin-trigger-password-reset`; DB: `handle_new_user` signup trigger/migrations; QA: `qaPersonas.ts` + `QaLoginAsDeepLinkHandler`, provider-outage + phone/email-mismatch dev toggles, plus the `profile_read_failure`
+toggle (FIX-Task-27 item 1 — proves the login profile-read retry and the half-switched-session recovery).
 
 **References.** `cross-checked-and-consolidated/` auth guide (AUTH groups; A01–A08, B02 re-verify, C03–C07, P03); `docx/SOCIAL-LOGIN-REQUIREMENTS.md`.
 
@@ -251,7 +252,8 @@ PROD-001…013 (security hardening, app-store compliance, tooling/quality gates)
 - `Favorites` — `screens/favorites/FavoritesScreen.tsx` — saved items list.
 - `MoreFromThisSeller` — `screens/home/MoreFromThisSellerScreen.tsx` — other listings by the same seller.
 
-**Functions/features.** Client: `services/discovery.ts`, `services/items.ts`, `favoritesService.ts`, `searchHistory.ts`, `utils/nodeScope.ts`, `brandAutocomplete.ts`; DB: `items` available-only read paths, favorites, category joins; Realtime not required (pull/refresh based).
+**Functions/features.** Client: `services/discovery.ts`, `services/items.ts`, `favoritesService.ts`, `searchHistory.ts`, `utils/nodeScope.ts`, `brandAutocomplete.ts`; DB: `items` available-only read paths, favorites, category joins; Realtime not required (pull/refresh based). QA: `seller_read_failure` toggle
+(FIX-Task-27 item 4 — forces Item Detail's retryable Seller Info card).
 
 **References.** `cross-checked-and-consolidated/` discovery guides (feed/search/filter/favorites groups); `docx/SEARCH-FILTER-REQUIREMENTS.md`.
 
@@ -274,7 +276,8 @@ PROD-001…013 (security hardening, app-store compliance, tooling/quality gates)
 **Admin pages.**
 - `/settings/cart` — cart/bundle platform configuration (admin group N/P).
 
-**Functions/features.** Client: `services/cartService.ts` (`checkoutCart`, SP math via `utils/cartSpMath.ts`), `services/items.ts`; DB: `cart_items`, bundle-offer creation path in `create-trade-offer`; admin config keys for cart/bundle rules.
+**Functions/features.** Client: `services/cartService.ts` (`checkoutCart`, SP math via `utils/cartSpMath.ts`), `services/items.ts`; DB: `cart_items`, bundle-offer creation path in `create-trade-offer`; admin config keys for cart/bundle rules. QA: `cart_remove_failure` toggle (FIX-Task-27 item 4 —
+forces the removal rollback + inline retry).
 
 **References.** `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (S-group basket/bundle) + `docx/TRADING-FLOW-V2.md`.
 
@@ -303,7 +306,8 @@ PROD-001…013 (security hardening, app-store compliance, tooling/quality gates)
 - `SubmitReview` — `screens/review/SubmitReviewScreen.tsx` — post-trade review form (see FLOW-21).
 - `CartCheckout` — `screens/cart/CartCheckoutScreen.tsx` — basket/bundle checkout entry (shared with FLOW-07).
 
-**Functions/features.** Edge Functions: `create-trade-offer`, `complete-trade`, `transactions-update`, `transactions-accept-bundle`, `transactions-decline-bundle`, `trade-payment`, `trade-extension`, `cancel-trade`, `open-dispute`, `resolve-dispute`, `process-auto-complete`, `process-expired-offers`, `process-extension-timeouts`, `release-payment`, `release-pending-sp`, `check-authorization-expiry`, `check-trade-notifications`, `send-trade-notifications`, `monitor-mid-trade-subscription-changes`; RPCs: `complete_trade_v2`, `cancel_trade_v2`, `rpc_process_auto_complete`, `fn_reserve_sp_on_offer`, `fn_release_all_sp_on_complete`, `fn_item_effective_sp_cap`, cancel-request RPCs (see FLOW-27); DB: `trades`, `trade_events`, `items.status`, Realtime on `trades` (enabled); notifications via FLOW-17.
+**Functions/features.** Edge Functions: `create-trade-offer`, `complete-trade`, `transactions-update`, `transactions-accept-bundle`, `transactions-decline-bundle`, `trade-payment`, `trade-extension`, `cancel-trade`, `open-dispute`, `resolve-dispute`, `process-auto-complete`, `process-expired-offers`, `process-extension-timeouts`, `release-payment`, `release-pending-sp`, `check-authorization-expiry`, `check-trade-notifications`, `send-trade-notifications`, `monitor-mid-trade-subscription-changes`; RPCs: `complete_trade_v2`, `cancel_trade_v2`, `rpc_process_auto_complete`, `fn_reserve_sp_on_offer`, `fn_release_all_sp_on_complete`, `fn_item_effective_sp_cap`, cancel-request RPCs (see FLOW-27); DB: `trades`, `trade_events`, `items.status`, Realtime on `trades` (enabled); notifications via FLOW-17. QA: `offer_load_stall` toggle (FIX-Task-27 item 4 — forces
+Review Offer's 20s offer-load timeout → retry card).
 
 **References.** `docx/TRADING-FLOW-V2.md` (canonical state machine) + `cross-checked-and-consolidated/MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (groups A–E, G–O, Z; TRD-TC-*).
 

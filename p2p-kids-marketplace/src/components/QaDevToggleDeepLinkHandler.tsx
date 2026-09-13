@@ -2,15 +2,20 @@
 // QA-ONLY deep link handler — lets the QA agent arm/disarm the session-local
 // QA toggles (A03 push simulation, D02 notification-pref save failure, C04 link
 // email mismatch, TRD-B06 card decline, TRD-B05i config fetch failure, Dev Task
-// 44 forced-card selection, ACC-H03 FAQ fetch failure) entirely within its own
-// simulator session, with zero shared-staging blast radius and no manual SQL step
-// from a human between test legs. The toggles live in AsyncStorage (see
+// 44 forced-card selection, ACC-H03 FAQ fetch failure, and the FIX-Task-27 item 4
+// failure-injection family: X11-b cart-remove rollback, F6 offer-load stall,
+// F11 seller-read failure, item 1 login profile-read failure) entirely within its
+// own simulator session, with zero shared-staging blast radius and no manual SQL
+// step from a human between test legs. The toggles live in AsyncStorage (see
 // devTestingService), NOT admin_config, so arming/disarming here never touches
 // shared staging config.
 //
 // Deep link: p2pkidsmarketplace://qa-dev-toggle?key=<short>&value=<value>
 //   key   = push_simulation | pref_save_failure | link_email_mismatch
 //         | card_decline | config_fetch_failure | faq_failure | payment_card
+//         | sp_wallet_not_found | payout_fetch_failure | crash_trigger
+//         | policy_failure | cart_remove_failure | offer_load_stall
+//         | seller_read_failure | profile_read_failure
 //   value = per-key allowed values (see devTestingService.isValidQaToggleValue)
 //
 // SECURITY GATE: this handler must NEVER be reachable in a production build.

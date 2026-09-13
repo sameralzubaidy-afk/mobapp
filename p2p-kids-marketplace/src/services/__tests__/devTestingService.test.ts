@@ -38,6 +38,15 @@ import {
   clearQaLocalValues,
   isValidQaToggleValue,
   QA_TOGGLE_SHORT_NAMES,
+  // FIX-Task-27 item 4 — failure-injection toggle family
+  QA_CART_REMOVE_FAILURE_KEY,
+  QA_OFFER_LOAD_STALL_KEY,
+  QA_SELLER_READ_FAILURE_KEY,
+  QA_PROFILE_READ_FAILURE_KEY,
+  getSimulatedCartRemoveFailure,
+  getSimulatedOfferLoadStall,
+  getSimulatedSellerReadFailure,
+  consumeSimulatedProfileReadFailure,
 } from '../devTestingService';
 
 jest.mock('@/config/supabase', () => ({
@@ -341,6 +350,11 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       payment_card: QA_PAYMENT_CARD_KEY,
       sp_wallet_not_found: QA_SP_WALLET_NOT_FOUND_KEY,
       payout_fetch_failure: QA_PAYOUT_FETCH_FAILURE_KEY,
+      // FIX-Task-27 item 4 — the failure-injection family.
+      cart_remove_failure: QA_CART_REMOVE_FAILURE_KEY,
+      offer_load_stall: QA_OFFER_LOAD_STALL_KEY,
+      seller_read_failure: QA_SELLER_READ_FAILURE_KEY,
+      profile_read_failure: QA_PROFILE_READ_FAILURE_KEY,
     });
   });
 
@@ -494,5 +508,102 @@ describe('devTestingService — getSimulatedPaymentCardPreference (TRD-TC-B03/B0
 
     await clearQaLocalValues();
     await expect(getSimulatedPaymentCardPreference()).resolves.toBeNull();
+  });
+});
+
+/**
+ * FIX-Task-27 item 4 (2026-09-13) — the failure-injection toggle family that
+ * closes three "unit-test-only" verification gaps: the cart-removal rollback
+ * (X11-b), Review Offer's 20s load timeout (F6) and Item Detail's seller-info
+ * retry card (F11), plus a profile-read hook for item 1's login retry.
+ *
+ * Every getter must fail closed (unset / unknown / non-dev env → no simulation)
+ * and every key must be reachable through the deep-link short-name map and be
+ * cleared on logout with the rest of the qa_local_* keys.
+ */
+describe('devTestingService — FIX-Task-27 failure-injection toggles', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+  });
+
+  it('maps the three new short names to their storage keys', () => {
+    expect(QA_TOGGLE_SHORT_NAMES.cart_remove_failure).toBe(QA_CART_REMOVE_FAILURE_KEY);
+    expect(QA_TOGGLE_SHORT_NAMES.offer_load_stall).toBe(QA_OFFER_LOAD_STALL_KEY);
+    expect(QA_TOGGLE_SHORT_NAMES.seller_read_failure).toBe(QA_SELLER_READ_FAILURE_KEY);
+    expect(QA_TOGGLE_SHORT_NAMES.profile_read_failure).toBe(QA_PROFILE_READ_FAILURE_KEY);
+  });
+
+  it('accepts only the documented arming values and rejects anything else', () => {
+    expect(isValidQaToggleValue(QA_CART_REMOVE_FAILURE_KEY, 'remove_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_CART_REMOVE_FAILURE_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_CART_REMOVE_FAILURE_KEY, 'stall')).toBe(false);
+
+    expect(isValidQaToggleValue(QA_OFFER_LOAD_STALL_KEY, 'stall')).toBe(true);
+    expect(isValidQaToggleValue(QA_OFFER_LOAD_STALL_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_OFFER_LOAD_STALL_KEY, 'remove_failure')).toBe(false);
+
+    expect(isValidQaToggleValue(QA_SELLER_READ_FAILURE_KEY, 'read_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_SELLER_READ_FAILURE_KEY, 'none')).toBe(true);
+
+    expect(isValidQaToggleValue(QA_PROFILE_READ_FAILURE_KEY, 'once')).toBe(true);
+    expect(isValidQaToggleValue(QA_PROFILE_READ_FAILURE_KEY, 'persist')).toBe(true);
+    expect(isValidQaToggleValue(QA_PROFILE_READ_FAILURE_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_PROFILE_READ_FAILURE_KEY, 'save_failure')).toBe(false);
+  });
+
+  it('reads the cart-remove, offer-stall and seller-read modes, failing closed when unset', async () => {
+    await expect(getSimulatedCartRemoveFailure()).resolves.toBe('none');
+    await expect(getSimulatedOfferLoadStall()).resolves.toBe('none');
+    await expect(getSimulatedSellerReadFailure()).resolves.toBe('none');
+
+    await setQaLocalValue(QA_CART_REMOVE_FAILURE_KEY, 'remove_failure');
+    await setQaLocalValue(QA_OFFER_LOAD_STALL_KEY, 'stall');
+    await setQaLocalValue(QA_SELLER_READ_FAILURE_KEY, 'read_failure');
+
+    await expect(getSimulatedCartRemoveFailure()).resolves.toBe('remove_failure');
+    await expect(getSimulatedOfferLoadStall()).resolves.toBe('stall');
+    await expect(getSimulatedSellerReadFailure()).resolves.toBe('read_failure');
+  });
+
+  it('treats an unknown stored value as no simulation (fail-closed)', async () => {
+    await setQaLocalValue(QA_SELLER_READ_FAILURE_KEY, 'bogus');
+    await expect(getSimulatedSellerReadFailure()).resolves.toBe('none');
+  });
+
+  it('profile_read_failure=once fails ONE attempt and disarms itself, so a retry can win', async () => {
+    await setQaLocalValue(QA_PROFILE_READ_FAILURE_KEY, 'once');
+
+    await expect(consumeSimulatedProfileReadFailure()).resolves.toBe(true);
+    // Consumed: the retry must not fail again...
+    await expect(consumeSimulatedProfileReadFailure()).resolves.toBe(false);
+    // ...and the stored value is cleared, so a later login is unaffected.
+    await expect(getSimulatedCartRemoveFailure()).resolves.toBe('none');
+    expect(isValidQaToggleValue(QA_PROFILE_READ_FAILURE_KEY, 'none')).toBe(true);
+  });
+
+  it('profile_read_failure=persist keeps failing until explicitly disarmed', async () => {
+    await setQaLocalValue(QA_PROFILE_READ_FAILURE_KEY, 'persist');
+
+    await expect(consumeSimulatedProfileReadFailure()).resolves.toBe(true);
+    await expect(consumeSimulatedProfileReadFailure()).resolves.toBe(true);
+    await expect(consumeSimulatedProfileReadFailure()).resolves.toBe(true);
+
+    await setQaLocalValue(QA_PROFILE_READ_FAILURE_KEY, 'none');
+    await expect(consumeSimulatedProfileReadFailure()).resolves.toBe(false);
+  });
+
+  it('clearQaLocalValues removes all four new toggles (logout hygiene)', async () => {
+    await setQaLocalValue(QA_CART_REMOVE_FAILURE_KEY, 'remove_failure');
+    await setQaLocalValue(QA_OFFER_LOAD_STALL_KEY, 'stall');
+    await setQaLocalValue(QA_SELLER_READ_FAILURE_KEY, 'read_failure');
+    await setQaLocalValue(QA_PROFILE_READ_FAILURE_KEY, 'persist');
+
+    await clearQaLocalValues();
+
+    await expect(getSimulatedCartRemoveFailure()).resolves.toBe('none');
+    await expect(getSimulatedOfferLoadStall()).resolves.toBe('none');
+    await expect(getSimulatedSellerReadFailure()).resolves.toBe('none');
+    await expect(consumeSimulatedProfileReadFailure()).resolves.toBe(false);
   });
 });
