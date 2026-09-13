@@ -897,7 +897,14 @@ export default function CartScreen() {
               }}
               activeOpacity={0.7}
             >
-              <SquaresFour size={18} color="#5DBB8E" weight="fill" />
+              {/* FIX-Task-30 item 8 (2026-09-13): the leading glyph used to sit
+                  bare on white while the bundle CTA directly beneath it renders
+                  its Package glyph on the light-green #EEF9F4 primary surface —
+                  the two blocks read as unrelated elements. The glyph now sits on
+                  the same #EEF9F4 tile so banner + CTA read as one grouping. */}
+              <View style={styles.moreFromSellerBannerIconTile}>
+                <SquaresFour size={16} color="#5DBB8E" weight="fill" />
+              </View>
               <View style={styles.moreFromSellerBannerTextWrap}>
                 <Text style={styles.moreFromSellerBannerTitle}>
                   This seller has {remainingFromSeller} more item
@@ -938,7 +945,13 @@ export default function CartScreen() {
               testID="clear-basket-button"
               accessible
               accessibilityRole="button"
-              accessibilityLabel={`Clear basket, removes all ${cartItems.length} items`}
+              /* FIX-Task-30 item 4 (2026-09-13): the label read "removes all 1
+                 items" at n=1 while the visible hint below already pluralised
+                 ("Removes all 1 item"). Screen readers heard the ungrammatical
+                 form; the two now use the same rule. */
+              accessibilityLabel={`Clear basket, removes all ${cartItems.length} item${
+                cartItems.length === 1 ? '' : 's'
+              }`}
             >
               <Trash size={16} color={theme.colors.error[500]} weight="regular" />
               <Text style={styles.clearBasketText}>Clear Basket</Text>
@@ -1575,6 +1588,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     // Keeps the row a comfortable tap target even without the card padding.
     minHeight: 44,
+  },
+  // FIX-Task-30 item 8 (2026-09-13): shares the bundle CTA's primary surface
+  // (#EEF9F4) + glyph tint (#5DBB8E) so banner and CTA read as one grouping.
+  moreFromSellerBannerIconTile: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#EEF9F4',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   moreFromSellerBannerTextWrap: {
     flex: 1,

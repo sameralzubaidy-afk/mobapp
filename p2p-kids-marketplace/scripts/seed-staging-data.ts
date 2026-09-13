@@ -455,6 +455,29 @@ async function signupTestUser(
       console.log(`   ✓ Re-assigned node_id=${seedNodeId ?? 'null'} for existing user`);
     }
 
+    // FIX-Task-30 item 1 (2026-09-13): the committed persona password IS the
+    // contract that `src/services/qaPersonas.ts` (the `qa-login-as` deep link
+    // registry) and the QA playbook depend on. Before this, a re-seed left any
+    // drifted credential in place, so a persona could silently stop
+    // authenticating — QA Task "TRD Final Closure" saw `test-admin` fail
+    // INVALID_CREDENTIALS 3/3 attempts in two separate rounds, which blocked
+    // every admin-persona mobile case (incl. FIX-Task-29's A3 verification).
+    // Re-asserting the documented password here is idempotent and makes the
+    // standing personas self-healing. Guarded: service key only (the admin API
+    // needs it) and personas without a documented password (qa-social-only) skip.
+    const documentedPassword = (userData as { password?: string }).password;
+    if (SUPABASE_SERVICE_KEY && documentedPassword) {
+      const { error: passwordError } = await adminSupabase.auth.admin.updateUserById(
+        existingProfile.user_id,
+        { password: documentedPassword }
+      );
+      if (passwordError) {
+        console.warn(`   ⚠️ Could not re-assert documented password: ${passwordError.message}`);
+      } else {
+        console.log('   ✓ Re-asserted documented test password');
+      }
+    }
+
     return existingProfile.id;
   }
 
@@ -1949,6 +1972,36 @@ async function seedSeller2(categoryMap: { [key: string]: string }): Promise<stri
   const seller2Id = await signupTestUser(TEST_USERS.seller2, 'user');
   if (!seller2Id) return null;
 
+  // FIX-Task-30 item 2 (2026-09-13): `trg_set_item_node_id` only fires on INSERT,
+  // so a listing that was created BEFORE this seller's profile had a node stays
+  // `node_id = NULL` forever. Untagged listings are then invisible to
+  // node-scoped discovery and — QA Task "TRD Final Closure" (S19) — were
+  // unreachable by any path at all: test-seller-2's 3 listings could not be
+  // searched, deep-linked, or traded. Backfill the NULL rows here, mirroring the
+  // P4 node re-assignment that `signupTestUser` already does for the PROFILE.
+  //
+  // SCOPE NOTE (investigated for the same task): this is a SEED/FIXTURE gap, NOT
+  // a production listing-creation bug — `createListing()` never writes node_id,
+  // but the write-time trigger `trg_set_item_node_id` copies the seller's
+  // `profiles.node_id` on INSERT (verified LIVE on staging, `tgenabled = 'O'`),
+  // so a real seller who has a node always gets a tagged listing. The only
+  // remaining real-world NULL case is a node-LESS seller (no active node for
+  // their ZIP), which is a documented product decision — those items surface
+  // under "Show All Nodes" per migration 20260817000001.
+  const seedNodeId = await resolveSeedNodeId();
+  if (seedNodeId) {
+    const { error: backfillError } = await adminSupabase
+      .from('items')
+      .update({ node_id: seedNodeId, updated_at: new Date().toISOString() })
+      .eq('seller_id', seller2Id)
+      .is('node_id', null);
+    if (backfillError) {
+      console.warn(`   ⚠️ Could not backfill listing node_id: ${backfillError.message}`);
+    }
+  } else {
+    console.warn('   ⚠️ No active node resolved — seller-2 listings stay untagged.');
+  }
+
   const { data: session } = await supabase.auth.signInWithPassword({
     email: TEST_USERS.seller2.email,
     password: TEST_USERS.seller2.password,
@@ -1975,6 +2028,9 @@ async function seedSeller2(categoryMap: { [key: string]: string }): Promise<stri
       price: listing.price,
       status: listing.status,
       accepts_swap_points: true,
+      // FIX-Task-30 item 2: tag at creation too, so the fixture stays correct even
+      // in an environment where the write-time trigger is missing.
+      ...(seedNodeId ? { node_id: seedNodeId } : {}),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

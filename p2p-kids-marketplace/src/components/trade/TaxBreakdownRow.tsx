@@ -26,6 +26,21 @@ interface Props {
   isTaxExempt?: boolean;
 }
 
+/**
+ * FIX-Task-30 item 5 (2026-09-13): the "Tax Free" pill used to exist ONLY as an
+ * inline branch of the Order-Summary row (and only when EVERY line in the
+ * bundle was exempt), so a mixed bundle showed no per-line exemption marker on
+ * the cart-checkout surface — the O2-C02 residual. Extracted as a standalone
+ * export so a line item and the summary row render the identical treatment
+ * (docx/design-system-passitup.md: primary green #5DBB8E on the light-green
+ * tint #E8F5F0, pill shape) instead of a second hand-rolled copy.
+ */
+export const TaxFreeBadge: React.FC<{ testID?: string }> = ({ testID = 'tax-free-badge' }) => (
+  <View style={styles.exemptBadge} testID={testID}>
+    <Text style={styles.exemptBadgeText}>Tax Free</Text>
+  </View>
+);
+
 export const TaxBreakdownRow: React.FC<Props> = ({
   taxAmountCents,
   taxRate,
@@ -41,10 +56,8 @@ export const TaxBreakdownRow: React.FC<Props> = ({
   // merely-disabled/zero node rate (TC-O03/TC-O04 must NOT show the badge).
   if (isTaxExempt && !loading) {
     return (
-      <View style={styles.row} testID="tax-free-badge">
-        <View style={styles.exemptBadge}>
-          <Text style={styles.exemptBadgeText}>Tax Free</Text>
-        </View>
+      <View style={styles.row}>
+        <TaxFreeBadge />
         <Text style={styles.value}>{formatCents(0)}</Text>
       </View>
     );

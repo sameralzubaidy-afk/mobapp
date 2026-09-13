@@ -309,3 +309,47 @@ describe('CartScreen — qa cart_remove_failure toggle (FIX-Task-27 item 4)', ()
     expect(queryByTestId('cart-remove-error-card')).toBeNull();
   });
 });
+
+/**
+ * FIX-Task-30 item 4 (2026-09-13) — the Clear-Basket accessibility label did not
+ * pluralise: it announced "Clear basket, removes all 1 items" while the visible
+ * hint directly beneath it already read "Removes all 1 item". A screen reader
+ * therefore heard ungrammatical copy that contradicted the on-screen text.
+ *
+ * These tests drive the REAL rendered control (not a helper) so they fail if the
+ * label ever reverts to a bare `${n} items` template.
+ */
+describe('CartScreen — clear-basket a11y label pluralisation (FIX-Task-30 item 4)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    lastAlertButtons = [];
+    mockSubscribeToCartChanges.mockReturnValue(jest.fn());
+  });
+
+  it('uses the singular "item" when exactly one item is in the basket', async () => {
+    mockGetCartItems.mockResolvedValue({
+      ...cartWithTwoItems,
+      data: { ...cartWithTwoItems.data, items: [ITEM_A], subtotal: 15 },
+    });
+
+    const { getByTestId, findByTestId } = render(<CartScreen />);
+    await findByTestId('cart-item-A');
+
+    expect(getByTestId('clear-basket-button').props.accessibilityLabel).toBe(
+      'Clear basket, removes all 1 item'
+    );
+    // The visible consequence line agrees with the spoken label.
+    expect(getByTestId('clear-basket-button')).toBeTruthy();
+  });
+
+  it('uses the plural "items" when more than one item is in the basket', async () => {
+    mockGetCartItems.mockResolvedValue(cartWithTwoItems);
+
+    const { getByTestId, findByTestId } = render(<CartScreen />);
+    await findByTestId('cart-item-A');
+
+    expect(getByTestId('clear-basket-button').props.accessibilityLabel).toBe(
+      'Clear basket, removes all 2 items'
+    );
+  });
+});

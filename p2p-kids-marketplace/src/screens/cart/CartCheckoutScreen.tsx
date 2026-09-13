@@ -54,7 +54,7 @@ import { useSubscriptionStatus } from '@/hooks/useAuth';
 // FIX-Task-19 item 1 (2026-09-11): the Basket tab badge is fed by CartContext.
 import { useCartContext } from '@/contexts/CartContext';
 import { calculateTax, isTaxExemptCategory, resolveDisplayTaxRate } from '@/services/tax';
-import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
+import TaxBreakdownRow, { TaxFreeBadge } from '@/components/trade/TaxBreakdownRow';
 import {
   getBuyerFeeForCheckout,
   getChargeOneFeePerBundle,
@@ -277,6 +277,11 @@ export default function CartCheckoutScreen() {
     taxRate: number;
     jurisdiction: string | null;
     isTaxExempt: boolean;
+    /** FIX-Task-30 item 5 (2026-09-13): per-listing exemption flags for the
+     *  CURRENT cart, so an exempt LINE ITEM can carry its own "Tax Free" pill in
+     *  a mixed bundle (the aggregate `isTaxExempt` below is true only when EVERY
+     *  line is exempt). */
+    exemptByListingId: Record<string, boolean>;
   }>({
     loading: false,
     resolved: false,
@@ -284,6 +289,7 @@ export default function CartCheckoutScreen() {
     taxRate: 0,
     jurisdiction: null,
     isTaxExempt: false,
+    exemptByListingId: {},
   });
 
   useEffect(() => {
@@ -297,6 +303,7 @@ export default function CartCheckoutScreen() {
         taxRate: 0,
         jurisdiction: null,
         isTaxExempt: false,
+        exemptByListingId: {},
       });
       return;
     }
@@ -314,6 +321,12 @@ export default function CartCheckoutScreen() {
         items.map((it) => isTaxExemptCategory(it.taxCategoryId ?? null))
       );
       const allExempt = exemptResults.length > 0 && exemptResults.every(Boolean);
+      // FIX-Task-30 item 5: keep the per-line flags (not just the all-exempt
+      // aggregate) so the render can mark the exempt line(s) of a mixed bundle.
+      const exemptByListingId: Record<string, boolean> = {};
+      items.forEach((it, idx) => {
+        exemptByListingId[it.listingId] = exemptResults[idx] ?? false;
+      });
       if (cancelled) return;
       let totalTaxCents = 0;
       let jurisdiction: string | null = null;
@@ -344,6 +357,7 @@ export default function CartCheckoutScreen() {
         taxRate: displayTaxRate,
         jurisdiction,
         isTaxExempt: allExempt,
+        exemptByListingId,
       });
     })();
     return () => {
@@ -807,6 +821,11 @@ export default function CartCheckoutScreen() {
             const eligible = isItemSpEligible(item);
             const spState = itemSpState[item.listingId];
             const itemPrice = item.price ?? 0;
+            // FIX-Task-30 item 5: true when THIS line's tax category is
+            // tax_exempt_goods. `taxState.isTaxExempt` is only true when every
+            // line is exempt (in which case the Order Summary row already shows
+            // the badge), so the per-line pill is rendered for a MIXED bundle.
+            const itemTaxExempt = taxState.exemptByListingId[item.listingId] ?? false;
             // DEV-TASK-72: one binding ceiling (min of category cap & wallet-
             // remaining) + one source label — replaces the old two-denominator
             // "Max: N SP" / "X of Y — balance limit" pair.
@@ -849,6 +868,19 @@ export default function CartCheckoutScreen() {
                     </View>
                   )}
                 </TouchableOpacity>
+
+                {/* FIX-Task-30 item 5 (2026-09-13) — O2-C02 residual: on the
+                    cart-checkout surface the "Tax Free" pill previously existed
+                    only on the aggregate Order-Summary row, so a bundle mixing a
+                    taxable item with a tax-exempt item showed NO exemption marker
+                    at all (Item Detail does show one). The exempt line now carries
+                    the identical badge. Suppressed when the whole cart is exempt
+                    because the summary row already renders it (no double badge). */}
+                {itemTaxExempt && !taxState.isTaxExempt && (
+                  <View style={styles.itemTaxFreeRow}>
+                    <TaxFreeBadge testID={`checkout-item-tax-free-${item.listingId}`} />
+                  </View>
+                )}
 
                 {/* SP input field (like TradeOfferScreen) */}
                 {eligible && spState && (
@@ -1234,6 +1266,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.neutral[900],
+  },
+  // FIX-Task-30 item 5 (2026-09-13): wrapper for the per-line "Tax Free" pill.
+  // Row direction so the pill shrinks to its content instead of stretching to
+  // the card width (the badge view itself has no intrinsic width).
+  itemTaxFreeRow: {
+    flexDirection: 'row',
+    marginTop: 6,
+    paddingLeft: 2,
   },
   toggleContainer: {
     paddingLeft: 8,

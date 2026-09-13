@@ -363,7 +363,66 @@ describe('TradeSuccessScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('Discover');
     });
 
-    // Permutation 4: Free seller → upsell Kids Club+
+    // FIX-Task-30 item 7 (2026-09-13): the buyer HAD SP available and chose not
+    // to apply it to this order. The "use SP on your next purchase" nudge then
+    // reads as ignoring the choice they just made, so it is suppressed in favour
+    // of a neutral statement of the balance they kept.
+    it('FIX-30 item 7: a buyer who HAS SP but used none is not nudged to use SP', async () => {
+      mockUseAuth.mockReturnValue({
+        session: { subscription_status: 'active', available_points: 458 },
+      });
+      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
+        params: { success: true, role: 'buyer', tradeStatus: 'initiated', tradeId: 'kept-sp' },
+      });
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue({
+              data: { sp_amount: 0, buyer_transaction_fee_cents: 149 },
+              error: null,
+            }),
+          })),
+        })),
+      });
+      const { getByTestId, queryByText } = render(<TradeSuccessScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('cta-message').props.children).toContain(
+          'You still have 458 SP available for your next trade.'
+        );
+      });
+      expect(queryByText(/SP on your next purchase/)).toBeNull();
+      expect(getByTestId('cta-message').props.children).not.toContain('Consider using SP');
+      // The CTA destination is unchanged — only the copy was gated.
+      expect(getByTestId('cta-primary-button')).toBeTruthy();
+    });
+
+    // Negative control for item 7: with NO SP left the nudge is still correct.
+    it('FIX-30 item 7: a buyer with no SP still gets the nudge', async () => {
+      mockUseAuth.mockReturnValue({
+        session: { subscription_status: 'active', available_points: 0 },
+      });
+      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
+        params: { success: true, role: 'buyer', tradeStatus: 'initiated', tradeId: 'no-sp-left' },
+      });
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue({
+              data: { sp_amount: 0, buyer_transaction_fee_cents: 149 },
+              error: null,
+            }),
+          })),
+        })),
+      });
+      const { getByTestId } = render(<TradeSuccessScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('cta-message').props.children).toContain(
+          'Consider using SP on your next purchase to save more.'
+        );
+      });
+    });
     it('P4: free seller should see Kids Club+ upsell and navigate to PlanComparison', () => {
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: { success: true, role: 'seller', subscriptionStatus: 'free', tradeId: 't4' },

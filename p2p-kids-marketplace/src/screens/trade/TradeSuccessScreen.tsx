@@ -84,10 +84,17 @@ function buildCompletionCTA(
     } else {
       // Permutation 3: Subscriber buyer, no SP used
       // Respect tradeStatus — "Trade complete!" only on completed trades
+      const prefix = tradeStatus === 'completed' ? 'Trade complete! ' : '';
+      // FIX-Task-30 item 7 (2026-09-13): the "use SP next time" nudge only makes
+      // sense when the buyer genuinely has no points to spend. When
+      // `remainingSP > 0` they DID have SP and deliberately chose not to apply it
+      // to this order — telling them to "consider using SP on your next purchase"
+      // reads as ignoring the choice they just made, so the nudge is suppressed
+      // and replaced with a neutral statement of their remaining balance.
       const message =
-        tradeStatus === 'completed'
-          ? 'Trade complete! Consider using SP on your next purchase to save more.'
-          : 'Consider using SP on your next purchase to save more.';
+        remainingSP > 0
+          ? `${prefix}You still have ${remainingSP} SP available for your next trade.`
+          : `${prefix}Consider using SP on your next purchase to save more.`;
       return {
         message,
         ctaLabel: 'Browse Items',

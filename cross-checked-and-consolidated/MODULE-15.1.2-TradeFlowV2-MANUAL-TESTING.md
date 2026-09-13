@@ -666,7 +666,7 @@ WHERE id = '<trade-uuid>';
 **Steps:**
 1. Log in as **Buyer** with 2 pending offers to test-seller.
 2. Add 3 items from test-seller to the cart.
-3. Open the **Cart** screen and tap **[Checkout]** (or **[Bundle these N items]**).
+3. Open the **Cart** screen and tap its single CTA (**[Make one offer for these N items]**, `bundle-cta-button` — the separate "Checkout" button was removed by CART-009; copy corrected 2026-09-13, FIX-Task-30 item 6).
 4. Confirm the purchase.
 5. Check the **Offers** tab — verify you now have 3 pending offers with test-seller (2 existing + 1 bundle).
 6. Try to submit a single-item offer on another test-seller item (should be blocked at 3).
@@ -5364,7 +5364,7 @@ FROM items;
 **Expected Result:**
 - Both items appear in Cart under the same seller group.
 - No duplicate entries for the same item.
-- The bundle CTA ("Bundle these 2 items") appears on CartScreen.
+- The bundle CTA ("Make one offer for these 2 items") appears on CartScreen. *(Copy corrected 2026-09-13, FIX-Task-30 item 6 — was the removed "Bundle these 2 items".)*
 - Returning to the "More from this seller" page, Item A and Item B show "In Cart" instead of "Add to Cart".
 
 ---
@@ -5396,7 +5396,7 @@ FROM items;
 **Actors:** test-buyer
 **Precondition:** test-seller has at least 2 available listings.
 
-**Objective:** Verify the CartScreen shows a "Bundle these N items" CTA when 2+ items in the cart are from the same seller.
+**Objective:** Verify the CartScreen shows a "Make one offer for these N items" CTA when 2+ items in the cart are from the same seller.
 
 **Steps:**
 1. Add two items from test-seller to cart (via "More from this seller" page or discover).
@@ -5404,9 +5404,11 @@ FROM items;
 3. Scroll past the items list and summary card.
 
 **Expected Result:**
-- A green outlined card: 📦 "Bundle these N items — Make one offer for all items from this seller."
-- The regular Checkout button is still visible.
-- With 1 item: no bundle CTA.
+- A green outlined card: 📦 **"Make one offer for these N items"** / "All items from this seller".
+- That card is the **only** CTA on CartScreen — there is no separate "regular Checkout" button (see the FIX-Task-30 item 6 note on TRD-TC-S10).
+- With 1 item: no bundle CTA — the single CTA reads **"Make an offer for this item"**.
+
+> 🔄 **Reconciled 2026-09-13 (FIX-Task-30 item 6):** the quoted bundle copy was stale. Shipped strings (`CartScreen.tsx`): title `Make one offer for these ${N} items` with subtext `All items from this seller` (≥2 items), and `Make an offer for this item` at 1 item. The old quote ("Bundle these N items — Make one offer for all items from this seller") and the "regular Checkout button is still visible" line both described the pre-CART-009 UI.
 
 ---
 
@@ -5440,16 +5442,18 @@ FROM items;
 
 ---
 
-### TRD-TC-S10 · Bundle checkout banner absent on regular checkout
+### TRD-TC-S10 · Bundle checkout banner absent on single-item checkout
 
 **Ref:** SELLER-GROUP-005
 
 **Steps:**
-1. With 2+ items, tap regular Checkout → no **"📦 Combined Offer"** banner.
-2. Go back, tap the combined-offer CTA → **"📦 Combined Offer"** banner visible.
+1. With 2+ same-seller items in the basket, tap the single CTA (**`bundle-cta-button`**, "Make one offer for these N items") → the **"📦 Combined Offer"** banner is visible on Checkout.
+2. Go back, clear the basket, add exactly **1** item, tap the single CTA (**`single-item-cta-button`**, "Make an offer for this item") → **no** banner.
 
 **Expected Result:**
-- Regular Checkout: no banner. Combined-offer checkout: banner present.
+- Bundle mode (2+ items): banner present. Single-item mode (exactly 1): no banner.
+
+> 🔄 **Reconciled 2026-09-13 (FIX-Task-30 item 6):** the old step 1 said "tap **regular Checkout**" — that button no longer exists. CartScreen ships exactly ONE CTA: `bundle-cta-button` when `cartItems.length >= 2`, otherwise `single-item-cta-button` (bundle mode is derived from the item count — source comment: *"CART-009: Server-side validation gate (moved from removed Checkout button)"*). The case's discriminating intent (banner ∝ bundle mode) is unchanged and fully drivable through that single CTA; this is how the case was PASSed on 2026-09-13.
 
 ---
 

@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import TaxBreakdownRow from '../TaxBreakdownRow';
+import TaxBreakdownRow, { TaxFreeBadge } from '../TaxBreakdownRow';
 
 describe('TaxBreakdownRow', () => {
   it('shows the applied rate next to the label when the rate is positive', () => {
