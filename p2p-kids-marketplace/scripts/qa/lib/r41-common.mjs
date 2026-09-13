@@ -46,7 +46,11 @@ export const PERSONAS = {
   // 2026-09-07: standing payment-failure persona (ACC-TC-G02) — qa:payfail ensure/reset.
   'test-payfail': { id: 'a1234567-0000-0000-0000-000000000016', email: 'test-payfail@kidsmarketplace.test', password: 'TestPayfail123!' },
   'test-suspended': { id: 'a1234567-0000-0000-0000-00000000000f', email: 'test-suspended@kidsmarketplace.test', password: 'TestSuspended123!' },
-  'qa-first-trade': { id: 'a1234567-0000-0000-0000-000000000014', email: 'qa-first-trade@kidsmarketplace.test', password: 'TestFirstTrade123!' },
+  // FIX-Task-23 item 1: this was `…000014`, which is ALSO the DEV-TASK-96
+  // no-conversation persona (`test-noconvo` — seed-staging-data.ts noConversationUser),
+  // so `qa:r41-first-trade -- create` could never succeed ("Database error creating
+  // new user"). Keep this id in sync with scripts/qa/r41-first-trade-free.mjs PERSONA.id.
+  'qa-first-trade': { id: 'a1234567-0000-0000-0000-000000000017', email: 'qa-first-trade@kidsmarketplace.test', password: 'TestFirstTrade123!' },
   'test-admin': { id: 'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
 };
 

@@ -73,7 +73,10 @@ const DRY_RUN = hasFlag('--dry-run');
 
 const PERSONA_KEY = 'qa-first-trade';
 const PERSONA = {
-  id: 'a1234567-0000-0000-0000-000000000014',
+  // FIX-Task-23 item 1: `…000014` was already owned by the DEV-TASK-96
+  // no-conversation persona (`test-noconvo`), so `create` always failed. Keep in
+  // sync with PERSONAS['qa-first-trade'] in scripts/qa/lib/r41-common.mjs.
+  id: 'a1234567-0000-0000-0000-000000000017',
   email: 'qa-first-trade@kidsmarketplace.test',
   password: 'TestFirstTrade123!',
   name: 'QA First Trade (free)',
@@ -115,6 +118,18 @@ async function findOrCreatePersona() {
   if (existing) {
     log('r41-first-trade', `✅ persona exists (auth ${existing.id})`);
     return existing.id;
+  }
+  // FIX-Task-23 item 1 (guard): creating with a FIXED uuid fails with a bare
+  // "Database error creating new user" when another persona already owns it — the
+  // exact collision that silently blocked this fixture (`…000014` was also the
+  // DEV-TASK-96 `test-noconvo` persona). Fail loudly, naming the occupier, so a
+  // future ID clash can never masquerade as a generic GoTrue failure.
+  const occupant = (list?.users ?? []).find((u) => u.id === PERSONA.id);
+  if (occupant) {
+    throw new Error(
+      `UUID COLLISION: ${PERSONA.id} is already owned by '${occupant.email}', so '${PERSONA.email}' cannot be created. ` +
+        'Give qa-first-trade a free UUID in BOTH scripts/qa/lib/r41-common.mjs (PERSONAS) and scripts/qa/r41-first-trade-free.mjs (PERSONA.id).'
+    );
   }
   if (DRY_RUN) {
     log('r41-first-trade', `DRY-RUN — would create persona ${PERSONA.email} (${PERSONA.id})`);

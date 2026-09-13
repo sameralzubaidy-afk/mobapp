@@ -4637,7 +4637,7 @@ FROM items;
 **Expected Result:**
 - A review with no comment submits successfully.
 - The comment field enforces a 500-character limit — the 501st character cannot be entered.
-- A live counter (e.g., "482/500") is shown below the field.
+- A live counter in the form **`N/500 characters`** is shown inline with the **Comment (optional)** label.
 
 ---
 
@@ -4657,6 +4657,11 @@ FROM items;
 - The review card shows "Anonymous User" instead of the buyer's name.
 - The reviewer's avatar/photo is replaced with a generic placeholder.
 - No other personally identifiable information from the buyer is shown.
+
+> 🔄 **Reconciled 2026-09-12 — the review-submission cluster, Q01–Q05 (FIX-Task-23 items 4 + 8).**
+>
+> 1. **A transient submit failure is judged on partial/timeout failures — NOT on a full network cut.** When `SubmitReview` gets a backend failure it shows a friendly **"Review Not Submitted"** dialog with **Try Again / Cancel** (mapped by `src/utils/userFacingError.ts`, so no raw `"Gateway Timeout"`-style string ever reaches the user — QA finding N2). A **full** network cut never reaches that dialog at all: the app's global offline gate (`offline-screen` — "No Internet Connection" + `[Try Again]`) takes over first. That gate is strictly better UX and already correct, so it is **not** a defect and this case must not be recorded as unreachable — drive it with a partial/timeout failure, and cover the full-cut path under **ACC-TC-F03 / ACC-TC-L02** in `MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL-MANUAL-TESTING.md`.
+> 2. **One formulation of the 500-character cap:** `N/500 characters`, rendered inline with the comment label; the placeholder is descriptive prose. (Q03 corrected above.)
 
 ---
 
@@ -5015,7 +5020,7 @@ FROM items;
 
 > This group covers the **trade-flow refund & cancellation state machine** (FLOW-27) end to end: every cancellation trigger, the resulting trade-state transition, and the refund settlement (cash, proportional sales tax, platform fee treatment, SP reversal, seller payout withholding, and notifications). Cross-references to trigger cases in Groups B, C, E, J, and O are noted where they exist.
 >
-> **State model (reference):** core trade states are `pending` → `in_progress` → `completed` / `cancelled`. Dispute is an overlay (`dispute_status`: reported → under_review → resolved) on `in_progress`, not a separate core state. Cancellation/refund outcomes set `cancelled` with a reason (`buyer_cancelled`, `seller_cancelled`, `cancelled_expired`, `cancelled_expired_competing`) and, where money moved, a refund settlement.
+> **State model (reference):** core trade states are `pending` → `in_progress` → `completed` / `cancelled`. Dispute is an overlay (`dispute_status`: reported → under_review → resolved) on `in_progress`, not a separate core state. Cancellation/refund outcomes set `cancelled` with a reason and, where money moved, a refund settlement. **Reason literals are writer-specific — assert on what is actually stored (reconciled 2026-09-12):** offer expiry stores the friendly string **`'Offer expired'`** (+ `cancelled_at`), the competing-offer sweep stores the machine literal **`'offer_expired_competing'`**, and cancel-modal/dispute outcomes use their own codes. Do not assume one naming style across the group.
 
 ### passed TRD-TC-R01 · Buyer cancels pending trade → cancelled, auth voided, SP restored
 
@@ -5060,8 +5065,10 @@ FROM items;
 2. Separately, on an item with multiple competing offers, have the seller accept one.
 
 **Expected Result:**
-- The expired offer auto-cancels (reason cancelled_expired); the buyer's hold and SP are restored.
-- When one competing offer is accepted, the remaining competing offers are cancelled (cancelled_expired_competing) and those buyers' holds/SP are restored.
+- The expired offer auto-cancels (reason **`'Offer expired'`**); the buyer's hold and SP are restored.
+- When one competing offer is accepted, the remaining competing offers are cancelled (reason `offer_expired_competing`) and those buyers' holds/SP are restored.
+
+> 🔄 **Reconciled 2026-09-12 (FIX-Task-23 item 5):** the expiry reason ships as the friendly string **`'Offer expired'`**, not the `cancelled_expired` code previously documented here. Verified live 2026-09-12: after fast-clocking an offer and calling `rpc_process_expired_offers()`, the row read `status='cancelled'`, `cancellation_reason='Offer expired'`, `cancelled_at` stamped (`e2e-test-results/qa-fix22-verify-p2p3-2026-09-12/report.md` §2.4). The competing-offer reason **is** the snake literal `offer_expired_competing` — unchanged, and already correct above.
 
 ### passed TRD-TC-R04 · Card declined at offer submission → no trade created
 

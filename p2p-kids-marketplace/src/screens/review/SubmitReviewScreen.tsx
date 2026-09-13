@@ -310,16 +310,25 @@ export function SubmitReviewScreen() {
 
           {/* Comment Section */}
           <View style={styles.section}>
-            <Text style={styles.label}>Comment (optional)</Text>
+            {/* FIX-Task-23 item 8: the cap caption sits inline-right of the label so the
+                field block stays compact (it was a line of its own below the input). */}
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Comment (optional)</Text>
+              <Text style={styles.charCount} testID="char-count">
+                {/* ONE formulation of the 500-character cap. Matches the existing
+                    `N/500 characters` form in ListingSafetyReviewScreen so the whole app
+                    reads the cap the same way. History — FIX-Task-20 item 17 turned the
+                    placeholder into "0/500" and FIX-Task-21 item 9 turned the caption into
+                    "500 characters max", which left two different formulations of the same
+                    cap on one field (QA finding N3). Do not reintroduce a second counter. */}
+                {comment.length}/500 characters
+              </Text>
+            </View>
             <TextInput
               inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               style={styles.commentInput}
-              // FIX-Task-22 item 2: ONE formulation of the 500-character cap. The
-              // placeholder is descriptive prose again; the caption below is the single
-              // statement of the limit. History — FIX-Task-20 item 17 turned the
-              // placeholder into "0/500" and FIX-Task-21 item 9 turned the caption into
-              // "500 characters max", which left two different formulations of the same
-              // cap on one field (QA finding N3). Do not reintroduce a counter here.
+              // FIX-Task-22 item 2: the placeholder is descriptive prose again; the cap is
+              // stated exactly once, next to the label above.
               placeholder="Share details of your experience"
               placeholderTextColor="#9CA3AF"
               value={comment}
@@ -329,11 +338,6 @@ export function SubmitReviewScreen() {
               textAlignVertical="top"
               testID="comment-input"
             />
-            <Text style={styles.charCount} testID="char-count">
-              {/* Matches the existing `N/500 characters` form in
-                  ListingSafetyReviewScreen so the whole app reads the cap the same way. */}
-              {comment.length}/500 characters
-            </Text>
           </View>
 
           {/* Anonymous Option */}
@@ -459,11 +463,15 @@ const styles = StyleSheet.create({
     minHeight: 120,
     color: theme.colors.neutral[900],
   },
+  labelRow: {
+    // FIX-Task-23 item 8: pairs the field label with its cap caption on one line.
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
   charCount: {
     fontSize: 12,
     color: theme.colors.neutral[500],
-    textAlign: 'right',
-    marginTop: theme.spacing.xs,
   },
   anonymousToggle: {
     flexDirection: 'row',
