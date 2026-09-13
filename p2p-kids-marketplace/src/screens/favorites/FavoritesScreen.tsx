@@ -3,7 +3,7 @@
  * MODULE-15.2 CART-018: Favorites list — bookmark items separate from cart.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Heart, Trash } from 'phosphor-react-native';
 import { RootStackParamList } from '@/navigation/types';
@@ -31,6 +31,9 @@ export default function FavoritesScreen() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // FIX-Task-29 item 1: tracks whether the first focus load has completed so a
+  // re-focus refetch can update silently instead of flashing the spinner.
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
     const res = await getFavorites();
@@ -38,13 +41,29 @@ export default function FavoritesScreen() {
     else console.warn('[FavoritesScreen]', res.error);
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await load();
-      setLoading(false);
-    })();
-  }, [load]);
+  // FIX-Task-29 item 1: fetch on FOCUS, not just on mount.
+  // This screen is pushed on the root stack and its empty state navigates to Discover,
+  // so a heart tapped there (or a favorite write still in flight at mount) left the
+  // previous snapshot on screen indefinitely — the user was told "No favorites yet"
+  // even though the `favorites` row already existed. A focus refetch corrects it on
+  // the way back, matching TradeListScreen / MyListingsScreen / ReviewOfferScreen.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        // Only the FIRST load shows the full-screen spinner; a re-focus refetch swaps
+        // the list in place so the user never sees a loading flash on return.
+        if (!hasLoadedRef.current) setLoading(true);
+        await load();
+        if (!active) return;
+        hasLoadedRef.current = true;
+        setLoading(false);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [load])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

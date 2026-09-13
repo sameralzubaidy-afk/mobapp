@@ -415,4 +415,38 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       expect(moveButton.props.accessibilityState?.disabled).toBe(true);
     });
   });
+
+  // FIX-Task-29 item 7B: the component now exposes a token-driven variant prop and
+  // defaults to 'secondary', so a photo picker can never again out-emphasise the
+  // form's real submit button (the Edit Listing "+ Add Photo" defect).
+  describe('Variant Contract (FIX-Task-29 item 7B)', () => {
+    it('defaults to the secondary dropzone, not a filled primary', () => {
+      const { getByTestId, getByText } = render(
+        <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
+      );
+
+      expect(getByTestId('image-picker-grid-add-photo')).toBeTruthy();
+      expect(getByText('Add photos')).toBeTruthy();
+      expect(getByText('Choose from your library or take a new photo · up to 5')).toBeTruthy();
+    });
+
+    it('renders the filled primary treatment only when explicitly requested', () => {
+      const { getByText, queryByText } = render(
+        <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} variant="primary" />
+      );
+
+      expect(getByText('+ Add Photo')).toBeTruthy();
+      expect(queryByText('Add photos')).toBeNull();
+    });
+
+    it('keeps the add-photo action working in the primary variant', () => {
+      const { getByTestId, getByText } = render(
+        <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} variant="primary" />
+      );
+
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+
+      expect(getByText('Choose how you want to add a photo.')).toBeTruthy();
+    });
+  });
 });

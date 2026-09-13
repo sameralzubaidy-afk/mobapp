@@ -743,7 +743,7 @@ export default function TradeInitiationScreen() {
               <Text style={styles.sectionTitle}>Payment Method</Text>
               {loadingSavedPaymentMethod && (
                 <View style={styles.paymentModeLoadingContainer}>
-                  <ActivityIndicator size="small" color="#3b82f6" />
+                  <ActivityIndicator size="small" color="#5DBB8E" />
                   <Text style={styles.paymentModeLoadingText}>Checking saved cards...</Text>
                 </View>
               )}
@@ -819,7 +819,7 @@ export default function TradeInitiationScreen() {
                 />
               ) : stripeError === null ? (
                 <View style={{ height: 100, justifyContent: 'center', alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color="#3b82f6" />
+                  <ActivityIndicator size="small" color="#5DBB8E" />
                   <Text style={{ marginTop: 8, color: '#6b7280' }}>Loading secure payment...</Text>
                 </View>
               ) : (
@@ -977,7 +977,8 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#007AFF',
+    // FIX-Task-29 item 7C: info colour — this badge informs, it does not act.
+    backgroundColor: '#5B8FB9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1012,7 +1013,7 @@ const styles = StyleSheet.create({
   },
   walletBalance: {
     fontSize: 14,
-    color: '#3b82f6',
+    color: '#F59E0B',
     fontWeight: '500',
   },
   infoText: {
@@ -1021,20 +1022,20 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   upgradeContainer: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#EBF4F9',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: '#7BA9CC',
   },
   upgradeText: {
     fontSize: 14,
-    color: '#1e40af',
+    color: '#1A1A1A',
     marginBottom: 12,
     lineHeight: 20,
   },
   upgradeButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#5DBB8E',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -1070,7 +1071,7 @@ const styles = StyleSheet.create({
   },
   spButtonText: {
     fontSize: 24,
-    color: '#3b82f6',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   spValueContainer: {
@@ -1142,7 +1143,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#1A1A1A',
   },
   cardField: {
     width: '100%',
@@ -1171,8 +1172,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   paymentModeOptionSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
+    borderColor: '#5DBB8E',
+    backgroundColor: '#E8F5F0',
   },
   paymentModeTitle: {
     fontSize: 14,
@@ -1186,21 +1187,21 @@ const styles = StyleSheet.create({
   },
   savedCardInfoContainer: {
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: '#7BA9CC',
     borderRadius: 8,
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#EBF4F9',
     padding: 12,
     marginVertical: 8,
   },
   savedCardInfoText: {
     fontSize: 14,
-    color: '#1d4ed8',
+    color: '#1A1A1A',
     fontWeight: '600',
   },
   savedCardInfoSubtext: {
     marginTop: 4,
     fontSize: 12,
-    color: '#1e40af',
+    color: '#6B6B6B',
   },
   paymentLoadingContainer: {
     alignItems: 'center',
@@ -1226,8 +1227,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   paymentInfoContainer: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#bfdbfe',
+    backgroundColor: '#EBF4F9',
+    borderColor: '#7BA9CC',
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
@@ -1235,12 +1236,12 @@ const styles = StyleSheet.create({
   },
   paymentInfoText: {
     fontSize: 14,
-    color: '#1d4ed8',
+    color: '#1A1A1A',
     lineHeight: 20,
   },
   addPaymentButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#5DBB8E',
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 8,
@@ -1281,18 +1282,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   confirmButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#5DBB8E',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#3b82f6',
+    shadowColor: '#5DBB8E',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   confirmButtonDisabled: {
-    backgroundColor: '#93c5fd',
+    backgroundColor: '#ABDAC4',
   },
   confirmButtonText: {
     color: '#fff',

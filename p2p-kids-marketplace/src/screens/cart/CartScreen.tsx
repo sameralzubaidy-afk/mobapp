@@ -36,6 +36,9 @@ import { getMaskedSellerListings } from '@/services/listing';
 import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { captureException } from '@/services/errorReporter';
 import { getSimulatedCartRemoveFailure } from '@/services/devTestingService';
+// FIX-Task-29 item 6/9: shared copy so the "more from this seller" line reads the
+// same here as on the Item Detail CTA.
+import { MORE_FROM_SELLER_BROWSE_CTA } from '@/constants/uiCopy';
 import { supabase } from '@/config/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -900,7 +903,9 @@ export default function CartScreen() {
                   This seller has {remainingFromSeller} more item
                   {remainingFromSeller !== 1 ? 's' : ''}
                 </Text>
-                <Text style={styles.moreFromSellerBannerLink}>View</Text>
+                {/* FIX-Task-29 item 6: was the bare verb "View", which explained
+                    nothing. Mirrors the Item Detail CTA wording. */}
+                <Text style={styles.moreFromSellerBannerLink}>{MORE_FROM_SELLER_BROWSE_CTA}</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity

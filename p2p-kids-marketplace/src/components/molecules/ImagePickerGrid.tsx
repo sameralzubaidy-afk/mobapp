@@ -23,9 +23,13 @@ import {
   Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Camera, Images, Plus } from 'phosphor-react-native';
 // Single source of truth — ItemCreate / Bulk Listing / EditListing all share the
 // same cap (photoService.MAX_FILE_SIZE_MB) so the surfaces can never drift again.
 import { MAX_FILE_SIZE_MB } from '../../services/photoService';
+// FIX-Task-29 item 7B: every colour comes from the Pass It Up token set, so no
+// future caller can re-introduce an off-brand (e.g. iOS system blue) button here.
+import { theme } from '../../theme';
 
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -44,6 +48,13 @@ interface ImagePickerGridProps {
   uploading?: boolean;
   maxImages?: number;
   testID?: string;
+  /**
+   * FIX-Task-29 item 7B: lets a caller pick the emphatic style. Defaults to
+   * 'secondary' so a photo picker can never compete with a form's real submit
+   * button — that was the defect: a filled blue "+ Add Photo" sat directly above
+   * the green "Save Changes" on Edit Listing (two competing primaries, two palettes).
+   */
+  variant?: 'primary' | 'secondary';
 }
 
 export default function ImagePickerGrid({
@@ -52,6 +63,7 @@ export default function ImagePickerGrid({
   uploading = false,
   maxImages = MAX_IMAGES,
   testID = 'image-picker-grid',
+  variant = 'secondary',
 }: ImagePickerGridProps) {
   const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
 
@@ -238,23 +250,39 @@ export default function ImagePickerGrid({
         </ScrollView>
       )}
 
-      {/* Add Photo Button */}
+      {/* Add Photo — a SECONDARY-outline dropzone by default (FIX-Task-29 item 7A1).
+          It reads as "drop photos here", not "submit": the form's only filled
+          primary is its real submit button. */}
       {images.length < maxImages && !uploading && (
         <TouchableOpacity
           accessible
           accessibilityRole="button"
+          accessibilityLabel={`Add photos. Up to ${maxImages} photos.`}
           testID={`${testID}-add-photo`}
-          style={styles.addPhotoButton}
+          style={variant === 'primary' ? styles.addPhotoButtonPrimary : styles.addPhotoDropzone}
           onPress={handleAddPhotoPress}
+          activeOpacity={0.7}
         >
-          <Text style={styles.addPhotoButtonText}>+ Add Photo</Text>
+          {variant === 'primary' ? (
+            <Text style={styles.addPhotoButtonPrimaryText}>+ Add Photo</Text>
+          ) : (
+            <>
+              <View style={styles.addPhotoIconWrap}>
+                <Plus size={20} color={theme.colors.primary[600]} weight="bold" />
+              </View>
+              <Text style={styles.addPhotoDropzoneLabel}>Add photos</Text>
+              <Text style={styles.addPhotoDropzoneHelper}>
+                Choose from your library or take a new photo · up to {maxImages}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       )}
 
       {/* Uploading indicator */}
       {uploading && (
         <View style={styles.uploadingContainer}>
-          <ActivityIndicator size="small" color="#007AFF" />
+          <ActivityIndicator size="small" color={theme.colors.primary[500]} />
           <Text style={styles.uploadingText}>Uploading images...</Text>
         </View>
       )}
@@ -271,6 +299,9 @@ export default function ImagePickerGrid({
             <Text style={styles.modalTitle}>Add Photo</Text>
             <Text style={styles.modalMessage}>Choose how you want to add a photo.</Text>
 
+            {/* FIX-Task-29 item 7A2: secondary-outline rows with a leading branded
+                icon and a one-line consequence hint. Only the recommended option
+                (Library) carries the primary tint. */}
             <TouchableOpacity
               style={styles.modalOption}
               onPress={() => {
@@ -279,22 +310,34 @@ export default function ImagePickerGrid({
               }}
               accessible
               accessibilityRole="button"
+              accessibilityLabel="Take Photo"
               testID={`${testID}-source-camera`}
             >
-              <Text style={styles.modalOptionText}>📸 Take Photo</Text>
+              <Camera size={20} color={theme.colors.neutral[700]} weight="regular" />
+              <View style={styles.modalOptionTextWrap}>
+                <Text style={styles.modalOptionTitle}>Take Photo</Text>
+                <Text style={styles.modalOptionHint}>Opens the camera for a new photo</Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               accessible
               accessibilityRole="button"
-              style={styles.modalOption}
+              accessibilityLabel="Photo Library"
+              style={[styles.modalOption, styles.modalOptionPrimary]}
               onPress={() => {
                 setShowPhotoSourceModal(false);
                 pickFromGallery();
               }}
               testID={`${testID}-source-library`}
             >
-              <Text style={styles.modalOptionText}>🖼️ Photo Library</Text>
+              <Images size={20} color={theme.colors.primary[600]} weight="regular" />
+              <View style={styles.modalOptionTextWrap}>
+                <Text style={[styles.modalOptionTitle, styles.modalOptionTitlePrimary]}>
+                  Photo Library
+                </Text>
+                <Text style={styles.modalOptionHint}>Pick photos you already have</Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -324,12 +367,12 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.neutral[900],
     marginBottom: 4,
   },
   hint: {
     fontSize: 12,
-    color: '#999',
+    color: theme.colors.neutral[500],
   },
   previewScroll: {
     marginBottom: 12,
@@ -338,10 +381,10 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     marginRight: 12,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.small,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.neutral[100],
   },
   previewImage: {
     width: '100%',
@@ -352,7 +395,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     left: 4,
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.primary[500],
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -360,7 +403,7 @@ const styles = StyleSheet.create({
   primaryText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.neutral.white,
   },
   deleteButton: {
     position: 'absolute',
@@ -369,14 +412,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 0, 0, 0.9)',
+    backgroundColor: theme.colors.error[500],
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.neutral.white,
     lineHeight: 20,
   },
   reorderButtons: {
@@ -391,26 +434,63 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 122, 255, 0.9)',
+    backgroundColor: theme.colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
   },
   reorderText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.neutral.white,
   },
-  addPhotoButton: {
-    paddingVertical: 14,
+  // FIX-Task-29 item 7A1: secondary-outline dropzone. Was a filled iOS-system-blue
+  // primary button, which competed with the form's real submit button.
+  addPhotoDropzone: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: theme.colors.primary[400],
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.backgroundColors.card,
+    paddingVertical: 24,
     paddingHorizontal: 20,
-    borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    justifyContent: 'center',
   },
-  addPhotoButtonText: {
+  addPhotoIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primary[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  addPhotoDropzoneLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.primary[600],
+  },
+  addPhotoDropzoneHelper: {
+    fontSize: 12,
+    color: theme.colors.neutral[700],
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  // variant="primary" keeps a filled treatment available for a future caller that
+  // genuinely owns the screen's primary action — in brand green, never system blue.
+  addPhotoButtonPrimary: {
+    backgroundColor: theme.colors.primary[500],
+    borderRadius: theme.borderRadius.pill,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    minHeight: theme.componentSize.buttonMedium,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPhotoButtonPrimaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.neutral.white,
   },
   uploadingContainer: {
     flexDirection: 'row',
@@ -421,48 +501,69 @@ const styles = StyleSheet.create({
   uploadingText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.neutral[700],
   },
 
   // Photo Source Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.backgroundColors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalCard: {
     width: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: theme.colors.neutral.white,
+    borderRadius: theme.borderRadius.large,
     padding: 24,
     alignItems: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: theme.colors.neutral[900],
     marginBottom: 4,
   },
   modalMessage: {
     fontSize: 14,
-    color: '#6B7280',
+    color: theme.colors.neutral[700],
     marginBottom: 20,
     textAlign: 'center',
   },
+  // FIX-Task-29 item 7A2: outline by default; modalOptionPrimary marks the
+  // recommended choice so exactly one row is emphasised.
   modalOption: {
     width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.backgroundColors.card,
+    borderWidth: 1.5,
+    borderColor: theme.colors.neutral[200],
     marginBottom: 10,
-    alignItems: 'center',
   },
-  modalOptionText: {
-    fontSize: 16,
+  modalOptionPrimary: {
+    borderColor: theme.colors.primary[500],
+    backgroundColor: theme.colors.primary[100],
+  },
+  modalOptionTextWrap: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  modalOptionTitle: {
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: theme.colors.neutral[900],
+  },
+  modalOptionTitlePrimary: {
+    color: theme.colors.primary[600],
+  },
+  modalOptionHint: {
+    fontSize: 12,
+    color: theme.colors.neutral[700],
+    marginTop: 2,
   },
   modalCancelButton: {
     width: '100%',
@@ -472,7 +573,7 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     fontSize: 15,
-    color: '#6B7280',
+    color: theme.colors.neutral[700],
     fontWeight: '500',
   },
 });

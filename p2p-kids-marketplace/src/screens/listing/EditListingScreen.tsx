@@ -104,7 +104,13 @@ export default function EditListingScreen({ route, navigation }: any) {
 
   const loadMinListingPrice = async () => {
     try {
-      const value = await getConfigValue('min_listing_price');
+      // FIX-Task-29 item 2: forceRefresh=true. Without it this read could serve a
+      // stale/cold cache value of 0, which skipped the "Let's Adjust Your Price"
+      // gate below (minListingPrice > 0) and let the request reach the server, whose
+      // own floor check (services/listing.ts, also forceRefresh) rejected it with a
+      // raw error that surfaced as a plain Alert. Matches the create path
+      // (ItemCreateScreen) and the updateListing service, which both force-refresh.
+      const value = await getConfigValue('min_listing_price', true);
       setMinListingPrice(Number(value) || 0);
     } catch {
       setMinListingPrice(0);
@@ -780,12 +786,12 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     padding: 12,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#EBF4F9',
     borderRadius: 8,
   },
   infoText: {
     fontSize: 14,
-    color: '#1976D2',
+    color: '#5B8FB9',
     textAlign: 'center',
   },
   saveButton: {

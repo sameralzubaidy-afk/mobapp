@@ -1,19 +1,15 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { monitorMidTradeSubscriptionChanges } from '../../services/trade';
 import { Flag, CaretRight, Clock } from 'phosphor-react-native';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+// FIX-Task-29 item 7A3/7B: brand tokens + the shared button, so this screen has no
+// hand-rolled blue primary and no literal hex left anywhere.
+import { theme } from '@/theme';
+import { Button } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -57,13 +53,13 @@ export default function AdminDashboardScreen() {
           onPress={() => navigation.navigate('ReviewModeration')}
         >
           <View style={styles.cardIconContainer}>
-            <Flag size={28} color="#FF6B6B" weight="regular" />
+            <Flag size={28} color={theme.colors.error[500]} weight="regular" />
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>Review Moderation</Text>
             <Text style={styles.cardDescription}>Review and moderate reported reviews</Text>
           </View>
-          <CaretRight size={24} color="#ccc" weight="regular" />
+          <CaretRight size={24} color={theme.colors.neutral[300]} weight="regular" />
         </TouchableOpacity>
 
         {/* Trial Conversion Test Card - MODULE-11 SUB-005 */}
@@ -71,8 +67,8 @@ export default function AdminDashboardScreen() {
           style={styles.card}
           onPress={() => navigation.navigate('TrialConversionTest')}
         >
-          <View style={[styles.cardIconContainer, { backgroundColor: '#E3F2FD' }]}>
-            <Clock size={28} color="#007AFF" weight="regular" />
+          <View style={[styles.cardIconContainer, { backgroundColor: theme.colors.secondary[100] }]}>
+            <Clock size={28} color={theme.colors.secondary[500]} weight="regular" />
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>Trial Conversion Test</Text>
@@ -80,7 +76,7 @@ export default function AdminDashboardScreen() {
               Test trial expiration & conversion logic (SUB-005)
             </Text>
           </View>
-          <CaretRight size={24} color="#ccc" weight="regular" />
+          <CaretRight size={24} color={theme.colors.neutral[300]} weight="regular" />
         </TouchableOpacity>
 
         <View style={styles.section}>
@@ -91,17 +87,20 @@ export default function AdminDashboardScreen() {
             fees.
           </Text>
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          {/* FIX-Task-29 item 7A3: shared ui/Button (brand primary + its own disabled
+              and pressed treatments) instead of a hand-rolled filled-blue control. */}
+          <Button
+            variant="primary"
+            size="large"
+            loading={loading}
             onPress={handleRunMonitoring}
-            disabled={loading}
+            testID="admin-run-mid-trade-check"
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Run Mid-Trade Subscription Check</Text>
-            )}
-          </TouchableOpacity>
+            Run Mid-Trade Subscription Check
+          </Button>
+          <Text style={styles.buttonCaption}>
+            Flags trades for review only — it never changes fees retroactively.
+          </Text>
         </View>
 
         {/* Placeholder for other admin tools */}
@@ -129,23 +128,23 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.backgroundColors.page,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
-    color: '#333',
+    color: theme.textColors.primary,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: theme.backgroundColors.card,
+    borderRadius: theme.borderRadius.medium,
     padding: 16,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.neutral[900],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -155,7 +154,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFE5E5',
+    backgroundColor: theme.colors.error[100],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -166,19 +165,19 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.textColors.primary,
     marginBottom: 4,
   },
   cardDescription: {
     fontSize: 13,
-    color: '#666',
+    color: theme.textColors.secondary,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.backgroundColors.card,
     padding: 20,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.medium,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: theme.colors.neutral[900],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -188,37 +187,30 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 10,
-    color: '#444',
+    color: theme.textColors.primary,
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: theme.textColors.secondary,
     marginBottom: 20,
     lineHeight: 20,
   },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: '#A0CFFF',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  // FIX-Task-29 item 7A3: short "what this does" line under the maintenance action.
+  buttonCaption: {
+    fontSize: 12,
+    color: theme.textColors.tertiary,
+    marginTop: 10,
+    textAlign: 'center',
   },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.neutral[200],
   },
   statusValue: {
-    color: 'green',
+    color: theme.colors.success[500],
     fontWeight: '500',
   },
 });

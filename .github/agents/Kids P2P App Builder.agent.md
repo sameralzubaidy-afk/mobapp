@@ -783,7 +783,8 @@ Issue: "Admin edits a setting on one surface but the other surface shows no 'las
 ✅ Check: The settings write goes through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never a direct `admin_config` insert/update (BP-48)
 ✅ Check: The acting admin's user id is passed as `p_admin_id` so `admin_config.updated_by` is recorded (BP-48)
 ✅ Check: The audit target table exists — a write to a non-existent table (e.g. `audit_logs`) is silently dropped (BP-48)
-See also: BP-48 (admin config writes must record the editor via the shared RPC and land in the shared audit trail)
+✅ Check: A config write OR revert that only changed `value` left `category`/`data_type`/`is_active` untouched — `qa:admin-config-set` defaults to `feature_flags`/`string` and silently rewrites them, so the WHOLE row was read back, not just `value` (BP-48)
+See also: BP-48 (admin config writes must record the editor via the shared RPC and land in the shared audit trail; a value-only write must not clobber the row's sibling columns)
 
 Issue: "Admin page fetch to /api/admin/* fails with 401 / 'No valid authentication provided'"
 
@@ -1464,7 +1465,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
 - BP-47 Latest migration definition is authoritative — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug); a fragile pattern in a historical migration FILE isn't live if a newer `CREATE OR REPLACE` removed it (superseded body = dead code — don't patch it).
-- BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
+- BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail); and a value-only write must not move the row's sibling columns (`category`/`data_type`/`is_active`) — pass them explicitly on both the set and the revert.
 - BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it) — full text: `.github/instructions/admin-portal.instructions.md`.
 - BP-50 — **UNASSIGNED** (no rule text exists under this number; do not allocate it without checking first).
 - BP-51 Pre-deploy verification — run `git diff` / grep the function for the new symbol before deploying an Edge Function; edits can be lost if the working tree is reverted between turns — full text: `.github/instructions/edge-functions.instructions.md`.
@@ -1606,7 +1607,7 @@ BP-46: Postgres Function DECLARE Block Must Declare Every `v_*` Variable Used in
 
 BP-47: E2E Tests Asserting Trigger-Created Defaults Must Verify the Trigger Exists in the Target DB (deployment lag ≠ code bug) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-BP-48: Admin Config Settings Writes Must Go Through the Shared RPC (never direct `admin_config` table writes; record the editor) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
+BP-48: Admin Config Settings Writes Must Go Through the Shared RPC (never direct `admin_config` table writes; record the editor; a value-only write must not clobber `category`/`data_type`) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
 BP-49: Admin Portal Client→API Auth — Always Send `x-admin-secret` on Browser Fetches to `/api/admin/*` — full text moved to `.github/instructions/admin-portal.instructions.md`.
 

@@ -31,6 +31,8 @@ import { useUserStore } from '@/stores/userStore';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getListingById, probeListingAvailability } from '@/services/listing';
+// FIX-Task-29 item 9: shared copy so the Trade Basket banner and this CTA agree.
+import { MORE_FROM_SELLER_BROWSE_CTA } from '@/constants/uiCopy';
 import { captureException } from '@/services/errorReporter';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
@@ -1056,7 +1058,7 @@ export default function ItemDetailScreen() {
                       <Text style={styles.moreFromSellerCtaSubtext}>
                         {sellerOtherMinPrice != null
                           ? `From $${sellerOtherMinPrice.toFixed(2)} · add more to bundle into one trade`
-                          : 'Add more to bundle into one trade'}
+                          : MORE_FROM_SELLER_BROWSE_CTA}
                       </Text>
                     </View>
                     <Text style={styles.moreFromSellerCtaArrow}>→</Text>
@@ -1591,8 +1593,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   spContextCard: {
-    backgroundColor: '#f0f9ff',
-    borderColor: '#3b82f6',
+    backgroundColor: '#EBF4F9',
+    borderColor: '#7BA9CC',
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
@@ -1600,17 +1602,17 @@ const styles = StyleSheet.create({
   spContextTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#0369a1',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   spContextMessage: {
     fontSize: 14,
-    color: '#0c4a6e',
+    color: '#6B6B6B',
     lineHeight: 20,
   },
   upgradeButton: {
     marginTop: 12,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#5DBB8E',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -1869,7 +1871,9 @@ const styles = StyleSheet.create({
   },
   contactSellerLink: {
     fontSize: 14,
-    color: '#007AFF',
+    // FIX-Task-29 item 7C: this is an action (opens the contact flow), so it uses
+    // the brand primary — it was iOS system blue, a BP-82 forbidden token.
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   stickyBottomActions: {

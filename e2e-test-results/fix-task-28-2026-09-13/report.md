@@ -73,8 +73,12 @@ no new wrong claim.
 - N2-C04's expected result now names the real writer; C07 gained an actor-semantics note
   (a system-written row carries `actor_id = NULL`, which is expected, not a defect).
 
-> **Status: written, NOT applied.** Applying the migration to staging is approval-gated
-> (Supabase MCP protocol / BP-80). Tier 1/2 for item 2 = **DEFERRED**.
+> **Status: APPLIED + VERIFIED on staging** (`drntwgporzabmxdqykrp`), 2026-09-13.
+> Applied via `apply_migration` `fix_task_28_sp_release_audit`; verified by live read-back
+> (never by the migration list — BP-81). See "Staging verification (Tier 1/2)" below.
+> **Zero net data mutation:** the functional proof ran inside a `DO` block that raised at
+> the end, so the specimen trade, its wallet movement, the audit row and the notification
+> were all rolled back (confirmed: audit row persisted = 0, total `sp_released` rows still 8).
 
 ### Item 3 — Disclaimer checkbox responds to the whole row
 
@@ -179,7 +183,83 @@ and the finding is closed as *ruled out* (a first-class result). If two rows ref
 *same* component with different Stripe ids and the sum exceeds what was charged, it is a
 real duplicate → fix in the writer identified by query 3.
 
-**Status: NOT RUN** — Supabase MCP reads require Samer's per-call approval.
+**Status: RESOLVED — NOT A DEFECT (ruled out with evidence).**
+
+Ran against staging 2026-09-13. All three trades carry **two per-component admin partial
+refunds**, which is the feature's designed behaviour — each call refunds one component
+(price OR fee OR tax), issues its own Stripe refund, and writes its own `trade_refunds` row:
+
+| Trade | Refund 1 (price/fee/tax) | Refund 2 | Refunded total vs charged | Reasons recorded |
+|---|---|---|---|---|
+| `e54f608a-1bea-4515-8553-fb385ffb9650` | 2200 / 0 / 0 | 0 / 0 / 154 | 2354 = 2200 cash + 154 tax ✅ | "QA K07 partial refund test: refund item price only, keep platform fee" · "QA K08 partial refund test: refund sales tax component only" |
+| `f2899f12-7317-4ec3-9ddd-d8e51b3dd2c0` | 2500 / 0 / 0 | 0 / 0 / 175 | 2675 = 2500 + 175 ✅ | "QA K07 partial refund - price only, fee and tax kept" · "QA K08 - sales tax component only" |
+| `f9d53797-8c45-4797-8eb8-4281911fd003` | 0 / 0 / 699 | 1000 / 0 / 0 | 1699 (partial price + tax) | "### TC-K08 · Admin partial refund — tax ledger partially refunded" (1 & 2) |
+
+**Attribution:** all refund pairs were issued by actor `1a546991-5361-4b4e-b44b-eee9bf730757`
+(admin) — the same actor on the `refund_issued` + `tax_refunded` audit rows for the two
+recent trades. The payment ledger reconciles exactly (refunded = charged components), and
+the two older trades' reason strings still name their originating test cases (K07/K08).
+The third trade's `refund_audit_rows = 0` only because it predates the audit instrumentation
+(2026-08-01).
+
+**Verdict:** the "two successful refunds on one PaymentIntent" observation is a legitimate
+two-call split-component refund, **not** a duplicate-refund bug. **No fix made** (correctly —
+a change here would have broken a deliberate feature).
+
+---
+
+## Staging verification (Tier 1/2) — item 2
+
+Project `drntwgporzabmxdqykrp`. All evidence from live reads/invocations, never the
+migration list (BP-81).
+
+**Before (the defect, measured):** both functions existed but neither wrote an audit row
+(`has_audit = false` for each), and across **59** completed SP trades with a non-zero
+`sp_earned_at_completion` there were only **8** `sp_released` audit rows — all from
+`complete-trade` (the only writer). `ready_now = 0`, so nothing was awaiting release.
+
+**Applied:** `apply_migration` → `fix_task_28_sp_release_audit` (Mode B, `CREATE OR REPLACE`
+only, no data mutation). Result: `{"success":true}`.
+
+**After — object-level read-back:**
+
+| Check | Result |
+|---|---|
+| `rpc_release_pending_sp` body contains `fn_log_financial_audit` | ✅ true |
+| `fn_release_all_sp_on_complete` body contains `fn_log_financial_audit` | ✅ true |
+| `trigger_release_all_sp_on_complete` still attached | ✅ true (CREATE OR REPLACE preserved it) |
+| `financial_audit_log_idempotency_key_key` unique index present | ✅ true |
+| Live grants on `rpc_release_pending_sp(integer)` (`aclexplode`, BP-78) | ✅ `postgres`, `service_role` only — no `PUBLIC`/`anon`/`authenticated` |
+
+**Functional proof (N2-C04 double-run).** No trade was legitimately awaiting release, so a
+real run would have been a no-op; and re-arming an already-released trade for real would
+have **double-credited** a seller's available balance. Instead the proof ran the real
+function twice inside a `DO` block that raises at the end, so the whole statement (and the
+specimen's mutations) rolled back:
+
+```
+PROOF(rolled_back) trade=080551cb-c5ec-44f4-86ca-2b530b73afe2 points=7
+  wallet_pending_before=491
+  run1_released=1  run2_released=0
+  audit_rows_for_key=1  trade_released_flag=1  notif_rows=1
+```
+
+Read as: the processor released the trade on the first call and **did not double-credit** on
+the second (`run2_released=0`); exactly **1** audit row exists for `sp_release_<trade_id>`
+(N2-C04's previously-unsatisfiable assertion); the `sp_released` notification fired once.
+
+**Rollback confirmed** (so staging is unchanged):
+
+| Check | Expected | Actual |
+|---|---|---|
+| Specimen trade still has `sp_released_at` | 1 | ✅ 1 |
+| Audit row for `sp_release_080551cb…` persisted | 0 | ✅ 0 |
+| Total `sp_released` audit rows | 8 | ✅ 8 (unchanged) |
+
+**Known gap (not done, flagged):** the ~51 historical released trades still have no
+`sp_released` audit row — the fix journals them going *forward*. Back-filling historical
+rows is a separate, deliberately-not-taken step (the audit log records transitions; inventing
+retroactive transitions is a product decision, and it was not requested).
 
 ---
 
@@ -205,5 +285,5 @@ are recorded as **owed** with exact steps (BP-91).
 | 9 | **Item 9** | Basket with a seller that has extra items | Banner reads as a plain text row; only the green CTA looks like a button. |
 | 10 | **Item 10** | Home → tap the SP strip | Opens SP Wallet (already covered by 4 unit tests); confirm the enlarged target. |
 | 11 | **Item 11** | Checkout with 3+ SP-eligible items; type into a lower item's SP field | One "Points remaining" pinned above the list, updating live; **no** per-item repetition. |
-| 2 | **Item 2** | After the migration is approved+applied: fast-forward a completed trade's `pending_sp_release_at`, run `rpc_release_pending_sp(100)` **twice** | Exactly 1 audit row at `sp_release_<trade_id>`, seller credited once. |
-| 7 | **Item 7** | Run the three read-only queries above | Attribution verdict. |
+| 2 | ~~**Item 2**~~ | **DONE** — see "Staging verification (Tier 1/2)" above | ✅ applied + proven (rolled back, zero net mutation) |
+| 7 | ~~**Item 7**~~ | **DONE** — see the item-7 verdict above | ✅ ruled out: legitimate split-component partial refunds |

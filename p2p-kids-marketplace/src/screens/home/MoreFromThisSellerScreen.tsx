@@ -8,7 +8,7 @@
  *
  * Key rules:
  * - NEVER shows seller name, avatar, location, or any PII.
- * - Title is generic: "More items from this seller"
+ * - Title is generic: "More from this seller" (no seller identity).
  * - Each item supports "Add to Cart" directly.
  * - "Matches Your Cart" indicator shown when buyer's active cart matches this seller.
  * - Renders nothing identifiable — purely a filtered item grid.

@@ -884,20 +884,20 @@ const styles = StyleSheet.create({
   waitlistBanner: {
     marginTop: SPACING.sm,
     padding: SPACING.md,
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: '#EBF4F9',
+    borderColor: '#7BA9CC',
     borderWidth: 1,
     borderRadius: 10,
   },
   waitlistBannerTitle: {
     fontSize: 13,
-    color: '#1D4ED8',
+    color: '#1A1A1A',
     fontWeight: '600',
   },
   waitlistBannerSubtitle: {
     marginTop: SPACING.xs,
     fontSize: 12,
-    color: '#2563EB',
+    color: '#6B6B6B',
   },
   sectionTitle: {
     fontSize: 12,

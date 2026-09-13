@@ -280,7 +280,7 @@
 | | TRD-TC-S21 | More from seller — Banner and filtered page never reveal seller identity |
 | | TRD-TC-S22 | Regression: Seller Info card elements unchanged |
 | | TRD-TC-S23 | Regression: Trade Basket subtotal/total/bundle CTA layout unaffected |
-| | TRD-TC-S24 | More from seller — Return-to-Cart navigation after adding item from filtered page |
+| | TRD-TC-S24 | More from seller — Adding from the filtered page confirms in place (no navigation) |
 | **X — Navigation Consistency & Bottom Nav** | TRD-TC-X01 | Bottom nav renders identically on Home (Dashboard) |
 | | TRD-TC-X02 | Bottom nav renders identically on Discover |
 | | TRD-TC-X03 | Bottom nav renders identically on Trades |
@@ -314,7 +314,7 @@
 | | TRD-TC-V10 | Bundle CTA says "Make one offer" (no "Bundle" visible) |
 | | TRD-TC-V11 | "Combined Offer" banner on checkout (no "Bundle" visible) |
 | | TRD-TC-V12 | Bundle Builder screen title shows "Build Offer" (no "Bundle" visible) |
-| | TRD-TC-V13 | Favorites "Added to Trade Basket" alert copy |
+| | TRD-TC-V13 | Favorites rows are browse-only (no "Add to Trade Basket" action) |
 | | TRD-TC-V14 | Functional behavior unchanged (adding items, submitting offers) |
 | **W — Admin Bundle Trade Views** | TRD-TC-W01 | Trades page has "Single Trades" and "Bundle Trades" tabs |
 | | TRD-TC-W02 | Single Trades tab shows only non-bundle trades |
@@ -5511,7 +5511,7 @@ FROM items;
 
 **Expected Result:**
 - A full-width green banner reading "This seller has X more items" appears BELOW the seller card (not inside it).
-- The banner has a subtitle "Browse all items from this seller" and a "→" arrow.
+- The banner has a subtitle and a "→" arrow. When a lowest price is known the subtitle reads "From $X.XX · add more to bundle into one trade"; when no price is available it reads "Browse all items from this seller" (amended 2026-09-13 — FIX-Task-29 item 9 shared copy).
 - The banner is tappable and opens MoreFromThisSeller page.
 - "Matches Your Cart" badge (if visible) is still inside the seller card, undisturbed.
 - Contact Seller and View Profile buttons are where they were.
@@ -5610,7 +5610,7 @@ FROM items;
 
 **Expected Result:**
 - CTA/banner text says "This seller" — never seller's name, avatar, or location.
-- MoreFromThisSeller page title is "More items from this seller" — no seller identity.
+- MoreFromThisSeller page title is "More from this seller" — no seller identity (amended 2026-09-13 — FIX-Task-29 item 5; the page title is the app-wide convention and matches the guide's own S02/S03/S04 rows).
 - Individual item cards show no seller name or avatar.
 - No PII leakage on either entry point.
 
@@ -5642,19 +5642,19 @@ FROM items;
 - Sticky Checkout button is at the bottom.
 - Nothing is shifted or overlapped by the new banner.
 
-### TRD-TC-S24 · More from seller — Return-to-Cart navigation after adding item from filtered page
+### TRD-TC-S24 · More from seller — Adding from the filtered page confirms in place (no navigation)
 
 **Ref:** SELLER-GROUP-007
 **Actors:** test-buyer with cart, test-seller
 
 **Steps:**
-1. From Trade Basket, tap the banner's "View" link → opens MoreFromThisSeller page.
+1. From Trade Basket, tap the banner's "Browse all items from this seller" link → opens MoreFromThisSeller page.
 2. Tap "Add to Trade Basket" on an item.
 
 **Expected Result:**
-- After the "Added to Trade Basket" alert, the app navigates back to the Trade Basket screen (Cart).
-- The cart now includes the newly added item.
-- The banner count has recalculated.
+- A non-blocking **"Added to Trade Basket" toast** appears and the app **STAYS on the MoreFromThisSeller page** — this is by design (confirmed FIX-Task-25 item 12). There is **no alert** and **no automatic navigation** back to the Trade Basket (amended 2026-09-13 — FIX-Task-29 item 4).
+- That item's card flips to the disabled **"In Trade Basket"** state.
+- The item IS in the Trade Basket, and its more-items banner count has recalculated (verify by opening the Trade Basket from the tab bar).
 
 ---
 
@@ -6418,22 +6418,22 @@ FROM items;
 - The word "Bundle" does not appear anywhere on the screen's visible copy.
 - All functionality (item selection, price display, Add to Basket) works identically.
 
-### TRD-TC-V13 · Favorites "Added to Trade Basket" alert copy
+### TRD-TC-V13 · Favorites rows are browse-only (no "Add to Trade Basket" action)
 
 **Actors:** test-buyer
 
 **Precondition:** Buyer has favorited items.
 
-**Objective:** Verify the favorites → basket flow uses "Trade Basket" copy.
+**Objective:** Verify the Favorites screen exposes no basket action, so the "Add to Trade Basket" copy is asserted on the surfaces that do offer it (V05/V07).
 
 **Steps:**
 1. Navigate to the Favorites screen.
-2. Tap the **Add to Trade Basket** action (shopping cart icon/button) on a favorited item.
+2. Inspect the actions offered on a favorited item's row.
 
 **Expected Result:**
-- The alert title reads **"Added to Trade Basket"**.
-- The alert body references the item by name and says **"was added to your Trade Basket."**.
-- The item appears in the Trade Basket after dismissal.
+- Each row exposes exactly **two** controls: **"Request to Buy"** (opens the item's detail page) and a remove (trash) button.
+- There is **no "Add to Trade Basket" action** on the Favorites screen, so no "Added to Trade Basket" alert can be triggered from here (amended 2026-09-13 — FIX-Task-29 item 3; the original step 2 was unreachable by construction).
+- The "Added to Trade Basket" copy is verified where the action exists: **TRD-TC-V05** (More from This Seller) and **TRD-TC-V07** (item add).
 
 ### TRD-TC-V14 · Functional behavior unchanged (adding items, submitting offers still works)
 

@@ -405,13 +405,13 @@ export default function UserDashboardScreen() {
              * timed out was told to "Unlock Swap Points / Upgrade →".
              */
             <View
-              style={[styles.spStrip, styles.spStripFree]}
+              style={[styles.spStrip, styles.spStripUnverified]}
               testID="sp-strip-unverified"
               accessible
               accessibilityLabel="We couldn't check your plan"
             >
               <View style={styles.spStripLeft}>
-                <WarningCircle size={20} color="#FFFFFF" weight="fill" />
+                <WarningCircle size={20} color="#FFA726" weight="fill" />
                 <Text style={styles.spStripUnverifiedTitle}>{"We couldn't check your plan"}</Text>
               </View>
               <TouchableOpacity
@@ -424,7 +424,7 @@ export default function UserDashboardScreen() {
                 accessibilityState={{ disabled: subscriptionLoading }}
                 hitSlop={12}
               >
-                <Text style={styles.spEarnMore}>
+                <Text style={styles.spStripUnverifiedRetry}>
                   {subscriptionLoading ? 'Checking…' : 'Try again'}
                 </Text>
               </TouchableOpacity>
@@ -820,6 +820,21 @@ const styles = StyleSheet.create({
   spStripFree: {
     backgroundColor: '#7B8FA1',
   },
+  // FIX-Task-29 item 8: the "we couldn't check your plan" strip used to reuse
+  // spStripFree, so it was pixel-identical to the free-tier upsell — a paying
+  // subscriber whose read timed out could read it as "you've been downgraded".
+  // A warning-toned surface (amber tint + amber border, no green glow, dark text)
+  // keeps "we don't know" visually distinct from both the green member strip and
+  // the grey-blue upgrade nudge.
+  spStripUnverified: {
+    backgroundColor: '#FFF3E0',
+    borderWidth: 1,
+    borderColor: '#FFA726',
+    ...Platform.select({
+      ios: { shadowColor: '#FFA726', shadowOpacity: 0.25 },
+      android: { elevation: 0 },
+    }),
+  },
   spStripLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -841,8 +856,16 @@ const styles = StyleSheet.create({
   spStripUnverifiedTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#1A1A1A',
     flexShrink: 1,
+  },
+  // FIX-Task-29 item 8: retry sits on the light amber surface, so it needs the
+  // dark text tier for contrast (the white/near-white spEarnMore would not read).
+  spStripUnverifiedRetry: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    textDecorationLine: 'underline',
   },
 
   // ─── Quick Actions Grid ───────────────────────────────────────────────────────
