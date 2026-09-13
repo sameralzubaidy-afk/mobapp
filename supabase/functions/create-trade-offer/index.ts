@@ -573,6 +573,24 @@ serve(async (req) => {
   // Determine mode: batch if items array is provided, single otherwise
   const isBatch = Array.isArray(items) && items.length > 0;
 
+  // FIX-Task-25 item 7 (2026-09-13): in BATCH mode `bundle_id` is optional on the
+  // wire, and omitting it used to silently create N SEPARATE single-slot offers
+  // instead of one bundle — the trades table has no bundle_id constraint, and
+  // countPendingSlotsForSeller() dedupes by `row.bundle_id ?? row.id`, so N null
+  // bundle ids counted as N pending slots against max_pending_offers_per_seller
+  // (QA Task 2026-09-13 finding F8: a direct EF call with 4 items inflated the
+  // per-seller slot count 4x). The app always sends `bundle_id` (cartService
+  // checkoutCart), so this was a harness/non-app trap rather than user-facing —
+  // but "items: [...]" has always MEANT one bundle, so derive the id here rather
+  // than trust every caller. Single-item mode is deliberately untouched: a lone
+  // item IS one slot.
+  const effectiveBundleId = bundle_id ?? (isBatch ? crypto.randomUUID() : undefined);
+  if (isBatch && !bundle_id) {
+    console.warn(
+      `[create-trade-offer] req=${requestId} batch call arrived without bundle_id for ${items!.length} items — derived ${effectiveBundleId} to keep them in ONE bundle slot`
+    );
+  }
+
   if (!isBatch) {
     // ── Single-item mode (original flow) ──────────────────────────────
     if (!item_id) return jsonError('item_id is required', 'MISSING_ITEM_ID', 400);
@@ -1487,7 +1505,7 @@ serve(async (req) => {
         sp_category_multiplier: categoryMultiplier,
         stripe_payment_method_brand: capturedPmBrand,
         stripe_payment_method_last4: capturedPmLast4,
-        ...(bundle_id ? { bundle_id } : {}),
+        ...(effectiveBundleId ? { bundle_id: effectiveBundleId } : {}),
       })
       .select()
       .single();
@@ -1524,7 +1542,7 @@ serve(async (req) => {
       entityType: 'trade',
       entityId: trade.id,
       actorId: buyerId,
-      afterState: { item_id: itemId, sp_amount: spAmt, cash_amount_cents: cashCents - txFeeCents, status: 'pending', bundle_id: bundle_id ?? null },
+      afterState: { item_id: itemId, sp_amount: spAmt, cash_amount_cents: cashCents - txFeeCents, status: 'pending', bundle_id: effectiveBundleId ?? null },
       idempotencyKey: `offer_${trade.id}`,
       nodeId: sellerNodeId,
     });
@@ -1534,7 +1552,7 @@ serve(async (req) => {
         entityType: 'trade',
         entityId: trade.id,
         actorId: buyerId,
-        afterState: { platform_fee_cents: txFeeCents, charged_at_offer: true, bundle_id: bundle_id ?? null },
+        afterState: { platform_fee_cents: txFeeCents, charged_at_offer: true, bundle_id: effectiveBundleId ?? null },
         amountCents: txFeeCents,
         idempotencyKey: `fee_${trade.id}`,
         nodeId: sellerNodeId,
@@ -1660,7 +1678,7 @@ serve(async (req) => {
       // DT-18 (2026-08-28): same re-offer-collision fix as the single-item path — the
       // per-submission nonce keeps each new offer attempt's key unique even when the
       // bundle/amounts match a prior cancelled attempt.
-      const piKey = `pi_bundle_${bundle_id ?? ''}_${itemId}_${submissionNonce}_${hashContent(stripeAmount, platformFeeCents, taxCents, jobSpAmount)}`;
+      const piKey = `pi_bundle_${effectiveBundleId ?? ''}_${itemId}_${submissionNonce}_${hashContent(stripeAmount, platformFeeCents, taxCents, jobSpAmount)}`;
       // STRIPE-IDEMPOTENCY-FIX (2026-08-27): idempotencyKey MUST be the OPTIONS argument,
       // never inside the create params (see note above — SDK v14 drops all params otherwise).
       const pi = await stripe.paymentIntents.create({
@@ -1678,7 +1696,7 @@ serve(async (req) => {
           buyer_id: buyerId,
           item_id: itemId,
           trade_id: tradeId,
-          bundle_id: bundle_id ?? '',
+          bundle_id: effectiveBundleId ?? '',
           request_id: requestId,
           item_price_cents: String(itemPriceCents),
           platform_fee_cents: String(platformFeeCents),
@@ -1721,7 +1739,7 @@ serve(async (req) => {
         entityType: 'trade',
         entityId: tradeId,
         actorId: buyerId,
-        afterState: { stripe_payment_intent_id: pi.id, capture_method: 'manual', amount_cents: stripeAmount, bundle_id: bundle_id ?? null },
+        afterState: { stripe_payment_intent_id: pi.id, capture_method: 'manual', amount_cents: stripeAmount, bundle_id: effectiveBundleId ?? null },
         amountCents: stripeAmount,
         idempotencyKey: `pi_${tradeId}`,
       });
@@ -1922,7 +1940,7 @@ serve(async (req) => {
     const response = jsonOk({
       trades,
       errors: errors.length > 0 ? errors : undefined,
-      bundle_id: bundle_id ?? null,
+      bundle_id: effectiveBundleId ?? null,
       created_count: trades.length,
       failed_count: errors.length,
     });

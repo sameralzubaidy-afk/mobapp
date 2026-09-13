@@ -276,14 +276,25 @@ export default function MoreFromThisSellerScreen() {
 
           {matchesCart && <MatchesCartBadge size="small" />}
 
-          {/* Add to Cart button */}
+          {/* Add to Cart button — FIX-Task-25 item 12.
+              When the item was already in the basket this was a dead end: the
+              button was `disabled` with an "In Trade Basket" label and there was
+              no route to the basket from this screen. It now taps straight
+              through to the Trade Basket, matching the `view-cart-button` pattern
+              Item Detail already ships (`navigation.navigate('Cart')`). The
+              visible label intentionally stays "In Trade Basket" (TRD-TC-V06
+              asserts that copy, and the filtered page must not reveal more about
+              the seller's items); the testID switches per state so the two
+              affordances stay unambiguous. */}
           <Pressable
             accessible
             accessibilityRole="button"
+            accessibilityLabel={isInCart ? 'View Trade Basket' : 'Add to Trade Basket'}
             style={[styles.addToCartBtn, isInCart && styles.addToCartBtnInCart]}
-            onPress={() => handleAddToCart(item)}
-            disabled={isInCart}
-            testID={`more-seller-add-cart-${item.id}`}
+            onPress={() => (isInCart ? navigation.navigate('Cart') : handleAddToCart(item))}
+            testID={
+              isInCart ? `more-seller-view-cart-${item.id}` : `more-seller-add-cart-${item.id}`
+            }
           >
             <ShoppingCart size={14} color={isInCart ? '#9CA3AF' : '#5DBB8E'} weight="regular" />
             <Text style={[styles.addToCartText, isInCart && styles.addToCartTextInCart]}>

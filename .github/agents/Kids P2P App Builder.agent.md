@@ -911,7 +911,7 @@ Issue: "A user-visible value shows its fallback (a role label, placeholder, or "
 ✅ Check: The rendered string was asserted in the AX tree or a screenshot FOR THAT STATE — typecheck/lint/unit green proves the code path, not the rendered value (BP-88 rule 4, BP-53)
 ✅ Check: The value is resolved where it RENDERS, not only passed in by the caller — a caller's own read can fail the same way, and a deep-link entry carries no value at all (BP-88 rule 4)
 ✅ Check: The fixture actually exercises the branch that changed — an already-reviewed record and an unreviewed sibling render DIFFERENT branches, so one fixture can hide a total no-op on the other (BP-88 rule 5)
-See also: BP-88 (a branch is only correct if its trigger fires on the real runtime path — same class for error branches AND data-derived values), BP-53 (confirm on-device — unit tests alone are insufficient)
+See also: BP-88 (a branch is only correct if its trigger fires on the real runtime path — same class for error branches AND data-derived values), BP-53 (confirm on-device — unit tests alone are insufficient), BP-91 (a mobile UI change needs an in-session device attempt — otherwise the handoff must enumerate the owed device legs, and typecheck/lint/unit-green is never on-device verification)
 
 Issue: "A QA finding describes a state the canonical spec never covers (e.g. a partially-completed bundle), and it is unclear whether it is a bug or intended"
 
@@ -1387,7 +1387,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-90)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-91)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1483,6 +1483,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-88 Error/defensive branches need a real runtime trigger — a mocked-error unit test can green-light dead code (`signInWithOAuth({skipBrowserRedirect:true})` never throws for a disabled provider → ProviderDisabled classification unreachable, raw JSON shown in the browser sheet/custom tab; FIX-Task-2 Item 4, 2026-09-07). Same class, second face: a user-visible value built from an ASYNC READ silently renders its FALLBACK when the fetch returns null — a review title showed the role ("the buyer") instead of the counterparty's name, and every static check was green (FIX-Task-21 Item 2, 2026-09-12) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-89 Verify a data-mutating admin action WITHOUT mutating data — never trigger the real write against shared QA/staging data just to prove UI wiring; stub the endpoint with Playwright `page.route(...)` and assert the surrounding behaviour (the follow-up refetch fires, the label/summary updates, the dialog copy is right), then disclose that the write was INTERCEPTED not applied. **HARD GATE: `page.unroute()` (or close the page) BEFORE reporting the verification complete** — a left-registered stub fakes every later real click and is NOT cleared by a dev-server restart (FIX-Task-21 item 4 + FIX-Task-22 item 0, 2026-09-12) — full text: `.github/instructions/admin-portal.instructions.md`.
 - BP-90 Patching a live function body by string replacement — anchor the token to its full expression (`p.status = 'failed'`, never the bare `p.status`, which also matches the suffix of `sp.status`), re-assert every predicate you did NOT intend to change in a `RAISE EXCEPTION` guard, fail loud when nothing matched, and INVOKE the patched object immediately (plpgsql resolves names at run time, so a successful `CREATE OR REPLACE` proves nothing) (FIX-Task-24 item 1, 2026-09-12) — full text: `.github/instructions/supabase-sql.instructions.md`.
+- BP-91 Mobile UI changes need an in-session on-device attempt — a screen-behaviour change must get a device pass in the SAME session, or the Session Handoff must enumerate every owed device leg concretely (screen → action → expected observation) and say "code-level verified; device legs owed"; never treat typecheck/lint/unit-green as on-device verification, budget the device pass BEFORE the code work, and re-read the AX tree rather than trusting a screenshot taken immediately after a tap (FIX-Task-25, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

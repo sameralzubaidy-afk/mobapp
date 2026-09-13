@@ -285,13 +285,18 @@
 | | TRD-TC-X02 | Bottom nav renders identically on Discover |
 | | TRD-TC-X03 | Bottom nav renders identically on Trades |
 | | TRD-TC-X04 | Bottom nav renders identically on Trade Basket |
-| | TRD-TC-X05 | Bottom nav renders on Item Detail / Cart Checkout / Trade screens |
-| | TRD-TC-X06 | Bottom nav renders on Profile, Settings, Wallet, Subscriptions |
-| | TRD-TC-X07 | Cart badge shows item count from multiple entry points |
-| | TRD-TC-X08 | Cart badge count accuracy — add / remove / clear |
-| | TRD-TC-X09 | "Me" tab removed — Profile still accessible via Home avatar |
-| | TRD-TC-X10 | Sell FAB opens action sheet on every screen |
-| | TRD-TC-X16 | Flow Registry (nav) — flow-registry.md entries updated |
+| | TRD-TC-X05 | Bottom nav renders identically on Item Detail (stacked screen) |
+| | TRD-TC-X06 | Bottom nav renders on Cart Checkout (stacked screen) |
+| | TRD-TC-X07 | Bottom nav renders on Trade screens (Timeline, Offer, Success) |
+| | TRD-TC-X08 | Bottom nav renders on Profile, Settings, Wallet, Subscriptions |
+| | TRD-TC-X09 | Cart badge shows item count from multiple entry points |
+| | TRD-TC-X10 | Cart badge count accuracy — add multiple items |
+| | TRD-TC-X11 | Cart badge count accuracy — remove items |
+| | TRD-TC-X12 | Cart badge clears when cart is emptied |
+| | TRD-TC-X13 | "Me" tab removal — Profile still accessible via Home avatar |
+| | TRD-TC-X14 | "Me" tab removal — no orphaned routes |
+| | TRD-TC-X15 | Sell FAB opens action sheet on every screen |
+| | TRD-TC-X16 | flow-registry.md entries updated |
 | **U — Top Nav Header Pattern Consistency** | TRD-TC-U01 | Root/tab screens use pattern 1 (no back button, greeting/avatar/title, bell) |
 | | TRD-TC-U02 | Secondary/detail screens use pattern 2 (back button + title + bell) |
 | | TRD-TC-U03 | Notification bell behavior + badge accuracy |

@@ -6,7 +6,7 @@
 
 ## 1 · Executive summary
 
-- **Canonical test cases (unique TC-IDs across the 6 guides, as of today):** **833** (guide index has grown since v1: TRD 278→288 [Groups N2/O1–O3/S–Z added], ACC 73→75, ADM 159→160).
+- **Canonical test cases (unique TC-IDs across the 6 guides, as of today):** **833** (guide index has grown since v1: TRD 278→288 [Groups N2/O1–O3/S–Z added], ACC 73→75, ADM 159→160). *(Snapshot figure: the later FIX-Task-25 item-5 X-group reconciliation added TRD body cases X11–X15 to the guide index — current canonical total is **838**, TRD **293**; see the X rows in the TRD section.)*
 - **Have real QA evidence on record (any verdict, incl. PARTIAL/SKIPPED):** **583**
 - **Latest verdict PASS:** **486** · **Latest PARTIAL:** **41**
 - **STILL OPEN** (latest FAIL/BLOCKED with no later PASS re-verification): **47**
@@ -272,7 +272,7 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | MSG-TC-J04 | Quiet hours (subscriber) + validation |  | PASS | 2026-09-03 | `qa-msg-first-live-2026-09-03` | ✅ PASS |  |
 | MSG-TC-J05 | 🚫 NOT SUPPORTED — ID verification preference category (none exists) |  | NEVER RUN |  |  | NEVER RUN |  |
 
-### TRD (TradeFlowV2) — 288 cases
+### TRD (TradeFlowV2) — 288 cases at this snapshot (+5 X-group rows added by the FIX-Task-25 item-5 index↔body reconciliation = 293 current; see the X rows below)
 
 | TC-ID | Description | Sub | Latest | Date | Source | Status | Notes |
 |---|---|---:|---|---|---|---|---|
@@ -507,13 +507,18 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | TRD-TC-X02 | Bottom nav renders identically on Discover |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
 | TRD-TC-X03 | Bottom nav renders identically on Trades |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
 | TRD-TC-X04 | Bottom nav renders identically on Trade Basket |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
-| TRD-TC-X05 | Bottom nav renders on Item Detail / Cart Checkout / Trade screens |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
-| TRD-TC-X06 | Bottom nav renders on Profile, Settings, Wallet, Subscriptions |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
-| TRD-TC-X07 | Cart badge shows item count from multiple entry points |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
-| TRD-TC-X08 | Cart badge count accuracy — add / remove / clear |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
-| TRD-TC-X09 | "Me" tab removed — Profile still accessible via Home avatar |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
-| TRD-TC-X10 | Sell FAB opens action sheet on every screen |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS |  |
-| TRD-TC-X16 | Flow Registry (nav) — flow-registry.md entries updated |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | flow-registry entries source |
+| TRD-TC-X05 | Bottom nav renders identically on Item Detail (stacked screen) |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | Re-keyed to the guide BODY by FIX-Task-25 item 5 (the old index row X05 bundled Item Detail + Cart Checkout + Trade screens into one case) |
+| TRD-TC-X06 | Bottom nav renders on Cart Checkout (stacked screen) |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | Split out of the old index row X05; Checkout observed in the same round |
+| TRD-TC-X07 | Bottom nav renders on Trade screens (Timeline, Offer, Success) |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | Split out of the old index row X05; refetched by the 2026-09-13 round (Timeline + Trade Complete) |
+| TRD-TC-X08 | Bottom nav renders on Profile, Settings, Wallet, Subscriptions |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | Was index row X06 — same assertion text, renumbered to the body |
+| TRD-TC-X09 | Cart badge shows item count from multiple entry points |  | PASS | 2026-09-13 | `qa-groupl-final-mnst-round3-2026-09-13` | ✅ PASS | Was index row X07; re-verified live on 2026-09-13 (badge updated with no pull-to-refresh across 3 mutations) |
+| TRD-TC-X10 | Cart badge count accuracy — add multiple items |  | PASS | 2026-09-13 | `qa-groupl-final-mnst-round3-2026-09-13` | ✅ PASS | Was index row X08 (which bundled add/remove/clear); the ADD leg is the one that was run — 2 same-seller items → badge 2 |
+| TRD-TC-X11 | Cart badge count accuracy — remove items |  | — | — | — | ❌ NOT RUN | Row created by the FIX-Task-25 item-5 index/body reconciliation (guide body X11). Never had its own verdict — do not inherit X10's |
+| TRD-TC-X12 | Cart badge clears when cart is emptied |  | — | — | — | ❌ NOT RUN | Row created by the FIX-Task-25 item-5 reconciliation (guide body X12). Never scored |
+| TRD-TC-X13 | "Me" tab removal — Profile still accessible via Home avatar |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | Was index row X09 — same assertion text |
+| TRD-TC-X14 | "Me" tab removal — no orphaned routes |  | — | — | — | ❌ NOT RUN | Row created by the FIX-Task-25 item-5 reconciliation (guide body X14). Never scored |
+| TRD-TC-X15 | Sell FAB opens action sheet on every screen |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | Was index row X10 — same assertion text |
+| TRD-TC-X16 | flow-registry.md entries updated |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | flow-registry entries source |
 | TRD-TC-U01 | Root/tab screens use pattern 1 (no back button, greeting/avatar/title, bell) |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | root header pattern |
 | TRD-TC-U02 | Secondary/detail screens use pattern 2 (back button + title + bell) |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | detail back-button |
 | TRD-TC-U03 | Notification bell behavior + badge accuracy |  | PASS | 2026-08-31 | `qa-task14-dt73-u-y-2026-08-31` | ✅ PASS | bell → notifications |

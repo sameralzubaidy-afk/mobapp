@@ -281,9 +281,14 @@ export default function CartScreen() {
   }, [cartItems, isSubscriber]);
 
   const handleClearCart = () => {
+    // FIX-Task-25 item 10: name the COUNT and the consequence. This is the one
+    // irreversible action on the basket screen and previously read as just
+    // another low-stakes control, so the confirm dialog now states exactly what
+    // is lost instead of a generic "are you sure".
+    const itemCount = cartItems.length;
     Alert.alert(
       'Clear Trade Basket',
-      'Are you sure you want to remove all items from your trade basket?',
+      `This removes all ${itemCount} item${itemCount === 1 ? '' : 's'} from your trade basket. This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -775,19 +780,32 @@ export default function CartScreen() {
           </View>
         )}
 
-        {/* CART-005: Clear Basket button */}
+        {/* CART-005: Clear Basket button.
+            FIX-Task-25 item 10: this low-key red text row sat directly above the
+            Subtotal card, carrying the same visual weight as the harmless "Save
+            current cart for later" control — so the only irreversible action on
+            the screen was also the easiest one to hit by accident. It now sits in
+            its own divided "danger zone" with an explicit consequence line, and
+            the confirm dialog names the item count. */}
         {cartItems.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearBasketRow}
-            onPress={handleClearCart}
-            testID="clear-basket-button"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Clear basket button"
-          >
-            <Trash size={16} color={theme.colors.error[500]} weight="regular" />
-            <Text style={styles.clearBasketText}>Clear Basket</Text>
-          </TouchableOpacity>
+          <View style={styles.clearBasketSection} testID="clear-basket-section">
+            <View style={styles.clearBasketDivider} />
+            <TouchableOpacity
+              style={styles.clearBasketRow}
+              onPress={handleClearCart}
+              testID="clear-basket-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Clear basket, removes all ${cartItems.length} items`}
+            >
+              <Trash size={16} color={theme.colors.error[500]} weight="regular" />
+              <Text style={styles.clearBasketText}>Clear Basket</Text>
+            </TouchableOpacity>
+            <Text style={styles.clearBasketHint}>
+              Removes all {cartItems.length} item{cartItems.length === 1 ? '' : 's'} from your
+              trade basket.
+            </Text>
+          </View>
         )}
 
         {/* Summary Card */}
@@ -1219,7 +1237,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     marginTop: theme.spacing.md,
-    marginHorizontal: 24,
     paddingVertical: theme.spacing.sm,
   },
   clearBasketText: {
@@ -1227,6 +1244,23 @@ const styles = StyleSheet.create({
     color: theme.colors.error[500],
     fontWeight: '500',
     fontSize: 14,
+  },
+  // FIX-Task-25 item 10: the destructive action gets its own divided zone so it
+  // can never be mistaken for the harmless "Save current cart for later" control.
+  // (clearBasketRow lost its own marginHorizontal — this section owns the inset.)
+  clearBasketSection: {
+    marginHorizontal: 24,
+    marginTop: theme.spacing.lg,
+  },
+  clearBasketDivider: {
+    height: 1,
+    backgroundColor: theme.colors.neutral[100],
+  },
+  clearBasketHint: {
+    ...theme.typography.caption,
+    color: theme.textColors.secondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
 
   summaryCard: {

@@ -28,6 +28,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { acceptBundleOffers, declineBundleOffers } from '@/services/tradeServiceV2';
 import { registerQaScreenRefresh } from '@/services/qaRefreshRegistry';
+import { registerTradesRefresh } from '@/services/tradeRefreshRegistry';
 import { Receipt, ArrowsLeftRight, Check, ChatTeardropText } from 'phosphor-react-native';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -170,6 +171,23 @@ export default function TradeListScreen({ navigation }: any) {
   useEffect(() => {
     if (!QA_TOOLING_ENABLED) return;
     const unregister = registerQaScreenRefresh(() => {
+      refreshRef.current();
+    });
+    return unregister;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // FIX-Task-25 item 1 (QA F1): production-safe refetch registration. A trade
+  // mutation on another screen (the Trade Timeline's bundle "Confirm All N", or
+  // a single completion) marks rows `completed` in the DB, but this list keeps
+  // rendering the bundle as IN PROGRESS with frozen summary tiles until
+  // something forces a refetch — the buyer is told the trade is still in
+  // progress when it is not. The mutation screens call
+  // `requestTradesRefresh()`; unlike the QA registration above this one is
+  // NOT dev-gated, because it fixes a real user-facing staleness (FIX-Task-19
+  // item 1 fixed the identical class for the cart badge via refreshCartCount).
+  useEffect(() => {
+    const unregister = registerTradesRefresh(() => {
       refreshRef.current();
     });
     return unregister;

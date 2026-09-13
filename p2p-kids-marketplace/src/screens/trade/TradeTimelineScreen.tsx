@@ -30,6 +30,11 @@ import { supabase } from '@/config/supabase';
 import { Trade, TradeStatus } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { requestTradeExtension, respondToExtension } from '@/services/tradeServiceV2';
+// FIX-Task-25 item 1 (QA F1): push a refetch into the mounted My Trades list
+// after a successful completion / bundle Confirm-All-N. Completing here makes
+// the list stale (the bundle still renders as IN PROGRESS with frozen tiles)
+// until something forces a refetch.
+import { requestTradesRefresh } from '@/services/tradeRefreshRegistry';
 import {
   requestCancelTrade,
   respondToCancelRequest,
@@ -237,6 +242,11 @@ export default function TradeTimelineScreen() {
   // internal `collapsed` flag), so this state and the callback agree.
   const [safeMeetupExpanded, setSafeMeetupExpanded] = useState(false);
   const [safeMeetupHeight, setSafeMeetupHeight] = useState(0);
+  // FIX-Task-25 item 9 (2026-09-13): the auto-complete countdown is now also
+  // rendered as a sub-line INSIDE the status banner, so it needs to tick (the
+  // AutoCompleteBanner runs its own interval). One-minute granularity is plenty —
+  // the label renders hours/minutes.
+  const [bannerNowMs, setBannerNowMs] = useState(() => Date.now());
   // FIX-Task-19 item 5 (2026-09-11): the dev diagnostic below must report the
   // REAL pinned-footer state, but `hasPinnedFooter` is derived further down and
   // is therefore not initialized on renders that hit the loading early-return
@@ -670,6 +680,18 @@ export default function TradeTimelineScreen() {
     return () => clearInterval(id);
   }, [trade?.extension_status]);
 
+  // FIX-Task-25 item 9: keep the status-banner countdown sub-line live for as
+  // long as the pickup window is open. Gated on there actually BEING a deadline,
+  // so completed/cancelled trades schedule nothing. The two values are extracted
+  // into plain variables so the dependency array stays statically checkable.
+  const countdownTickStatus = trade?.status;
+  const countdownTickTarget = trade?.auto_complete_at;
+  useEffect(() => {
+    if (countdownTickStatus !== 'in_progress' || !countdownTickTarget) return;
+    const id = setInterval(() => setBannerNowMs(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, [countdownTickStatus, countdownTickTarget]);
+
   useFocusEffect(
     useCallback(() => {
       fetchTrade();
@@ -826,6 +848,10 @@ export default function TradeTimelineScreen() {
             counterpartyId: trade?.seller_id ?? '',
             counterpartyName: counterpartyProfile?.name || 'the Seller',
           });
+          // FIX-Task-25 item 1 (QA F1): this trade is completed in the DB — tell
+          // the mounted Trade List to refetch so it cannot keep rendering the
+          // trade/bundle as IN PROGRESS with frozen summary tiles.
+          requestTradesRefresh();
           // TradeSuccess reads session.available_points reactively, so the
           // background refresh will re-render it with fresh data when done.
           void Promise.allSettled([refreshP, tradeP]);
@@ -1204,11 +1230,28 @@ export default function TradeTimelineScreen() {
     const startIso = Number.isFinite(baseMs)
       ? new Date(baseMs).toISOString()
       : trade.auto_complete_at;
-    return createCountdownModel(trade.auto_complete_at, startIso);
+    return createCountdownModel(trade.auto_complete_at, startIso, bannerNowMs);
   })();
   const autoCompleteCountdownLabel = autoCompleteModel
     ? formatCountdownLabel(autoCompleteModel)
     : '';
+  // FIX-Task-25 item 9: full copy for the status-banner countdown sub-line,
+  // built in ONE place. `formatCountdownLabel` returns the literal 'Expired'
+  // once the deadline passes, and "Auto-completes in Expired" would be nonsense,
+  // so the expired band gets its own wording. Mid-sentence short form (no
+  // " left" suffix) matches the AutoCompleteBanner's own convention.
+  const statusBannerCountdownText = (() => {
+    if (!autoCompleteModel) return '';
+    if (autoCompleteModel.expired) {
+      return isSeller
+        ? 'Auto-completing now — payout releases when it closes'
+        : 'Auto-completing now';
+    }
+    const remaining = formatCountdownLabel(autoCompleteModel, { omitSuffix: true });
+    return isSeller
+      ? `Auto-completes in ${remaining} — payout releases then`
+      : `Auto-completes in ${remaining}`;
+  })();
   // FIX-Task-13 item 5b: "close" = the shared 4-band model's warning / critical /
   // expired bands (≤6h) — deliberately the SHARED model, not the banner's own
   // <4h 2-band cut (see countdown.ts / AutoCompleteBanner).
@@ -1391,6 +1434,24 @@ export default function TradeTimelineScreen() {
               cancellationFriendlyCopy !== GENERIC_CANCELLATION_COPY && (
                 <Text style={[styles.statusBannerSubtext, getStatusTextStyle(trade.status)]}>
                   {cancellationFriendlyCopy}
+                </Text>
+              )}
+            {/* FIX-Task-25 item 9 (2026-09-13): surface the auto-complete
+                countdown INSIDE the status banner. It used to be discoverable only
+                by scrolling past the pinned "I Got It" CTA layer (the
+                AutoCompleteBanner sits further down the timeline), so the one
+                deadline the buyer actually needs was the one thing they had to
+                hunt for. Live via `bannerNowMs`; hidden while a dispute pauses
+                auto-completion (same condition as the banner itself). */}
+            {trade.status === 'in_progress' &&
+              !!trade.auto_complete_at &&
+              !hasUnresolvedDispute &&
+              !!statusBannerCountdownText && (
+                <Text
+                  style={[styles.statusBannerSubtext, getStatusTextStyle(trade.status)]}
+                  testID="status-banner-countdown"
+                >
+                  {statusBannerCountdownText}
                 </Text>
               )}
           </View>
@@ -2619,6 +2680,12 @@ export default function TradeTimelineScreen() {
                 console.warn('[TradeTimeline] refreshSession after confirm-all failed');
               });
             }
+            // FIX-Task-25 item 1 (QA F1): the bundle members are completed in the
+            // DB now (all of them, or at least some). Push a refetch into the
+            // mounted My Trades list — it previously kept rendering the finished
+            // bundle as "IN PROGRESS · N items" with frozen summary tiles until a
+            // manual `qa-refresh`, which made a completed trade look unfinished.
+            requestTradesRefresh();
             if (failed.length > 0) {
               showNotif(
                 'Error',

@@ -337,6 +337,43 @@ describe('TradeTimelineScreen', () => {
         expect(getByTestId('auto-complete-banner')).toBeTruthy();
       });
     });
+
+    // FIX-Task-25 item 9: the deadline is now also surfaced inside the status
+    // banner, because the AutoCompleteBanner sits further down the timeline and
+    // was only reachable after scrolling past the pinned "I Got It" CTA layer.
+    it('surfaces the auto-complete countdown as a status-banner sub-line', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      const futureTrade = {
+        ...mockTrade,
+        auto_complete_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+      };
+      mockSupabase.from = createFromMock(futureTrade) as any;
+
+      const { getByTestId, getByText } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('status-banner-countdown')).toBeTruthy();
+      });
+      // Regex, not an exact string: the hours/minutes depend on the wall clock at
+      // render time (48h minus the few ms between the fixture and the render).
+      expect(getByText(/Auto-completes in \d+h/)).toBeTruthy();
+    });
+
+    it('hides the status-banner countdown while a dispute has auto-complete paused', async () => {
+      mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
+      mockSupabase.from = createFromMock({
+        ...mockTrade,
+        auto_complete_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+        dispute_status: 'open',
+      }) as any;
+
+      const { queryByTestId } = render(<TradeTimelineScreen />);
+
+      await waitFor(() => {
+        expect(queryByTestId('status-banner')).toBeTruthy();
+      });
+      expect(queryByTestId('status-banner-countdown')).toBeNull();
+    });
   });
 
   describe('Report Problem Action', () => {

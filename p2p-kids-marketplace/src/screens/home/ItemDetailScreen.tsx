@@ -134,6 +134,12 @@ export default function ItemDetailScreen() {
   const [matchesCart, setMatchesCart] = useState(false);
   // SELLER-GROUP-007: Count of seller's other approved listings (for "More from this seller" CTA)
   const [sellerOtherCount, setSellerOtherCount] = useState(0);
+  // FIX-Task-25 item 11: cheapest sibling price, so the nudge can show an entry
+  // price ("From $3.00") instead of only a count. Derived from the SAME
+  // getMaskedSellerListings response that produces sellerOtherCount — no extra
+  // request. `items.price` is numeric DOLLARS, so it is formatted like the rest
+  // of this screen ($${price.toFixed(2)}), never via the cents formatter (BP-85).
+  const [sellerOtherMinPrice, setSellerOtherMinPrice] = useState<number | null>(null);
 
   // ── Success Toast state ──────────────────────────────────────────────────────
   const [showToast, setShowToast] = useState(false);
@@ -212,8 +218,15 @@ export default function ItemDetailScreen() {
       try {
         const result = await getMaskedSellerListings(listing.seller_id, listing.id);
         setSellerOtherCount(result.listings.length);
+        // FIX-Task-25 item 11: the response already carries every sibling's
+        // `price` and it was previously discarded — cheapest is free to derive.
+        const prices = result.listings
+          .map((sibling) => Number(sibling.price))
+          .filter((price) => Number.isFinite(price) && price > 0);
+        setSellerOtherMinPrice(prices.length > 0 ? Math.min(...prices) : null);
       } catch {
         setSellerOtherCount(0);
+        setSellerOtherMinPrice(null);
       }
     })();
   }, [listing?.seller_id, listing?.id]);
@@ -884,9 +897,29 @@ export default function ItemDetailScreen() {
                     <MatchesCartBadge size="small" testID="item-detail-matches-cart-badge" />
                   )}
 
-                  {/* Action Buttons */}
+                  {/* Action Buttons — FIX-Task-25 items 3 & 4.
+                      Before a trade exists this whole card is masked (padlock +
+                      "Seller Info Hidden" + "Start a trade to see seller details
+                      and contact them"), yet both buttons rendered fully ENABLED
+                      and only raised an alert when tapped — the copy said contact
+                      was gated, the buttons said it was not. They are now disabled
+                      and muted until an active trade exists, which is the gate the
+                      mask and BOTH handlers already use (`hasActiveTrade`).
+                      FIX-Task-25 item 4: both also carry a testID + the standard
+                      accessible/role/label trio (BP-53) — they were previously
+                      exposed only as unlabelled ViewGroups, so QA could not target
+                      them or assert their disabled state. */}
                   <View style={styles.sellerActionButtons}>
-                    <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
+                    <TouchableOpacity
+                      style={[styles.contactButton, !hasActiveTrade && styles.sellerButtonDisabled]}
+                      onPress={handleContactSeller}
+                      disabled={!hasActiveTrade}
+                      testID="contact-seller-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="Contact Seller"
+                      accessibilityState={{ disabled: !hasActiveTrade }}
+                    >
                       <View style={styles.sellerButtonContent}>
                         <ChatCircle size={18} color="#FFFFFF" weight="fill" />
                         <Text style={styles.contactButtonText}>Contact Seller</Text>
@@ -894,8 +927,14 @@ export default function ItemDetailScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.profileButton}
+                      style={[styles.profileButton, !hasActiveTrade && styles.sellerButtonDisabled]}
                       onPress={handleViewSellerProfile}
+                      disabled={!hasActiveTrade}
+                      testID="view-seller-profile-button"
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel="View Profile"
+                      accessibilityState={{ disabled: !hasActiveTrade }}
                     >
                       <View style={styles.sellerButtonContent}>
                         <User size={18} color="#1A1A1A" weight="regular" />
@@ -941,7 +980,9 @@ export default function ItemDetailScreen() {
                         {sellerOtherCount !== 1 ? 's' : ''}
                       </Text>
                       <Text style={styles.moreFromSellerCtaSubtext}>
-                        Add more to bundle into one trade
+                        {sellerOtherMinPrice != null
+                          ? `From $${sellerOtherMinPrice.toFixed(2)} · add more to bundle into one trade`
+                          : 'Add more to bundle into one trade'}
                       </Text>
                     </View>
                     <Text style={styles.moreFromSellerCtaArrow}>→</Text>
@@ -1667,6 +1708,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+  },
+  // FIX-Task-25 item 3: the seller actions are gated on an active trade (the same
+  // gate as the masked seller name and both handlers). Muting them keeps the
+  // affordance honest instead of inviting a tap that only raises an alert.
+  sellerButtonDisabled: {
+    opacity: 0.45,
   },
   contactButton: {
     flex: 1,

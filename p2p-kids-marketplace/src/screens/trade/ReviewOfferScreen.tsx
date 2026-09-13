@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -212,15 +212,25 @@ export default function ReviewOfferScreen() {
     }
   }, [session?.user?.id, tradeId, navigation]);
 
-  useEffect(() => {
-    fetchOffer();
-    // Load admin-configured SP release days
-    getSPReleaseDays()
-      .then(setReleaseDays)
-      .catch(() => {
-        /* keep default 3 */
-      });
-  }, [fetchOffer]);
+  // FIX-Task-25 item 2 (QA F2): refetch on FOCUS, not only on mount.
+  // `executeAccept` / `executeDecline` / `executeAcceptBundle` all end with
+  // `navigation.navigate('MyListings')`, which PUSHES and deliberately leaves
+  // this screen mounted (ReviewOfferScreen L265/299/332 — by design). With a
+  // mount-only effect the screen kept rendering its pre-accept snapshot when the
+  // seller came back: live Accept/Decline for a trade that was already
+  // `in_progress`, and an over-counting "Accept all 4 items?" prompt for a bundle
+  // with only 3 items still pending.
+  useFocusEffect(
+    useCallback(() => {
+      fetchOffer();
+      // Load admin-configured SP release days
+      getSPReleaseDays()
+        .then(setReleaseDays)
+        .catch(() => {
+          /* keep default 3 */
+        });
+    }, [fetchOffer])
+  );
 
   // C05 (2026-08-28): resolve the seller's subscription status so the bundle
   // preview can gate the platform bonus exactly like the server credit path
@@ -240,6 +250,23 @@ export default function ReviewOfferScreen() {
     };
   }, [session?.user?.id]);
 
+  /**
+   * FIX-Task-25 item 2 (QA F2): apply a locally-known status to ONE trade in this
+   * screen's snapshot. The action block is gated on `offer.status`, and both the
+   * bundle rows and the "Accept all N" counts read the same snapshot — so a trade
+   * the server has already moved to `in_progress` must stop looking pending HERE
+   * too, otherwise a seller can tap Decline on an in-progress trade (the EF is
+   * idempotent so no data is damaged, but the affordance is wrong and the batch
+   * count over-promises). The focus refetch above is the backstop; this makes the
+   * correction immediate rather than on the next focus.
+   */
+  const applyLocalStatus = useCallback((updatedTradeId: string, status: string) => {
+    setOffer((prev) => (prev && prev.id === updatedTradeId ? { ...prev, status } : prev));
+    setBundleSiblings((prev) =>
+      prev.map((sibling) => (sibling.id === updatedTradeId ? { ...sibling, status } : sibling))
+    );
+  }, []);
+
   // TFV2-012A (D-30): Accept all bundle offers via Edge Function (Stripe capture + in_progress)
   const handleAcceptBundle = async () => {
     if (!offer) return;
@@ -254,7 +281,13 @@ export default function ReviewOfferScreen() {
     try {
       setAcceptingBundle(true);
       // Single EF call — processes all trades in parallel internally
-      await acceptBundleOffers(pendingIds);
+      const result = await acceptBundleOffers(pendingIds);
+      // FIX-Task-25 item 2: retire the actions for the offers the server actually
+      // accepted (the EF reports a per-trade status), so the still-mounted screen
+      // cannot keep offering Accept/Decline for in_progress trades.
+      for (const accepted of result?.trades ?? []) {
+        applyLocalStatus(accepted.trade_id, accepted.status || 'in_progress');
+      }
       setShowAcceptBundleModal(false);
       showAlert({
         title: 'Bundle Accepted!',
@@ -289,7 +322,20 @@ export default function ReviewOfferScreen() {
     try {
       setSubmitting(true);
       setShowAcceptModal(false);
-      await respondToOffer(offer.id, 'accept');
+      // FIX-Task-25 item 2: check the EF result (BP-35). The service throws on an
+      // HTTP error, but a `{ success: false }` body used to still show
+      // "Offer Accepted!" for an offer that was never accepted.
+      const result = await respondToOffer(offer.id, 'accept');
+      if (!result?.success) {
+        showAlert({
+          title: 'Could Not Accept Offer',
+          message: 'We could not accept this offer. Pull down to refresh, then try again.',
+          buttons: [{ text: 'OK', testID: 'offer-accept-failed-ok-button' }],
+        });
+        return;
+      }
+      // FIX-Task-25 item 2: retire the actions for THIS trade immediately.
+      applyLocalStatus(offer.id, 'in_progress');
       showAlert({
         title: 'Offer Accepted!',
         message: 'Payment authorized. Trade is now in progress. The buyer can confirm receipt.',
@@ -323,6 +369,9 @@ export default function ReviewOfferScreen() {
       setSubmitting(true);
       setShowDeclineModal(false);
       await respondToOffer(offer.id, 'decline');
+      // FIX-Task-25 item 2: same class as the accept path — retire the actions
+      // for the declined trade instead of leaving live Accept/Decline behind it.
+      applyLocalStatus(offer.id, 'cancelled');
       showAlert({
         title: 'Offer Declined',
         message: 'The buyer has been notified. The item stays listed.',
@@ -716,6 +765,10 @@ export default function ReviewOfferScreen() {
         cancelTestID="decline-trade-cancel-button"
       />
 
+      {/* FIX-Task-25 item 2: the confirm label must count PENDING items only.
+          `${[offer, ...bundleSiblings].length}` counted the whole bundle, so the
+          button promised more items than the action would accept ("Accept All 4"
+          while only 3 were still pending) — the over-count QA caught. */}
       <TradeConfirmationModal
         visible={showAcceptBundleModal}
         title={(() => {
@@ -725,7 +778,9 @@ export default function ReviewOfferScreen() {
           return `Accept all ${pendingCount} items?`;
         })()}
         message="Accepting will authorize the buyer's payment and move all trades in progress."
-        confirmLabel={`Accept All ${offer ? [offer, ...bundleSiblings].length : 0}`}
+        confirmLabel={`Accept All ${
+          offer ? [offer, ...bundleSiblings].filter((o) => o.status === 'pending').length : 0
+        }`}
         variant="accept"
         onConfirm={executeAcceptBundle}
         onCancel={() => setShowAcceptBundleModal(false)}
