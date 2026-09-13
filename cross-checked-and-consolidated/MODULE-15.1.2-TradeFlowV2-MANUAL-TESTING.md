@@ -7382,6 +7382,19 @@ SELECT count(*) FROM financial_audit_log WHERE idempotency_key='sp_release_<trad
 - The seller's `pending_balance` increases by **exactly** the earned SP once (no double-credit).
 - Exactly **1** `earn_reward` ledger entry and **1** `sp_released` audit row.
 
+> **Writer (FIX-Task-28 item 2, 2026-09-13):** the `sp_released` audit row for this
+> trade is written by **`public.rpc_release_pending_sp()`** — the function under
+> test — with `idempotency_key = 'sp_release_<trade_id>'` and `actor_id = NULL`
+> (system actor). The same key is used by `public.fn_release_all_sp_on_complete()`
+> (the earn-at-completion trigger) and by
+> `supabase/functions/complete-trade/index.ts`, and `fn_log_financial_audit` inserts
+> with `ON CONFLICT (idempotency_key) DO NOTHING`, so a trade ends up with exactly
+> ONE `sp_released` row whichever path reaches it first.
+>
+> Before this fix the RPC wrote **no** audit row at all (only `complete-trade` did,
+> and only when `trades.sp_amount > 0`), which made the audit assertion above
+> unsatisfiable from these RPC-only steps.
+
 ---
 
 ### new TRD-TC-N2-C05 · Retried SP debit / credit on cancel → no double mutation
@@ -7451,6 +7464,16 @@ WHERE entity_id='<trade_id>' ORDER BY created_at ASC;
 **Expected Result:**
 - Each transition above appears exactly once, in chronological order, with correct `amount_cents` and actor.
 - No transition is missing; no duplicate rows (idempotency keys).
+
+> **`sp_released` actor semantics (FIX-Task-28 item 2, 2026-09-13):** the `sp_released`
+> row is written by whichever path reaches it first — the earn-at-completion trigger
+> `fn_release_all_sp_on_complete()` (a **system** transition, so `actor_id = NULL`),
+> `rpc_release_pending_sp()` (also system, `actor_id = NULL`), or
+> `complete-trade/index.ts` (the acting buyer). All three use the identical key
+> `sp_release_<trade_id>` with `ON CONFLICT DO NOTHING`, so the trade still gets
+> **exactly one** row. Seeing `actor_id = NULL` on a `sp_released` row for a trade a
+> buyer completed by hand is therefore **expected**, not a missing-actor defect — the
+> trigger runs inside the EF's own status update and wins the race.
 
 ---
 

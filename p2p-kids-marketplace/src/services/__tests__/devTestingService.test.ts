@@ -43,10 +43,13 @@ import {
   QA_OFFER_LOAD_STALL_KEY,
   QA_SELLER_READ_FAILURE_KEY,
   QA_PROFILE_READ_FAILURE_KEY,
+  // FIX-Task-28 item 1 — subscription-status read failure
+  QA_SUBSCRIPTION_READ_FAILURE_KEY,
   getSimulatedCartRemoveFailure,
   getSimulatedOfferLoadStall,
   getSimulatedSellerReadFailure,
   consumeSimulatedProfileReadFailure,
+  getSimulatedSubscriptionReadFailure,
 } from '../devTestingService';
 
 jest.mock('@/config/supabase', () => ({
@@ -355,7 +358,25 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       offer_load_stall: QA_OFFER_LOAD_STALL_KEY,
       seller_read_failure: QA_SELLER_READ_FAILURE_KEY,
       profile_read_failure: QA_PROFILE_READ_FAILURE_KEY,
+      // FIX-Task-28 item 1 — subscription-status read failure.
+      subscription_read_failure: QA_SUBSCRIPTION_READ_FAILURE_KEY,
     });
+  });
+
+  it('subscription_read_failure arms the transient subscription-read simulation (FIX-Task-28 item 1)', async () => {
+    // Default: disarmed, so release/tests always exercise the real RPC path.
+    await expect(getSimulatedSubscriptionReadFailure()).resolves.toBe('none');
+
+    await setQaLocalValue(QA_SUBSCRIPTION_READ_FAILURE_KEY, 'read_failure');
+    await expect(getSimulatedSubscriptionReadFailure()).resolves.toBe('read_failure');
+
+    // Only the documented values are accepted, and only the documented key maps.
+    expect(isValidQaToggleValue(QA_SUBSCRIPTION_READ_FAILURE_KEY, 'read_failure')).toBe(true);
+    expect(isValidQaToggleValue(QA_SUBSCRIPTION_READ_FAILURE_KEY, 'nope')).toBe(false);
+    expect(QA_TOGGLE_SHORT_NAMES.subscription_read_failure).toBe(QA_SUBSCRIPTION_READ_FAILURE_KEY);
+
+    await setQaLocalValue(QA_SUBSCRIPTION_READ_FAILURE_KEY, 'none');
+    await expect(getSimulatedSubscriptionReadFailure()).resolves.toBe('none');
   });
 
   it('isValidQaToggleValue accepts only the documented values per key', () => {

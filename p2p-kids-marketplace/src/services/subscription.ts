@@ -11,7 +11,10 @@
  */
 
 import { supabase } from '../config/supabase';
-import { getSimulatedPaymentCardPreference } from './devTestingService';
+import {
+  getSimulatedPaymentCardPreference,
+  getSimulatedSubscriptionReadFailure,
+} from './devTestingService';
 import { isTransientNetworkError } from '../utils/userFacingError';
 
 /**
@@ -19,7 +22,12 @@ import { isTransientNetworkError } from '../utils/userFacingError';
  * Maps to complete subscription lifecycle states
  */
 export type SubscriptionStatus =
-  | 'free' // No subscription (free user)
+  | 'free' // No subscription (free user) — CONFIRMED free
+  // FIX-Task-28 item 1 (2026-09-13): the subscription read failed, so we do NOT
+  // know the user's plan. This is deliberately a distinct status from 'free' —
+  // treating an unread plan as a confirmed free plan silently showed paying
+  // subscribers the free-tier upsell on Home.
+  | 'unknown'
   | 'trial' // Active 30-day trial period
   | 'active' // Active paid subscription (Kids Club+)
   | 'paused' // Subscription paused (retention feature - keeps access)
@@ -42,6 +50,19 @@ export interface SubscriptionSummary {
   can_earn_sp: boolean; // Can earn Swap Points from sales
   can_spend_sp: boolean; // Can spend Swap Points on purchases
   transaction_fee_cents: number; // Transaction fee in cents (99 or 299)
+
+  /**
+   * FIX-Task-28 item 1 (2026-09-13): TRUE when this summary could NOT be verified
+   * (transient network/gateway failure or an unusable payload) rather than being a
+   * confirmed "no subscription" result.
+   *
+   * Contract for consumers: every gate above stays fail-closed (false) so nothing
+   * is unlocked, and the UI MUST distinguish a confirmed free user
+   * (`status: 'free'`, this flag undefined) from a user whose plan is unknown
+   * (`status: 'unknown'`, this flag true). Never render the free-tier upsell, or
+   * the "Free Plan" badge, from an unverified summary.
+   */
+  unverified?: boolean;
 
   // Tier info
   subscription_tier_id: string | null;
@@ -141,13 +162,25 @@ function normalizeSubscriptionStatus(rawStatus: unknown): SubscriptionStatus {
  */
 export async function getSubscriptionSummary(userId: string): Promise<SubscriptionSummary> {
   try {
+    // FIX-Task-28 item 1 (dev/test-only, fail-closed): QA failure-injection so the
+    // transient branch below can be exercised on demand. The throw is INSIDE the try
+    // block on purpose — that way the REAL transient handling runs (warn + unverified
+    // summary) rather than a bespoke fallback that would not prove anything.
+    if ((await getSimulatedSubscriptionReadFailure()) === 'read_failure') {
+      console.warn(
+        '[subscription] get_subscription_status read failure simulated (qa_local_subscription_read_failure)'
+      );
+      throw new TypeError('Network request failed');
+    }
+
     // Call enhanced RPC function from TASK SUB-002
     const { data, error } = await supabase.rpc('get_subscription_status', { p_user_id: userId });
 
     if (error) {
       if (isTransientNetworkError(error)) {
         console.warn('[subscription] get_subscription_status skipped due transient network issue');
-        return createFreeTierSummary();
+        // FIX-Task-28 item 1: report "couldn't verify" — NOT a confirmed free user.
+        return createUnverifiedSummary();
       }
 
       console.error('[subscription] ❌ Error calling get_subscription_status:', error.message);
@@ -168,8 +201,9 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     const sub = Array.isArray(data) ? data[0] : data;
 
     if (!sub || typeof sub !== 'object' || !sub.status) {
-      console.warn('[subscription] ⚠️ Invalid subscription data, treating as free user');
-      return createFreeTierSummary();
+      console.warn('[subscription] ⚠️ Invalid subscription data, treating as unverified');
+      // FIX-Task-28 item 1: an unusable payload is "we don't know", not "free".
+      return createUnverifiedSummary();
     }
 
     // Determine subscriber status (active benefits)
@@ -180,9 +214,25 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     // DEV-TASK-66 item 1 (R6-consistent): grace users keep membership benefits
     // (member fee tier, badge, no "upgrade" prompts — ItemDetail/ReviewOffer/
     // spCalculator read this flag) and may SPEND but NOT earn.
-    const isSubscriber = ['trial', 'active', 'paused', 'cancelled', 'canceled', 'grace', 'grace_period'].includes(status);
+    const isSubscriber = [
+      'trial',
+      'active',
+      'paused',
+      'cancelled',
+      'canceled',
+      'grace',
+      'grace_period',
+    ].includes(status);
     const canEarnSp = ['trial', 'active', 'paused', 'cancelled'].includes(status);
-    const canSpendSp = ['trial', 'active', 'paused', 'cancelled', 'canceled', 'grace', 'grace_period'].includes(status);
+    const canSpendSp = [
+      'trial',
+      'active',
+      'paused',
+      'cancelled',
+      'canceled',
+      'grace',
+      'grace_period',
+    ].includes(status);
 
     // Transaction fee: Read dynamically from admin_config via RPC (V2.1 enhancement)
     // This allows admins to adjust fees without code changes
@@ -226,18 +276,44 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     const err = error as Error;
     if (isTransientNetworkError(err)) {
       console.warn('[subscription] getSubscriptionSummary skipped due transient network issue');
-      return createFreeTierSummary();
+      // FIX-Task-28 item 1: "couldn't verify" — never a confirmed free user.
+      return createUnverifiedSummary();
     }
 
     console.error('[subscription] ❌ getSubscriptionSummary failed:', err.message);
-    // Return free tier on error to avoid blocking the flow
-    return createFreeTierSummary();
+    // FIX-Task-28 item 1 (2026-09-13): this used to return the free tier "to avoid
+    // blocking the flow", which told an active subscriber they were on the Free
+    // plan. Fail closed instead (all gates false) but keep the status honest: the
+    // caller decides whether to show last-known data or a "couldn't verify" state.
+    return createUnverifiedSummary();
   }
 }
 
 /**
- * Create default free tier summary
- * Used as fallback when no subscription exists or on error
+ * FIX-Task-28 item 1 (2026-09-13): the explicit "we could not verify your plan"
+ * summary.
+ *
+ * Used ONLY when the read failed or returned an unusable payload. It keeps every
+ * entitlement gate fail-closed (so nothing is unlocked) but marks the result as
+ * unverified and blanks the tier name, so no screen can render it as "Free".
+ */
+export function createUnverifiedSummary(): SubscriptionSummary {
+  return {
+    ...createFreeTierSummary(),
+    status: 'unknown',
+    tier_name: null,
+    unverified: true,
+  };
+}
+
+/**
+ * Create the CONFIRMED free-tier summary.
+ *
+ * FIX-Task-28 item 1 (2026-09-13): this is only legitimate when the backend
+ * positively reported "this user has no subscription" (an empty result set) — it
+ * must NOT be used as an error fallback any more. Use `createUnverifiedSummary()`
+ * for any failure path.
+ *
  * Note: Transaction fee is dynamically fetched from admin_config via getTransactionFee()
  */
 function createFreeTierSummary(): SubscriptionSummary {

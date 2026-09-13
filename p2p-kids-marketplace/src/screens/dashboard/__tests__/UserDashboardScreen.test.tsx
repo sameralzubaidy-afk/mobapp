@@ -118,6 +118,13 @@ function setupMocks(
     canSpendSP?: boolean;
     subStatus?: string;
     unreadCount?: number;
+    /** FIX-Task-28 item 1: the latest subscription read could not be verified. */
+    unverified?: boolean;
+    /**
+     * FIX-Task-28 item 1: simulate "the read failed AND no plan was ever
+     * confirmed for this account", i.e. the hook hands back a null subscription.
+     */
+    subscriptionUnconfirmed?: boolean;
   } = {}
 ) {
   (useNavigation as jest.Mock).mockReturnValue({ navigate: mockNavigate });
@@ -132,10 +139,13 @@ function setupMocks(
   (useSPWallet as jest.Mock).mockReturnValue(DEFAULT_WALLET);
 
   (useSubscription as jest.Mock).mockReturnValue({
-    subscription: {
-      status: overrides.subStatus ?? 'active',
-      can_spend_sp: overrides.canSpendSP ?? true,
-    },
+    subscription: overrides.subscriptionUnconfirmed
+      ? null
+      : {
+          status: overrides.subStatus ?? 'active',
+          can_spend_sp: overrides.canSpendSP ?? true,
+        },
+    unverified: overrides.unverified ?? false,
     loading: false,
     refetch: mockRefetchSubscription,
   });
@@ -281,6 +291,51 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
     const { getByText } = render(<UserDashboardScreen />);
     fireEvent.press(getByText('Upgrade →'));
     expect(mockNavigate).toHaveBeenCalledWith('JoinKidsClub');
+  });
+
+  // ── SP Strip: unverified subscription read (FIX-Task-28 item 1) ─────────────
+  // The QA finding: a transient failure of get_subscription_status silently
+  // returned the free-tier summary, so an ACTIVE subscriber's Home screen showed
+  // the "Unlock Swap Points / Upgrade →" upsell with no retry and no error state.
+  it('shows a couldn’t-verify state — never the free upsell — when the read fails', () => {
+    setupMocks({ unverified: true, subscriptionUnconfirmed: true });
+    const { getByTestId, getByText, queryByText } = render(<UserDashboardScreen />);
+
+    expect(getByTestId('sp-strip-unverified')).toBeTruthy();
+    expect(getByText("We couldn't check your plan")).toBeTruthy();
+    expect(getByTestId('sp-strip-retry')).toBeTruthy();
+
+    // The regression itself: a paying subscriber must never be told to upgrade.
+    expect(queryByText('Unlock Swap Points')).toBeNull();
+    expect(queryByText('Upgrade →')).toBeNull();
+  });
+
+  it('keeps showing the last-known plan (and no upsell) after a failed re-read', () => {
+    setupMocks({ unverified: true, canSpendSP: true });
+    const { getByText, queryByText } = render(<UserDashboardScreen />);
+
+    expect(getByText('2191 SP')).toBeTruthy();
+    expect(getByText('Earn More →')).toBeTruthy();
+    expect(queryByText('Unlock Swap Points')).toBeNull();
+  });
+
+  it('retries the subscription read from the couldn’t-verify strip', () => {
+    setupMocks({ unverified: true, subscriptionUnconfirmed: true });
+    const { getByTestId } = render(<UserDashboardScreen />);
+
+    fireEvent.press(getByTestId('sp-strip-retry'));
+
+    expect(mockRefetchSubscription).toHaveBeenCalled();
+  });
+
+  it('labels an unverified plan as "Plan unavailable", never "Free Plan"', () => {
+    setupMocks({ unverified: true, subscriptionUnconfirmed: true });
+    const { getByText, queryByText } = render(<UserDashboardScreen />);
+
+    expect(getByText('Plan unavailable')).toBeTruthy();
+    expect(queryByText('Free Plan')).toBeNull();
+    // …and the subscription card must not offer an upgrade to a paying member.
+    expect(queryByText('Upgrade to Kids Club+')).toBeNull();
   });
 
   // ── Quick Action Tiles ───────────────────────────────────────────────────────

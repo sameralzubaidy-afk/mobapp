@@ -788,6 +788,21 @@ export default function TradeListScreen({ navigation }: any) {
     [activeTrades.length, receivedNeedsActionOffers.length, submittedOffers.length, completedCount]
   );
 
+  /**
+   * FIX-Task-28 item 4 (2026-09-13): the summary tiles used to paint a hard
+   * 0/0/0/0 for a moment while the first fetch was still in flight. A parent who
+   * had just opened My Trades could reasonably read that as "I have nothing"
+   * before the real counts appeared.
+   *
+   * The tile values are withheld until the fetch that owns them has settled.
+   * `completed` comes from the head-only count query inside `fetchTrades`, so the
+   * active fetch's status covers all four tiles.
+   */
+  const summaryTotalsReady = activeLoadStatus === 'loaded';
+
+  // An em dash reads as "not known yet", never as a real zero.
+  const summaryTilePlaceholder = '—';
+
   /** Show confirmation modal before accepting a bundle */
   const requestAcceptBundle = (bundleId: string, offerIds: string[], title: string) => {
     setBundleConfirmModal({ visible: true, action: 'accept', bundleId, offerIds, title });
@@ -1153,7 +1168,7 @@ export default function TradeListScreen({ navigation }: any) {
               selectedFilter === 'your_offers' && styles.summaryValueActive,
             ]}
           >
-            {summary.pendingOffers}
+            {summaryTotalsReady ? summary.pendingOffers : summaryTilePlaceholder}
           </Text>
           <Text style={styles.summaryLabel}>Your Offers</Text>
         </Pressable>
@@ -1174,7 +1189,7 @@ export default function TradeListScreen({ navigation }: any) {
               selectedFilter === 'in_progress' && styles.summaryValueActive,
             ]}
           >
-            {summary.inProgress}
+            {summaryTotalsReady ? summary.inProgress : summaryTilePlaceholder}
           </Text>
           <Text style={styles.summaryLabel}>In Progress</Text>
         </Pressable>
@@ -1195,7 +1210,7 @@ export default function TradeListScreen({ navigation }: any) {
               selectedFilter === 'needs_action' && styles.summaryValueActive,
             ]}
           >
-            {summary.needsAction}
+            {summaryTotalsReady ? summary.needsAction : summaryTilePlaceholder}
           </Text>
           <Text style={styles.summaryLabel}>Needs Action</Text>
           {/* FIX-Task-19 item 10 (2026-09-11): this count is SELLER-side only
@@ -1206,11 +1221,13 @@ export default function TradeListScreen({ navigation }: any) {
               UX item 2 (FIX-Task-26 item 6, 2026-09-13): "Waiting on you" did not say
               WHAT was waiting, so the hint now names the action behind the tile. */}
           <Text style={styles.summarySubLabel} testID="trade-summary-needs-action-hint">
-            {summary.needsAction === 0
-              ? 'Waiting on you'
-              : summary.needsAction === 1
-                ? '1 offer to review'
-                : `${summary.needsAction} offers to review`}
+            {!summaryTotalsReady
+              ? ' '
+              : summary.needsAction === 0
+                ? 'Waiting on you'
+                : summary.needsAction === 1
+                  ? '1 offer to review'
+                  : `${summary.needsAction} offers to review`}
           </Text>
         </Pressable>
         <View style={styles.summaryDivider} />
@@ -1228,7 +1245,7 @@ export default function TradeListScreen({ navigation }: any) {
               selectedFilter === 'completed' && styles.summaryValueActive,
             ]}
           >
-            {summary.completed}
+            {summaryTotalsReady ? summary.completed : summaryTilePlaceholder}
           </Text>
           <Text style={styles.summaryLabel}>Completed</Text>
         </Pressable>
@@ -1283,11 +1300,9 @@ export default function TradeListScreen({ navigation }: any) {
               // the user can see — `fetchAllOffers` backs the Offers / Your Offers
               // cards and was previously skipped here, so the list could stay stale
               // under an explicitly refreshed view.
-              Promise.all([
-                fetchTrades(),
-                void fetchAllOffers(),
-                fetchHistoryPage(true),
-              ]).finally(() => setRefreshing(false));
+              Promise.all([fetchTrades(), void fetchAllOffers(), fetchHistoryPage(true)]).finally(
+                () => setRefreshing(false)
+              );
             }}
           />
         }

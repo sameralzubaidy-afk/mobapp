@@ -46,6 +46,14 @@ type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
  */
 const OFFER_FETCH_TIMEOUT_MS = 20000;
 
+/**
+ * FIX-Task-28 item 8 (2026-09-13): how long the seller stares at a bare spinner
+ * before we acknowledge that the load is slow. QA flagged the 20s upper bound as
+ * "silent" — nothing on screen changed for the whole window, which reads as a
+ * frozen app. 8s leaves a useful margin before the hard timeout at 20s.
+ */
+const OFFER_SLOW_HINT_MS = 8000;
+
 interface OfferData {
   id: string;
   listing_id: string;
@@ -92,6 +100,9 @@ export default function ReviewOfferScreen() {
   // FIX-Task-26 item 5 (QA Phase 0 F6): the load failure is now screen state (with a
   // retry affordance) instead of an Alert followed by a goBack dead end.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // FIX-Task-28 item 8 (2026-09-13): true once a still-loading offer has crossed
+  // OFFER_SLOW_HINT_MS, so the spinner can explain itself.
+  const [showSlowLoadHint, setShowSlowLoadHint] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [offer, setOffer] = useState<OfferData | null>(null);
   // ✅ FIX: Track total SP (buyer SP + platform bonus) for accurate display
@@ -322,7 +333,11 @@ export default function ReviewOfferScreen() {
       setBundleSiblings((prev) =>
         prev.map((sibling) =>
           sibling.id === updatedTradeId
-            ? { ...sibling, status, cancellation_reason: cancellationReason ?? sibling.cancellation_reason }
+            ? {
+                ...sibling,
+                status,
+                cancellation_reason: cancellationReason ?? sibling.cancellation_reason,
+              }
             : sibling
         )
       );
@@ -465,12 +480,43 @@ export default function ReviewOfferScreen() {
     }
   };
 
+  // FIX-Task-28 item 8 (2026-09-13): arm the "taking longer than usual" hint while a
+  // load is in flight, and disarm it the moment the load settles (success OR the
+  // error state, which has its own retry UI).
+  //
+  // Deliberately NOT an auto-retry: restarting the read at 8s would reset the 20s
+  // clock and could make a slow load worse. The affordance instead gives the seller
+  // the same escape hatch the error state offers.
+  useEffect(() => {
+    if (!loading) {
+      setShowSlowLoadHint(false);
+      return;
+    }
+    const hintTimer = setTimeout(() => setShowSlowLoadHint(true), OFFER_SLOW_HINT_MS);
+    return () => clearTimeout(hintTimer);
+  }, [loading]);
+
   if (loading) {
     return (
       <ScreenLayout variant="detail" title="Review Offer">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading offer...</Text>
+          {showSlowLoadHint && (
+            <View style={styles.slowLoadBlock} testID="review-offer-slow-hint">
+              <Text style={styles.slowLoadText}>Taking longer than usual...</Text>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                testID="review-offer-slow-back-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Stop waiting and go back to your offers"
+                hitSlop={12}
+              >
+                <Text style={styles.loadBackButtonText}>Back to Offers</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScreenLayout>
     );
@@ -962,6 +1008,20 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666',
+  },
+  // FIX-Task-28 item 8 (2026-09-13): the delayed "taking longer than usual"
+  // affordance. Reuses the error state's secondary link styling so the two
+  // escape hatches look identical.
+  slowLoadBlock: {
+    marginTop: 20,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  slowLoadText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 4,
   },
   // FIX-Task-26 item 5 (QA F6): bounded load-failure state.
   loadErrorText: {

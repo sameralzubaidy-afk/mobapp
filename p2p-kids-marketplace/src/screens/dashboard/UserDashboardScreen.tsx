@@ -39,7 +39,16 @@ import { TrialReminderBanner } from '../../components/TrialReminderBanner';
 import { LoadingSpinner } from '@/components/ui';
 
 // Phosphor Icons — Whisk Design System
-import { Coins, CreditCard, Handshake, Heart, List, Sparkle, TrendUp } from 'phosphor-react-native';
+import {
+  Coins,
+  CreditCard,
+  Handshake,
+  Heart,
+  List,
+  Sparkle,
+  TrendUp,
+  WarningCircle,
+} from 'phosphor-react-native';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -101,6 +110,7 @@ export default function UserDashboardScreen() {
   const {
     subscription: subscriptionSummary,
     loading: subscriptionLoading,
+    unverified: subscriptionUnverified,
     refetch: refetchSubscription,
   } = useSubscription();
   const wallet = useSPWallet();
@@ -108,6 +118,19 @@ export default function UserDashboardScreen() {
     status: subscriptionSummary?.status ?? 'free',
     canSpendSP: subscriptionSummary?.can_spend_sp ?? false,
   };
+
+  /**
+   * FIX-Task-28 item 1 (2026-09-13): "we could not verify your plan" is NOT the
+   * Free plan. This is true only when the read failed AND we have never confirmed a
+   * plan for this account — in that case the SP strip must show an explicit
+   * couldn't-verify state with a retry, never the free-tier upsell (which tells a
+   * paying subscriber their membership has lapsed) and never the "Free Plan" badge.
+   *
+   * When a plan WAS confirmed earlier in the session the hook hands back that
+   * last-known summary instead, so `subscriptionSummary` is non-null and we keep
+   * showing the true (if stale) plan.
+   */
+  const planUnverified = subscriptionUnverified && !subscriptionSummary;
 
   // ── Local state ────────────────────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
@@ -243,6 +266,25 @@ export default function UserDashboardScreen() {
     loadIdVerificationStatus,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * FIX-Task-28 item 1 (2026-09-13): the single retry affordance for the
+   * couldn't-verify SP strip.
+   *
+   * `refreshing` is set so the render guard below stays skipped — otherwise a
+   * re-check would blank the whole dashboard to a spinner and the strip's own
+   * "Checking…" state would never be visible.
+   */
+  const retrySubscription = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetchSubscription();
+    } catch {
+      // refetchSubscription records the failure on the hook itself.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchSubscription]);
+
   // ── Render guards ──────────────────────────────────────────────────────────
   // Guard skipped during pull-to-refresh (refreshing=true) to prevent blank screen flash.
   // Old content stays visible behind the RefreshControl spinner.
@@ -284,6 +326,8 @@ export default function UserDashboardScreen() {
   })();
 
   const subBadgeLabel = (() => {
+    // FIX-Task-28 item 1: an unverified plan must never be labelled "Free Plan".
+    if (planUnverified) return 'Plan unavailable';
     switch (subscription.status) {
       case 'trial':
         return 'Kids Club+ Trial';
@@ -301,9 +345,10 @@ export default function UserDashboardScreen() {
   })();
 
   const isFreeUser =
-    subscription.status === 'free' ||
-    subscription.status === 'canceled' ||
-    subscription.status === 'cancelled';
+    !planUnverified &&
+    (subscription.status === 'free' ||
+      subscription.status === 'canceled' ||
+      subscription.status === 'cancelled');
 
   // ── JSX ────────────────────────────────────────────────────────────────────
   return (
@@ -335,9 +380,15 @@ export default function UserDashboardScreen() {
               testID="sp-strip"
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Sp strip"
+              // FIX-Task-28 item 10 (2026-09-13): the strip already opened SP Wallet,
+              // but its AX label was the literal string "Sp strip" — meaningless to a
+              // screen-reader user. Name the value and the destination instead, and add
+              // a hitSlop so the whole strip is comfortable to hit one-handed.
+              accessibilityLabel={`${wallet.available} Swap Points. Open your SP Wallet`}
+              accessibilityHint="Shows your Swap Points balance and history"
               onPress={() => navigation.navigate('SpWallet')}
               activeOpacity={0.85}
+              hitSlop={8}
             >
               <View style={styles.spStripLeft}>
                 <Coins size={20} color="#FFFFFF" weight="fill" />
@@ -345,6 +396,39 @@ export default function UserDashboardScreen() {
               </View>
               <Text style={styles.spEarnMore}>Earn More →</Text>
             </TouchableOpacity>
+          ) : planUnverified ? (
+            /*
+             * FIX-Task-28 item 1 (2026-09-13): the subscription read failed and we
+             * have never confirmed a plan for this account. Show an explicit
+             * couldn't-verify state with ONE retry — previously this branch fell
+             * through to the free-tier upsell, so a paying subscriber whose read
+             * timed out was told to "Unlock Swap Points / Upgrade →".
+             */
+            <View
+              style={[styles.spStrip, styles.spStripFree]}
+              testID="sp-strip-unverified"
+              accessible
+              accessibilityLabel="We couldn't check your plan"
+            >
+              <View style={styles.spStripLeft}>
+                <WarningCircle size={20} color="#FFFFFF" weight="fill" />
+                <Text style={styles.spStripUnverifiedTitle}>{"We couldn't check your plan"}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={retrySubscription}
+                disabled={subscriptionLoading}
+                testID="sp-strip-retry"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Try again checking your subscription"
+                accessibilityState={{ disabled: subscriptionLoading }}
+                hitSlop={12}
+              >
+                <Text style={styles.spEarnMore}>
+                  {subscriptionLoading ? 'Checking…' : 'Try again'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             /* Free users: upgrade nudge strip */
             <TouchableOpacity
@@ -352,9 +436,11 @@ export default function UserDashboardScreen() {
               testID="sp-strip"
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Sp strip"
+              accessibilityLabel="Unlock Swap Points. See Kids Club+"
+              accessibilityHint="Opens the Kids Club+ upgrade options"
               onPress={() => navigation.navigate('JoinKidsClub')}
               activeOpacity={0.85}
+              hitSlop={8}
             >
               <View style={styles.spStripLeft}>
                 <TrendUp size={20} color="#FFFFFF" weight="bold" />
@@ -718,6 +804,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
+    // FIX-Task-28 item 10 (2026-09-13): guarantee a 48pt-minimum touch target now
+    // that the strip is formally a navigation control to SP Wallet.
+    minHeight: 48,
     ...Platform.select({
       ios: {
         shadowColor: '#5DBB8E',
@@ -746,6 +835,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     opacity: 0.9,
     fontWeight: '500',
+  },
+  // FIX-Task-28 item 1: the couldn't-verify title is longer than "Unlock Swap
+  // Points", so it shrinks before it can push the retry affordance off the strip.
+  spStripUnverifiedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flexShrink: 1,
   },
 
   // ─── Quick Actions Grid ───────────────────────────────────────────────────────

@@ -1491,6 +1491,46 @@ export async function consumeSimulatedProfileReadFailure(): Promise<boolean> {
 }
 
 // ========================================
+// QA SUBSCRIPTION-READ FAILURE SIMULATION (FIX-Task-28 item 1 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that makes `getSubscriptionSummary`'s
+ * `get_subscription_status` read fail with a TRANSIENT network error on demand.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'read_failure' | 'none'
+ *   - 'read_failure' → the RPC is skipped and a `'Network request failed'`
+ *     TypeError is thrown INSIDE the service's try block, so the real
+ *     transient-failure branch runs: `createUnverifiedSummary()` → the
+ *     `useSubscription` hook keeps its last-KNOWN plan → Home renders
+ *     `sp-strip-unverified` + `sp-strip-retry` instead of the free-tier upsell.
+ *
+ * Why this exists: FIX-Task-28 item 1 fixed a bug where a transient read failure
+ * told a paying subscriber they were on the free tier and offered them an
+ * upgrade they already had. That failure is opportunistic, so it cannot be
+ * reproduced on demand without a hook.
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real RPC runs.
+ * The simulation never alters server state.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=subscription_read_failure&value=read_failure"
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=subscription_read_failure&value=none"
+ */
+export const QA_SUBSCRIPTION_READ_FAILURE_KEY = 'qa_local_subscription_read_failure';
+
+export type QaSubscriptionReadFailureMode = 'read_failure' | 'none';
+
+export async function getSimulatedSubscriptionReadFailure(): Promise<QaSubscriptionReadFailureMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_SUBSCRIPTION_READ_FAILURE_KEY);
+  return value === 'read_failure' ? 'read_failure' : 'none';
+}
+
+// ========================================
 // QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04/J07-J12)
 // ========================================
 
@@ -1515,6 +1555,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   offer_load_stall: QA_OFFER_LOAD_STALL_KEY,
   seller_read_failure: QA_SELLER_READ_FAILURE_KEY,
   profile_read_failure: QA_PROFILE_READ_FAILURE_KEY,
+  subscription_read_failure: QA_SUBSCRIPTION_READ_FAILURE_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1534,6 +1575,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_OFFER_LOAD_STALL_KEY]: ['stall', 'none'],
   [QA_SELLER_READ_FAILURE_KEY]: ['read_failure', 'none'],
   [QA_PROFILE_READ_FAILURE_KEY]: ['once', 'persist', 'none'],
+  [QA_SUBSCRIPTION_READ_FAILURE_KEY]: ['read_failure', 'none'],
 };
 
 /**

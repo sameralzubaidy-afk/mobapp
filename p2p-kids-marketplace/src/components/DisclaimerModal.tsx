@@ -240,11 +240,25 @@ export default function DisclaimerModal({
                 testID={`${testID}-checkbox`}
                 accessibilityLabel="I have read and understand this disclaimer"
                 accessibilityState={{ checked: accepted }}
+                // FIX-Task-28 item 3 (2026-09-13): this row is a legal-acknowledgment
+                // gate, so the WHOLE row must toggle it. On-device the AX tree reported
+                // the full-width row {42,2107,996,63} while only the left ~63px square
+                // actually responded — QA tapped the row centre twice with no effect,
+                // which at a legal gate reads as "the app is broken". Pinning the row to
+                // the full width with a 48pt minimum, making the children
+                // non-interactive, and adding a hitSlop removes any ambiguity about
+                // which view owns the touch.
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <View style={[styles.checkboxInner, accepted && styles.checkboxChecked]}>
+                <View
+                  pointerEvents="none"
+                  style={[styles.checkboxInner, accepted && styles.checkboxChecked]}
+                >
                   {accepted && <Text style={styles.checkmark}>✓</Text>}
                 </View>
-                <Text style={styles.checkboxLabel}>I have read and understand this disclaimer</Text>
+                <Text pointerEvents="none" style={styles.checkboxLabel}>
+                  I have read and understand this disclaimer
+                </Text>
               </Pressable>
 
               <View style={styles.buttonRow}>
@@ -407,6 +421,12 @@ const styles = StyleSheet.create({
   checkbox: {
     flexDirection: 'row',
     alignItems: 'center',
+    // FIX-Task-28 item 3 (2026-09-13): pin the row to the full content width so the
+    // LABEL is part of the tap target (not just the 24px square), and give it a 48pt
+    // minimum height so the gate meets the platform touch-size guidance.
+    width: '100%',
+    alignSelf: 'stretch',
+    minHeight: 48,
     marginBottom: 16,
   },
   checkboxInner: {

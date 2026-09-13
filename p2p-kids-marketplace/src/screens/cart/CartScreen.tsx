@@ -780,8 +780,14 @@ export default function CartScreen() {
                 testID={`cart-item-open-${item.id}`}
               >
                 {/* Thumbnail */}
+                {/* FIX-Task-28 item 5 (2026-09-13): an image-less row normalizes to
+                    `imageUrl: ''` (see the mapping above), and passing an empty string
+                    to <Image> makes React Native log "source.uri should not be an empty
+                    string" on EVERY render of EVERY affected row (QA saw 8-20 repeats
+                    per render). Omit the source entirely — the thumbnail's neutral
+                    background already reads as the placeholder. */}
                 <Image
-                  source={{ uri: item.imageUrl }}
+                  source={item.imageUrl ? { uri: item.imageUrl } : undefined}
                   style={styles.thumbnail}
                   testID={`cart-item-image-${item.id}`}
                 />
@@ -1546,29 +1552,32 @@ const styles = StyleSheet.create({
     // so the banner's "View" link reads as an info row, not a make-offer button.
     // DEV-TASK-73: marginBottom bumped xs → md so the banner's "View" link sits
     // further from the bundle CTA below it (QA Task 12 accidental-tap risk).
-    backgroundColor: '#F7F7F7',
-    borderRadius: 12,
+    // FIX-Task-28 item 9 (2026-09-13): the bordered gray card was STILL read as a
+    // second CTA sitting immediately above the primary "Make one offer for these N
+    // items" button (QA friction item). The card treatment is gone — no fill, no
+    // border, no radius — so this is plainly a text row with a link and the only
+    // card-like control on the screen is the green bundle CTA. The bottom margin is
+    // bumped again (md → xl) to buy more vertical separation from that button.
     marginHorizontal: 24,
     marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    paddingLeft: 12,
+    marginBottom: theme.spacing.xl,
   },
   moreFromSellerBannerContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    // Keeps the row a comfortable tap target even without the card padding.
+    minHeight: 44,
   },
   moreFromSellerBannerTextWrap: {
     flex: 1,
   },
   moreFromSellerBannerTitle: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#6B6B6B',
+    fontWeight: '500',
+    color: '#6B7280',
   },
   moreFromSellerBannerLink: {
     fontSize: 13,

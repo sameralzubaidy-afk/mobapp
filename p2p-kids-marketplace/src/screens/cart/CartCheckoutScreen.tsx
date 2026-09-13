@@ -369,9 +369,7 @@ export default function CartCheckoutScreen() {
   // Until then the rows show a neutral placeholder, and the CTA cannot submit (a
   // submit would have carried the placeholder total in the request body/analytics).
   const moneyReady =
-    buyerFeeInfo !== null &&
-    chargeOneFeePerBundle !== null &&
-    (taxState.resolved || !sellerNodeId);
+    buyerFeeInfo !== null && chargeOneFeePerBundle !== null && (taxState.resolved || !sellerNodeId);
   const moneyOrDash = (dollars: number) => (moneyReady ? `$${dollars.toFixed(2)}` : '—');
 
   const loadCart = useCallback(async () => {
@@ -767,6 +765,30 @@ export default function CartCheckoutScreen() {
   // DEFERRED-DECISION (2026-07-19): Keep bell hidden on checkout — see first instance
   return (
     <ScreenLayout variant="detail" title="Checkout" showBell={false}>
+      {/*
+       * FIX-Task-28 item 11 (2026-09-13): ONE pinned "Points remaining" counter.
+       *
+       * It used to live INSIDE the padded scroll content, so it scrolled out of view
+       * the moment a parent started typing into a lower item's SP field (which is why
+       * FIX-Task-19 item 8 repeated the number under every item). Hoisting it above
+       * the ScrollView keeps it visible for the whole session — one instance, no
+       * repeats, and still live-updated on every keystroke via handleSpChange.
+       */}
+      {isSubscriber && canSpendSP && (
+        <View
+          style={[styles.balanceBanner, styles.balanceBannerPinned]}
+          testID="points-remaining-banner"
+        >
+          {balanceLoading ? (
+            <ActivityIndicator size="small" color={colors.primary[500]} />
+          ) : (
+            <Text style={styles.balanceText}>
+              Points remaining: <Text style={styles.balanceValue}>{remainingBalance}</Text>
+            </Text>
+          )}
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.scrollContent} testID="cart-checkout-scroll">
         {/* Bundle mode banner */}
         {bundleMode && (
@@ -775,19 +797,6 @@ export default function CartCheckoutScreen() {
             <Text style={styles.bundleBannerText}>
               You're making a single offer for all {cart.items.length} items from this seller.
             </Text>
-          </View>
-        )}
-
-        {/* ── Points Remaining Counter ── */}
-        {isSubscriber && canSpendSP && (
-          <View style={styles.balanceBanner} testID="points-remaining-banner">
-            {balanceLoading ? (
-              <ActivityIndicator size="small" color={colors.primary[500]} />
-            ) : (
-              <Text style={styles.balanceText}>
-                Points remaining: <Text style={styles.balanceValue}>{remainingBalance}</Text>
-              </Text>
-            )}
           </View>
         )}
 
@@ -818,8 +827,12 @@ export default function CartCheckoutScreen() {
                   onPress={() => handleOpenItemDetail(item)}
                   testID={`checkout-item-open-${item.listingId}`}
                 >
+                  {/* FIX-Task-28 item 5 (2026-09-13): omit the source for an
+                      image-less item instead of passing `uri: ''`, which made React
+                      Native log "source.uri should not be an empty string" on every
+                      render of every affected row. */}
                   <Image
-                    source={{ uri: item.imageUrl }}
+                    source={item.imageUrl ? { uri: item.imageUrl } : undefined}
                     style={styles.itemThumbnail}
                     testID={`checkout-item-image-${item.listingId}`}
                   />
@@ -877,18 +890,10 @@ export default function CartCheckoutScreen() {
                         ? 'Limited by your SP balance'
                         : "Limited by this item's category"}
                     </Text>
-                    {/* FIX-Task-19 item 8 (2026-09-11): the running balance was only
-                        shown in the banner ABOVE the item list (and in Order Summary),
-                        so while a parent typed into a lower item's SP field the total
-                        scrolled out of view and looked like it never moved. Mirror the
-                        live remaining balance next to each input — `remainingBalance`
-                        is recomputed on every keystroke via handleSpChange. */}
-                    <Text style={styles.spRemainingText} testID={`sp-remaining-${item.listingId}`}>
-                      Points remaining:{' '}
-                      <Text style={styles.balanceValue}>
-                        {balanceLoading ? '—' : remainingBalance}
-                      </Text>
-                    </Text>
+                    {/* FIX-Task-28 item 11 (2026-09-13): the per-item "Points
+                        remaining" mirror added by FIX-Task-19 item 8 is gone — the
+                        single counter is now pinned above the ScrollView, so it can
+                        no longer scroll out of view while the parent types here. */}
                   </View>
                 )}
               </View>
@@ -1184,6 +1189,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // FIX-Task-28 item 11 (2026-09-13): the banner lives OUTSIDE the padded scroll
+  // content container now, so it carries its own horizontal/vertical insets.
+  balanceBannerPinned: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 0,
+  },
   balanceText: {
     fontSize: 15,
     color: colors.neutral[700],
@@ -1269,13 +1281,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999999',
     marginTop: 4,
-  },
-  // FIX-Task-19 item 8: live running balance shown next to each SP input so it is
-  // visible while typing, without scrolling back up to the banner.
-  spRemainingText: {
-    fontSize: 12,
-    color: '#6B6B6B',
-    marginTop: 6,
   },
   breakdownRow: {
     flexDirection: 'row',

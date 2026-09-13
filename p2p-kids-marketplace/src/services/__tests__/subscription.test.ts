@@ -24,12 +24,18 @@ import {
   getPaymentMethod,
   invalidatePaymentMethodCache,
 } from '../subscription';
-import { getSimulatedPaymentCardPreference } from '../devTestingService';
+import {
+  getSimulatedPaymentCardPreference,
+  getSimulatedSubscriptionReadFailure,
+} from '../devTestingService';
 
 // QA forced-card toggle (Dev Task 44) — control it directly so the
 // subscription service test doesn't need AsyncStorage fixture plumbing.
+// FIX-Task-28 item 1: the subscription-read failure toggle is stubbed to 'none'
+// by default so every test below exercises the real RPC path.
 jest.mock('../devTestingService', () => ({
   getSimulatedPaymentCardPreference: jest.fn(),
+  getSimulatedSubscriptionReadFailure: jest.fn().mockResolvedValue('none'),
 }));
 
 // Mock Supabase
@@ -49,10 +55,14 @@ const mockGetSession = supabase.auth.getSession as jest.MockedFunction<
   typeof supabase.auth.getSession
 >;
 const mockGetPaymentCardPreference = getSimulatedPaymentCardPreference as jest.Mock;
+const mockGetSimulatedSubscriptionReadFailure = getSimulatedSubscriptionReadFailure as jest.Mock;
 
 describe('Subscription Service - TASK SUB-002', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // FIX-Task-28 item 1: clearAllMocks does not drop implementations, but set the
+    // default explicitly so a toggle-armed test can never leak into the next one.
+    mockGetSimulatedSubscriptionReadFailure.mockResolvedValue('none');
   });
 
   describe('getSubscriptionSummary', () => {
@@ -252,7 +262,10 @@ describe('Subscription Service - TASK SUB-002', () => {
       expect(result.auto_renew_enabled).toBe(false);
     });
 
-    it('should return free tier on RPC error', async () => {
+    it('should NOT report a confirmed free tier when the RPC fails (FIX-Task-28 item 1)', async () => {
+      // FIX-Task-28 item 1 (2026-09-13): this used to return the free tier, which
+      // told a paying subscriber they were on the Free plan. A failed read is
+      // "couldn't verify" — every gate stays fail-closed, but the status is honest.
       mockRpc.mockResolvedValueOnce({
         data: null,
         error: { message: 'RPC failed', details: '', hint: '', code: '' },
@@ -260,8 +273,41 @@ describe('Subscription Service - TASK SUB-002', () => {
 
       const result = await getSubscriptionSummary('user-123');
 
-      expect(result.status).toBe('free');
-      expect(result.transaction_fee_cents).toBe(299);
+      expect(result.status).toBe('unknown');
+      expect(result.unverified).toBe(true);
+      expect(result.tier_name).toBeNull();
+      // Fail-closed: an unread plan must not unlock anything.
+      expect(result.can_spend_sp).toBe(false);
+      expect(result.can_earn_sp).toBe(false);
+      expect(result.is_subscriber).toBe(false);
+    });
+
+    it('should report unverified (NOT free) on a transient network failure (FIX-Task-28 item 1)', async () => {
+      // The exact QA finding: a transient failure of get_subscription_status made an
+      // ACTIVE subscriber's Home screen render the "Unlock Swap Points / Upgrade →"
+      // free-tier upsell with no retry and no error state.
+      mockRpc.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Network request failed', details: '', hint: '', code: '' },
+      } as any);
+
+      const result = await getSubscriptionSummary('user-123');
+
+      expect(result.status).toBe('unknown');
+      expect(result.unverified).toBe(true);
+      expect(result.transaction_fee_cents).toBe(299); // still fail-closed on pricing
+    });
+
+    it('should report unverified and skip the RPC when the QA toggle is armed (FIX-Task-28 item 1)', async () => {
+      // Proves the dev-only failure injection short-circuits BEFORE the request, so
+      // the on-device verification never needs a real gateway failure.
+      mockGetSimulatedSubscriptionReadFailure.mockResolvedValueOnce('read_failure');
+
+      const result = await getSubscriptionSummary('user-123');
+
+      expect(result.unverified).toBe(true);
+      expect(result.status).toBe('unknown');
+      expect(mockRpc).not.toHaveBeenCalled();
     });
   });
 

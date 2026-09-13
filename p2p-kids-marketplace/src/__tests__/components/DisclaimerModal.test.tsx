@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
@@ -137,6 +138,38 @@ describe('DisclaimerModal', () => {
       });
 
       expect(mockOnAccept).toHaveBeenCalledWith('policy-123');
+    });
+
+    /**
+     * FIX-Task-28 item 3 (2026-09-13): on-device, `disclaimer-modal-checkbox`
+     * reported a full-width row {42,2107,996,63} in the AX tree but ONLY the left
+     * ~63px square actually toggled it — taps on the label at the row centre did
+     * nothing. At a legal-acknowledgment gate that reads as a broken app, so the row
+     * is now pinned to the full width with a 48pt minimum, its children are
+     * non-interactive, and it carries a hitSlop.
+     */
+    it('makes the whole label row the tap target, not just the square (FIX-Task-28 item 3)', async () => {
+      const { getByTestId, getByText } = render(
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('disclaimer-modal-checkbox')).toBeTruthy();
+      });
+
+      const checkbox = getByTestId('disclaimer-modal-checkbox');
+      const style = StyleSheet.flatten(checkbox.props.style);
+
+      // Full-width, 48pt-minimum row → the label sits inside the tap target.
+      expect(style.width).toBe('100%');
+      expect(style.alignSelf).toBe('stretch');
+      expect(style.minHeight).toBe(48);
+      // Generous slop, because a near-miss at this gate is a bad experience.
+      expect(checkbox.props.hitSlop).toEqual({ top: 12, bottom: 12, left: 12, right: 12 });
+
+      // The children must not swallow the touch — the row's Pressable owns it.
+      const label = getByText('I have read and understand this disclaimer');
+      expect(label.props.pointerEvents).toBe('none');
     });
 
     it('calls onCancel when cancel button is pressed', async () => {

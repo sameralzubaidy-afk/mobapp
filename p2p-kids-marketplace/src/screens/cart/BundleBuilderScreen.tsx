@@ -134,8 +134,11 @@ export default function BundleBuilderScreen() {
         testID={`bundle-item-${item.id}`}
         activeOpacity={0.7}
       >
+        {/* FIX-Task-28 item 5 (2026-09-13): omit the source for an image-less item
+            instead of passing `uri: ''`, which made React Native log "source.uri
+            should not be an empty string" on every render of every affected row. */}
         <Image
-          source={{ uri: item.imageUrl }}
+          source={item.imageUrl ? { uri: item.imageUrl } : undefined}
           style={styles.itemImage}
           testID={`bundle-item-image-${item.id}`}
         />

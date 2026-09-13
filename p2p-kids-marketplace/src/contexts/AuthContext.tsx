@@ -378,6 +378,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           walletSummary = walletData;
         }
 
+        // FIX-Task-28 item 1 (2026-09-13): a failed subscription/wallet read must not
+        // silently downgrade a paying subscriber.
+        //
+        // Previously `subError` left `subscriptionSummary` empty, so these fields were
+        // written as status 'free' / can_spend_sp false / 0 points — and every screen
+        // that reads the session (the Home wallet strip, SP Wallet, trade-success copy)
+        // then showed a free user with no points. Keep the last-known values instead;
+        // the fabricated fallback is only used when we never had a value to keep.
+        const previousSubscriptionStatus = session?.subscription_status;
+        const previousCanSpendSp = session?.can_spend_sp;
+        const previousAvailablePoints = session?.available_points;
+        const subscriptionReadFailed = Boolean(subError);
+        const walletReadFailed = Boolean(walletError);
+
         // Create updated session with FULL profile data
         const updatedSession: AuthSession = {
           user: {
@@ -412,9 +426,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           },
           access_token: sessionData.session.access_token,
           refresh_token: sessionData.session.refresh_token || '',
-          subscription_status: normalizedSubscriptionSummary.status,
-          can_spend_sp: normalizedSubscriptionSummary.can_spend_sp,
-          available_points: (walletSummary.available_points as number) || 0,
+          subscription_status:
+            subscriptionReadFailed && previousSubscriptionStatus !== undefined
+              ? previousSubscriptionStatus
+              : normalizedSubscriptionSummary.status,
+          can_spend_sp:
+            subscriptionReadFailed && typeof previousCanSpendSp === 'boolean'
+              ? previousCanSpendSp
+              : normalizedSubscriptionSummary.can_spend_sp,
+          available_points:
+            walletReadFailed && typeof previousAvailablePoints === 'number'
+              ? previousAvailablePoints
+              : (walletSummary.available_points as number) || 0,
           pending_points: (walletSummary.pending_points as number) || 0,
           lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
           lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
@@ -649,7 +672,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (sessionError) {
           if (isTransientNetworkError(sessionError)) {
-            console.warn('[AUTH] Session fetch network issue during init; continuing as signed out');
+            console.warn(
+              '[AUTH] Session fetch network issue during init; continuing as signed out'
+            );
             setSession(null);
             return;
           }

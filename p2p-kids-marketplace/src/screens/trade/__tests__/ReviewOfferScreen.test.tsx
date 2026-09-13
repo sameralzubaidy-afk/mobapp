@@ -17,7 +17,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReviewOfferScreen from '../ReviewOfferScreen';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { setQaLocalValue, getSimulatedOfferLoadStall, QA_OFFER_LOAD_STALL_KEY } from '@/services/devTestingService';
+import {
+  setQaLocalValue,
+  getSimulatedOfferLoadStall,
+  QA_OFFER_LOAD_STALL_KEY,
+} from '@/services/devTestingService';
 
 const mockNavigate = jest.fn();
 
@@ -179,9 +183,7 @@ describe('ReviewOfferScreen', () => {
     mockTrades(makeOffer('cancelled', { cancellation_reason: 'Offer expired' }));
     const { findByText } = render(<ReviewOfferScreen />);
 
-    expect(
-      await findByText('This offer has expired and can no longer be accepted.')
-    ).toBeTruthy();
+    expect(await findByText('This offer has expired and can no longer be accepted.')).toBeTruthy();
   });
 
   it('uses role-appropriate copy for a seller decline (never the raw reason code)', async () => {
@@ -331,5 +333,51 @@ describe('ReviewOfferScreen — qa offer_load_stall toggle (FIX-Task-27 item 4)'
     const { findByTestId } = render(<ReviewOfferScreen />);
 
     expect(await findByTestId('accept-trade-button')).toBeTruthy();
+  });
+});
+
+/**
+ * FIX-Task-28 item 8 (2026-09-13): the 20s bound left the seller on a bare spinner
+ * with nothing changing on screen — which reads as a frozen app. After ~8s the
+ * screen acknowledges the slowness and offers the error state's escape hatch.
+ */
+describe('ReviewOfferScreen — slow-load affordance (FIX-Task-28 item 8)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+    mockUseAuth.mockReturnValue({ session: { user: { id: 'seller-1' } } } as any);
+  });
+
+  it('shows the hint at 8s but not before, and does not auto-retry', async () => {
+    jest.useFakeTimers();
+    try {
+      await setQaLocalValue(QA_OFFER_LOAD_STALL_KEY, 'stall');
+      expect(await getSimulatedOfferLoadStall()).toBe('stall');
+      mockTrades(makeOffer('pending'));
+
+      const { queryByTestId } = render(<ReviewOfferScreen />);
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      // The bare spinner is fine for the first few seconds — no hint yet.
+      expect(queryByTestId('review-offer-slow-hint')).toBeNull();
+
+      // Cross the 8s threshold.
+      await act(async () => {
+        jest.advanceTimersByTime(8001);
+      });
+
+      expect(queryByTestId('review-offer-slow-hint')).toBeTruthy();
+      expect(queryByTestId('review-offer-slow-back-button')).toBeTruthy();
+
+      // The hard bound has NOT fired and nothing was retried automatically.
+      expect(queryByTestId('review-offer-load-error')).toBeNull();
+      expect(queryByTestId('review-offer-retry-button')).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
