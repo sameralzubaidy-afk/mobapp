@@ -52,6 +52,61 @@ export type AuthFailureCode =
   | 'UNKNOWN';
 
 /**
+ * FIX-Task-26 round 2, item 1 (2026-09-13) — QA finding F1-b.
+ *
+ * The first cut mapped only STATUS + MESSAGE text, and returned any `code` that
+ * did not end in `Error` verbatim. A real wrong-password login does not look
+ * like either: the SDK throws
+ * `new AuthApiError('Invalid login credentials', 400, 'invalid_credentials')`
+ * — HTTP **400** carrying a snake_case `error_code` (`invalid_credentials`), not
+ * a 401 and not a class name. So the code passed through as
+ * `'invalid_credentials'`, matched no `switch` case, and fell to the generic
+ * `default:` copy ("…just now. Please try again in a moment") — the
+ * guide-asserted "Invalid email or password." was unreachable (BP-88: a branch
+ * whose trigger never fires; the mocked test used a 401/no-code shape the SDK
+ * never emits, which is why it stayed green).
+ *
+ * `error_code` is the SDK's documented contract — see `@supabase/auth-js`'s
+ * `AuthApiError` JSDoc and its `ErrorCode` union
+ * (`node_modules/@supabase/auth-js/dist/main/lib/error-codes.d.ts`, v2.89.0).
+ * The tests build their fixtures from the SDK's OWN constructors
+ * (`new AuthApiError(...)` re-exported by `@supabase/supabase-js`), so the shape
+ * cannot drift from the installed SDK again.
+ *
+ * Only codes whose existing copy is unambiguously correct are mapped. Deliberate
+ * omissions: `phone_not_confirmed` (our EMAIL_NOT_CONFIRMED copy names email),
+ * `hook_timeout` / `request_timeout` (the generic "try again in a moment" copy
+ * is more accurate than the "check your connection" one) and every
+ * provider/config code (`provider_disabled`, `signup_disabled`, `user_banned`,
+ * …) — those correctly fall through to the generic arm.
+ */
+const SDK_ERROR_CODE_MAP: Record<string, AuthFailureCode> = {
+  invalid_credentials: 'INVALID_CREDENTIALS',
+  user_already_exists: 'EMAIL_ALREADY_REGISTERED',
+  email_exists: 'EMAIL_ALREADY_REGISTERED',
+  weak_password: 'WEAK_PASSWORD',
+  email_not_confirmed: 'EMAIL_NOT_CONFIRMED',
+  over_email_send_rate_limit: 'RATE_LIMITED',
+  over_request_rate_limit: 'RATE_LIMITED',
+  over_sms_send_rate_limit: 'RATE_LIMITED',
+};
+
+/**
+ * SDK classes that carry their meaning in the class NAME rather than in `code`:
+ * `AuthInvalidCredentialsError` is built as
+ * `super(message, 'AuthInvalidCredentialsError', 400, undefined)` — no `code` at
+ * all, and no guaranteed message — so only the name can classify it.
+ */
+const SDK_CLASS_NAME_CODES: Record<string, AuthFailureCode> = {
+  AuthInvalidCredentialsError: 'INVALID_CREDENTIALS',
+};
+
+/** Our own codes are SCREAMING_SNAKE; the SDK's are lowercase snake_case. */
+function isAppFailureCode(code: string): boolean {
+  return /^[A-Z][A-Z0-9_]*$/.test(code);
+}
+
+/**
  * Substrings/markers that only ever appear in a serialized HTTP response or a
  * dumped SDK error object — never in copy a person should read.
  */
@@ -83,11 +138,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
-}
-
-/** SDK errors are named `<something>Error`; our app-thrown codes are SCREAMING_SNAKE. */
-function isSdkErrorName(code: string): boolean {
-  return /Error$/.test(code);
 }
 
 /** The status may sit on the error itself or one level down (`AuthError.details`). */
@@ -142,8 +192,35 @@ export function normalizeAuthFailure(
   error: unknown,
   fallback: AuthFailureCode = 'UNKNOWN'
 ): AuthFailureCode {
-  const rawCode = asString((error as { code?: unknown } | null)?.code);
-  if (rawCode && !isSdkErrorName(rawCode)) {
+  const source = isRecord(error) ? error : {};
+  const details = isRecord(source.details) ? (source.details as Record<string, unknown>) : {};
+  const rawCode = asString(source.code) ?? asString(details.code);
+  const name = asString(source.name) ?? asString(details.name);
+
+  // 1. The SDK's own snake_case `error_code` vocabulary — the REAL GoTrue
+  //    rejection shape (`invalid_credentials` at HTTP 400, not a 401).
+  if (rawCode) {
+    const mappedFromCode = SDK_ERROR_CODE_MAP[rawCode.toLowerCase()];
+    if (mappedFromCode) return mappedFromCode;
+  }
+
+  // 2. SDK classes that carry their meaning in the class NAME, because they are
+  //    constructed with no `code` at all.
+  if (name) {
+    const mappedFromName = SDK_CLASS_NAME_CODES[name];
+    if (mappedFromName) return mappedFromName;
+  }
+
+  // 3. Our own app-thrown codes (SCREAMING_SNAKE) are preserved verbatim — the
+  //    services re-wrap our normalized code into `AuthError.code`, and the
+  //    screens switch on it.
+  //
+  //    Anything else — an SDK `error_code` we do not map yet, or an SDK class
+  //    name such as `AuthApiError` — is deliberately NOT returned as-is: it
+  //    would reach `AuthError.code`, match no `switch` case and silently make
+  //    the specific branches dead (BP-88). Such values fall through to the
+  //    status/message classification below.
+  if (rawCode && isAppFailureCode(rawCode)) {
     return rawCode as AuthFailureCode;
   }
 
@@ -176,7 +253,10 @@ export function normalizeAuthFailure(
     status === 401 ||
     text.includes('invalid login credentials') ||
     text.includes('invalid credentials') ||
-    text.includes('invalid grant')
+    text.includes('invalid grant') ||
+    // The SDK's own documented message for a locally-detected bad credential
+    // pair (`AuthInvalidCredentialsError`), which carries no `code` at all.
+    text.includes('email or password is incorrect')
   ) {
     return 'INVALID_CREDENTIALS';
   }
@@ -232,7 +312,9 @@ export function redactForLogging(error: unknown): Record<string, unknown> {
   const details = isRecord(source.details) ? (source.details as Record<string, unknown>) : {};
 
   const name =
-    asString(source.name) ?? asString(details.name) ?? (error instanceof AuthError ? 'AuthError' : 'UnknownError');
+    asString(source.name) ??
+    asString(details.name) ??
+    (error instanceof AuthError ? 'AuthError' : 'UnknownError');
   const code = asString(source.code) ?? asString(details.name) ?? null;
   const rawMessage = asString(source.message) ?? '';
   const message = sanitizeUserFacingMessage(rawMessage, '<redacted: not user-facing>', 400);

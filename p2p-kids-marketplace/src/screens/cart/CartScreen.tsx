@@ -11,7 +11,16 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Crypto from 'expo-crypto';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import {
   getCartItems,
   removeFromCart,
@@ -109,6 +118,18 @@ export default function CartScreen() {
   // CART-009: Min cart value modal state
   const [showMinValueModal, setShowMinValueModal] = useState(false);
   const [minValueModalMessage, setMinValueModalMessage] = useState('');
+
+  // FIX-Task-26 round 2, items 2+4 (2026-09-13) — QA finding X11-b: a failed
+  // removal kept the optimistic row deletion and only `console.warn`ed, so the
+  // buyer saw the item gone while it was still present in `cart_items` server-
+  // side (and would be re-included in the next offer). The failed row is now
+  // restored and this state drives the inline retry card.
+  const [removeFailure, setRemoveFailure] = useState<{
+    itemId: string;
+    listingId: string;
+    title: string;
+  } | null>(null);
+  const [removeRetryBusy, setRemoveRetryBusy] = useState(false);
 
   // Compute remaining items not yet in basket (clamped to 0 for safety)
   const sellerId = cartItems.length > 0 ? cartItems[0].sellerId : null;
@@ -367,6 +388,64 @@ export default function CartScreen() {
     ]);
   };
 
+  /**
+   * FIX-Task-26 round 2, items 2+4 (2026-09-13): ONE removal path, shared by the
+   * trash button and the inline Retry, so the rollback rule cannot drift between
+   * the two entry points.
+   *
+   * The row still disappears immediately (TRD-TC-M08 asserts the instant update),
+   * but a failed write now puts THAT row back and surfaces an inline retry — it no
+   * longer leaves the basket disagreeing with the server until a later refetch.
+   *
+   * The rollback re-inserts only the failed row at its original index. Restoring a
+   * whole snapshot would also resurrect a DIFFERENT item the buyer removed while
+   * this request was still in flight.
+   */
+  const attemptRemoveItem = useCallback(
+    async (item: CartItem) => {
+      const originalIndex = cartItems.findIndex((i) => i.id === item.id);
+      setCartItems((prev) => prev.filter((i) => i.id !== item.id));
+      setRemoveFailure(null);
+
+      let failed = false;
+      try {
+        const result = await removeFromCart(item.id);
+        if (!result.success) {
+          failed = true;
+          // Log the CODE only — a raw machine message here would land in LogBox,
+          // which a dev build renders on screen (the F1 leak-class lesson).
+          console.warn('[CartScreen] removeFromCart failed:', result.error.code);
+        }
+      } catch (e) {
+        // `removeFromCart` returns a ServiceResult and is not expected to throw;
+        // treat an unexpected throw as a failure rather than keeping a
+        // confidently-wrong UI state.
+        captureException(e, { tags: { screen: 'CartScreen', action: 'remove_item' } });
+        failed = true;
+      }
+
+      if (failed) {
+        setCartItems((prev) => {
+          if (prev.some((i) => i.id === item.id)) return prev;
+          const next = [...prev];
+          next.splice(Math.max(0, Math.min(originalIndex, next.length)), 0, item);
+          return next;
+        });
+        setRemoveFailure({ itemId: item.id, listingId: item.listingId, title: item.title });
+        return;
+      }
+
+      // CART-018: analytics — only on a removal that actually persisted.
+      trackEvent('cart_item_removed', {
+        listing_id: item.listingId,
+        reason: 'user_action',
+      });
+      await loadCartItems();
+      refreshCartCount();
+    },
+    [cartItems, loadCartItems, refreshCartCount]
+  );
+
   const handleRemoveItem = (itemId: string) => {
     Alert.alert('Remove Item', 'Are you sure you want to remove this item from your cart?', [
       { text: 'Cancel', style: 'cancel' },
@@ -374,22 +453,29 @@ export default function CartScreen() {
         text: 'Remove',
         style: 'destructive',
         onPress: async () => {
-          const removedItem = cartItems.find((item) => item.id === itemId);
-          setCartItems((prev) => prev.filter((item) => item.id !== itemId));
-          // CART-018: analytics
-          trackEvent('cart_item_removed', {
-            listing_id: removedItem?.listingId ?? itemId,
-            reason: 'user_action',
-          });
-          await removeFromCart(itemId).catch((e) =>
-            console.warn('[CartScreen] removeFromCart error:', e)
-          );
-          // Reload from server to refresh savedCarts + ensure sync
-          await loadCartItems();
-          refreshCartCount();
+          const item = cartItems.find((i) => i.id === itemId);
+          if (!item) return;
+          await attemptRemoveItem(item);
         },
       },
     ]);
+  };
+
+  /** Retry the removal that failed. The row is back in the list, so it is found
+   *  from `cartItems` and re-removed through the same path. */
+  const retryRemoveItem = async () => {
+    if (!removeFailure || removeRetryBusy) return;
+    const item = cartItems.find((i) => i.id === removeFailure.itemId);
+    if (!item) {
+      setRemoveFailure(null);
+      return;
+    }
+    setRemoveRetryBusy(true);
+    try {
+      await attemptRemoveItem(item);
+    } finally {
+      setRemoveRetryBusy(false);
+    }
   };
 
   // FLOW-07 (2026-08-01): Tap an item card -> open that item's detail screen.
@@ -636,6 +722,39 @@ export default function CartScreen() {
           </View>
         )}
 
+        {/* FIX-Task-26 round 2, items 2+4 (2026-09-13): a failed removal used to
+            leave the row deleted locally with a console-only failure (QA X11-b),
+            so the buyer's basket disagreed with the server. The row is restored
+            and this card explains why + offers the retry. */}
+        {removeFailure && (
+          <View style={styles.removeErrorCard} testID="cart-remove-error-card">
+            <View style={styles.removeErrorTextWrap}>
+              <Text style={styles.removeErrorTitle}>
+                We couldn't remove "{removeFailure.title}"
+              </Text>
+              <Text style={styles.removeErrorHint}>
+                It's still in your trade basket. Please try again.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.removeRetryButton}
+              onPress={retryRemoveItem}
+              disabled={removeRetryBusy}
+              testID="cart-remove-retry-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Retry removing this item from your trade basket"
+              accessibilityState={{ disabled: removeRetryBusy }}
+            >
+              {removeRetryBusy ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.removeRetryButtonText}>Try again</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.itemsList}>
           {cartItems.map((item) => (
             <View key={item.id} style={styles.itemRow} testID={`cart-item-${item.id}`}>
@@ -802,8 +921,8 @@ export default function CartScreen() {
               <Text style={styles.clearBasketText}>Clear Basket</Text>
             </TouchableOpacity>
             <Text style={styles.clearBasketHint}>
-              Removes all {cartItems.length} item{cartItems.length === 1 ? '' : 's'} from your
-              trade basket.
+              Removes all {cartItems.length} item{cartItems.length === 1 ? '' : 's'} from your trade
+              basket.
             </Text>
           </View>
         )}
@@ -1187,6 +1306,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: theme.spacing.md,
     alignItems: 'flex-start',
+  },
+  // FIX-Task-26 round 2, items 2+4 (2026-09-13): inline removal-failure card.
+  // Uses the semantic error tokens so it stays on-brand (BP-82).
+  removeErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.error[500],
+    backgroundColor: theme.colors.error[100],
+    borderRadius: 12,
+    padding: theme.spacing.md,
+    marginHorizontal: 24,
+    marginTop: theme.spacing.md,
+  },
+  removeErrorTextWrap: {
+    flex: 1,
+  },
+  removeErrorTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.error[500],
+  },
+  removeErrorHint: {
+    fontSize: 13,
+    color: theme.textColors.secondary,
+    marginTop: 2,
+  },
+  removeRetryButton: {
+    backgroundColor: '#5DBB8E',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
+  },
+  removeRetryButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   itemsList: {
     paddingHorizontal: 24,

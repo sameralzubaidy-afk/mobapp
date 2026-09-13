@@ -3,6 +3,12 @@
 
 import { enrollInTrialSubscription, loginWithContext, signupWithTrial } from '../auth';
 import { supabase } from '../../config/supabase';
+// FIX-Task-26 round 2 (2026-09-13): build the wrong-password fixture with the
+// SDK's OWN constructor. The previous fixture (`{status: 401, message: 'Invalid
+// login credentials'}` with no `code`) was a shape GoTrue never emits, so this
+// test passed while the friendly INVALID_CREDENTIALS copy was unreachable on a
+// real device (QA F1-b).
+import { AuthApiError } from '@supabase/supabase-js';
 
 // Mock Supabase client
 jest.mock('../../config/supabase', () => ({
@@ -404,9 +410,10 @@ describe('AUTH-V2-003: loginWithContext', () => {
     });
 
     it('maps a wrong password to INVALID_CREDENTIALS (the branch that used to be dead)', async () => {
+      // The REAL GoTrue rejection: HTTP 400 + error_code `invalid_credentials`.
       (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
         data: { user: null, session: null },
-        error: { name: 'AuthApiError', status: 401, message: 'Invalid login credentials' },
+        error: new AuthApiError('Invalid login credentials', 400, 'invalid_credentials'),
       });
 
       const thrown = await loginWithContext({ email: 'a@b.com', password: 'x' }).catch(

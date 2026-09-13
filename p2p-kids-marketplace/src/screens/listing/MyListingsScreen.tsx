@@ -417,10 +417,13 @@ export default function MyListingsScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.myTradeButton}
               onPress={() => navigation.navigate('TradeList')}
-              accessibilityLabel="View My Trade"
+              accessibilityLabel="View My Trades"
             >
               <Receipt size={22} color="#FFFFFF" weight="fill" />
-              <Text style={styles.myTradeButtonText}>My Trade</Text>
+              {/* FIX-Task-26 round 2, item 3 (2026-09-13): read "My Trade"
+                  (singular) — the destination screen and the canonical docs both
+                  call this "My Trades". */}
+              <Text style={styles.myTradeButtonText}>My Trades</Text>
             </TouchableOpacity>
           </View>
 
