@@ -535,8 +535,15 @@ SET offer_expires_at = NOW() + INTERVAL '5 Seconds'
 WHERE id = '<trade-uuid>';
 
 
--- 3. Process it instantly
-SELECT public.rpc_process_expired_offers(100);
+-- 3. Process it instantly — POST the Edge Function, NOT the bare RPC.
+--    FIX-Task-24 item 2 (2026-09-12): the bare RPC skips the Stripe PaymentIntent
+--    cancel (that leg lives only in the Edge Function) and, before that fix, also
+--    skipped the tax void — leaving tax_status permanently stuck at 'quoted'.
+--    curl -sS -X POST "$SUPABASE_URL/functions/v1/process-expired-offers" \
+--      -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H 'Content-Type: application/json' \
+--      -d '{"batch_size":100}'
+--    Expected: success true, data.expired_offers_processed >= 1,
+--              data.tax_voided_count >= 1
 ---
 
 ### passed TRD-TC-B03 · Multiple competing offers — sort order + auto-decline on acceptance
@@ -678,7 +685,7 @@ SELECT public.rpc_process_expired_offers(100);
 **Steps:**
 1. Log in as **Buyer** with 3 pending offers to test-seller.
 2. Fast-forward one offer's `offer_expires_at` to 5 seconds from now (via SQL).
-3. Run `SELECT public.rpc_process_expired_offers(100);` to process the expiry.
+3. Process the expiry by POSTing the **`process-expired-offers` Edge Function** — `curl -sS -X POST "$SUPABASE_URL/functions/v1/process-expired-offers" -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H 'Content-Type: application/json' -d '{"batch_size":100}'` — **not** `SELECT public.rpc_process_expired_offers(100)`. *FIX-Task-24 item 2 (2026-09-12): the bare RPC skips the Stripe PaymentIntent cancel, so it is not the real expiry path.*
 4. Log in as **Buyer** and verify the expired offer now shows as **Cancelled**.
 5. Open a new available item from **test-seller** and submit an offer.
 
@@ -1238,8 +1245,12 @@ SET offer_expires_at = NOW() + INTERVAL '5 seconds'
 WHERE id = '<trade-uuid>'
   AND status = 'pending';
 
--- STEP 3: Process expired offers
-SELECT public.rpc_process_expired_offers(100);
+-- STEP 3: Process expired offers — POST the Edge Function, not the bare RPC
+-- (FIX-Task-24 item 2: the RPC cannot cancel the Stripe PI — that lives only in
+--  the Edge Function; see the R14 note in the QA playbook)
+-- curl -sS -X POST "$SUPABASE_URL/functions/v1/process-expired-offers" \
+--   -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H 'Content-Type: application/json' \
+--   -d '{"batch_size":100}'
 ---
 
 ### passed TRD-TC-D04 · Auto-complete banner visible to buyer only
@@ -3283,7 +3294,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Precondition:** test-buyer (subscriber) with ≥ 15 SP, item is $30 Accept SP, `include_fee_in_tax_base = false`.
 
 **Steps:**
-1. Open the $30 item → tap **[Request to Buy]** → enter **15 SP** in the offer screen's SP field (max 50%).
+1. Open the $30 item → tap **[Request to Buy]** → enter **15 SP** in the offer screen's SP field (below the item's **per-category cap** — the cap is not a flat 50%: `categories.sp_spending_cap_percent` is admin-editable (50–80, default 50) and overrides the global `sp_max_percentage_per_purchase`; the field's helper prints the resolved cap, e.g. "Max: N SP (P% of price)").
 2. Watch the breakdown update in real time.
 3. Repeat on TradeOfferScreen.
 
@@ -3395,7 +3406,9 @@ ORDER BY t.created_at DESC LIMIT 1;
 **Expected:**
 - Payment Details shows: Cash Paid, SP Used (if any), Platform Fee, **Sales Tax**, Total.
 - Tax amount matches the value stored at offer time (from `tax_records.tax_amount_cents`).
-- Tax rate and jurisdiction are NOT shown (simplified for buyers).
+- The Sales Tax row **appends the applied rate whenever one applies** — it reads **"Sales Tax (6.99%)"**, not a bare "Sales Tax". The **jurisdiction is still not shown** (simplified for buyers).
+
+> 🔄 **Reconciled 2026-09-12 (FIX-Task-24 item 5):** the previous expectation — *"Tax rate and jurisdiction are NOT shown (simplified for buyers)"* — was stale. The completed-trade Payment Details row renders **"Sales Tax (6.99%)"**: `TaxBreakdownRow` appends the rate whenever the record carries one (the same convention already reconciled for TRD-TC-O3-C03). Only the *jurisdiction* remains hidden. A **zero-tax** trade (exempt item, tax disabled, or 0% node rate) is the different case documented elsewhere in this group — there the row is replaced by the **"Tax Free"** badge or hidden, and no rate appears. Live evidence: `e2e-test-results/qa-p2-remainder-groupL-2026-09-12/report.md` §1.1 (O06 doc-drift) and §2.3.
 
 ---
 
@@ -3882,10 +3895,10 @@ LIMIT 10;
 
 ### ✅ TRD-TC-O2-C04 · SP used — taxable base unchanged, card auth reflects SP tender
 
-**Precondition:** Item is $30 Accept SP, buyer has ≥ 15 SP.
+**Precondition:** Item has an Accept-SP category whose cap is known, buyer's SP ≥ the cap.
 
 **Steps:**
-1. Open $30 item → apply 15 SP (max 50%).
+1. Open the item → apply SP up to the **item's per-category cap**. The cap is **not a flat 50%**: each category carries its own admin-editable `categories.sp_spending_cap_percent` (valid **50–80**, default 50) which **overrides** the global `sp_max_percentage_per_purchase`. The checkout helper line prints the *resolved* cap, e.g. **"Max: 18 SP (75% of price)"** on a $25 item in a 75%-cap category. Server-enforced by `fn_item_effective_sp_cap` + `fn_reserve_sp_on_offer` (an over-cap offer is rejected at the DB — HP-4).
 2. Submit offer.
 3. Verify via SQL:
    ```sql
@@ -3898,10 +3911,13 @@ LIMIT 10;
    ```
 
 **Expected:**
-- `taxable_amount_cents` = 3000 (FULL item price, NOT 1500) — **BP-37**.
-- `tax_amount_cents` = calculated on 3000.
-- `cash_amount_cents` = 1500 + fee (SP reduced cash, not taxable base).
-- Stripe PI authorization = `1500 + fee + tax`.
+- `taxable_amount_cents` = **FULL item price**, NOT the SP-reduced amount — **BP-37**.
+- `tax_amount_cents` = calculated on the full price.
+- `cash_amount_cents` = the **item-cash portion only** (price − SP value). It does **NOT** include the fee: the buyer's platform fee has its own column, `trades.buyer_transaction_fee_cents`, and the *composite* actually authorized is `payments.total_charged_cents`.
+- Stripe PI authorization = cash + fee + tax = **`payments.total_charged_cents`**.
+- `payments.derived_state` = `'requires_capture'` at this point. **Note:** `derived_state` is the trade-mirror **projection** (renamed from `payments.status` by FIX-Task-24 item 1) — for the *real* PI state read Stripe, never this column.
+
+> 🔄 **Reconciled 2026-09-12 (FIX-Task-24 item 5):** two corrections. **(a)** The old `(max 50%)` assumed a flat cap the shipped app does not use — the cap is **per-category** (`sp_spending_cap_percent`, 50–80, default 50, overriding the global default) and the UI prints the resolved cap. **(b)** `cash_amount_cents` is **not** "1500 + fee": it holds the item-cash portion only; the fee is `buyer_transaction_fee_cents` and the charged composite is `payments.total_charged_cents`. Live evidence: `e2e-test-results/qa-p2-remainder-groupL-2026-09-12/report.md` §1.3 — trade `472ef43a`: `taxable_amount_cents` 2500 (full price, not 1000), tax 175, `cash_amount_cents` 1000, `buyer_transaction_fee_cents` 149, `payments.total_charged_cents` 1324 = 1000+149+175, `derived_state` `'requires_capture'`.
 
 ---
 
@@ -3970,7 +3986,18 @@ LIMIT 10;
    ```sql
    UPDATE trades SET offer_expires_at = NOW() + INTERVAL '5 seconds'
    WHERE id = '<expiring-trade-uuid>' AND status = 'pending';
-   SELECT public.rpc_process_expired_offers(100);
+   ```
+
+   Then drive the **real** expiry path — the `process-expired-offers` Edge Function.
+   **FIX-Task-24 item 2 (2026-09-12): do NOT call `SELECT public.rpc_process_expired_offers(100)`
+   here.** The RPC voids the tax record itself (so the tax limb can no longer be stranded),
+   but the Stripe PaymentIntent cancel lives only in the Edge Function — driving the bare RPC
+   leaves an uncancelled authorization hold behind.
+
+   ```bash
+   curl -sS -X POST "$SUPABASE_URL/functions/v1/process-expired-offers" \
+     -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H 'Content-Type: application/json' \
+     -d '{"batch_size":100}'
    ```
 3. Verify both trades have `tax_status = 'voided'`.
 
@@ -4172,35 +4199,47 @@ LIMIT 5;
 
 ---
 
-### ✅ TRD-TC-O3-C05 · Admin dispute route: full refund with Stripe + tax reversal (captured trade)
+### 📄 TRD-TC-O3-C05 · Admin dispute route: full refund with Stripe + tax reversal (captured trade)
 
-**Steps:**
-1. Complete a trade with captured payment.
-2. As **test-buyer**, open dispute.
-3. As **test-admin**, navigate to dispute → tap **Resolve → Refund** → confirm.
+> ⚠️ **UNREACHABLE AS WRITTEN — reconciled 2026-09-12 (FIX-Task-24 item 5).** The original step 1 can never be produced: **`open-dispute` rejects any trade that is not `in_progress`**, so a *completed* (captured) trade cannot be disputed through the app. Verdict on record: **DOC-DRIFT** (`e2e-test-results/qa-p2-remainder-groupL-2026-09-12/report.md` F4), not a defect — the mechanic this case is about is real and proven, via the admin refund path.
+
+**What to drive instead (the reachable equivalent):**
+1. Complete a trade with a captured payment.
+2. As **test-admin**, open **Payments → the trade row** and issue a full refund (admin refund path: `trade-refund` EF → `rpc_record_payment_refund`).
+3. Read back Stripe + `tax_records` + `trade_refunds` + the SP ledger.
 
 **Expected:**
-- Stripe Dashboard shows refund for full amount (cash + fee + tax).
+- Stripe Dashboard shows a refund for the full amount (cash + fee + tax).
 - Trade status → **Cancelled**.
 - `tax_records`: `tax_status = 'refunded'`, `stripe_refund_id` set, `refunded_at` set.
 - `refunded_tax_cents` = original `tax_amount_cents`.
+- `trade_refunds` holds one line item carrying the price/fee/tax split (`refund_amount_cents = refund_price_cents + refund_fee_cents + refund_tax_cents`).
 - SP released to buyer (idempotent — exactly once).
 - Buyer receives notification: "Your refund for [Item] has been issued."
-- Net Tax Payable on reports reflects refund.
+- Net Tax Payable on reports reflects the refund.
+
+**If the dispute-resolve refund path must be exercised at all**, note it only accepts `in_progress` trades — and for those the PI is still an *authorization hold*, so the correct outcome is **cancel, not refund** (see TRD-TC-O3-C07 / TRD-TC-O2-C07).
 
 ---
 
 ### ✅ TRD-TC-O3-C06 · Duplicate refund/retry is idempotent
 
 **Steps:**
-1. From TRD-TC-O3-C05, resolve same dispute again as **Refund**.
+1. From the admin refund path (TRD-TC-O3-C05), attempt the same refund a **second** time.
 2. Check Stripe Dashboard, `tax_records`, SP ledger.
 
 **Expected:**
 - Stripe Dashboard: exactly 1 refund (not 2).
 - `refunded_tax_cents` not incremented again.
 - SP ledger: exactly 1 `earn_refund` entry.
-- RPC response includes `action: 'idempotent'`.
+
+> 🔄 **Reconciled 2026-09-12 (FIX-Task-24 item 5):** the previous expectation *"RPC response includes `action: 'idempotent'`"* was wrong for this path — **no such field exists on the refund path.** `action: 'idempotent'` is returned **only** by `rpc_mark_tax_collected` (a duplicate *collection* acknowledgement). The refund path instead protects itself with **three independent layers**, and the case passes when those hold:
+>
+> 1. **RPC component cap** — `rpc_record_payment_refund` returns `{success:false, code:'REFUND_EXCEEDS_COLLECTED'}` (and `REFUND_EXCEEDS_PRICE` / `_FEE` / `_TAX` / `_TOTAL`) with **`details.remaining_cents`**, so the second attempt adds nothing. This is a *guard rejection*, not an idempotent replay — record it as such.
+> 2. **Dispute layer** — `resolve-dispute` returns `ALREADY_RESOLVED` for a dispute that is no longer open.
+> 3. **Stripe layer** — a duplicate refund attempt surfaces `charge_already_refunded` and is reconciled rather than double-issued.
+>
+> Live evidence: `e2e-test-results/qa-p2-remainder-groupL-2026-09-12/report.md` §1.2 — the second `rpc_refund_tax_with_status` call returned `REFUND_EXCEEDS_COLLECTED` with `details.remaining_cents: 61`, and the read-back showed `refunded_tax_cents` still `100` (**not 200**) with exactly one `tax_records` row. Verdict stays **PARTIAL** until the `resolve-dispute` + Stripe layers are driven too.
 
 ---
 
@@ -5069,6 +5108,8 @@ FROM items;
 - When one competing offer is accepted, the remaining competing offers are cancelled (reason `offer_expired_competing`) and those buyers' holds/SP are restored.
 
 > 🔄 **Reconciled 2026-09-12 (FIX-Task-23 item 5):** the expiry reason ships as the friendly string **`'Offer expired'`**, not the `cancelled_expired` code previously documented here. Verified live 2026-09-12: after fast-clocking an offer and calling `rpc_process_expired_offers()`, the row read `status='cancelled'`, `cancellation_reason='Offer expired'`, `cancelled_at` stamped (`e2e-test-results/qa-fix22-verify-p2p3-2026-09-12/report.md` §2.4). The competing-offer reason **is** the snake literal `offer_expired_competing` — unchanged, and already correct above.
+>
+> 🔄 **Reconciled 2026-09-12 (FIX-Task-24 item 2):** the drive recipe for this state model is corrected — the expiry path must be driven by **POSTing the `process-expired-offers` Edge Function**, not by `SELECT public.rpc_process_expired_offers(100)`. The bare RPC skipped the Stripe PI cancel (and, before this fix, the tax void), which is why `tax_status` could stay stuck at `'quoted'` forever on a cancelled trade — the cron only re-processes trades still in `pending`, so nothing ever repaired them. The RPC now voids the tax record itself and returns `tax_voided_count` (`supabase/migrations/20260912000010_fix_task_24_expiry_rpc_voids_tax.sql`), but the PI leg still requires the Edge Function.
 
 ### passed TRD-TC-R04 · Card declined at offer submission → no trade created
 

@@ -5,7 +5,7 @@ applyTo: "supabase/migrations/**/*.sql"
 
 # Supabase SQL / Migration Hardening Protocol
 
-Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-13, BP-14, BP-16, BP-21, BP-22, BP-30, BP-31, BP-37, BP-38, BP-44, BP-45, BP-46, BP-47, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78, BP-79, BP-80, BP-81, BP-84. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`; BP-20 notification-trigger check and BP-32 notification verification gate live there too.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-13, BP-14, BP-16, BP-21, BP-22, BP-30, BP-31, BP-37, BP-38, BP-44, BP-45, BP-46, BP-47, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78, BP-79, BP-80, BP-81, BP-84, BP-90. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`; BP-20 notification-trigger check and BP-32 notification verification gate live there too.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -53,6 +53,7 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-80 Two-phase provisioning deliverables — fixture/migration work is delivered as (1) code/scripts/migration file written + Tier 0 green and (2) executed against staging (REQUIRES Samer's explicit approval per the MCP Usage Protocol); in the Session Handoff state "written, NOT applied/run" and mark the regression tier DEFERRED, never implying provisioning happened; a fixture script's read-back must print the fixture's own primary key(s) — never only a row count.
 - BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but does NOT write a `schema_migrations` tracking row; verify the migration actually landed by invoking the changed object (function/trigger/table) live, never by the migration list (DEV-TASK-83, 2026-09-02).
 - BP-84 Money-ledger repair path — a money ledger with a recompute RPC (`seller_balance` ← `recompute_seller_balance`) must be repaired/reset ONLY through that RPC (locked `service_role`-only, DT-118 2026-09-05); never a raw ledger write, and never leave a ledger-recompute PUBLIC-executable (BP-78/BP-79).
+- BP-90 Patching a live function body by string replacement — anchor the token to its full expression (`p.status = 'failed'`, never the bare `p.status`, which also matches the suffix of `sp.status`), re-assert every predicate you did NOT intend to change with a `RAISE EXCEPTION` guard, fail loud when nothing matched, and INVOKE the patched object immediately (plpgsql resolves names at run time, so DDL success proves nothing) — FIX-Task-24, 2026-09-12.
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -656,3 +657,30 @@ SELECT prosrc FROM pg_proc WHERE proname = '<signup handler>';
 4. **Verification before claiming.** If you DO execute provisioning, verify it actually landed (e.g. `list_migrations` for the applied migration, a read-back query for the fixture rows) before marking it done — same spirit as BP-66/BP-71 (a clean run message is never sufficient evidence). **A fixture/provisioning script's read-back MUST print the primary keys of what it created** (`bundle_id`, `trade_id`, `item_id`, `cart_id`, …) — never only a row count. A count proves *something* exists but leaves the fixture unidentifiable afterwards, so the next session/QA pass cannot re-find it, assert on it, or DB-verify it (the same key-not-aggregate principle as BP-74). Report those ids in the handoff so the fixture is addressable by id.
 
 See also: BP-81 (MCP-applied migrations aren't in `list_migrations`), BP-47 (verify the attached/deployed body), BP-74 (assert on the linkage key).
+
+## BP-90: Patching a Live Function Body by String Replacement Must Anchor the Token, Re-Assert Untouched Predicates, and Invoke the Result
+
+Problem (FIX-Task-24 item 1, 2026-09-12): renaming `payments.status` → `payments.derived_state` also required re-pointing `admin_health_summary()`, whose only reference to that column was ONE predicate inside a 250-line body. To avoid hand-copying the body, the patch was applied dynamically:
+
+```sql
+SELECT pg_get_functiondef(p.oid) INTO v_src
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public' AND p.proname = 'admin_health_summary';
+v_out := replace(v_src, 'p.status', 'p.derived_state');
+EXECUTE v_out;
+```
+
+`'p.status'` is **also a substring of `'sp.status'`** — the `seller_payouts` predicate inside the SAME function — so the replace silently rewrote a column reference that had nothing to do with the rename. `CREATE OR REPLACE` does not resolve column names in a plpgsql body, so the DDL succeeded and nothing failed until the object was **called**: `ERROR: 42703: column sp.derived_state does not exist`.
+
+Rules:
+
+1. **Anchor the token to the full expression — never a bare identifier.** Replace `p.status = 'failed'`, not `p.status`. An `alias.column` token can be a **suffix of a different alias** (`sp.status`, `tp.status`), and that collision is invisible in review and silent at DDL time.
+2. **Re-assert every predicate you did NOT intend to change, in the same `DO` block, before writing.** After the replacement, assert both the intended token AND each sibling that must survive — e.g. `IF position('sp.status = ''failed''' IN v_out) = 0 THEN RAISE EXCEPTION …` — and refuse to write a partially-corrected body. A loud abort is recoverable; a silently wrong body is a money/state bug shipped as "done".
+3. **Fail loud when nothing matched.** If `v_out = v_src`, or the function does not exist, `RAISE EXCEPTION` — never `RAISE NOTICE` and continue. A no-op patch leaves the object broken in exactly the way the patch existed to fix.
+4. **Invoke the patched object immediately after.** `CREATE OR REPLACE`/`EXECUTE` succeeding proves only that the DDL parsed — plpgsql resolves column and function names at RUN time (the same mechanism BP-46 warns about for `DECLARE`). Call it (`SELECT public.<fn>();`) and assert the real result before reporting the change complete (BP-81, BP-72 — a clean DDL/run message is never sufficient evidence).
+5. **Prefer the explicit body; treat the dynamic patch as the exception.** The repo convention is a full `CREATE OR REPLACE` body (as DT-71 did for `rpc_void_tax_for_trade` with a "body otherwise identical to …" comment) because it is reviewable and immune to substring collisions. Reserve the patch for a genuinely large body with a single-token change — and when used: say so in the migration header and the handoff, keep the EXPLICIT body in the migration FILE as the durable record, and confirm the live definition is semantically identical (`pg_get_functiondef`).
+6. **Scan for the bare token before choosing a replacement.** Enumerate every `<alias>.status` (or equivalent) alias in the body — `SELECT position('p.status' IN <body>)` by hand — so the collision is found during authoring instead of by the first invocation.
+
+See also: BP-47 (the latest definition is authoritative — patch the LIVE body, never a historical file's), BP-46 (run-time name resolution / `DECLARE` hygiene), BP-81 (verify by real invocation), BP-59 (a scripted mass edit needs more than a compile check — this is the SQL analogue), BP-5 (SECURITY DEFINER bodies carry the same risk).
+
+Detection checklist: any `42703 column <alias>.<col> does not exist` — or the "`<var>` is not a known variable" class — raised by a function a migration just replaced → suspect an UNANCHORED body patch first. Print the token you replaced and every alias in the body, fix with anchored replaces plus survival assertions for the untouched predicates, then re-invoke the object.

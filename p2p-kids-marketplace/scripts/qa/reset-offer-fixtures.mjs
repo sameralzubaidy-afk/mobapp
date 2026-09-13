@@ -77,6 +77,62 @@ function log(...a) {
   console.log('[qa:reset-offer-fixtures]', ...a);
 }
 
+/**
+ * FIX-Task-24 item 4 (2026-09-12) — void the tax record for every trade this harness
+ * just cancelled.
+ *
+ * WHY: cancelling with a raw status UPDATE (what these harnesses do) skips the tax
+ * lifecycle that the app's own cancel path performs. The residue was measurable: 25
+ * cancelled trades sat at `tax_status='quoted'` with reason `buyer_cancelled`, which
+ * inflated `pending_tax_cents` in the period reports. A cancelled trade can never
+ * have collectible tax, so voiding is always the correct cleanup here.
+ *
+ * The canonical logic stays in the DB — this only CALLS `rpc_void_tax_for_trade`
+ * (which also zeroes stale refund fields, DT71). Expected non-void results:
+ *   'noop'          = the trade has no tax record (exempt / tax-disabled fixture)
+ *   INVALID_STATE   = the record is not voidable (typically already voided)
+ *
+ * @returns {{ voided: number, noop: number, skipped: number, failed: number }}
+ */
+async function voidTaxForTrades(admin, tradeIds) {
+  const result = { voided: 0, noop: 0, skipped: 0, failed: 0 };
+
+  for (const tradeId of tradeIds) {
+    const shortId = String(tradeId).slice(0, 8);
+    try {
+      const { data, error } = await admin.rpc('rpc_void_tax_for_trade', {
+        p_trade_id: tradeId,
+        p_reason: 'qa_harness_cancelled',
+      });
+
+      if (error) {
+        result.failed += 1;
+        log(`⚠️  Tax void failed for ${shortId}…: ${error.message}`);
+        continue;
+      }
+      if (data?.success === false) {
+        if (data?.error?.code === 'INVALID_STATE') {
+          result.skipped += 1;
+        } else {
+          result.failed += 1;
+          log(`⚠️  Tax void error for ${shortId}…: ${data?.error?.code || 'unknown'}`);
+        }
+        continue;
+      }
+      if (data?.data?.action === 'noop') {
+        result.noop += 1;
+        continue;
+      }
+      result.voided += 1;
+    } catch (err) {
+      result.failed += 1;
+      log(`⚠️  Tax void threw for ${shortId}…: ${err?.message || err}`);
+    }
+  }
+
+  return result;
+}
+
 async function main() {
   let personas = Object.entries(QA_BUYER_PERSONAS);
   if (ONLY_PERSONA) {
@@ -175,6 +231,14 @@ async function main() {
     process.exit(1);
   }
   log(`✅ Cancelled ${tradeIds.length} offer(s).`);
+
+  // FIX-Task-24 item 4 (2026-09-12): the raw cancel above does NOT touch the tax
+  // ledger, so void it here — otherwise every run leaves `tax_status='quoted'`
+  // residue on a cancelled trade (25 such rows were found on staging).
+  const tax = await voidTaxForTrades(admin, tradeIds);
+  log(
+    `🧾 Tax void: ${tax.voided} voided · ${tax.noop} no tax record · ${tax.skipped} already voided/unvoidable · ${tax.failed} failed`
+  );
 
   // ── 4. Reset affected listings back to available ────────────────────────
   const { error: resetError } = await admin

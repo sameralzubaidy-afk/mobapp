@@ -1303,6 +1303,30 @@ async function seedCancelledTradeConversationFixture(
     }
   }
 
+  // FIX-Task-24 item 4 (2026-09-12): this fixture creates/reuses a trade that is
+  // already `cancelled`. Cancelling a trade without voiding its tax record leaves
+  // `tax_status='quoted'` residue that inflates `pending_tax_cents` in the period
+  // reports (25 such rows were found on staging). Void it defensively here.
+  // Expected result IS 'noop' — the fixture has no tax record; a real void means an
+  // earlier run left one behind, which is exactly the residue this guards against.
+  // Canonical logic stays in the DB RPC (which also zeroes stale refund fields, DT71).
+  if (tradeId) {
+    const { data: taxVoid, error: taxVoidError } = await adminSupabase.rpc(
+      'rpc_void_tax_for_trade',
+      {
+        p_trade_id: tradeId,
+        p_reason: 'qa_seed_cancelled',
+      }
+    );
+    if (taxVoidError) {
+      console.warn(`   ⚠️ B08 tax void call failed: ${taxVoidError.message}`);
+    } else if (taxVoid?.success === false && taxVoid?.error?.code !== 'INVALID_STATE') {
+      console.warn(`   ⚠️ B08 tax void error: ${taxVoid?.error?.code || 'unknown'}`);
+    } else if (taxVoid?.data?.new_status === 'voided') {
+      console.log(`   🧾 B08 left-over tax record voided on trade ${tradeId}`);
+    }
+  }
+
   // 3. Two exchanged messages (idempotent by trade_id + sender).
   const { data: existingMsgs } = await adminSupabase
     .from('messages')

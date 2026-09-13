@@ -446,7 +446,13 @@ export async function getRecommendations(
     });
 
     if (error) {
-      console.error('[getRecommendations] RPC error:', error);
+      // FIX-Task-24 item 6 (2026-09-12): console.warn, NOT console.error. This is a
+      // HANDLED path (we return [] below and the home screen keeps working), but in a
+      // dev build console.error raises React Native's LogBox notification banner,
+      // which renders over the bottom CTA band and silently swallows taps (QA lost
+      // "Submit for Review" and "AI auto-fill" to it — Group L finding F9). Same
+      // treatment as cartService/trade/chat.
+      console.warn('[getRecommendations] RPC error:', error);
       // Return empty array on error instead of throwing
       // so that home screen doesn't break if recommendations fail
       return [];
@@ -472,7 +478,9 @@ export async function getRecommendations(
 
     return attachListingImages(normalizedResults);
   } catch (err) {
-    console.error('[getRecommendations] Error:', err);
+    // FIX-Task-24 item 6: handled path (returns [] below) — console.warn so the dev
+    // LogBox banner cannot overlay/swallow bottom-band taps. See the RPC-error branch.
+    console.warn('[getRecommendations] Error:', err);
     // Return empty array on error instead of throwing
     // so that search UI doesn't break if recommendations fail
     return [];

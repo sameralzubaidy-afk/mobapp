@@ -32,6 +32,7 @@ clients, and what it does.
 | `EXPO_PUBLIC_ENVIRONMENT` | Yes | `development` / `staging` / `production`. |
 | `EXPO_PUBLIC_EAS_PROJECT_ID` | Build | EAS project id. |
 | `EXPO_PUBLIC_DEV_SMS_BYPASS` | Dev | Bypass SMS in dev only (must be unset in prod). |
+| `EXPO_PUBLIC_QA_QUIET_LOGBOX` | Dev/QA | Hide the RN LogBox notification overlay (it does not pass taps through and covers bottom CTAs). Dev build only — off unless `true`; use Metro/`adb logcat` for console output instead. |
 | `EXPO_PUBLIC_ENABLE_REALTIME` | Opt | Feature flag. |
 | `EXPO_PUBLIC_FROM_EMAIL` | Opt | Display "from" email used by client previews. |
 | `EXPO_PUBLIC_REPLY_TO_EMAIL` | Opt | Display reply-to. |

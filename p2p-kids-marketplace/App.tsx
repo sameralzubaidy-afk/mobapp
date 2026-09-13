@@ -34,6 +34,25 @@ LogBox.ignoreLogs([
   'getItemById join failed, falling back to separate fetches',
 ]);
 
+// FIX-Task-24 item 6 (2026-09-12) — dev/QA opt-in: hide the LogBox notification
+// overlay entirely.
+//
+// WHY: RN's LogBox notification renders as a banner pinned near the bottom of the
+// screen and does NOT pass taps through, so while it is visible it silently eats
+// taps aimed at bottom-anchored CTAs. QA lost "Submit for Review" and "AI auto-fill"
+// to it on the Bulk Upload Review step (Group L finding F9). There is no public API
+// to make the overlay tap-through, so a run that needs unobstructed taps turns it off.
+//
+// TRADEOFF (deliberate): on-device LogBox text is then unavailable — read console
+// output from Metro (:8081) or `adb logcat` instead, which is already the standard
+// diagnosis route for this app.
+//
+// DEV-ONLY and OFF by default: requires EXPO_PUBLIC_QA_QUIET_LOGBOX=true and is
+// never applied in a production build.
+if (__DEV__ && process.env.EXPO_PUBLIC_QA_QUIET_LOGBOX === 'true') {
+  LogBox.ignoreAllLogs();
+}
+
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
 

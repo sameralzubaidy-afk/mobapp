@@ -760,6 +760,13 @@ Issue: "Applying a SQL migration / CREATE OR REPLACE FUNCTION fails with 42601 '
 ✅ Check: The migration FILE (not just the query pasted into apply_migration) also declares them — a fresh `supabase db reset` replays the file (BP-46)
 See also: BP-46 (diff the DECLARE block against every `v_*` used before authoring/applying any Postgres function)
 
+Issue: "A function/RPC broke right after a migration that 'only' renamed a column or re-pointed its body — `42703 column <alias>.<col> does not exist` on the first call"
+
+✅ Check: The body patch was ANCHORED to a full expression (`p.status = 'failed'`), never a bare token (`p.status` also matches the suffix of `sp.status` in the same body) (BP-90)
+✅ Check: Every predicate that was meant to SURVIVE the patch is re-asserted before the body is written — a `RAISE EXCEPTION` guard, not a `RAISE NOTICE` (BP-90)
+✅ Check: The patched object was actually INVOKED (`SELECT public.<fn>();`) — plpgsql resolves names at run time, so `CREATE OR REPLACE` success is not evidence the body is correct (BP-90, BP-81)
+See also: BP-90 (patch a live function body with anchored tokens + survival guards + immediate invocation), BP-47 (the latest definition is authoritative — patch the live body), BP-46 (run-time name resolution)
+
 Issue: "E2E test fails right after signup because trigger-created rows (subscription, notification prefs, SP wallet) are missing"
 
 ✅ Check: The target DB's signup trigger is actually attached AND its handler body matches the latest migration (BP-47)
@@ -1380,7 +1387,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-89)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-90)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1475,6 +1482,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-87 DB-trigger/cron-invoked EF auth — do NOT enforce strict `bearer === env SUPABASE_SERVICE_ROLE_KEY` inside a DB-trigger/cron-invoked EF: the DB posts the `admin_config`-stored key, which can drift from the platform-injected env → every trigger/cron call 401s and money rows strand (DT-124, 2026-09-06) — mirror `initiate-payout` (eligibility + ownership + idempotency) or refresh the stored key — full text: `.github/instructions/edge-functions.instructions.md`.
 - BP-88 Error/defensive branches need a real runtime trigger — a mocked-error unit test can green-light dead code (`signInWithOAuth({skipBrowserRedirect:true})` never throws for a disabled provider → ProviderDisabled classification unreachable, raw JSON shown in the browser sheet/custom tab; FIX-Task-2 Item 4, 2026-09-07). Same class, second face: a user-visible value built from an ASYNC READ silently renders its FALLBACK when the fetch returns null — a review title showed the role ("the buyer") instead of the counterparty's name, and every static check was green (FIX-Task-21 Item 2, 2026-09-12) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-89 Verify a data-mutating admin action WITHOUT mutating data — never trigger the real write against shared QA/staging data just to prove UI wiring; stub the endpoint with Playwright `page.route(...)` and assert the surrounding behaviour (the follow-up refetch fires, the label/summary updates, the dialog copy is right), then disclose that the write was INTERCEPTED not applied. **HARD GATE: `page.unroute()` (or close the page) BEFORE reporting the verification complete** — a left-registered stub fakes every later real click and is NOT cleared by a dev-server restart (FIX-Task-21 item 4 + FIX-Task-22 item 0, 2026-09-12) — full text: `.github/instructions/admin-portal.instructions.md`.
+- BP-90 Patching a live function body by string replacement — anchor the token to its full expression (`p.status = 'failed'`, never the bare `p.status`, which also matches the suffix of `sp.status`), re-assert every predicate you did NOT intend to change in a `RAISE EXCEPTION` guard, fail loud when nothing matched, and INVOKE the patched object immediately (plpgsql resolves names at run time, so a successful `CREATE OR REPLACE` proves nothing) (FIX-Task-24 item 1, 2026-09-12) — full text: `.github/instructions/supabase-sql.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

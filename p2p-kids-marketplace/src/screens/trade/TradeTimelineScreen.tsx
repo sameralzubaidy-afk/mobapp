@@ -38,6 +38,9 @@ import {
 import { getPaymentMethod } from '@/services/subscription';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { getSPReleaseDays, getAdminConfig } from '@/services/adminConfig';
+// FIX-Task-24 item 9: explicit-timezone formatter for AUDIT timestamps (a refund date
+// compared against a UTC reading of the DB caused a local-time false positive).
+import { formatDbTimestamp } from '@/utils/dbTimestamp';
 import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
 import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
@@ -2330,15 +2333,17 @@ export default function TradeTimelineScreen() {
                   : 'Your original payment method'}
               </Text>
             </View>
+            {/* FIX-Task-24 item 9: render the stored instant explicitly in UTC.
+                `toLocaleDateString` rendered the device's local day, so a
+                `2026-09-12T01:46Z` refund read as "Sep 11, 2026" in UTC−4 and was
+                filed as a data mismatch. Deadlines (auto-complete / pickup windows)
+                deliberately keep LOCAL time — the user acts by their own clock — this
+                audit stamp is the one that must match the DB. */}
             {latestRefundDate && (
               <View style={styles.refundRow}>
                 <Text style={styles.refundLabel}>Refunded on</Text>
                 <Text style={styles.refundValue}>
-                  {new Date(latestRefundDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
+                  {formatDbTimestamp(latestRefundDate) ?? '—'}
                 </Text>
               </View>
             )}

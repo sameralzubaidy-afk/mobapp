@@ -1673,6 +1673,8 @@ export default function BulkListingCreateScreen() {
               disabled={photos.length > 0 || groups.length > 0}
               accessible
               accessibilityRole="button"
+              accessibilityState={{ disabled: photos.length > 0 || groups.length > 0 }}
+              accessibilityHint="Unavailable once the session already has photos"
               accessibilityLabel="Add 5 test photos (dev only)"
               testID="dev-add-test-photos"
             >
@@ -1687,6 +1689,8 @@ export default function BulkListingCreateScreen() {
               disabled={groups.length === 0}
               accessible
               accessibilityRole="button"
+              accessibilityState={{ disabled: groups.length === 0 }}
+              accessibilityHint="Unavailable until the session has items to review"
               accessibilityLabel="Skip to review without AI (dev only)"
               testID="dev-skip-to-review"
             >
@@ -1701,6 +1705,8 @@ export default function BulkListingCreateScreen() {
               disabled={items.length === 0}
               accessible
               accessibilityRole="button"
+              accessibilityState={{ disabled: items.length === 0 }}
+              accessibilityHint="Unavailable until the session has items"
               accessibilityLabel="Set categories on items without one (dev only)"
               testID="dev-set-item-categories"
             >
@@ -1715,11 +1721,41 @@ export default function BulkListingCreateScreen() {
               disabled={items.length === 0}
               accessible
               accessibilityRole="button"
+              accessibilityState={{ disabled: items.length === 0 }}
+              accessibilityHint="Unavailable until the session has items"
               accessibilityLabel="Fill title, price and condition on all items (dev only)"
               testID="dev-fill-bulk-items"
             >
               <Text style={styles.devFixtureButtonText}>Dev: Fill All Items</Text>
             </TouchableOpacity>
+
+            {/* FIX-Task-24 item 8 (2026-09-12): the dev shortcuts grey out SILENTLY,
+                so QA could not tell why one became unavailable (adding a real photo
+                turns "Dev: Add 5 Test Photos" off, and the item-level shortcuts stay
+                off until the session actually has items). Spell the reason out
+                inline. __DEV__-only surface — never rendered in a release build. */}
+            {(() => {
+              const devReasons: string[] = [];
+              if (photos.length > 0 || groups.length > 0) {
+                devReasons.push('“Add 5 Test Photos” is off — this session already has photos.');
+              }
+              if (items.length === 0) {
+                devReasons.push(
+                  '“Set Categories” and “Fill All Items” are off until the session has items.'
+                );
+              }
+              if (groups.length === 0) {
+                devReasons.push('“Skip to Review” is off — there is nothing to review yet.');
+              }
+              if (devReasons.length === 0) {
+                return null;
+              }
+              return (
+                <Text style={styles.devFixtureHint} testID="dev-fixture-disabled-hint">
+                  {devReasons.join(' ')}
+                </Text>
+              );
+            })()}
           </View>
         )}
 
@@ -2254,6 +2290,14 @@ const styles = StyleSheet.create({
     color: '#2E7D5B',
     fontSize: 13,
     fontWeight: '600',
+  },
+  // FIX-Task-24 item 8: full-width line under the dev shortcuts explaining why any of
+  // them is currently disabled (they used to grey out with no explanation).
+  devFixtureHint: {
+    width: '100%',
+    color: '#6B6B6B',
+    fontSize: 12,
+    lineHeight: 16,
   },
   devFixtureInput: {
     backgroundColor: '#FFFFFF',

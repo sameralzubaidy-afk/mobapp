@@ -144,8 +144,14 @@ export function BulkSPSummaryCard({
           </View>
         )}
 
+        {/* FIX-Task-24 item 7 (2026-09-12): the previous single sentence
+            ("Enable “Accept Swap Points” on item cards to include them in SP totals.")
+            was being clipped mid-sentence by the card, so it rendered as a dangling
+            fragment ("…to include"). Two short complete clauses survive any wrap or
+            clip point. */}
         <Text style={styles.placeholderText}>
-          Enable “Accept Swap Points” on item cards to include them in SP totals.
+          Enable “Accept Swap Points” on a card to add it to SP totals.{'\n'}
+          Cash Only items are never counted.
         </Text>
 
         {!isSubscriber && (

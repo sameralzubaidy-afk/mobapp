@@ -372,14 +372,19 @@ export async function getTransactionFee(userId: string): Promise<number> {
     const { data, error } = await supabase.rpc('get_user_transaction_fee', { p_user_id: userId });
 
     if (error) {
-      console.error('[subscription] ❌ Error getting transaction fee:', error.message);
+      // FIX-Task-24 item 6 (2026-09-12): console.warn, NOT console.error. The fee falls
+      // back to the non-subscriber default right below, so this is a HANDLED path — but
+      // console.error raises the dev LogBox banner, which overlays the bottom CTA band
+      // and swallows taps (QA Group L finding F9). See discovery.ts for the same change.
+      console.warn('[subscription] ❌ Error getting transaction fee:', error.message);
       return 299; // Default to non-subscriber fee on error
     }
 
     return data || 299;
   } catch (error) {
     const err = error as Error;
-    console.error('[subscription] ❌ getTransactionFee failed:', err.message);
+    // FIX-Task-24 item 6: same handled-fallback reasoning as the branch above.
+    console.warn('[subscription] ❌ getTransactionFee failed:', err.message);
     return 299;
   }
 }

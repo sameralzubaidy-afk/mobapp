@@ -12,6 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -34,6 +35,63 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
+
+/**
+ * FIX-Task-24 item 4 (2026-09-12) — void the tax record for every trade this script
+ * just cancelled.
+ *
+ * WHY: cancelling with a raw status UPDATE (what this script does) skips the tax
+ * lifecycle the app's own cancel path performs, so a cancelled trade could keep
+ * `tax_status='quoted'` forever and inflate `pending_tax_cents` in period reports
+ * (25 such rows were found on staging). A cancelled trade can never have collectible
+ * tax, so voiding is always the correct cleanup.
+ *
+ * The canonical logic stays in the DB — this only CALLS `rpc_void_tax_for_trade`
+ * (which also zeroes stale refund fields, DT71). Expected non-void results:
+ *   'noop'        = no tax record on that trade (exempt / tax-disabled fixture)
+ *   INVALID_STATE = record not voidable (typically already voided)
+ */
+async function voidTaxForTrades(
+  db: SupabaseClient,
+  tradeIds: string[]
+): Promise<{ voided: number; noop: number; skipped: number; failed: number }> {
+  const result = { voided: 0, noop: 0, skipped: 0, failed: 0 };
+
+  for (const tradeId of tradeIds) {
+    const shortId = String(tradeId).slice(0, 8);
+    try {
+      const { data, error } = await db.rpc('rpc_void_tax_for_trade', {
+        p_trade_id: tradeId,
+        p_reason: 'qa_harness_cancelled',
+      });
+
+      if (error) {
+        result.failed += 1;
+        console.log(`   ⚠️  Tax void failed for ${shortId}…: ${error.message}`);
+        continue;
+      }
+      if (data?.success === false) {
+        if (data?.error?.code === 'INVALID_STATE') {
+          result.skipped += 1;
+        } else {
+          result.failed += 1;
+          console.log(`   ⚠️  Tax void error for ${shortId}…: ${data?.error?.code || 'unknown'}`);
+        }
+        continue;
+      }
+      if (data?.data?.action === 'noop') {
+        result.noop += 1;
+        continue;
+      }
+      result.voided += 1;
+    } catch (err) {
+      result.failed += 1;
+      console.log(`   ⚠️  Tax void threw for ${shortId}…: ${(err as Error)?.message || err}`);
+    }
+  }
+
+  return result;
+}
 
 // ─── Test accounts (match seed-staging-data.ts) ──────────────────────────
 const BUYER_ID = '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
@@ -127,6 +185,14 @@ async function main() {
     process.exit(1);
   }
   console.log(`   ✅ Cancelled ${tradeIds.length} trade(s).`);
+
+  // FIX-Task-24 item 4 (2026-09-12): the raw cancel above never touches the tax
+  // ledger, so void it here — otherwise each run leaves `tax_status='quoted'`
+  // residue behind on a cancelled trade (harness residue, not a product defect).
+  const tax = await voidTaxForTrades(admin, tradeIds);
+  console.log(
+    `   🧾 Tax void: ${tax.voided} voided · ${tax.noop} no tax record · ${tax.skipped} already voided/unvoidable · ${tax.failed} failed`
+  );
   console.log('');
 
   // 3. Reset affected listings back to 'available'
