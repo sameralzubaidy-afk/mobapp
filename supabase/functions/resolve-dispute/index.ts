@@ -246,6 +246,11 @@ serve(async (req) => {
     const { data: completion, error: completeErr } = await svcClient.rpc('complete_trade_v2', {
       p_trade_id: trade_id,
       p_user_id:  trade.buyer_id,
+      // FIX-Task-35 item 4: complete_trade_v2 now refuses to flip an
+      // `in_progress` trade with cash to collect unless the caller attests a
+      // confirmed capture. This branch reaches here only AFTER the capture leg
+      // above has run (or confirmed the PI was already captured), so it attests.
+      p_capture_confirmed: true,
     });
     if (completeErr) {
       console.error('[resolve-dispute] complete_trade_v2 error:', completeErr);

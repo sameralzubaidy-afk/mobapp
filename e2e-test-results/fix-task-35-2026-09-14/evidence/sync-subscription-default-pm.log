@@ -1,0 +1,45 @@
+[sync-sub-default-pm] 10 live subscription(s) with a recorded card
+  sub_1TLj9K4I6kCJlvXoztbvO2PT: UNREADABLE — HTTP 404 resource_missing No such subscription: 'sub_1TLj9K4I6kCJlvXoztbvO2PT'
+  sub_1T3jfR4I6kCJlvXotmkeWMDv: UNREADABLE — HTTP 404 resource_missing No such subscription: 'sub_1T3jfR4I6kCJlvXotmkeWMDv'
+  sub_1Tyifr4I6kCJlvXoQKK5BaEe (active)
+     DB card          pm_1Tp9QO4I6kCJlvXoWoknsWyT
+     subscription PM  pm_1Tp9QO4I6kCJlvXoWoknsWyT   <- renewals read this first
+     customer PM      pm_1Tp9QO4I6kCJlvXoWoknsWyT
+     ✅ in sync
+  sub_1TWlK84I6kCJlvXoJnvzqgVR: UNREADABLE — HTTP 404 resource_missing No such subscription: 'sub_1TWlK84I6kCJlvXoJnvzqgVR'
+  sub_1TpDzx4I6kCJlvXoz6OL5dNC (active)
+     DB card          pm_1UAqeN4I6kCJlvXop666m3Jg
+     subscription PM  None   <- renewals read this first
+     customer PM      pm_1UAqeN4I6kCJlvXop666m3Jg
+     ❌ DRIFTED
+  sub_1TpUTx4I6kCJlvXoEgm2Mi5D (active)
+     DB card          pm_1TpUTt4I6kCJlvXodykxR4HA
+     subscription PM  pm_1TpUTt4I6kCJlvXodykxR4HA   <- renewals read this first
+     customer PM      pm_1TpUTt4I6kCJlvXodykxR4HA
+     ✅ in sync
+  sub_1Ts9Tv4I6kCJlvXot2dcigD2 (active)
+     DB card          pm_1Ts9To4I6kCJlvXojH3ayNb8
+     subscription PM  pm_1Ts9To4I6kCJlvXojH3ayNb8   <- renewals read this first
+     customer PM      pm_1Ts9To4I6kCJlvXojH3ayNb8
+     ✅ in sync
+  sub_1TpC7D4I6kCJlvXovGvF9E48 (active)
+     DB card          pm_1SyFaZ4I6kCJlvXo1qicO8N1
+     subscription PM  pm_1SyFaZ4I6kCJlvXo1qicO8N1   <- renewals read this first
+     customer PM      pm_1SyFaZ4I6kCJlvXo1qicO8N1
+     ✅ in sync
+  sub_1Tqeq24I6kCJlvXoYJAlZZym (active)
+     DB card          pm_1Tqepx4I6kCJlvXoGZtlwGb6
+     subscription PM  pm_1Tqepx4I6kCJlvXoGZtlwGb6   <- renewals read this first
+     customer PM      pm_1Tqepx4I6kCJlvXoGZtlwGb6
+     ✅ in sync
+  sub_1To5Vg4I6kCJlvXoebIAvLZJ (active)
+     DB card          pm_1UFatV4I6kCJlvXoJsDhX3ZQ
+     subscription PM  None   <- renewals read this first
+     customer PM      pm_1UFNpm4I6kCJlvXop2yMXsky
+     ❌ DRIFTED
+   ❌ sub_1TpDzx4I6kCJlvXoz6OL5dNC: HTTP 400 invalid_canceled_subscription_fields A canceled subscription can only update its cancellation_details and metadata.
+   ✅ subscription sub_1To5Vg4I6kCJlvXoebIAvLZJ → default_payment_method=pm_1UFatV4I6kCJlvXoJsDhX3ZQ
+   ✅ customer cus_Ungj4MptKp9CUg → invoice_settings.default_payment_method=pm_1UFatV4I6kCJlvXoJsDhX3ZQ
+
+[sync-sub-default-pm] synced 1/2
+   sub_1TpDzx4I6kCJlvXoz6OL5dNC: HTTP 400 invalid_canceled_subscription_fields A canceled subscription can only update its cancellation_details and metadata.

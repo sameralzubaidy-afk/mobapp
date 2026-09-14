@@ -10,6 +10,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logFinancialAudit } from '../_shared/audit.ts';
+// FIX-Task-35 item 6 (BP-87 rule 2): drift-proof service-role acceptance.
+import { isValidServiceCredential } from '../_shared/service-credential.ts';
 // FIX-Task-32 items 1 + 2: shared competing-offer release (Stripe hold cancel +
 // tax void + `cancelled_at`) — one tested implementation, used by both writers.
 import {
@@ -43,14 +45,31 @@ serve(async (req) => {
   }
 
   const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.replace('Bearer ', '').trim();
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
+  // FIX-Task-35 item 6 (BP-87 rule 2): accept a service-role caller whose credential
+  // is VALID for the project but is not the exact string injected into this
+  // function's environment. `p2p-kids-marketplace/.env` holds the project's legacy
+  // service JWT (the same one DB triggers post from `admin_config`), so a strict
+  // string comparison 401s a perfectly good credential — `_shared/service-credential.ts`
+  // VERIFIES it against the project instead, and fails closed on every error path.
+  const hasServiceCredential = await isValidServiceCredential(supabaseUrl, token);
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) return errResp(401, 'UNAUTHORIZED', 'Invalid or missing auth token');
+  // A service caller is the trusted backend path (QA tooling / internal callers) and
+  // reads through RLS by design; a user caller keeps the JWT client so every query
+  // stays row-filtered for them.
+  const supabase = hasServiceCredential
+    ? createClient(supabaseUrl, supabaseSvcKey)
+    : createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+
+  let user: { id: string } | null = null;
+  if (!hasServiceCredential) {
+    const { data: authData, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !authData?.user) return errResp(401, 'UNAUTHORIZED', 'Invalid or missing auth token');
+    user = authData.user;
+  }
 
   let body: { trade_id?: string; action?: string };
   try { body = await req.json(); } catch { return errResp(400, 'INVALID_JSON', 'Request body must be valid JSON'); }
@@ -69,7 +88,11 @@ serve(async (req) => {
     .single();
 
   if (tradeErr || !trade) return errResp(404, 'TRADE_NOT_FOUND', 'Trade not found or access denied');
-  if (trade.seller_id !== user.id) return errResp(403, 'FORBIDDEN', 'Only the seller can accept/decline offers');
+  if (user && trade.seller_id !== user.id) return errResp(403, 'FORBIDDEN', 'Only the seller can accept/decline offers');
+
+  // The actor recorded on the audit trail: a user caller is themselves; a service
+  // caller acts as the seller (the only identity allowed to accept/decline).
+  const actorId = user?.id ?? trade.seller_id;
   // D-30: Trade starts as in_progress (Stripe pre-auth held at submission)
   // Seller may only accept/decline before auto_complete_at is set
   // Accept both 'pending' (legacy) and 'in_progress' (D-30) for backward compatibility
@@ -134,7 +157,7 @@ serve(async (req) => {
       mutationType: 'trade_cancelled',
       entityType: 'trade',
       entityId: trade_id,
-      actorId: user.id,
+      actorId,
       afterState: { reason: 'seller_declined', status: 'cancelled' },
       idempotencyKey: `trade_cancelled_${trade_id}`,
     });
@@ -142,7 +165,7 @@ serve(async (req) => {
       mutationType: 'tax_voided',
       entityType: 'trade',
       entityId: trade_id,
-      actorId: user.id,
+      actorId,
       afterState: { reason: 'seller_declined' },
       idempotencyKey: `tax_voided_${trade_id}`,
     });
@@ -151,7 +174,7 @@ serve(async (req) => {
         mutationType: 'payment_cancelled',
         entityType: 'trade',
         entityId: trade_id,
-        actorId: user.id,
+        actorId,
         afterState: { stripe_payment_intent_id: trade.stripe_payment_intent_id, status: 'cancelled' },
         idempotencyKey: `payment_cancelled_${trade_id}`,
       });
@@ -160,7 +183,7 @@ serve(async (req) => {
     // Log trade event (try/catch — non-fatal)
     try {
       await svcClient.from('trade_events').insert({
-        trade_id, event_type: 'offer_cancelled', actor_id: user.id,
+        trade_id, event_type: 'offer_cancelled', actor_id: actorId,
         metadata: { action: 'declined_by_seller' },
       });
     } catch (eventErr: unknown) {
@@ -292,7 +315,7 @@ serve(async (req) => {
 
   // Log event
   await svcClient.from('trade_events').insert({
-    trade_id, event_type: 'offer_accepted', actor_id: user.id,
+    trade_id, event_type: 'offer_accepted', actor_id: actorId,
     metadata: { auto_complete_at: autoCompleteAt.toISOString() },
   });
 
@@ -331,7 +354,7 @@ serve(async (req) => {
     console.error(`[transactions-update] Push notification error:`, msg);
   }
 
-  console.log(`[transactions-update] Trade ${trade_id} accepted by seller ${user.id}`);
+  console.log(`[transactions-update] Trade ${trade_id} accepted by seller ${actorId}`);
 
   return new Response(
     JSON.stringify({

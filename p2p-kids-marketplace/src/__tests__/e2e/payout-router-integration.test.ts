@@ -297,9 +297,18 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       expect(sellerMark.status).toBe('in_progress');
 
       // Buyer confirms completion (finalizes trade + triggers payout)
+      //
+      // FIX-Task-35 item 4: complete_trade_v2 now requires the caller to attest a
+      // confirmed capture before it will flip an `in_progress` trade that has cash
+      // to collect. This suite deliberately exercises ONLY the payout router — it
+      // fabricates a trade row and never talks to Stripe — so it starts where the
+      // capture leg would have already finished and states that explicitly. The
+      // capture invariant itself is covered by the migration's own verification
+      // (BLOCK 4) plus the `complete-trade` EF tests.
       const { data, error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: testTrade.id,
         p_user_id: testBuyer.id,
+        p_capture_confirmed: true,
       });
 
       expect(error).toBeNull();
@@ -423,6 +432,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       const { data, error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: pendingTrade.id,
         p_user_id: testBuyer.id,
+        p_capture_confirmed: true, // FIX-Task-35 item 4 — see the note in Scenario 1
       });
 
       expect(error).toBeNull();
@@ -521,6 +531,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       const { data, error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: noMethodTrade.id,
         p_user_id: testBuyer.id,
+        p_capture_confirmed: true, // FIX-Task-35 item 4 — see the note in Scenario 1
       });
 
       expect(error).toBeNull();

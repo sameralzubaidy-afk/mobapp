@@ -2,6 +2,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
+// FIX-Task-35 item 6 (BP-87 rule 2): drift-proof service-role acceptance.
+import { isValidServiceCredential } from '../_shared/service-credential.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -41,7 +43,18 @@ serve(async (req) => {
 
   try {
     // 1. Get authenticated user or check for service role bypass
-    let user = null;
+    //
+    // Explicit structural type (same shape as `trade-refund`): `user` is assigned
+    // both the synthetic service/admin identity below AND a real `User` from
+    // `auth.getUser()`. Leaving it inferred made `user?.user_metadata?.role` a
+    // TS2339 against the literal's `{ is_admin: boolean }` arm — a PRE-EXISTING
+    // deno-check failure at HEAD (verified by type-checking the HEAD revision),
+    // cleared here because Tier 0 has to be green on every file this task touches.
+    let user: {
+      id: string | null;
+      app_metadata?: Record<string, unknown>;
+      user_metadata?: Record<string, unknown>;
+    } | null = null;
     const authHeader = (req.headers.get('Authorization') || '').trim();
     const apiKey = (req.headers.get('apikey') || '').trim();
     const adminApiKey = (req.headers.get('x-admin-api-key') || '').trim();
@@ -54,14 +67,27 @@ serve(async (req) => {
     const hasServiceRoleInAuth = (supabaseServiceKey && cleanAuthHeader === supabaseServiceKey);
     const hasServiceRoleInApiKey = (supabaseServiceKey && apiKey === supabaseServiceKey);
     const hasServiceRoleInAdminKey = (supabaseServiceKey && adminApiKey === supabaseServiceKey);
-    
+
+    // FIX-Task-35 item 6 (BP-87 rule 2): the three checks above only accept the
+    // EXACT string injected into this function's environment. A caller holding the
+    // project's legacy service JWT (`p2p-kids-marketplace/.env`, and the key DB
+    // triggers post from `admin_config`) is VALID for the project — PostgREST
+    // returns 200 for it — yet was 401'd here purely because the strings differ.
+    // A credential that fails the cheap comparison is now VERIFIED against the
+    // project instead of rejected (`_shared/service-credential.ts`, fails closed).
+    const hasServiceRoleCredential =
+      !!hasServiceRoleInAuth ||
+      !!hasServiceRoleInApiKey ||
+      !!hasServiceRoleInAdminKey ||
+      (await isValidServiceCredential(supabaseUrl, cleanAuthHeader || apiKey || adminApiKey));
+
     // Check for Admin UI Secret
     const hasValidAdminSecret = (adminUiSecret && clientAdminSecret === adminUiSecret);
 
-    console.log(`[admin-trade-action] Auth Check: ServiceRoleAuth=${hasServiceRoleInAuth}, ServiceRoleApiKey=${hasServiceRoleInApiKey}, ServiceRoleAdminKey=${hasServiceRoleInAdminKey}, AdminSecret=${hasValidAdminSecret}`);
+    console.log(`[admin-trade-action] Auth Check: ServiceRoleAuth=${hasServiceRoleInAuth}, ServiceRoleApiKey=${hasServiceRoleInApiKey}, ServiceRoleAdminKey=${hasServiceRoleInAdminKey}, VerifiedServiceCredential=${hasServiceRoleCredential}, AdminSecret=${hasValidAdminSecret}`);
     console.log(`[admin-trade-action] Debug Keys: ReceivedSecretLength=${clientAdminSecret.length}, ExpectedSecretLength=${adminUiSecret?.length || 0}`);
 
-    if (hasServiceRoleInAuth || hasServiceRoleInApiKey || hasServiceRoleInAdminKey || hasValidAdminSecret) {
+    if (hasServiceRoleCredential || hasValidAdminSecret) {
       user = { 
         id: null, // Use null instead of fake UUID to avoid FK violations
         app_metadata: { role: 'admin' },
@@ -98,7 +124,7 @@ serve(async (req) => {
     }
 
     // Verify admin role
-    const isAdmin = hasServiceRoleInAuth || hasServiceRoleInApiKey || hasServiceRoleInAdminKey || hasValidAdminSecret ||
+    const isAdmin = hasServiceRoleCredential || hasValidAdminSecret ||
                     user?.app_metadata?.role === 'admin' || 
                     user?.user_metadata?.role === 'admin' ||
                     user?.user_metadata?.is_admin === true;

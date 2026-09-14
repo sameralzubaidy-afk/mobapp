@@ -1,0 +1,17 @@
+[capture-uncollected-pis] probing 200 completed trade(s) with a PI (last 400 day(s))
+
+  already collected (DB called these 'completed', Stripe agrees) : 198
+  CAPTURABLE — policy says capture now                      : 2  ($53.52)
+  NEEDS REVERSAL — authorization already gone               : 0  ($0.00)
+
+   CAPTURE  trade 47bdab0a-7f52-4133-bb45-793e9bb3a2dc
+     PI pi_3UDjGl4I6kCJlvXo1aYETeKt requires_capture age=5.3d  held=$28.49
+
+   CAPTURE  trade acb4939a-fbfd-4dfb-8f06-c5ebbfa5af12
+     PI pi_3UDjCU4I6kCJlvXo0mv21dEy requires_capture age=5.3d  held=$25.03
+   ✅ pi_3UDjGl4I6kCJlvXo1aYETeKt → succeeded, amount_received=2849 (charge ch_3UDjGl4I6kCJlvXo1Eazyp2g)
+      tax: {"data":{"action":"noop","reason":"no_tax_record","trade_id":"47bdab0a-7f52-4133-bb45-793e9bb3a2dc"},"success":true}
+   ✅ pi_3UDjCU4I6kCJlvXo0mv21dEy → succeeded, amount_received=2503 (charge ch_3UDjCU4I6kCJlvXo0A2zByr0)
+      tax: {"error":{"code":"INVALID_STATE","details":{"trade_id":"acb4939a-fbfd-4dfb-8f06-c5ebbfa5af12","current_status":"voided"},"message":"Cannot mark tax as collected from status voided."},"success":false}
+
+[capture-uncollected-pis] captured 2/2

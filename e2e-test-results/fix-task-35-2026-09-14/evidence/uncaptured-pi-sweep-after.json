@@ -1,0 +1,160 @@
+{
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "days": 400,
+  "capturable_days": 7,
+  "pis_enumerated": 1135,
+  "uncaptured_pi_count": 8,
+  "uncaptured_pi_cents": 14941,
+  "by_verdict": {
+    "UNCOLLECTED_MONEY": {
+      "count": 0,
+      "cents": 0
+    },
+    "STRANDED_HOLD": {
+      "count": 0,
+      "cents": 0
+    },
+    "STALE_AUTH": {
+      "count": 0,
+      "cents": 0
+    },
+    "LIVE_TRADE": {
+      "count": 8,
+      "cents": 14941
+    },
+    "ORPHAN_PI": {
+      "count": 0,
+      "cents": 0
+    }
+  },
+  "rows": [
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UFbD94I6kCJlvXo1LmZGBU8",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 2439,
+      "amount_capturable": "$24.39",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-14T14:50:23.000Z",
+      "pi_age_days": 0.1,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "cb4a1339-34ca-4200-8422-9154357a82d7",
+      "trade_status": "pending",
+      "trade_created_at": "2026-09-14T14:50:24.032269+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    },
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UFbD54I6kCJlvXo1TPS7RKY",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 2289,
+      "amount_capturable": "$22.89",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-14T14:50:20.000Z",
+      "pi_age_days": 0.1,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "365cc0ba-157d-40d2-9a05-49c5d21fe778",
+      "trade_status": "pending",
+      "trade_created_at": "2026-09-14T14:50:20.754952+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    },
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UFNJI4I6kCJlvXo0pNIjsww",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 800,
+      "amount_capturable": "$8.00",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-13T23:59:48.000Z",
+      "pi_age_days": 0.7,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "25beb9dc-b852-4248-a077-4cdf58979616",
+      "trade_status": "in_progress",
+      "trade_created_at": "2026-09-13T23:59:46.194932+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    },
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UFNJH4I6kCJlvXo1XJh00n6",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 1926,
+      "amount_capturable": "$19.26",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-13T23:59:47.000Z",
+      "pi_age_days": 0.7,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "9c901926-d319-48be-a2f3-fd1cdc7b2d1e",
+      "trade_status": "in_progress",
+      "trade_created_at": "2026-09-13T23:59:46.241271+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    },
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UFGkV4I6kCJlvXo09JPvtdk",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 2100,
+      "amount_capturable": "$21.00",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-13T16:59:27.000Z",
+      "pi_age_days": 1,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "c9799204-e48b-4f09-87ff-f0b657d2edcc",
+      "trade_status": "in_progress",
+      "trade_created_at": "2026-09-13T16:59:27.635565+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    },
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UEJrg4I6kCJlvXo00lxdTdO",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 1647,
+      "amount_capturable": "$16.47",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-11T02:06:56.000Z",
+      "pi_age_days": 3.7,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "cdb2a42d-b653-4c2b-82c4-a772c04727a7",
+      "trade_status": "in_progress",
+      "trade_created_at": "2026-09-11T02:06:54.649121+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    },
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UEJrf4I6kCJlvXo1btD4tPR",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 2140,
+      "amount_capturable": "$21.40",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-11T02:06:56.000Z",
+      "pi_age_days": 3.7,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "2bb49d39-bb67-44f9-bca2-ee43b8a22b74",
+      "trade_status": "in_progress",
+      "trade_created_at": "2026-09-11T02:06:54.762598+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    },
+    {
+      "verdict": "LIVE_TRADE",
+      "pi": "pi_3UEJrf4I6kCJlvXo1uJzeWwr",
+      "pi_status": "requires_capture",
+      "amount_capturable_cents": 1600,
+      "amount_capturable": "$16.00",
+      "amount_received_cents": 0,
+      "pi_created": "2026-09-11T02:06:55.000Z",
+      "pi_age_days": 3.7,
+      "pi_metadata_type": "trade_offer_hold",
+      "trade_id": "57d50a84-0aa8-4a5c-b13e-158f2374c579",
+      "trade_status": "in_progress",
+      "trade_created_at": "2026-09-11T02:06:54.732671+00:00",
+      "trade_completed_at": null,
+      "cancellation_reason": null
+    }
+  ]
+}

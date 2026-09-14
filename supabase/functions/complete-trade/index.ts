@@ -4,6 +4,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logTradeEvent } from '../_shared/trade-events.ts';
 import { logFinancialAudit } from '../_shared/audit.ts';
+// FIX-Task-35 item 6 (BP-87 rule 2): drift-proof service-role acceptance.
+import { isValidServiceCredential } from '../_shared/service-credential.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +31,7 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   const supabaseKey = supabaseAnonKey || supabaseServiceKey;
-  if (!supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !supabaseKey || !supabaseServiceKey) {
     return new Response(JSON.stringify({
       success: false,
       error: 'Server configuration error: missing SUPABASE_URL or SUPABASE_ANON_KEY',
@@ -42,20 +44,37 @@ serve(async (req) => {
   try {
     // 1. Extract auth token BEFORE creating client (needed for RLS headers)
     const authHeader = req.headers.get('Authorization') || '';
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace('Bearer ', '').trim();
 
-    // Create client with user's JWT so RLS policies apply to subsequent queries
-    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
+    // FIX-Task-35 item 6 (BP-87 rule 2): accept a service-role caller whose
+    // credential is VALID for the project but is not the exact string injected
+    // into this function's environment. `p2p-kids-marketplace/.env` holds the
+    // project's legacy service JWT (the same one DB triggers post from
+    // `admin_config`), so a strict string comparison 401s a perfectly good
+    // credential. `_shared/service-credential.ts` VERIFIES it against the project
+    // instead, and fails closed on every error path.
+    const hasServiceCredential = await isValidServiceCredential(supabaseUrl, token);
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    // A service caller bypasses RLS by design (it is the trusted backend path used
+    // by QA tooling and internal callers); a user caller keeps the JWT client so
+    // every subsequent query is still row-filtered for them.
+    const supabaseClient = hasServiceCredential
+      ? createClient(supabaseUrl, supabaseServiceKey)
+      : createClient(supabaseUrl, supabaseKey, {
+          global: { headers: { Authorization: `Bearer ${token}` } },
+        });
 
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let user: { id: string } | null = null;
+    if (!hasServiceCredential) {
+      const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+
+      if (authError || !authData?.user) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      user = authData.user;
     }
 
     const body = await req.json().catch(() => ({}));
@@ -85,7 +104,7 @@ serve(async (req) => {
       );
     }
 
-    if (trade.buyer_id !== user.id) {
+    if (user && trade.buyer_id !== user.id) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -95,6 +114,11 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // The actor recorded on the audit trail / passed to the RPC. A user caller is
+    // themselves; a service caller (QA tooling, internal jobs) acts as the buyer,
+    // which is the only identity `complete_trade_v2` will accept for this action.
+    const actorId = user?.id ?? trade.buyer_id;
 
     if (trade.status === 'completed') {
       return new Response(
@@ -148,16 +172,49 @@ serve(async (req) => {
     let captureSucceeded = false;
 
     // Load trade with PI info using service role client (bypasses RLS for completeness)
-    const svcClient = createClient(supabaseUrl!, supabaseServiceKey!);
-    const { data: tradeWithPi } = await svcClient
+    const svcClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: tradeWithPi, error: tradePiErr } = await svcClient
       .from('trades')
       .select('id, stripe_payment_intent_id, cash_amount_cents, status, stripe_refund_id, sp_amount, seller_transaction_fee_cents')
       .eq('id', tradeId)
       .single();
 
-    const piId = tradeWithPi?.stripe_payment_intent_id as string | undefined;
-    const cashCents = (tradeWithPi?.cash_amount_cents as number) ?? 0;
-    const tradePiStatus = tradeWithPi?.status as string | undefined;
+    // FIX-Task-35 item 3 (2026-09-14): this read used to be `const { data: tradeWithPi }`
+    // (error discarded) with `cashCents = tradeWithPi?.cash_amount_cents ?? 0`.
+    // A FAILED read — or a genuinely NULL cash column — therefore produced
+    // `cashCents = 0`, which skipped the entire capture block and fell straight
+    // through to `complete_trade_v2`: the trade was completed and the seller's
+    // payout queued without the buyer ever being charged, and nothing was logged
+    // as an error. "Unknown" must never be read as "zero" on a money path.
+    if (tradePiErr || !tradeWithPi) {
+      console.error(
+        `[complete-trade] Could not load payment fields for trade ${tradeId}: ${tradePiErr?.message ?? 'no row returned'}`,
+      );
+      return new Response(JSON.stringify({
+        success: false,
+        error: "We couldn't check this trade's payment. Please try again in a moment.",
+        code: 'TRADE_PAYMENT_READ_FAILED',
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (tradeWithPi.cash_amount_cents === null || tradeWithPi.cash_amount_cents === undefined) {
+      console.error(`[complete-trade] Trade ${tradeId} has no cash_amount_cents — cannot determine what to capture`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: "We couldn't check this trade's payment. Please contact support.",
+        code: 'CASH_AMOUNT_MISSING',
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const piId = tradeWithPi.stripe_payment_intent_id as string | undefined;
+    const cashCents = tradeWithPi.cash_amount_cents as number;
+    const tradePiStatus = tradeWithPi.status as string | undefined;
 
     if (piId && cashCents > 0 && tradePiStatus !== 'completed') {
       const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
@@ -190,7 +247,7 @@ serve(async (req) => {
               mutationType: 'payment_captured',
               entityType: 'trade',
               entityId: tradeId,
-              actorId: user.id,
+              actorId,
               afterState: { stripe_payment_intent_id: piId, stripe_capture_id: stripeCaptureId, status: 'completed' },
               amountCents: cashCents,
               idempotencyKey: `capture_${tradeId}`,
@@ -199,7 +256,7 @@ serve(async (req) => {
               mutationType: 'tax_collected',
               entityType: 'trade',
               entityId: tradeId,
-              actorId: user.id,
+              actorId,
               afterState: { stripe_capture_id: stripeCaptureId },
               idempotencyKey: `tax_collected_${tradeId}`,
             });
@@ -259,15 +316,33 @@ serve(async (req) => {
         });
       }
     } else if (!piId && cashCents > 0) {
-      console.warn(`[complete-trade] Trade ${tradeId} has cash but no PI — may still be processing (D-31 background path)`);
-      // Try calling rpc_finalize_trade_after_capture anyway — it will handle the
-      // no-tax-record case gracefully via the RPC's noop path.
+      // FIX-Task-35 item 3 (2026-09-14): this used to be a console.warn and then
+      // fall through ("may still be processing (D-31 background path)") — which
+      // completed the trade and queued the payout with no PaymentIntent to fund
+      // it. There is nothing to capture and nothing to reconcile later, so this
+      // is a hard stop with an actionable message rather than a silent continue.
+      console.error(
+        `[complete-trade] Trade ${tradeId} owes ${cashCents}¢ in cash but has no PaymentIntent — refusing to complete`,
+      );
+      return new Response(JSON.stringify({
+        success: false,
+        error: "We couldn't find the payment for this trade, so it hasn't been completed. Please contact support.",
+        code: 'CASH_WITHOUT_PAYMENT_INTENT',
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // 2. Call the RPC to complete the trade (SP release + payout trigger)
     const { data, error: rpcError } = await supabaseClient.rpc('complete_trade_v2', {
       p_trade_id: tradeId,
-      p_user_id: user.id
+      p_user_id: actorId,
+      // FIX-Task-35 item 4: the completion RPC now requires the caller to state the
+      // capture outcome. This is the only place in the system that can know it —
+      // captureSucceeded is true exactly when Stripe confirmed the capture above
+      // (or when the trade legitimately needed no capture).
+      p_capture_confirmed: captureSucceeded || cashCents === 0,
     });
 
     if (rpcError) {
@@ -300,7 +375,7 @@ serve(async (req) => {
     }
 
     // TFV2-019: log trade_completed event
-    await logTradeEvent(supabaseClient, tradeId, 'trade_completed', user.id, {
+    await logTradeEvent(supabaseClient, tradeId, 'trade_completed', actorId, {
       final_status: data.status,
       stripe_capture_id: stripeCaptureId,
     });
@@ -312,7 +387,7 @@ serve(async (req) => {
       mutationType: 'trade_completed',
       entityType: 'trade',
       entityId: tradeId,
-      actorId: user.id,
+      actorId,
       afterState: { final_status: data.status, stripe_capture_id: stripeCaptureId },
       idempotencyKey: `trade_completed_${tradeId}`,
     });
@@ -321,7 +396,7 @@ serve(async (req) => {
         mutationType: 'sp_released',
         entityType: 'trade',
         entityId: tradeId,
-        actorId: user.id,
+        actorId,
         afterState: { sp_amount: spAmount, to: 'seller_pending', released_at: 'completion' },
         amountCents: spAmount,
         idempotencyKey: `sp_release_${tradeId}`,
@@ -332,7 +407,7 @@ serve(async (req) => {
         mutationType: 'seller_fee_deducted',
         entityType: 'trade',
         entityId: tradeId,
-        actorId: user.id,
+        actorId,
         afterState: { seller_transaction_fee_cents: sellerFeeCents, deducted_at: 'payout' },
         amountCents: -sellerFeeCents,
         idempotencyKey: `seller_fee_${tradeId}`,

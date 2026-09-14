@@ -151,10 +151,30 @@ serve(async (req) => {
 
   const requestId = crypto.randomUUID();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  // FIX-Task-35 item 2 (2026-09-14): FAIL CLOSED when Stripe is unavailable.
+  //
+  // This function previously treated "STRIPE_SECRET_KEY not configured" as a
+  // reason to keep going, and (worse) marked every eligible trade
+  // `capture_success: true` on that basis — so the cron flipped them to
+  // `completed` and scheduled seller payouts against authorizations that were
+  // never captured. `complete-trade` and `resolve-dispute` both refuse to
+  // complete against an uncaptured hold; this path did the opposite. A missing
+  // payment credential must stop the money path, not silently disable it.
   const stripe = stripeKey.startsWith('sk_') ? new Stripe(stripeKey, { apiVersion: '2023-10-16' }) : null;
 
   if (!stripe) {
-    console.warn('[process-auto-complete] STRIPE_SECRET_KEY not configured — running without payment capture');
+    console.error(
+      '[process-auto-complete] STRIPE_SECRET_KEY missing or invalid — refusing to auto-complete (fail closed)',
+    );
+    return jsonResponse(500, {
+      success: false,
+      error: {
+        code: 'STRIPE_CONFIG_ERROR',
+        message: 'Payment system not configured — auto-complete refused rather than completing uncaptured trades.',
+        details: { requestId },
+      },
+    });
   }
 
   try {
@@ -212,7 +232,7 @@ serve(async (req) => {
       const piId = trade.stripe_payment_intent_id;
       const cashCents = trade.cash_amount_cents ?? 0;
 
-      if (piId && cashCents > 0 && stripe) {
+      if (piId && cashCents > 0) {
         try {
           const captured = await stripe.paymentIntents.capture(piId);
           if (captured.status === 'succeeded') {
@@ -286,14 +306,15 @@ serve(async (req) => {
           });
         }
       } else if (cashCents === 0) {
-        // Zero-cash trade — no capture needed
-        captureResults.push({ trade_id: trade.id, capture_success: true });
-      } else if (!stripe) {
-        // Stripe not configured — proceed without capture (dev mode)
+        // Zero-cash trade — genuinely nothing to capture.
         captureResults.push({ trade_id: trade.id, capture_success: true });
       } else {
-        // No PI yet — skip
-        console.warn(`[process-auto-complete] Trade ${trade.id} has cash but no PI — skipping`);
+        // Cash is owed but there is no PaymentIntent to collect it from. This is
+        // NOT a success: FIX-Task-35 item 2 removed the "Stripe not configured →
+        // pretend it worked" branch that used to sit here.
+        console.error(
+          `[process-auto-complete] Trade ${trade.id} owes ${cashCents}¢ but has no PaymentIntent — skipping completion`,
+        );
         captureResults.push({
           trade_id: trade.id,
           capture_success: false,
@@ -311,9 +332,21 @@ serve(async (req) => {
     let autoCompleteResult: Record<string, unknown> | null = null;
     let autoCompleteError: string | null = null;
 
+    // Step 2: Complete ONLY the trades whose capture actually succeeded.
+    //
+    // FIX-Task-35 item 5 (2026-09-14): this used to pass
+    // `p_batch_size: successfulTradeIds.length` — a COUNT standing in for a SET.
+    // The RPC re-selects its own batch (`auto_complete_at ASC LIMIT p_batch_size`),
+    // so its window was ordered by a completely different key than the capture
+    // loop's. Any eligible trade that happened to sort into that window was
+    // completed even when its capture had FAILED — the mirror image of the bug in
+    // item 2, and the second half of how a trade ends up `completed` with an
+    // uncaptured authorization. The ids are now passed explicitly so the RPC can
+    // only ever complete the trades this loop verified.
     if (successfulTradeIds.length > 0) {
       const { data, error } = await supabase.rpc('rpc_process_auto_complete', {
         p_batch_size: successfulTradeIds.length,
+        p_trade_ids: successfulTradeIds,
       });
 
       if (error) {
