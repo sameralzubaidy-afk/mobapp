@@ -1,0 +1,18 @@
+{
+  "_source": "STRIPE_QA_BREAK_GLASS=1 npm run --silent qa:stranded-holds -- --limit 1000 --json",
+  "_when": "2026-09-14 — BEFORE the qa:reset-offer-fixtures harness spot-check",
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "days": 60,
+  "capturable_days": 7,
+  "trades_probed": 490,
+  "stranded_count": 0,
+  "stranded_cents": 0,
+  "stranded": [],
+  "stale_count": 0,
+  "stale_cents": 0,
+  "stale": [],
+  "completed_without_capture_count": 0,
+  "completed_without_capture_cents": 0,
+  "completed_without_capture": [],
+  "notes": []
+}
