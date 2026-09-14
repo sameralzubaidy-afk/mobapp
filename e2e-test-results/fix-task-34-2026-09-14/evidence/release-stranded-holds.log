@@ -1,0 +1,57 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (16) from .env.staging -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[release-stranded-holds] 25 releasable hold(s) — $646.68
+[release-stranded-holds] 93 COMPLETED trade(s) with an uncaptured PI were SKIPPED — those are uncollected money, not a stranded hold. Decide separately.
+   cb1cbc39-caa5-4bdd-adb3-7a7784887330  pi_3UFNPX4I6kCJlvXo19hOIuDO  $31.55  age 0.7d
+   096fc228-6931-4db8-ac1d-71aa2b6a28a3  pi_3UFNNg4I6kCJlvXo1T7Hxaf2  $31.45  age 0.7d
+   1dfae1ce-58f3-4b95-870c-40d9cc989464  pi_3UFMIq4I6kCJlvXo0y8FFmsj  $31.49  age 0.8d
+   502bb9d9-ce56-47cf-9921-a985b1fa6e54  pi_3UFI8M4I6kCJlvXo0e41OdLi  $31.45  age 0.9d
+   3a9c297f-be13-43af-8d9e-0cc0e9cef025  pi_3UFI8K4I6kCJlvXo0RQntIH7  $29.49  age 0.9d
+   119ecf63-bd36-4125-bc9b-02069995369a  pi_3UFI8L4I6kCJlvXo1cAeKVM0  $31.45  age 0.9d
+   1f3ec04d-cd3d-4c54-9a0f-bcc869256050  pi_3UFGoU4I6kCJlvXo1Dqi6yyo  $30.38  age 1d
+   22875742-a86a-4623-bad9-3203165b53cb  pi_3UFGkX4I6kCJlvXo1vAiI8ZC  $22.47  age 1d
+   0a86f094-581d-45d8-860f-a81c138827ba  pi_3UFGkW4I6kCJlvXo1R0E5wcb  $23.96  age 1d
+   fc630318-a191-4053-987b-d8c32782788d  pi_3UFDLS4I6kCJlvXo0IJYL3lH  $21.40  age 1.2d
+   d3cee3f2-75ea-4675-808c-0d03c85be1bc  pi_3UFDLU4I6kCJlvXo1zZ6NWH1  $22.89  age 1.2d
+   7c258719-c69e-42b2-8dc4-aeb9fd145b67  pi_3UFDLW4I6kCJlvXo12fMVc8W  $20.00  age 1.2d
+   f041e11d-18d9-449f-b00a-2808947caab8  pi_3UFDLT4I6kCJlvXo15TRPzsT  $21.40  age 1.2d
+   575056d1-7086-4487-aca9-699005544aa4  pi_3UEzmv4I6kCJlvXo17YDfN2g  $26.10  age 1.8d
+   3265ec84-3a2a-4ace-a1b6-152cc3d2ac2b  pi_3UEGPr4I6kCJlvXo1xBKgKeK  $15.10  age 3.8d
+   061aa3a3-99d9-4bbc-82dd-85d906d205e6  pi_3UEGHl4I6kCJlvXo0e8twnpt  $23.00  age 3.8d
+   b65128b0-1d8a-49aa-99b4-577d5b6f37e7  pi_3UEGHm4I6kCJlvXo1aTlH6FE  $24.61  age 3.8d
+   44e02ec7-e9a0-4c09-a3da-315c282ab696  pi_3UEGHk4I6kCJlvXo1jbpk22m  $26.10  age 3.8d
+   951945e0-a582-462c-a57b-01bdca71298b  pi_3UEGGD4I6kCJlvXo02vYLtOB  $24.61  age 3.8d
+   b50d9948-6e02-43d9-ab2c-2d413bcf3692  pi_3UEGGF4I6kCJlvXo1i6jtuCr  $23.00  age 3.8d
+   469c1854-760a-44e6-b13b-70fc63a32853  pi_3UEGGE4I6kCJlvXo0FFNAoU2  $26.10  age 3.8d
+   68c8d7c7-8ef1-4ea7-adad-933d9726529c  pi_3UEB7g4I6kCJlvXo0i82XZdP  $28.24  age 4d
+   8986af9c-54ac-436b-bed6-b6e804d921fb  pi_3UE7pD4I6kCJlvXo1v6ujlaC  $16.47  age 4.2d
+   ed92e484-7e1c-4fbd-bcb8-f52a6d862ee5  pi_3UDkg24I6kCJlvXo1Tpm6SQy  $49.64  age 5.2d
+   7d52afad-7d98-4e85-a4e2-fe09119391bd  pi_3UDkb64I6kCJlvXo0jIncG07  $14.33  age 5.2d
+   ✅ pi_3UFNPX4I6kCJlvXo19hOIuDO → canceled, amount_capturable=0
+   ✅ pi_3UFNNg4I6kCJlvXo1T7Hxaf2 → canceled, amount_capturable=0
+   ✅ pi_3UFMIq4I6kCJlvXo0y8FFmsj → canceled, amount_capturable=0
+   ✅ pi_3UFI8M4I6kCJlvXo0e41OdLi → canceled, amount_capturable=0
+   ✅ pi_3UFI8K4I6kCJlvXo0RQntIH7 → canceled, amount_capturable=0
+   ✅ pi_3UFI8L4I6kCJlvXo1cAeKVM0 → canceled, amount_capturable=0
+   ✅ pi_3UFGoU4I6kCJlvXo1Dqi6yyo → canceled, amount_capturable=0
+   ✅ pi_3UFGkX4I6kCJlvXo1vAiI8ZC → canceled, amount_capturable=0
+   ✅ pi_3UFGkW4I6kCJlvXo1R0E5wcb → canceled, amount_capturable=0
+   ✅ pi_3UFDLS4I6kCJlvXo0IJYL3lH → canceled, amount_capturable=0
+   ✅ pi_3UFDLU4I6kCJlvXo1zZ6NWH1 → canceled, amount_capturable=0
+   ✅ pi_3UFDLW4I6kCJlvXo12fMVc8W → canceled, amount_capturable=0
+   ✅ pi_3UFDLT4I6kCJlvXo15TRPzsT → canceled, amount_capturable=0
+   ✅ pi_3UEzmv4I6kCJlvXo17YDfN2g → canceled, amount_capturable=0
+   ✅ pi_3UEGPr4I6kCJlvXo1xBKgKeK → canceled, amount_capturable=0
+   ✅ pi_3UEGHl4I6kCJlvXo0e8twnpt → canceled, amount_capturable=0
+   ✅ pi_3UEGHm4I6kCJlvXo1aTlH6FE → canceled, amount_capturable=0
+   ✅ pi_3UEGHk4I6kCJlvXo1jbpk22m → canceled, amount_capturable=0
+   ✅ pi_3UEGGD4I6kCJlvXo02vYLtOB → canceled, amount_capturable=0
+   ✅ pi_3UEGGF4I6kCJlvXo1i6jtuCr → canceled, amount_capturable=0
+   ✅ pi_3UEGGE4I6kCJlvXo0FFNAoU2 → canceled, amount_capturable=0
+   ✅ pi_3UEB7g4I6kCJlvXo0i82XZdP → canceled, amount_capturable=0
+   ✅ pi_3UE7pD4I6kCJlvXo1v6ujlaC → canceled, amount_capturable=0
+   ✅ pi_3UDkg24I6kCJlvXo1Tpm6SQy → canceled, amount_capturable=0
+   ✅ pi_3UDkb64I6kCJlvXo0jIncG07 → canceled, amount_capturable=0
+
+[release-stranded-holds] released 25/25
+Re-run `npm run qa:stranded-holds` to confirm the count is 0.

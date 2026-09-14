@@ -1,0 +1,5 @@
+
+!! BREAK-GLASS: using the full test-mode SECRET key (sk_test_...).
+!! Results are labelled key_scope=SECRET_KEY_BREAK_GLASS and must NOT be
+!! reported as restricted-key / read-only verification evidence.
+

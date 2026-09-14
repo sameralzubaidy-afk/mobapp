@@ -15,8 +15,11 @@
  *   2. Cancels every pending / payment_failed trade where the BUYER is one of
  *      the QA buyer personas (any seller). The direct status UPDATE fires the
  *      same DB triggers the app's cancel path uses (e.g. `fn_release_sp_on_cancel`),
- *      so reserved SP / ledger / notification side effects run correctly.
- *   3. Resets the affected listings back to `available` so they can be re-used.
+ *      so reserved SP / ledger / notification side effects run correctly. *      FIX-Task-34 (2026-09-14): a raw status UPDATE does NOT cancel the buyer's
+ *      Stripe authorization hold — the product cancel path does that, and this
+ *      harness bypasses it. Step 2b now releases the uncaptured PaymentIntents
+ *      explicitly (see `releaseStripeHolds`), so a reset no longer leaves live
+ *      holds on the buyers' cards. *   3. Resets the affected listings back to `available` so they can be re-used.
  *
  * This is the buyer-side counterpart to `npm run cleanup:trades` (which covers
  * test-buyer-as-buyer + test-seller-as-seller for the per-seller cap tests).
@@ -34,6 +37,7 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -75,6 +79,85 @@ const QA_BUYER_PERSONAS = {
 
 function log(...a) {
   console.log('[qa:reset-offer-fixtures]', ...a);
+}
+
+/**
+ * FIX-Task-34 (2026-09-14) — cancel the buyers' UNCAPPED Stripe holds.
+ *
+ * Mirrors the shipped `_shared/competing-offer-cancel.ts` rule: cancel an
+ * uncaptured authorization, and never touch a captured charge (that is money we
+ * would owe back as a refund, which is NOT this harness's job).
+ *
+ * Why not just call the product path? This harness cancels by RAW status update on
+ * purpose (it must not depend on app auth), so it has to reproduce the one Stripe
+ * side effect it skips. Kept deliberately small: GET the PI, cancel it only when
+ * Stripe says it is still cancellable.
+ *
+ * Uses `~/.dt11-stripe-key` (the test-mode secret key the other fixture scripts
+ * use — never echoed). If it is absent the DB reset still succeeds; the Stripe
+ * leg is reported as failed rather than silently skipped.
+ *
+ * @returns {{ cancelled: number, skipped: number, failed: number }}
+ */
+async function releaseStripeHolds(trades) {
+  const result = { cancelled: 0, skipped: 0, failed: 0 };
+  const withPi = (trades || []).filter(
+    (t) => typeof t.stripe_payment_intent_id === 'string' && t.stripe_payment_intent_id.startsWith('pi_')
+  );
+  if (!withPi.length) return result;
+
+  let key = '';
+  try {
+    key = readFileSync(resolve(process.env.HOME || '~', '.dt11-stripe-key'), 'utf8').trim();
+  } catch {
+    key = '';
+  }
+  if (!key) {
+    log('⚠️  ~/.dt11-stripe-key not found — Stripe holds NOT released.');
+    result.failed = withPi.length;
+    return result;
+  }
+
+  const headers = { Authorization: `Bearer ${key}`, 'Stripe-Version': '2023-10-16' };
+  const CANCELLABLE = [
+    'requires_capture',
+    'requires_confirmation',
+    'requires_action',
+    'requires_payment_method',
+  ];
+
+  for (const t of withPi) {
+    try {
+      const piRes = await fetch(
+        `https://api.stripe.com/v1/payment_intents/${t.stripe_payment_intent_id}`,
+        { headers }
+      );
+      const pi = await piRes.json();
+      if (!piRes.ok) {
+        result.failed += 1;
+        log(`⚠️  PI read failed for ${t.id.slice(0, 8)}…: HTTP ${piRes.status}`);
+        continue;
+      }
+      if (!CANCELLABLE.includes(pi.status)) {
+        result.skipped += 1;
+        continue;
+      }
+      const cancelRes = await fetch(
+        `https://api.stripe.com/v1/payment_intents/${t.stripe_payment_intent_id}/cancel`,
+        { method: 'POST', headers }
+      );
+      if (!cancelRes.ok) {
+        result.failed += 1;
+        log(`⚠️  PI cancel failed for ${t.id.slice(0, 8)}…: HTTP ${cancelRes.status}`);
+        continue;
+      }
+      result.cancelled += 1;
+    } catch (err) {
+      result.failed += 1;
+      log(`⚠️  Stripe error for ${t.id.slice(0, 8)}…: ${err?.message || err}`);
+    }
+  }
+  return result;
 }
 
 /**
@@ -180,7 +263,7 @@ async function main() {
   // ── 2. Fetch pending / payment_failed trades for the QA buyers ───────────
   const { data: trades, error: fetchError } = await admin
     .from('trades')
-    .select('id, listing_id, status, buyer_id, seller_id')
+    .select('id, listing_id, status, buyer_id, seller_id, stripe_payment_intent_id')
     .in('buyer_id', buyerIds)
     .in('status', ['pending', 'payment_failed']);
 
@@ -231,6 +314,18 @@ async function main() {
     process.exit(1);
   }
   log(`✅ Cancelled ${tradeIds.length} offer(s).`);
+
+  // ── 3b. Release the buyers' Stripe authorization holds ──────────────────
+  // FIX-Task-34 (2026-09-14). The raw UPDATE above bypasses the product cancel
+  // path (`cancel-trade` / `_shared/competing-offer-cancel.ts`), and cancelling
+  // the PI on Stripe is one of the things that path does. So this harness voided
+  // the tax (below) but left the buyer's card AUTHORIZED. Measured on staging:
+  // 25 live holds totalling $646.68, every one `cancelled / buyer_cancelled` —
+  // the exact signature this script writes. `qa:stranded-holds` now flags them.
+  const holds = await releaseStripeHolds(trades);
+  log(
+    `💳 Stripe holds: ${holds.cancelled} cancelled · ${holds.skipped} nothing to cancel · ${holds.failed} failed`
+  );
 
   // FIX-Task-24 item 4 (2026-09-12): the raw cancel above does NOT touch the tax
   // ledger, so void it here — otherwise every run leaves `tax_status='quoted'`

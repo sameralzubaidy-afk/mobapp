@@ -1,0 +1,43 @@
+{
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "days": 90,
+  "capturable_days": 7,
+  "trades_probed": 641,
+  "stranded_count": 0,
+  "stranded_cents": 0,
+  "stranded": [],
+  "stale_count": 0,
+  "stale_cents": 0,
+  "stale": [],
+  "completed_without_capture_count": 2,
+  "completed_without_capture_cents": 5352,
+  "completed_without_capture": [
+    {
+      "trade_id": "47bdab0a-7f52-4133-bb45-793e9bb3a2dc",
+      "trade_status": "completed",
+      "cancellation_reason": null,
+      "trade_created_at": "2026-09-09T11:02:23.906508+00:00",
+      "pi": "pi_3UDjGl4I6kCJlvXo1aYETeKt",
+      "pi_status": "requires_capture",
+      "pi_created": "2026-09-09T11:02:23.000Z",
+      "pi_age_days": 5.3,
+      "held_cents": 2849,
+      "held": "$28.49",
+      "captured_cents": 0
+    },
+    {
+      "trade_id": "acb4939a-fbfd-4dfb-8f06-c5ebbfa5af12",
+      "trade_status": "completed",
+      "cancellation_reason": null,
+      "trade_created_at": "2026-09-09T10:57:58.996096+00:00",
+      "pi": "pi_3UDjCU4I6kCJlvXo0mv21dEy",
+      "pi_status": "requires_capture",
+      "pi_created": "2026-09-09T10:57:58.000Z",
+      "pi_age_days": 5.3,
+      "held_cents": 2503,
+      "held": "$25.03",
+      "captured_cents": 0
+    }
+  ],
+  "notes": []
+}

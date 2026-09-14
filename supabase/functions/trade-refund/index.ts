@@ -32,6 +32,8 @@ import { hashContent } from '../_shared/idempotency.ts';
 // FIX-Task-32 item 3: the void-vs-refund discriminator, kept in a pure helper so
 // it is covered by an always-running unit test (no staging / Stripe needed).
 import { classifyRefundLedgerLeg } from '../_shared/refund-decision.ts';
+// FIX-Task-34 item 4: drift-proof service-role acceptance (BP-87 rule 2).
+import { isValidServiceCredential } from '../_shared/service-credential.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -77,7 +79,20 @@ serve(async (req) => {
 
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-  // ── Auth (mirrors admin-trade-action) ───────────────────────────────────
+  // ── Auth (service-role acceptance deliberately DIVERGES from admin-trade-action) ──
+  //
+  // FIX-Task-34 item 4 (BP-87 rule 2): this function used to accept a service-role
+  // caller only when the presented bearer was the EXACT string in this function's
+  // injected `SUPABASE_SERVICE_ROLE_KEY`. That silently 401s every caller holding
+  // the project's legacy service JWT (the key in p2p-kids-marketplace/.env, and the
+  // one DB triggers post from admin_config) as soon as the injected env key becomes
+  // a different string. Verified live 2026-09-14: that same key returned HTTP 200
+  // from /rest/v1/admin_config while this function returned 401.
+  //
+  // The env comparison is kept as a cheap first check, and a credential that fails
+  // it is VERIFIED against the project instead of string-compared (see
+  // _shared/service-credential.ts). Security is unchanged: only a credential the
+  // platform itself accepts as service-role passes, and every failure fails closed.
   let user: { id: string | null; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> } | null = null;
   const authHeader = (req.headers.get('Authorization') || '').trim();
   const apiKey = (req.headers.get('apikey') || '').trim();
@@ -85,11 +100,18 @@ serve(async (req) => {
   const clientAdminSecret = (req.headers.get('x-admin-ui-secret') || '').trim();
   const cleanAuthHeader = authHeader.replace('Bearer ', '').trim();
 
-  const hasServiceRoleInAuth = !!(supabaseServiceKey && cleanAuthHeader === supabaseServiceKey);
-  const hasServiceRoleInApiKey = !!(supabaseServiceKey && apiKey === supabaseServiceKey);
-  const hasServiceRoleInAdminKey = !!(supabaseServiceKey && adminApiKey === supabaseServiceKey);
+  const matchesEnvKey = (v: string) => !!(supabaseServiceKey && v && v === supabaseServiceKey);
+  const serviceKeyCandidate = [cleanAuthHeader, apiKey, adminApiKey].find((v) => v.length > 0) ?? '';
+  const hasServiceRoleCredential =
+    matchesEnvKey(cleanAuthHeader) ||
+    matchesEnvKey(apiKey) ||
+    matchesEnvKey(adminApiKey) ||
+    (await isValidServiceCredential(supabaseUrl, serviceKeyCandidate));
   const hasValidAdminSecret = !!(adminUiSecret && clientAdminSecret === adminUiSecret);
-  const hasAdminCredential = hasServiceRoleInAuth || hasServiceRoleInApiKey || hasServiceRoleInAdminKey || hasValidAdminSecret;
+  const hasAdminCredential = hasServiceRoleCredential || hasValidAdminSecret;
+  console.log(
+    `[trade-refund] auth: service_credential=${hasServiceRoleCredential} admin_secret=${hasValidAdminSecret}`,
+  );
 
   if (hasAdminCredential) {
     user = { id: null, app_metadata: { role: 'admin' }, user_metadata: { is_admin: true } };

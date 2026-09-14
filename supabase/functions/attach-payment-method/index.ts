@@ -16,6 +16,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.5.0?target=deno';
+// FIX-Task-34 item 2/3 (F6): write the default card to BOTH Stripe levels a
+// renewal consults (see _shared/subscription-payment-method.ts).
+import { syncStripeDefaultPaymentMethod } from '../_shared/subscription-payment-method.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -89,10 +92,13 @@ serve(async (req) => {
 
     // Get the Stripe customer ID from subscriptions table
     let customerId: string | null = null;
+    // FIX-Task-34 item 2/3: the subscription id is needed to write the level that
+    // a recurring renewal actually consults FIRST (see the sync call below).
+    let stripeSubscriptionId: string | null = null;
 
     const { data: subscriptionRow, error: subscriptionError } = await supabaseClient
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, stripe_subscription_id')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -102,6 +108,9 @@ serve(async (req) => {
 
     if (subscriptionRow?.stripe_customer_id) {
       customerId = subscriptionRow.stripe_customer_id;
+    }
+    if (subscriptionRow?.stripe_subscription_id) {
+      stripeSubscriptionId = subscriptionRow.stripe_subscription_id;
     }
 
     // Fallback to user_subscriptions
@@ -152,19 +161,33 @@ serve(async (req) => {
     }
 
     // Set as default payment method on the customer
-    try {
-      await stripe.customers.update(customerId, {
-        invoice_settings: {
-          default_payment_method: paymentMethodId,
-        },
-      });
-      console.log('[attach-payment-method] Set as default payment method for customer:', customerId);
-    } catch (stripeError: any) {
-      console.warn('[attach-payment-method] Failed to set default payment method (continuing):', stripeError.message);
+    // FIX-Task-34 item 2/3 (F6): this used to write the CUSTOMER level only, and to
+    // swallow a failure with a bare `console.warn(... 'continuing')` — so a Stripe
+    // hiccup here produced exactly the drift F6 describes: the DB said one card,
+    // Stripe's customer default said another, and the subscription (whose default
+    // Stripe consults FIRST at renewal) was never written at all.
+    // One shared helper now writes BOTH levels and reports failures back instead
+    // of hiding them. Still best-effort: attaching a card must not fail because a
+    // default-sync call did.
+    const defaultSync = await syncStripeDefaultPaymentMethod(stripe, {
+      customerId,
+      subscriptionId: stripeSubscriptionId,
+      paymentMethodId,
+    });
+    if (defaultSync.errors.length) {
+      console.warn(
+        '[attach-payment-method] Stripe default-payment-method sync had errors:',
+        defaultSync.errors.join('; ')
+      );
     }
 
     // Save stripe_payment_method_id to both tables (without changing subscription status)
-    const updatePromises: Promise<unknown>[] = [];
+    // FIX-Task-34 (Tier-0 unblock, zero runtime effect): a supabase-js query builder
+    // is a PromiseLike, not a Promise, so the former `Promise<unknown>[]` declaration
+    // made `deno check` fail on both pushes below. That failure PRE-DATES this task
+    // (verified against HEAD) and is purely a type annotation — `Promise.all` accepts
+    // PromiseLike, and the runtime behaviour is unchanged.
+    const updatePromises: PromiseLike<unknown>[] = [];
 
     updatePromises.push(
       supabaseClient

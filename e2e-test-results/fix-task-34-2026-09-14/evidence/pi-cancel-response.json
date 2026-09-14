@@ -1,0 +1,82 @@
+{
+  "id": "pi_3UFO9f4I6kCJlvXo0iCaV1UR",
+  "object": "payment_intent",
+  "allowed_payment_method_types": null,
+  "amount": 1789,
+  "amount_capturable": 0,
+  "amount_details": {
+    "tip": {}
+  },
+  "amount_received": 0,
+  "application": null,
+  "application_fee_amount": null,
+  "automatic_payment_methods": {
+    "allow_redirects": "never",
+    "enabled": true
+  },
+  "canceled_at": 1789401780,
+  "cancellation_reason": null,
+  "capture_method": "manual",
+  "client_secret": "pi_3UFO9f4I6kCJlvXo0iCaV1UR_secret_Cz8CDe0CsLPhX4O7aApOk1ye9",
+  "confirmation_method": "automatic",
+  "created": 1789347235,
+  "currency": "usd",
+  "customer": "cus_Ungj4MptKp9CUg",
+  "customer_account": null,
+  "description": "Kids P2P · Science Kit",
+  "excluded_payment_method_types": null,
+  "invoice": null,
+  "last_payment_error": null,
+  "latest_charge": "ch_3UFO9f4I6kCJlvXo0Rr9QV2W",
+  "livemode": false,
+  "managed_payments": {
+    "enabled": false
+  },
+  "metadata": {
+    "bundle_id": "",
+    "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+    "idempotency_key": "pi_offer_49243010-f458-4744-add1-a6c84ab95f1f_0fe228ee-6430-40fa-bcb4-ae07fc252f27_11deae9b-8a8a-46f0-963f-6700c8ff305a_tf838f",
+    "item_id": "0fe228ee-6430-40fa-bcb4-ae07fc252f27",
+    "item_price_cents": "1500",
+    "platform_fee_cents": "149",
+    "request_id": "a10fbe12-6bf5-44b6-8e39-c5fb480fb1c7",
+    "sp_amount": "5",
+    "tax_amount_cents": "140",
+    "type": "trade_offer_hold"
+  },
+  "next_action": null,
+  "on_behalf_of": null,
+  "payment_method": "pm_1UFNpm4I6kCJlvXop2yMXsky",
+  "payment_method_configuration_details": {
+    "id": "pmc_1ShGgW4I6kCJlvXollBgc0gP",
+    "parent": null
+  },
+  "payment_method_options": {
+    "card": {
+      "installments": null,
+      "mandate_options": null,
+      "network": null,
+      "request_three_d_secure": "automatic"
+    },
+    "link": {
+      "persistent_token": null
+    }
+  },
+  "payment_method_types": [
+    "card",
+    "link"
+  ],
+  "payment_record": null,
+  "processing": null,
+  "receipt_email": null,
+  "review": null,
+  "setup_future_usage": null,
+  "shared_payment_granted_token": null,
+  "shipping": null,
+  "source": null,
+  "statement_descriptor": null,
+  "statement_descriptor_suffix": null,
+  "status": "canceled",
+  "transfer_data": null,
+  "transfer_group": null
+}

@@ -12,6 +12,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.5.0?target=deno';
+// FIX-Task-34 item 2/3 (F6): keep Stripe's renewal resolution in sync with the
+// card the DB records (see _shared/subscription-payment-method.ts).
+import { syncStripeDefaultPaymentMethod } from '../_shared/subscription-payment-method.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -82,10 +85,13 @@ serve(async (req) => {
     // Fetch from canonical subscriptions table first, then fallback to legacy user_subscriptions.
     let paymentMethodId: string | null = null;
     let customerId: string | null = null;
+    // FIX-Task-34 item 2/3: needed so the deterministic-selection persist below can
+    // also correct Stripe's renewal resolution (see the sync call at the end).
+    let stripeSubscriptionId: string | null = null;
 
     const { data: subscriptionRow, error: subscriptionError } = await supabaseClient
       .from('subscriptions')
-      .select('stripe_payment_method_id, stripe_customer_id')
+      .select('stripe_payment_method_id, stripe_customer_id, stripe_subscription_id')
       .eq('user_id', user_id)
       .maybeSingle();
 
@@ -98,6 +104,9 @@ serve(async (req) => {
     }
     if (subscriptionRow?.stripe_customer_id) {
       customerId = subscriptionRow.stripe_customer_id;
+    }
+    if (subscriptionRow?.stripe_subscription_id) {
+      stripeSubscriptionId = subscriptionRow.stripe_subscription_id;
     }
 
     if (!paymentMethodId || !customerId) {
@@ -193,6 +202,26 @@ serve(async (req) => {
               .from('subscriptions')
               .update({ stripe_payment_method_id: selected })
               .eq('user_id', user_id);
+
+            // FIX-Task-34 item 2/3 (F6): persisting the DB column ALONE is what
+            // created the drift. A recurring renewal is charged by STRIPE, which
+            // resolves `subscription.default_payment_method` → `customer
+            // .invoice_settings.default_payment_method` — neither of which this
+            // function used to touch. So the app would advertise (and later
+            // display) the newly selected card while Stripe still charged
+            // whatever the customer default named. Write the same card to both
+            // Stripe levels. Best-effort: never fail the read over it.
+            const sync = await syncStripeDefaultPaymentMethod(stripe, {
+              customerId,
+              subscriptionId: stripeSubscriptionId,
+              paymentMethodId: selected,
+            });
+            if (sync.errors.length) {
+              console.warn(
+                '[get-payment-method] persisted card but Stripe default sync had errors:',
+                sync.errors.join('; ')
+              );
+            }
           } catch (persistError: any) {
             console.warn(
               '[get-payment-method] could not persist deterministic card choice:',

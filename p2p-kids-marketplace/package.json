@@ -14,6 +14,8 @@
     "qa:ensure-cards": "node scripts/qa/ensure-valid-cards.mjs",
     "qa:invalidate-payment-method": "node scripts/qa/invalidate-payment-method.mjs",
     "qa:stripe-inspect": "node scripts/qa/stripe-inspect.mjs",
+    "qa:stranded-holds": "node scripts/qa/stranded-holds.mjs",
+    "qa:release-stranded-holds": "node scripts/qa/release-stranded-holds.mjs",
     "qa:reset-offer-fixtures": "node scripts/qa/reset-offer-fixtures.mjs",
     "qa:create-bundle-fixture": "node scripts/qa/create-bundle-fixture.mjs",
     "qa:create-in-progress-bundle-fixture": "node scripts/qa/create-in-progress-bundle-fixture.mjs",
