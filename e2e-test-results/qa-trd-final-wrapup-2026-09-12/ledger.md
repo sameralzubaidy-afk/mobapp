@@ -54,6 +54,6 @@ Incidental (not counted): Q08/Q09 Android re-confirm; FIX-Task-21 items 2 + 17 r
 
 **Writes:** `e2e-test-results/qa-trd-final-wrapup-2026-09-12/` only (report, ledger, **41** screenshots — `AND-00` … `AND-40`) + the tracker note. No app/repo code, no config left changed, no `git` writes.
 
-**Environment left behind:** Android app **logged out** (Landing); admin portal **restarted and running** on `:3001` at `/reviews`; Metro `:8081` + `:8082` both still running (untouched); Books mapping **restored** (`tax_exempt_goods`, DB-verified); iOS Simulator untouched.
+**Environment left behind:** Android app **logged out** (Landing); ⚠️ **admin portal `:3001` is STOPPED** — the dev-server terminal was cleaned up post-run (corrected 2026-09-12; restart with `npm --prefix p2p-kids-admin run dev`); Metro `:8081` + `:8082` both still running (untouched); Books mapping **restored** (`tax_exempt_goods`, DB-verified); iOS Simulator untouched.
 
 **Residue:** review **`44f5662f` left hidden** (restore blocked by N1); 3 new pending listings under test-seller (`591053d3` Games, `c1b3cd63` Books, `ba961cae` Books); 1 new review `15363fc3` (anon, 5★) on trade `47bdab0a`; 1 `review_reports` row `f19a333c`; 1 unread `review_report_hidden` notification for test-seller-3.

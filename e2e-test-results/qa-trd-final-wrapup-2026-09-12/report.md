@@ -172,7 +172,7 @@ Full ordered trace in `ledger.md`; **41** on-disk screenshots in `screenshots/`.
 
 ### 5.1 Admin dev-server restart (§5.21 / §3 note)
 
-Mid-run the admin dev server was **stopped and restarted** (`npm --prefix p2p-kids-admin run dev`, ready in 1.2 s) specifically to rule out a stale build before treating the Keep result as a product defect. The defect **reproduced identically** on the clean build — that is why it is reported as a defect rather than as a stale-build artifact. The portal is **left running** on `:3001`.
+Mid-run the admin dev server was **stopped and restarted** (`npm --prefix p2p-kids-admin run dev`, ready in 1.2 s) specifically to rule out a stale build before treating the Keep result as a product defect. The defect **reproduced identically** on the clean build — that is why it is reported as a defect rather than as a stale-build artifact. ⚠️ **Correction (post-run, 2026-09-12):** that restarted dev server's terminal was subsequently cleaned up, so the portal on `:3001` is **NO LONGER RUNNING**. The next round must restart it (`npm --prefix p2p-kids-admin run dev`). See §7.
 
 ---
 
@@ -195,3 +195,27 @@ Mid-run the admin dev server was **stopped and restarted** (`npm --prefix p2p-ki
 
 **Updated TRD Android-coverage map (Android-verified / total in group):** K 10/11 · L 0/11 · M 5/20 · N 6/14 · O 3/8 · **O-1 16/17** · O-2 10/12 · O-3 12/14 · P 6/8 · **Q 14/20** · R 5/13 · S 5/24 · T 11/14 · U 3/5 · V 5/14 · W 12/12 · X 7/16 · Y 4/9 · N2 3/10.
 Net new Android coverage this round: **O-1 +2** (C06, C15) and **Q +5** (Q04, Q05, Q15, Q17, Q20 — Q01/Q06 were already counted in the prior 9/20, and are now independently re-confirmed on a fresh Android bundle). Remaining biggest gaps by row count: **L 11 · S 19 · M 15 · R 8 · N 8 · X 9 · V 9 · N2 7 · Q 6 · O-2 2 · O-3 2 · U 2 · Y 5 · P 2 · K 1 · O 5 · O-1 1 (C07)**.
+
+---
+
+## 7. Post-run addendum — dev-server log evidence (desk observation, 2026-09-12)
+
+After the run closed, the full accumulated stdout of the restarted admin dev server was captured. It was reviewed read-only; **no device or admin interaction was performed for this addendum**, and nothing below changes a verdict already recorded.
+
+### 7.1 Independent corroboration of N1 (§1.6)
+
+The complete log contains the admin-review traffic from my session — `GET /reviews 200`, repeated `GET /api/reviews/reported 200`, and a one-time `✓ Compiled /api/reviews/reported` — but **no `POST /api/reviews/[reviewId]/keep` line at all, and no compile of the `keep` route** (only `hide` and `reported` were ever compiled under `app/api/reviews/**`). This is the third independent witness to the N1 anomaly, alongside (a) the browser-side `200 {"success":true}` and (b) the absent `.next/server/app/api/reviews/[reviewId]/keep/` artifact. The Keep request demonstrably never reached a Next route handler.
+
+### 7.2 New observation O1 — `/api/admin/action-center` intermittently 500s (~5 s timeout)
+
+**Unresolved observation, NOT a verdict, and not attributable with confidence.** The admin layout polls `/api/admin/action-center` continuously and, in the captured log, it fails with a recurring **`500` at ~5.1–5.4 s** (a consistent ~5 s timeout signature) at intervals across the whole capture, interleaved with normal 200s. The same log also carries a tail of implausible durations (`500 in 3028051ms`; 100–140 s responses) which indicates the **dev-server process was itself blocked/suspended** for long stretches (consistent with machine sleep or heavy concurrent load).
+
+**Why it is only an observation:** (a) the failures may be an artifact of that process suspension; (b) the server was **shared** — a second session's traffic is visible in the same log (§7.3), so request-rate pressure is not attributable to this round alone; (c) a dev-server 500 is not a product verdict without a driven case. **Recommend a dedicated check in a later round:** drive `/` (Action Center) on a freshly started, single-tenant portal and read back `admin_audit_logs`/the endpoint's own error to determine whether the 500 is a real downstream timeout (5 s) or a suspension artifact.
+
+### 7.3 Concurrency disclosure (R29 / R80)
+
+The tail of the log shows a **different session** driving the portal: `/tax/settings`, `/config?tab=fees`, `/api/admin/config`, periodic `/api/admin/sms-stats` polling, `/trades/disputes`, and a **`POST /api/admin/trades/dispute-action` that cancelled PI `pi_3UFNJG4I6kCJlvXo1z1VE3mt` (uncaptured) for trade `c2de3993-b1e4-4bc4-84bb-eb8e580ee195`**. **None of that work is mine and none of it is counted anywhere in this round's verdicts** — it is recorded here only so a later reader does not attribute those actions to this run.
+
+### 7.4 Environment correction
+
+The terminal hosting the restarted dev server was cleaned up at the end of that capture ⇒ **the admin portal on `:3001` is stopped.** Metro `:8081`/`:8082`, the Android app (logged out) and the iOS Simulator are unaffected. Restart the portal with `npm --prefix /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-admin run dev` before the next admin- or review-moderation-dependent round.
