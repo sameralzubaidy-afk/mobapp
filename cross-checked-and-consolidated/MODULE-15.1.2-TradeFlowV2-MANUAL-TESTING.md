@@ -7001,7 +7001,16 @@ FROM items;
 
 ## Regression checks (run after any change to trade screens)
 
-### TRD-TC-R01 · Value stack totals correct
+> **IDs renumbered 2026-09-14 (FIX-Task-32 item 5).** These regression checks
+> previously reused `TRD-TC-R01`–`TRD-TC-R08`, colliding with **Group R — Refund &
+> Cancellation State Machine** above. A future agent driving "TRD-TC-R03" could
+> therefore hit either the offer-expiry/competing-offers case or "single completion
+> has no Confirm All" — two entirely different cases under one label. This block now
+> uses the dedicated **`TRD-TC-REG-*`** namespace. Group R's own IDs are UNCHANGED
+> (the index at the top still reads `TRD-TC-R03 · Offer expiry → auto-cancel +
+> competing offers cancelled`).
+
+### TRD-TC-REG-01 · Value stack totals correct
 
 **Objective:** Verify the value stack math is correct for a $25 item + 5 SP.
 **Steps:**
@@ -7009,7 +7018,7 @@ FROM items;
 **Expected Result:**
 - Subscriber total cash is $19.01; free-user total cash is $22.01.
 
-### TRD-TC-R02 · Buyer cancel shows no consequence
+### TRD-TC-REG-02 · Buyer cancel shows no consequence
 
 **Objective:** Verify cancelling a pending trade as buyer never shows a consequence level.
 **Steps:**
@@ -7017,7 +7026,7 @@ FROM items;
 **Expected Result:**
 - A generic cancellation message appears with no Level 1/2/3 text.
 
-### TRD-TC-R03 · Single (non-bundle) completion has no Confirm All
+### TRD-TC-REG-03 · Single (non-bundle) completion has no Confirm All
 
 **Objective:** Verify completing a non-bundle trade does not show the bundle dialog.
 **Steps:**
@@ -7025,7 +7034,7 @@ FROM items;
 **Expected Result:**
 - The trade completes directly with no "Confirm All" prompt.
 
-### TRD-TC-R04 · Seller cancel button hidden on completed trade
+### TRD-TC-REG-04 · Seller cancel button hidden on completed trade
 
 **Objective:** Verify the seller cancel button is conditional on status.
 **Steps:**
@@ -7033,7 +7042,7 @@ FROM items;
 **Expected Result:**
 - No seller cancel button is shown.
 
-### TRD-TC-R05 · Disputed trade not auto-completed
+### TRD-TC-REG-05 · Disputed trade not auto-completed
 
 **Objective:** Verify a disputed trade is skipped by auto-complete.
 **Steps:**
@@ -7041,7 +7050,7 @@ FROM items;
 **Expected Result:**
 - The trade remains In Progress and is not completed.
 
-### TRD-TC-R06 · Disputed trade does not release SP
+### TRD-TC-REG-06 · Disputed trade does not release SP
 
 **Objective:** Verify SP is not released while a dispute is open.
 **Steps:**
@@ -7049,7 +7058,7 @@ FROM items;
 **Expected Result:**
 - No SP is released to the seller while the dispute is open.
 
-### TRD-TC-R07 · SP reserved before seller sees offer
+### TRD-TC-REG-07 · SP reserved before seller sees offer
 
 **Objective:** Verify SP is reserved immediately on offer submission.
 **Steps:**
@@ -7057,7 +7066,7 @@ FROM items;
 **Expected Result:**
 - The reserved SP is already reflected in the buyer's wallet.
 
-### TRD-TC-R08 · Free buyer SP gating
+### TRD-TC-REG-08 · Free buyer SP gating
 
 **Objective:** Verify free buyers see the SP lock but can still request to buy.
 **Steps:**

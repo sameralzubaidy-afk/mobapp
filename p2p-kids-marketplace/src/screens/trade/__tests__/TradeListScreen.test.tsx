@@ -573,4 +573,75 @@ describe('TradeListScreen', () => {
       expect(titles[2].props.children).toBe('Cheap Item'); // created Jan 1
     });
   });
+
+  /**
+   * FIX-Task-32 item 9 (2026-09-14): when 2+ buyers have a live offer on the SAME
+   * listing, the Needs Action card must say so. Without it the seller saw two
+   * near-identical rows differing only by amount/points and could not tell that
+   * accepting one auto-declines the other.
+   */
+  describe('Competing offers (FIX-Task-32 item 9)', () => {
+    const pendingOffer = (id: string, buyerId: string, listingId: string) => ({
+      id,
+      buyer_id: buyerId,
+      seller_id: 'user-123',
+      node_id: null,
+      status: 'pending',
+      sp_amount: 0,
+      cash_amount_cents: 2500,
+      buyer_transaction_fee_cents: 99,
+      tax_amount_cents: null,
+      created_at: '2026-01-01T10:00:00.000Z',
+      updated_at: '2026-01-01T10:00:00.000Z',
+      offer_expires_at: new Date(Date.now() + 3600_000).toISOString(),
+      auto_complete_at: null,
+      dispute_resolution: null,
+      cancellation_reason: null,
+      bundle_id: null,
+      listing_id: listingId,
+      listing: { id: listingId, title: 'Competed Item', price: 25, images: [] },
+    });
+
+    it('says how many other buyers are competing on the same item', async () => {
+      mockFetchTrades([
+        pendingOffer('offer-a', 'buyer-1', 'listing-1'),
+        pendingOffer('offer-b', 'buyer-2', 'listing-1'),
+      ]);
+
+      const { findByTestId, getAllByText } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
+
+      await findByTestId('trade-offer-competition-offer-a');
+      await findByTestId('trade-offer-competition-offer-b');
+      expect(getAllByText('1 other buyer is competing on this item')).toHaveLength(2);
+    });
+
+    it('hides the line when the seller has a single offer on the item', async () => {
+      mockFetchTrades([pendingOffer('offer-solo', 'buyer-1', 'listing-1')]);
+
+      const { findByTestId, queryByTestId } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
+
+      await findByTestId('trade-offer-row-offer-solo');
+      expect(queryByTestId('trade-offer-competition-offer-solo')).toBeNull();
+    });
+
+    it('counts per listing, so offers on different items are not competitors', async () => {
+      mockFetchTrades([
+        pendingOffer('offer-x', 'buyer-1', 'listing-1'),
+        pendingOffer('offer-y', 'buyer-2', 'listing-2'),
+      ]);
+
+      const { findByTestId, queryByTestId } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
+
+      await findByTestId('trade-offer-row-offer-x');
+      await findByTestId('trade-offer-row-offer-y');
+      expect(queryByTestId('trade-offer-competition-offer-x')).toBeNull();
+      expect(queryByTestId('trade-offer-competition-offer-y')).toBeNull();
+    });
+  });
 });

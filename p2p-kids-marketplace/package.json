@@ -38,6 +38,7 @@
     "qa:express-complete": "node scripts/qa/express-complete-fixture.mjs",
     "qa:category-suggestion": "node scripts/qa/category-suggestion-fixture.mjs",
     "qa:android-seed-media": "bash scripts/qa/android-seed-media.sh",
+    "qa:fix32-verify": "node scripts/qa/verify-fix-task-32.mjs",
     "testid-drift-check": "node scripts/testid-drift-check.mjs",
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start --clear",

@@ -10,6 +10,12 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logTradeEvent } from '../_shared/trade-events.ts';
+// FIX-Task-32 items 1 + 2: shared competing-offer release (Stripe hold cancel +
+// tax void + `cancelled_at`) — the same tested helper `transactions-update` uses.
+import {
+  releaseCompetingOfferHolds,
+  type RivalTrade,
+} from '../_shared/competing-offer-cancel.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -145,9 +151,42 @@ serve(async (req) => {
     if (updateErr) return { error: 'Failed to update trade', code: 'UPDATE_FAILED' };
 
     // Auto-decline competing offers on the same listing (non-blocking)
+    //
+    // FIX-Task-32 items 1 + 2 (2026-09-14): this writer had the SAME two gaps as
+    // transactions-update — no Stripe hold release, no tax void, no `cancelled_at`
+    // (see the longer rationale there). Both writers now call the one shared,
+    // unit-tested helper.
     (async () => {
-      try { await svcClient.from('trades').update({ status: 'cancelled', cancellation_reason: 'offer_expired_competing', updated_at: now.toISOString() }).eq('listing_id', trade.listing_id).eq('status', 'pending').is('auto_complete_at', null).neq('id', tradeId); }
-      catch { /* non-blocking */ }
+      try {
+        const cancelledAt = now.toISOString();
+
+        const { data: rivalTrades } = await svcClient
+          .from('trades')
+          .select('id, stripe_payment_intent_id, cash_amount_cents')
+          .eq('listing_id', trade.listing_id)
+          .eq('status', 'pending')
+          .is('auto_complete_at', null)
+          .neq('id', tradeId);
+
+        const { patch } = await releaseCompetingOfferHolds(
+          svcClient,
+          stripe,
+          (rivalTrades ?? []) as RivalTrade[],
+          cancelledAt,
+          '[transactions-accept-bundle]',
+        );
+
+        await svcClient
+          .from('trades')
+          .update(patch)
+          .eq('listing_id', trade.listing_id)
+          .eq('status', 'pending')
+          .is('auto_complete_at', null)
+          .neq('id', tradeId);
+      } catch (competingErr) {
+        /* non-blocking — the rival trade must still be cancelled */
+        console.error('[transactions-accept-bundle] competing offer release error:', competingErr);
+      }
     })();
 
     // Log event (non-blocking)

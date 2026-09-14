@@ -119,6 +119,11 @@ export default function ReviewOfferScreen() {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [showAcceptBundleModal, setShowAcceptBundleModal] = useState(false);
   const [releaseDays, setReleaseDays] = useState(3);
+  // FIX-Task-32 item 10 (2026-09-14): other LIVE offers on this listing, which
+  // accepting this one auto-declines. Nothing on screen said so before — the
+  // seller could not tell that accepting silently closes out other buyers.
+  const [pendingRivalCount, setPendingRivalCount] = useState(0);
+  const [pendingRivalsHaveSp, setPendingRivalsHaveSp] = useState(false);
 
   const fetchOffer = useCallback(async () => {
     // FIX-Task-26 item 5 (QA Phase 0 F6): the guard used to sit BEFORE the try, so
@@ -261,6 +266,28 @@ export default function ReviewOfferScreen() {
         } catch {
           // Non-blocking: bundle list is informational.
         }
+      }
+
+      // FIX-Task-32 item 10 (2026-09-14): count the OTHER live offers on this
+      // listing. Accepting THIS offer auto-declines them (and returns their reserved
+      // SP), and the screen previously said nothing about that. Uses the SAME
+      // predicate the accepting Edge Function applies, so the number shown matches
+      // what will actually be declined. Non-blocking — the note is informational.
+      try {
+        const { data: rivals } = await supabase
+          .from('trades')
+          .select('id, sp_amount')
+          .eq('listing_id', data.listing_id)
+          .eq('status', 'pending')
+          .is('auto_complete_at', null)
+          .neq('id', tradeId);
+
+        const rivalRows = (rivals ?? []) as { id: string; sp_amount: number | null }[];
+        setPendingRivalCount(rivalRows.length);
+        setPendingRivalsHaveSp(rivalRows.some((r) => (r.sp_amount ?? 0) > 0));
+      } catch {
+        setPendingRivalCount(0);
+        setPendingRivalsHaveSp(false);
       }
     } catch (error: any) {
       captureException(error, {
@@ -575,6 +602,26 @@ export default function ReviewOfferScreen() {
   // modal. `pendingCount` is what the action can actually act on.
   const bundleCounts = getBundleCounts(offer, bundleSiblings);
   const pendingCount = getPendingBundleCount(offer, bundleSiblings);
+
+  /**
+   * FIX-Task-32 item 10 (2026-09-14): one plain-English sentence telling the seller
+   * that accepting closes out the other buyers on this item. `null` when nothing
+   * else is pending, so the copy never appears as noise. The SP clause only appears
+   * when a rival actually reserved Swap Points — a cash-only rival has none to
+   * return, and claiming otherwise would be wrong.
+   */
+  const rivalDeclineNote =
+    pendingRivalCount > 0
+      ? `Accepting will decline the other ${pendingRivalCount} ${
+          pendingRivalCount === 1 ? 'offer' : 'offers'
+        }${
+          pendingRivalsHaveSp
+            ? pendingRivalCount === 1
+              ? '; their SP is returned'
+              : '; their SP are returned'
+            : ''
+        }.`
+      : null;
   // Still-pending siblings of THIS offer (the sibling query excludes this trade),
   // used by the "review the others" route after this one is accepted (UX item 1).
   const otherPendingSiblings = getPendingBundleItems(null, bundleSiblings);
@@ -952,7 +999,12 @@ export default function ReviewOfferScreen() {
       <TradeConfirmationModal
         visible={showAcceptModal}
         title="Accept Trade"
-        message="Are you sure you want to accept this offer? The buyer's payment will be authorized and the trade moves to in progress."
+        message={
+          rivalDeclineNote
+            ? "Are you sure you want to accept this offer? The buyer's payment will be authorized and the trade moves to in progress.\n\n" +
+              rivalDeclineNote
+            : "Are you sure you want to accept this offer? The buyer's payment will be authorized and the trade moves to in progress."
+        }
         confirmLabel="Accept"
         variant="accept"
         onConfirm={executeAccept}

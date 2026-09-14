@@ -694,6 +694,29 @@ export default function TradeListScreen({ navigation }: any) {
     );
   }, [allOffers]);
 
+  /**
+   * FIX-Task-32 item 9 (2026-09-14): competing-offer visibility.
+   *
+   * When 2+ buyers have a live offer on the SAME listing, the Needs Action section
+   * showed near-identical rows differing only by amount/points — nothing told the
+   * seller the offers COMPETED, which is exactly the situation where accepting one
+   * auto-declines the others.
+   *
+   * Derived from the SAME array the cards render (`receivedNeedsActionOffers`,
+   * BP-92) so the line can never disagree with the list. Counted per `listing_id`:
+   * a bundle is the SAME buyer across different listings and is therefore not
+   * competition.
+   */
+  const offersPerListingId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const offer of receivedNeedsActionOffers) {
+      const listingId = offer.listing_id;
+      if (!listingId) continue;
+      counts.set(listingId, (counts.get(listingId) ?? 0) + 1);
+    }
+    return counts;
+  }, [receivedNeedsActionOffers]);
+
   const groupedReceivedOffers = useMemo(() => {
     type GroupRow =
       | { type: 'single'; offer: PendingOffer }
@@ -1736,6 +1759,9 @@ export default function TradeListScreen({ navigation }: any) {
                     }
                     // Single offer (not part of a bundle)
                     const offer = row.offer;
+                    // FIX-Task-32 item 9: how many OTHER live offers sit on this
+                    // listing (1 = sole offer, so the hint is hidden).
+                    const rivalOfferCount = (offersPerListingId.get(offer.listing_id) ?? 1) - 1;
                     return (
                       <TouchableOpacity
                         key={offer.id}
@@ -1808,6 +1834,27 @@ export default function TradeListScreen({ navigation }: any) {
                                   Includes points redemption
                                 </Text>
                               </View>
+                            )}
+                            {/* FIX-Task-32 item 9 (2026-09-14): makes the competition
+                                visible at a glance. Accepting one of these offers
+                                auto-declines the others (and returns their Swap
+                                Points), so the seller must be able to see there
+                                ARE others. Count excludes THIS offer. */}
+                            {(rivalOfferCount > 0) && (
+                              <Text
+                                style={styles.competitionText}
+                                testID={`trade-offer-competition-${offer.id}`}
+                                accessible
+                                accessibilityLabel={
+                                  rivalOfferCount === 1
+                                    ? '1 other buyer is competing on this item'
+                                    : `${rivalOfferCount} other buyers are competing on this item`
+                                }
+                              >
+                                {rivalOfferCount === 1
+                                  ? '1 other buyer is competing on this item'
+                                  : `${rivalOfferCount} other buyers are competing on this item`}
+                              </Text>
                             )}
                           </View>
                         </View>
@@ -2344,6 +2391,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#5DBB8E',
     fontWeight: '600',
+  },
+  /* FIX-Task-32 item 9: competing-offer hint on a Needs Action offer card.
+     Informational (not a warning), so it uses the secondary text token. */
+  competitionText: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    fontWeight: '500',
+    marginTop: 6,
   },
   tradeCardDivider: {
     height: 1,

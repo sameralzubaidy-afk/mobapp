@@ -71,12 +71,15 @@ jest.mock('@/components/molecules/TradeConfirmationModal', () => {
   const ReactLib = require('react');
   const { Text } = require('react-native');
   return {
-    TradeConfirmationModal: ({ visible, title, confirmLabel }: any) =>
+    TradeConfirmationModal: ({ visible, title, message, confirmLabel }: any) =>
       visible
         ? ReactLib.createElement(
             ReactLib.Fragment,
             null,
             ReactLib.createElement(Text, null, title),
+            // FIX-Task-32 item 10: render the BODY copy too, so the new
+            // rival-decline line is assertable (it only exists in `message`).
+            ReactLib.createElement(Text, { testID: 'trade-confirm-message' }, message),
             ReactLib.createElement(Text, null, confirmLabel)
           )
         : null,
@@ -120,21 +123,34 @@ function makeOffer(status: string, overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * The screen reads three shapes:
+ * The screen reads four shapes:
  *   - `from('trades')…single()`        → the offer itself
  *   - `from('trades')…` (awaited)      → the bundle siblings array
+ *   - `from('trades')…` (awaited)      → FIX-Task-32 item 10: the rival offers on
+ *                                        the SAME listing (the ``id, sp_amount`` select)
  *   - `from('profiles')…maybeSingle()` → the buyer's name
- * Each shape gets its own resolver.
+ * Each shape gets its own resolver. The two awaited `trades` shapes are told apart
+ * by the exact select string, so a bundle fixture cannot masquerade as rivals.
  */
-function mockTrades(offer: any, siblings: any[] = []) {
+function mockTrades(offer: any, siblings: any[] = [], rivals: any[] = []) {
   const buildChain = (single: unknown, awaited: unknown) => {
     const chain: any = {};
-    for (const method of ['select', 'eq', 'neq', 'in', 'or', 'order', 'limit', 'range']) {
+    let selectArg = '';
+    // `is` is included for the rival query (`.is('auto_complete_at', null)`).
+    for (const method of ['eq', 'neq', 'in', 'or', 'order', 'limit', 'range', 'is']) {
       chain[method] = () => chain;
     }
+    chain.select = (arg?: unknown) => {
+      selectArg = typeof arg === 'string' ? arg.trim() : '';
+      return chain;
+    };
     chain.single = () => Promise.resolve({ data: single, error: null });
     chain.maybeSingle = () => Promise.resolve({ data: single, error: null });
-    chain.then = (resolve: any) => Promise.resolve({ data: awaited, error: null }).then(resolve);
+    chain.then = (resolve: any) =>
+      Promise.resolve({
+        data: selectArg === 'id, sp_amount' ? rivals : awaited,
+        error: null,
+      }).then(resolve);
     return chain;
   };
 
@@ -379,5 +395,70 @@ describe('ReviewOfferScreen — slow-load affordance (FIX-Task-28 item 8)', () =
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+/**
+ * FIX-Task-32 item 10 (2026-09-14): accepting one of several competing offers on a
+ * listing AUTO-DECLINES the others (and returns their reserved SP), and the screen
+ * previously said nothing about it. These assert the confirmation copy states the
+ * consequence, and that it never claims SP were returned when none were reserved.
+ */
+describe('ReviewOfferScreen — competing offers (FIX-Task-32 item 10)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    // The qa offer_load_stall toggle above persists its 'stall' flag in
+    // AsyncStorage, and that flag makes the offer read never settle. Clear it here
+    // (BP-60: a shared mutable fixture must not leak across describes) or these
+    // tests would sit on "Loading offer..." forever.
+    await AsyncStorage.clear();
+    mockUseAuth.mockReturnValue({ session: { user: { id: 'seller-1' } } } as any);
+  });
+
+  /** Presses Accept on a loaded offer and returns the confirmation body copy. */
+  async function openAcceptConfirm(result: any): Promise<string> {
+    fireEvent.press(await result.findByTestId('accept-trade-button'));
+    await waitFor(() => expect(result.getByTestId('trade-confirm-message')).toBeTruthy());
+    return result.getByTestId('trade-confirm-message').props.children as string;
+  }
+
+  it('states that the other offer will be declined and its SP returned', async () => {
+    mockTrades(makeOffer('pending'), [], [{ id: 'rival-a', sp_amount: 5 }]);
+    const result = render(<ReviewOfferScreen />);
+
+    const body = await openAcceptConfirm(result);
+
+    expect(body).toContain('Accepting will decline the other 1 offer; their SP is returned.');
+  });
+
+  it('pluralises and agrees when several rivals exist', async () => {
+    mockTrades(makeOffer('pending'), [], [
+      { id: 'rival-a', sp_amount: 5 },
+      { id: 'rival-b', sp_amount: 0 },
+    ]);
+    const result = render(<ReviewOfferScreen />);
+
+    const body = await openAcceptConfirm(result);
+
+    expect(body).toContain('Accepting will decline the other 2 offers; their SP are returned.');
+  });
+
+  it('does not claim SP were returned when no rival reserved any', async () => {
+    mockTrades(makeOffer('pending'), [], [{ id: 'rival-a', sp_amount: 0 }]);
+    const result = render(<ReviewOfferScreen />);
+
+    const body = await openAcceptConfirm(result);
+
+    expect(body).toContain('Accepting will decline the other 1 offer.');
+    expect(body).not.toContain('SP');
+  });
+
+  it('keeps the plain confirmation when this is the only offer on the item', async () => {
+    mockTrades(makeOffer('pending'));
+    const result = render(<ReviewOfferScreen />);
+
+    const body = await openAcceptConfirm(result);
+
+    expect(body).not.toContain('Accepting will decline');
   });
 });

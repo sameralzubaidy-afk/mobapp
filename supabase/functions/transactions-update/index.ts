@@ -10,6 +10,12 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logFinancialAudit } from '../_shared/audit.ts';
+// FIX-Task-32 items 1 + 2: shared competing-offer release (Stripe hold cancel +
+// tax void + `cancelled_at`) — one tested implementation, used by both writers.
+import {
+  releaseCompetingOfferHolds,
+  type RivalTrade,
+} from '../_shared/competing-offer-cancel.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,6 +79,13 @@ serve(async (req) => {
   }
 
   const svcClient = createClient(supabaseUrl, supabaseSvcKey!);
+
+  // FIX-Task-32 item 1: Stripe client for the competing-offer authorization-hold
+  // release on the ACCEPT path (the decline path below keeps its own, untouched).
+  const releaseStripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
+  const releaseStripe = releaseStripeKey.startsWith('sk_')
+    ? new Stripe(releaseStripeKey, { apiVersion: '2023-10-16' })
+    : null;
 
   if (action === 'decline') {
     // D-30: Cancel the Stripe pre-auth hold (release authorization)
@@ -238,13 +251,36 @@ serve(async (req) => {
 
   // TFV2-004: Auto-decline competing offers on the same listing
   // D-30: competing offers are still in 'pending' status (not yet accepted)
+  //
+  // FIX-Task-32 items 1 + 2 (2026-09-14): releasing the rivals' UNCAPTURED Stripe
+  // authorization holds, voiding their tax records and stamping `cancelled_at`
+  // were all missing here. The losing buyer kept a live card hold on a trade the
+  // app told them was cancelled, and the tax record stranded at `quoted` forever
+  // (nothing repairs it — `check-authorization-expiry` only looks at `pending`).
+  // FIX-Task-24 backfilled 52 rows of exactly this leak but never changed this
+  // WRITER, so it kept re-leaking. The side effects now live in ONE tested helper
+  // shared with transactions-accept-bundle so the two writers cannot drift again.
+  const cancelledAt = now.toISOString();
+
+  const { data: rivalTrades } = await svcClient
+    .from('trades')
+    .select('id, stripe_payment_intent_id, cash_amount_cents')
+    .eq('listing_id', trade.listing_id)
+    .eq('status', 'pending')
+    .is('auto_complete_at', null)
+    .neq('id', trade_id);
+
+  const { patch: competingPatch } = await releaseCompetingOfferHolds(
+    svcClient,
+    releaseStripe,
+    (rivalTrades ?? []) as RivalTrade[],
+    cancelledAt,
+    '[transactions-update]',
+  );
+
   const { error: competingErr } = await svcClient
     .from('trades')
-    .update({
-      status:              'cancelled',
-      cancellation_reason: 'offer_expired_competing',
-      updated_at:          now.toISOString(),
-    })
+    .update(competingPatch)
     .eq('listing_id', trade.listing_id)
     .eq('status', 'pending')
     .is('auto_complete_at', null)

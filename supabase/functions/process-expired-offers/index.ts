@@ -121,6 +121,13 @@ serve(async (req) => {
         ? Math.min(Math.floor(requestedBatchSize), 500)
         : 100;
 
+    // FIX-Task-32 item 7 (2026-09-14): count the tax voids THIS function performs.
+    // The RPC's own `tax_voided_count` is always 0 on this path (the tax is already
+    // voided here, BEFORE the RPC runs), so reporting the RPC's value told the
+    // caller "nothing was voided" while the tax record WAS voided. Declared at this
+    // scope so the response below can report it.
+    let taxVoided = 0;
+
     // TAX-STATUS-LIFECYCLE: Find and process expired offers BEFORE the RPC runs
     // so we can cancel PIs and void tax before the RPC changes their status.
     const { data: expiredTrades, error: fetchErr } = await supabase
@@ -163,17 +170,30 @@ serve(async (req) => {
 
         // Void tax record (non-blocking, handles zero-tax trades via noop)
         try {
-          await supabase.rpc('rpc_void_tax_for_trade', {
+          const { data: taxData, error: taxError } = await supabase.rpc('rpc_void_tax_for_trade', {
             p_trade_id: trade.id,
             p_reason: 'offer_expired',
           });
+
+          if (taxError) {
+            console.error(`[process-expired-offers] Tax void error for ${trade.id}:`, taxError.message);
+          } else {
+            // Only a REAL void counts — the RPC returns action 'noop' when the
+            // trade has no tax record (zero-tax offer). Mirrors the RPC's own
+            // counter semantics. FIX-Task-32 item 7.
+            const taxAction = (taxData as { data?: { action?: string } } | null)?.data?.action;
+            const taxOk = (taxData as { success?: boolean } | null)?.success !== false;
+            if (taxOk && taxAction !== 'noop') taxVoided++;
+          }
         } catch (taxErr: unknown) {
           const msg = taxErr instanceof Error ? taxErr.message : 'Unknown error';
           console.error(`[process-expired-offers] Tax void error for ${trade.id}:`, msg);
         }
       }
 
-      console.log(`[process-expired-offers] PI results: ${piCancelled} cancelled, ${piFailed} failed`);
+      console.log(
+        `[process-expired-offers] PI results: ${piCancelled} cancelled, ${piFailed} failed; tax voids: ${taxVoided}`,
+      );
     }
 
     // Step 1: Run the RPC (data-only, handles DB status changes + notifications)
@@ -218,7 +238,10 @@ serve(async (req) => {
     return jsonResponse(200, {
       success: true,
       request_id: requestId,
-      data: rpcResult,
+      // FIX-Task-32 item 7: the RPC's own `tax_voided_count` is 0 here because the
+      // tax was already voided above, so the caller-facing count is THIS
+      // function's own tally (additive overwrite of that one key only).
+      data: { ...rpcResult, tax_voided_count: taxVoided },
       notifications: { sent, failed, total: notifications.length },
     });
   } catch (error) {

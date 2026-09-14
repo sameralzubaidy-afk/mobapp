@@ -10,8 +10,15 @@
 //   1. Validates per-component remaining amounts against the payments ledger.
 //   2. Cancels the PI if still uncaptured, else issues a partial Stripe refund
 //      (amount = selected price + fee + tax).
-//   3. Records the refund atomically via rpc_record_payment_refund (payments +
-//      trade_refunds + proportional tax reversal).
+//   3. Records the outcome atomically — branch by Stripe action (FIX-Task-32
+//      item 3):
+//        * PI was CANCELLED while still an uncaptured authorization hold
+//          (`cancelled_uncaptured`) -> void: `rpc_void_uncaptured_payment` voids
+//          the tax record and marks the payment row cancelled, writing NO
+//          `refunded_*` totals, because no money ever moved;
+//        * a real refund (`refunded`) / DB-only record (`skip`, `no_pi`)
+//          -> `rpc_record_payment_refund` (payments + trade_refunds +
+//          proportional tax reversal).
 //
 // Auth: service-role key in Authorization/apikey/x-admin-api-key, or ADMIN_UI_SECRET
 // in x-admin-ui-secret, or a user JWT whose app_metadata/user_metadata has role=admin.
@@ -22,6 +29,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
 import { logFinancialAudit } from '../_shared/audit.ts';
 import { hashContent } from '../_shared/idempotency.ts';
+// FIX-Task-32 item 3: the void-vs-refund discriminator, kept in a pure helper so
+// it is covered by an always-running unit test (no staging / Stripe needed).
+import { classifyRefundLedgerLeg } from '../_shared/refund-decision.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -242,25 +252,73 @@ serve(async (req) => {
     stripeAction = piId ? 'skip' : 'no_pi';
   }
 
-  // ── Atomic DB record (payments + trade_refunds + proportional tax) ──────
-  const { data: rpcData, error: rpcErr } = await adminClient.rpc('rpc_record_payment_refund', {
-    p_trade_id: trade_id,
-    p_stripe_refund_id: stripeRefundId,
-    p_refund_price_cents: rp,
-    p_refund_fee_cents: rf,
-    p_refund_tax_cents: rt,
-    p_reason: reason,
-    p_initiating_actor: 'admin',
-    p_refund_status: stripeRefundStatus === 'noop' ? 'canceled' : stripeRefundStatus,
-  });
+  // ── Atomic DB record ────────────────────────────────────────────────────
+  // FIX-Task-32 item 3 (2026-09-14): branch on the Stripe action — the long
+  // rationale lives in _shared/refund-decision.ts. When the PI was still an
+  // UNCAPTURED authorization hold we CANCELLED it, so no money ever moved: the
+  // ledger leg is a VOID (void the tax record + mark the payment row cancelled,
+  // writing NO `refunded_*`), never a refund for money that was never charged.
+  const ledgerLeg = classifyRefundLedgerLeg(stripeAction);
 
-  if (rpcErr) {
-    console.error(`[trade-refund] rpc_record_payment_refund error:`, rpcErr.message);
-    return jsonError('Failed to record refund', 'REFUND_RECORD_FAILED', 500, { stripe_refund_id: stripeRefundId });
-  }
-  if (!rpcData?.success) {
-    console.error(`[trade-refund] RPC rejected:`, rpcData);
-    return jsonError(rpcData?.message ?? 'Refund rejected', rpcData?.code ?? 'REFUND_REJECTED', 409, rpcData ?? undefined);
+  let rpcData: any = null;
+
+  if (ledgerLeg === 'void_uncaptured') {
+    const { data: voidData, error: voidErr } = await adminClient.rpc('rpc_void_uncaptured_payment', {
+      p_trade_id: trade_id,
+      p_reason: reason,
+    });
+
+    if (voidErr) {
+      console.error(`[trade-refund] rpc_void_uncaptured_payment error:`, voidErr.message);
+      return jsonError('Failed to void the uncaptured hold', 'VOID_UNCAPTURED_FAILED', 500, {
+        stripe_refund_id: stripeRefundId,
+      });
+    }
+    if (voidData?.success === false) {
+      console.error(`[trade-refund] void RPC rejected:`, voidData);
+      return jsonError(
+        voidData?.error?.message ?? 'Failed to void the uncaptured hold',
+        voidData?.error?.code ?? 'VOID_UNCAPTURED_REJECTED',
+        409,
+        voidData ?? undefined,
+      );
+    }
+
+    rpcData = {
+      success: true,
+      action: 'voided_uncaptured',
+      refunded_cents: 0,
+      tax_result: voidData?.tax_result ?? null,
+    };
+    console.log(
+      `[trade-refund] PI ${piId} was cancelled (uncaptured) — tax voided and payment marked cancelled for trade ${trade_id}; NO refund recorded`,
+    );
+  } else {
+    const { data: refundData, error: rpcErr } = await adminClient.rpc('rpc_record_payment_refund', {
+      p_trade_id: trade_id,
+      p_stripe_refund_id: stripeRefundId,
+      p_refund_price_cents: rp,
+      p_refund_fee_cents: rf,
+      p_refund_tax_cents: rt,
+      p_reason: reason,
+      p_initiating_actor: 'admin',
+      p_refund_status: stripeRefundStatus === 'noop' ? 'canceled' : stripeRefundStatus,
+    });
+
+    if (rpcErr) {
+      console.error(`[trade-refund] rpc_record_payment_refund error:`, rpcErr.message);
+      return jsonError('Failed to record refund', 'REFUND_RECORD_FAILED', 500, { stripe_refund_id: stripeRefundId });
+    }
+    if (!refundData?.success) {
+      console.error(`[trade-refund] RPC rejected:`, refundData);
+      return jsonError(
+        refundData?.message ?? 'Refund rejected',
+        refundData?.code ?? 'REFUND_REJECTED',
+        409,
+        refundData ?? undefined,
+      );
+    }
+    rpcData = refundData;
   }
 
   // N2 — Idempotency & Audit: refund issued (keyed by Stripe refund id so a
@@ -282,7 +340,23 @@ serve(async (req) => {
     amountCents: totalRefundCents,
     idempotencyKey: stripeRefundId ? `refund_${stripeRefundId}` : `refund_${trade_id}_noop`,
   });
-  if (rt > 0) {
+  if (ledgerLeg === 'void_uncaptured') {
+    // FIX-Task-32 item 3: the tax leg was VOIDED, not refunded — audit it as such
+    // so the financial trail never claims a refund for money that never moved.
+    logFinancialAudit(adminClient, {
+      mutationType: 'tax_voided',
+      entityType: 'trade',
+      entityId: trade_id,
+      actorId: effectiveAdminId ?? null,
+      afterState: {
+        voided_tax_cents: rt,
+        stripe_refund_id: stripeRefundId,
+        stripe_action: stripeAction,
+      },
+      amountCents: rt,
+      idempotencyKey: `tax_voided_${trade_id}`,
+    });
+  } else if (rt > 0) {
     logFinancialAudit(adminClient, {
       mutationType: 'tax_refunded',
       entityType: 'trade',
@@ -309,6 +383,7 @@ serve(async (req) => {
         refund_tax_cents: rt,
         total_refund_cents: totalRefundCents,
         stripe_action: stripeAction,
+        ledger_leg: ledgerLeg,
       },
     });
   } catch (auditErr) {
@@ -319,6 +394,7 @@ serve(async (req) => {
     trade_id,
     stripe_refund_id: stripeRefundId,
     stripe_action: stripeAction,
+    ledger_leg: ledgerLeg,
     refund_price_cents: rp,
     refund_fee_cents: rf,
     refund_tax_cents: rt,
