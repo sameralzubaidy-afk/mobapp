@@ -16,6 +16,14 @@
  *       with the `qa:refresh` deep link to refresh the seller's open Needs
  *       Action list (it has no Realtime subscription).
  *
+ *   FIX-Task-31 item 1 (2026-09-13): an `test-admin` persona is registered so
+ *       ADMIN-ONLY Edge Functions can be driven with a real admin JWT. Use it
+ *       with `--body` (admin EFs take their own payload; no payment method is
+ *       auto-injected), e.g. to re-invoke an already-resolved dispute and
+ *       assert its idempotency guard:
+ *         npm run qa:ef-repro -- --persona test-admin --ef resolve-dispute \
+ *             --body '{"trade_id":"<uuid>","resolution":"resolved_buyer"}'
+ *
  * What it does:
  *   1. Resolves the persona (email/password registry, fixed UUIDs from
  *      scripts/seed-staging-data.ts).
@@ -107,6 +115,14 @@ const PERSONAS = {
   'test-seller-2': { id: 'a1234567-0000-0000-0000-000000000002', email: 'test-seller-2@kidsmarketplace.test', password: 'TestSeller2123!' },
   'test-seller-3': { id: 'a1234567-0000-0000-0000-000000000012', email: 'test-seller-3@kidsmarketplace.test', password: 'TestSeller3123!' },
   'test-grace': { id: 'a1234567-0000-0000-0000-000000000011', email: 'test-grace@kidsmarketplace.test', password: 'TestGrace123!' },
+  // FIX-Task-31 item 1: admin persona. Mirrors scripts/seed-staging-data.ts
+  // TEST_USERS.admin and src/services/qaPersonas.ts 'test-admin', so an
+  // admin-only EF (resolve-dispute, admin config writes) can be invoked with a
+  // real admin JWT. Previously the registry was buyer/seller-only, which is the
+  // sole reason O3-C06's layer 2 (the ALREADY_RESOLVED guard) could not be
+  // driven end-to-end. Password is re-asserted by `npm run seed:staging`
+  // (FIX-Task-30 item 1), so this persona self-heals.
+  'test-admin': { id: 'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
 };
 
 function log(...a) {

@@ -3863,20 +3863,31 @@ LIMIT 10;
 
 **Steps:**
 1. Add all 3 items to cart and checkout as a bundle.
-2. Verify via SQL:
+2. Verify via SQL — read the **3 trades** first (every item gets a trade), then the **tax records** (only taxable lines get a row):
    ```sql
-   SELECT tr.trade_id, tr.tax_status, tr.tax_amount_cents, tr.taxable_amount_cents,
-          tr.tax_snapshot
+   -- 3 rows: one per item
+   SELECT t.id, t.status, t.tax_status, t.tax_amount_cents, t.taxable_amount_cents,
+          t.tax_rate_applied, i.tax_category_id, i.price
+   FROM public.trades t
+   JOIN public.items i ON i.id = t.listing_id
+   WHERE t.id IN ('<tradeA>', '<tradeB>', '<tradeC>');
+
+   -- 2 rows only: the exempt line writes NO row
+   SELECT tr.trade_id, tr.tax_status, tr.tax_amount_cents, tr.taxable_amount_cents, tr.tax_snapshot
    FROM public.tax_records tr
-   ORDER BY tr.created_at DESC LIMIT 3;
+   WHERE tr.trade_id IN ('<tradeA>', '<tradeB>', '<tradeC>')
+   ORDER BY tr.created_at DESC;
    ```
 
 **Expected:**
-- All trades have `tax_status = 'quoted'`.
-- Item B: `tax_amount_cents = 0`, `is_taxable = false`.
-- Item C: threshold rule applied correctly.
-- Item A: standard rate applied.
+- All 3 trades have `tax_status = 'quoted'`.
+- **Item B (exempt): there is NO `tax_records` row at all** — the implementation skips the insert for a zero-tax line instead of writing a 0-amount row (`apply_tax_to_trade`: `IF v_tax_cents > 0 THEN INSERT …`). Assert on the **trade** instead: `trades.tax_amount_cents = 0`, `trades.taxable_amount_cents = 0`, `trades.tax_rate_applied IS NULL`.
+- `is_taxable` is **not** a `tax_records` column — read it from `tax_snapshot->'items'->0->>'is_taxable'` on a *taxable* line's record.
+- Item C: threshold rule applied correctly (a price outside the rule's band is treated as non-taxable — fail-safe).
+- Item A: standard rate applied (node rate; **6.99 % live** — see O2-C03).
 - Stripe authorization = sum of cash + fees + tax (for taxable items only).
+
+> 🔄 **Reconciled 2026-09-13 (FIX-Task-31 item 4b):** the old expected shape (`Item B: tax_amount_cents = 0, is_taxable = false`, with `LIMIT 3`) described a 0-amount exempt row the shipped code never writes, and named a column that does not exist on `tax_records`. Live evidence: `e2e-test-results/qa-trd-final-13-residuals-2026-09-13/report.md` (O2-C02 PASS) — bundle `f07c51c4`: 3 trades `quoted`, exempt line carries **no** tax row.
 
 ---
 
@@ -3885,16 +3896,20 @@ LIMIT 10;
 **Steps:**
 1. As **test-admin**, verify `include_fee_in_tax_base` is `false`.
 2. As **test-buyer**, submit offer on $30 item with no SP.
-3. Note `taxable_amount_cents` and `tax_amount_cents`.
+3. Note `tax_amount_cents` and the record's `tax_snapshot` — **`taxable_amount_cents` does not move** (see Expected).
 4. As **test-admin**, set `include_fee_in_tax_base` to `true`.
 5. As **test-buyer**, submit second offer on different $30 item with no SP.
 6. Compare the two tax records.
 
 **Expected:**
-- First offer (fee NOT in base): `taxable_amount_cents = 3000`, `tax_amount_cents = 191`.
-- Second offer (fee IN base): `taxable_amount_cents = 3149`, `tax_amount_cents = 200`.
-- Difference = 9 cents (attributable to $1.49 fee).
+- **In BOTH records `taxable_amount_cents = 3000`.** That column always reports the **item subtotal**; it never includes the platform fee, even with the toggle on (`create-trade-offer` adds the fee only to its internal `taxableBase`). Derive the effective base from the snapshot:
+  `effective base = tax_snapshot->'items'->0->>'item_price_cents' + (tax_snapshot->>'include_fee_in_tax_base' = 'true' ? tax_snapshot->>'platform_fee_cents' : 0)`.
+- First offer (fee NOT in base): `tax_amount_cents = 210` — 3000 × 6.99 % = 209.7, rounded (`FLOOR(base × rate + 0.5)`).
+- Second offer (fee IN base): `tax_amount_cents = 220` — 3149 × 6.99 % = 220.1, rounded; `tax_snapshot->>'include_fee_in_tax_base' = true`, `tax_snapshot->>'platform_fee_cents' = 149`.
+- Difference = **10 cents** = $1.49 × 6.99 %.
 - First offer's snapshot unchanged (not retroactive).
+
+> 🔄 **Reconciled 2026-09-13 (FIX-Task-31 item 4a):** two corrections. **(a) The rate is the live CT node rate 6.99 %, not the `default_sales_tax_rate` config fallback (6.35 %)** — the old 191/200 cent values were computed at 6.35 %. **(b)** The old 3000 → 3149 movement of `taxable_amount_cents` does not hold: that column stays at the item subtotal, so the fee's effect is visible **only** in `tax_amount_cents` + the snapshot. Live evidence: `e2e-test-results/qa-trd-final-13-residuals-2026-09-13/report.md` (O2-C03 PASS) — on a $28 item: #1 tax 196, #2 tax 206, Δ = 10¢ = 149 × 0.0699 exactly, #2 snapshot `include_fee_in_tax_base: true` (base 2949); #1 unchanged.
 
 ---
 

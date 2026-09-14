@@ -27,9 +27,18 @@ export function IDVerificationCTABanner({
 }: IDVerificationCTABannerProps) {
   const isRejected = status === 'rejected';
 
-  // Left border accent: amber for rejection (warning), blue for first-time nudge
-  const accentColor = isRejected ? '#F59E0B' : '#3B82F6';
-  const iconBg = isRejected ? '#FEF3C7' : '#EFF6FF';
+  // Left border accent: amber for rejection (warning), brand green for the
+  // first-time nudge.
+  // FIX-Task-31 item 5: the first-time state used Tailwind blue-500 (#3B82F6)
+  // on a blue-50 (#EFF6FF) icon tile — the only Action-Item type on Home that
+  // rendered off-brand (a full-frame scan found 0.20% iOS-system-blue-family
+  // pixels, well above the 0.01–0.06% AA-noise band). Retinted to the exact
+  // pair ResumeDraftBanner uses (#5DBB8E rail / #EDF8F2 tile), which is also
+  // the brand green this card's own CTA button already uses (BP-82).
+  // Amber is kept for the rejected state — it is the established warning token
+  // (admin_config `sp-500` #F59E0B), not an off-brand colour.
+  const accentColor = isRejected ? '#F59E0B' : '#5DBB8E';
+  const iconBg = isRejected ? '#FEF3C7' : '#EDF8F2';
 
   const title = isRejected ? 'ID Verification Not Approved' : 'Verify Your Identity';
 
