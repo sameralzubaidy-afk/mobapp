@@ -1,0 +1,17 @@
+{
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "label": "setup_intents for pm_1UFNpm4I6kCJlvXop2yMXsky",
+  "count": 1,
+  "setup_intents": [
+    {
+      "id": "seti_1UFNlB4I6kCJlvXoaMsyXldf",
+      "status": "succeeded",
+      "usage": "off_session",
+      "payment_method": "pm_1UFNpm4I6kCJlvXop2yMXsky",
+      "customer": "cus_Ungj4MptKp9CUg",
+      "created": 1789345717,
+      "latest_attempt": "setatt_1UFNpm4I6kCJlvXovchgYZSd"
+    }
+  ],
+  "note": "usage=off_session + status=succeeded and NO payment_intent = the guide's \"no immediate charge\"."
+}

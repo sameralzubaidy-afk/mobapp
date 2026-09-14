@@ -1,0 +1,9 @@
+
+=== payment_method pm_1UFNpm4I6kCJlvXop2yMXsky ===
+  id: pm_1UFNpm4I6kCJlvXop2yMXsky
+  type: card
+  customer: cus_Ungj4MptKp9CUg
+  card_brand: visa
+  card_last4: 4242
+  card_exp: 12/2034
+  created: 2026-09-14T00:33:22.000Z

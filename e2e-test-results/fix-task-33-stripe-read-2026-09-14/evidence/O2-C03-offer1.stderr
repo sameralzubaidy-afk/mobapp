@@ -1,0 +1,7 @@
+
+!! BREAK-GLASS: STRIPE_QA_READONLY_KEY is not set; falling back to /Users/sameralzubaidi/.dt11-stripe-key.
+!! Results are labelled key_scope=SECRET_KEY_BREAK_GLASS and must NOT be
+!! reported as restricted-key / read-only verification evidence.
+
+[stripe-inspect] key_scope=SECRET_KEY_BREAK_GLASS (source: /Users/sameralzubaidi/.dt11-stripe-key)
+!! This run is NOT backed by the restricted read-only key — label the evidence accordingly.

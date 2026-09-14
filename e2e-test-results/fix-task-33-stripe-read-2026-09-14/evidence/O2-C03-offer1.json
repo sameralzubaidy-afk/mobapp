@@ -1,0 +1,137 @@
+{
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "trade": {
+    "id": "096fc228-6931-4db8-ac1d-71aa2b6a28a3",
+    "status": "cancelled",
+    "listing_id": "18a41ad8-9cfc-46d4-a6c0-54a2933fb5a9",
+    "bundle_id": null,
+    "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+    "seller_id": "14be337c-aad6-403f-bab2-ba1a7d80b666",
+    "cash_amount_cents": 2800,
+    "sp_amount": 0,
+    "buyer_transaction_fee_cents": 149,
+    "seller_transaction_fee_cents": 560,
+    "tax_amount_cents": 196,
+    "cancellation_reason": "buyer_cancelled",
+    "cancelled_at": "2026-09-14T00:53:14.768+00:00",
+    "completed_at": null,
+    "created_at": "2026-09-14T00:04:21.578579+00:00",
+    "stripe_payment_intent_id": "pi_3UFNNg4I6kCJlvXo1T7Hxaf2",
+    "payout_status": "pending"
+  },
+  "item": {
+    "id": "18a41ad8-9cfc-46d4-a6c0-54a2933fb5a9",
+    "title": "QA Bundle Fixture 1 of 3 (2026-09-13)",
+    "price": 28,
+    "accepts_swap_points": true,
+    "tax_category_id": "e14198fb-1357-44f7-874e-e1fc831e331b"
+  },
+  "db": {
+    "payments": {
+      "id": "6f1fb6de-1a17-4ab9-a99e-0198a075378f",
+      "derived_state": "cancelled",
+      "derived_state_is_mirror": true,
+      "total_charged_cents": 3145,
+      "item_price_cents": 2800,
+      "platform_fee_cents": 149,
+      "tax_amount_cents": 196,
+      "sp_amount": 0,
+      "refunded_cents": 0,
+      "captured_at": null,
+      "refunded_at": null,
+      "stripe_payment_intent_id": "pi_3UFNNg4I6kCJlvXo1T7Hxaf2"
+    },
+    "tax_records": [
+      {
+        "id": "b172497b-cdb8-4f99-a6be-44302d2cd90b",
+        "tax_status": "voided",
+        "taxable_amount_cents": 2800,
+        "tax_amount_cents": 196,
+        "refunded_tax_cents": 0,
+        "captured_at": null,
+        "voided_at": "2026-09-14T00:53:15.715867+00:00",
+        "stripe_refund_id": null,
+        "reconciliation_status": null
+      }
+    ],
+    "trade_refunds": [],
+    "seller_payouts": [],
+    "connect_account_id": null
+  },
+  "provider": {
+    "present": true,
+    "pi": {
+      "id": "pi_3UFNNg4I6kCJlvXo1T7Hxaf2",
+      "status": "requires_capture",
+      "amount": 3145,
+      "amount_capturable": 3145,
+      "amount_received": 0,
+      "latest_charge": "ch_3UFNNg4I6kCJlvXo1PjLpdtI",
+      "customer": "cus_Ungj4MptKp9CUg",
+      "currency": "usd",
+      "created": "2026-09-14T00:04:20.000Z",
+      "canceled_at": null,
+      "livemode": false,
+      "metadata": {
+        "bundle_id": "",
+        "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+        "idempotency_key": "pi_offer_49243010-f458-4744-add1-a6c84ab95f1f_18a41ad8-9cfc-46d4-a6c0-54a2933fb5a9_de4cb6b6-4ea0-436d-983b-195361166e7e_933bui",
+        "item_id": "18a41ad8-9cfc-46d4-a6c0-54a2933fb5a9",
+        "item_price_cents": "2800",
+        "platform_fee_cents": "149",
+        "request_id": "410b9a9b-3b84-4794-8fd0-63dbcc27e8ff",
+        "sp_amount": "0",
+        "tax_amount_cents": "196",
+        "type": "trade_offer_hold"
+      }
+    },
+    "charge": {
+      "id": "ch_3UFNNg4I6kCJlvXo1PjLpdtI",
+      "paid": true,
+      "status": "succeeded",
+      "amount": 3145,
+      "amount_refunded": 0,
+      "refunded": false,
+      "captured": false,
+      "created": "2026-09-14T00:04:21.000Z"
+    },
+    "refunds": [],
+    "refund_count": 0
+  },
+  "checks": {
+    "pi_amount_vs_db_total_charged": {
+      "stripe_amount": 3145,
+      "db_total_charged_cents": 3145,
+      "verdict": "AGREE"
+    },
+    "capture_state": {
+      "stripe_amount_received": 0,
+      "stripe_amount_capturable": 3145,
+      "stripe_captured": null,
+      "db_payments_captured_at": null,
+      "db_tax_captured": false,
+      "db_tax_voided": true,
+      "note": "Stripe is authoritative for capture; payments.captured_at and tax_records are mirrors."
+    },
+    "refund_count": {
+      "stripe_refund_count": 0,
+      "db_trade_refund_rows": 0,
+      "verdict": "AGREE"
+    },
+    "single_refund_outcome": {
+      "stripe_refund_count": 0,
+      "expectation": "exactly 1 for a single refund; >1 = duplicate-refund defect",
+      "verdict": "OK"
+    },
+    "payout_reality": {
+      "db_payout_rows": 0,
+      "stripe_transfer_present": false,
+      "note": "A payout row with no Stripe Transfer can be the documented synthetic-payout boundary, not a bug."
+    }
+  },
+  "notes": [
+    "payments.derived_state is a TRIGGER MIRROR of trades.status (fn_payments_sync_from_trade) - never evidence of Stripe state (R100).",
+    "trades.payout_status stays default on cancelled trades - judge payouts on seller_payouts (R100/QTA-2026-09-13).",
+    "A since-cancelled PI legitimately reads status=canceled today; use `events` to reconstruct historical state."
+  ]
+}

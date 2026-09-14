@@ -1,0 +1,127 @@
+{
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "trade": {
+    "id": "25beb9dc-b852-4248-a077-4cdf58979616",
+    "status": "in_progress",
+    "listing_id": "5d6f0b4a-feca-4856-9c62-adf8fbe77b6c",
+    "bundle_id": "f07c51c4-c8fa-41af-a8f9-9200c95be2b8",
+    "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+    "seller_id": "a1234567-0000-0000-0000-000000000002",
+    "cash_amount_cents": 800,
+    "sp_amount": 0,
+    "buyer_transaction_fee_cents": 0,
+    "seller_transaction_fee_cents": 80,
+    "tax_amount_cents": 0,
+    "cancellation_reason": null,
+    "cancelled_at": null,
+    "completed_at": null,
+    "created_at": "2026-09-13T23:59:46.194932+00:00",
+    "stripe_payment_intent_id": "pi_3UFNJI4I6kCJlvXo0pNIjsww",
+    "payout_status": "pending"
+  },
+  "item": {
+    "id": "5d6f0b4a-feca-4856-9c62-adf8fbe77b6c",
+    "title": "Children's Dictionary",
+    "price": 8,
+    "accepts_swap_points": true,
+    "tax_category_id": "45d31930-60fb-4e60-8fd1-39170506cbab"
+  },
+  "db": {
+    "payments": {
+      "id": "66b9a031-7b56-4aad-9db2-e7032091461a",
+      "derived_state": "captured",
+      "derived_state_is_mirror": true,
+      "total_charged_cents": 800,
+      "item_price_cents": 800,
+      "platform_fee_cents": 0,
+      "tax_amount_cents": 0,
+      "sp_amount": 0,
+      "refunded_cents": 0,
+      "captured_at": "2026-09-14T00:09:21.360561+00:00",
+      "refunded_at": null,
+      "stripe_payment_intent_id": "pi_3UFNJI4I6kCJlvXo0pNIjsww"
+    },
+    "tax_records": [],
+    "trade_refunds": [],
+    "seller_payouts": [],
+    "connect_account_id": null
+  },
+  "provider": {
+    "present": true,
+    "pi": {
+      "id": "pi_3UFNJI4I6kCJlvXo0pNIjsww",
+      "status": "requires_capture",
+      "amount": 800,
+      "amount_capturable": 800,
+      "amount_received": 0,
+      "latest_charge": "ch_3UFNJI4I6kCJlvXo0JHD0ryU",
+      "customer": "cus_Ungj4MptKp9CUg",
+      "currency": "usd",
+      "created": "2026-09-13T23:59:48.000Z",
+      "canceled_at": null,
+      "livemode": false,
+      "metadata": {
+        "bundle_fee_mode": "one_per_bundle",
+        "bundle_id": "f07c51c4-c8fa-41af-a8f9-9200c95be2b8",
+        "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+        "idempotency_key": "pi_bundle_f07c51c4-c8fa-41af-a8f9-9200c95be2b8_5d6f0b4a-feca-4856-9c62-adf8fbe77b6c_cd7c57d9-2ddf-4056-bcee-645d14724549_13educt",
+        "item_id": "5d6f0b4a-feca-4856-9c62-adf8fbe77b6c",
+        "item_price_cents": "800",
+        "platform_fee_cents": "0",
+        "request_id": "6ac32ec4-525f-46d5-8c1b-6d5b2a56dc5a",
+        "sp_amount": "0",
+        "tax_amount_cents": "0",
+        "trade_id": "25beb9dc-b852-4248-a077-4cdf58979616",
+        "type": "trade_offer_hold"
+      }
+    },
+    "charge": {
+      "id": "ch_3UFNJI4I6kCJlvXo0JHD0ryU",
+      "paid": true,
+      "status": "succeeded",
+      "amount": 800,
+      "amount_refunded": 0,
+      "refunded": false,
+      "captured": false,
+      "created": "2026-09-13T23:59:48.000Z"
+    },
+    "refunds": [],
+    "refund_count": 0
+  },
+  "checks": {
+    "pi_amount_vs_db_total_charged": {
+      "stripe_amount": 800,
+      "db_total_charged_cents": 800,
+      "verdict": "AGREE"
+    },
+    "capture_state": {
+      "stripe_amount_received": 0,
+      "stripe_amount_capturable": 800,
+      "stripe_captured": null,
+      "db_payments_captured_at": "2026-09-14T00:09:21.360561+00:00",
+      "db_tax_captured": false,
+      "db_tax_voided": false,
+      "note": "Stripe is authoritative for capture; payments.captured_at and tax_records are mirrors."
+    },
+    "refund_count": {
+      "stripe_refund_count": 0,
+      "db_trade_refund_rows": 0,
+      "verdict": "AGREE"
+    },
+    "single_refund_outcome": {
+      "stripe_refund_count": 0,
+      "expectation": "exactly 1 for a single refund; >1 = duplicate-refund defect",
+      "verdict": "OK"
+    },
+    "payout_reality": {
+      "db_payout_rows": 0,
+      "stripe_transfer_present": false,
+      "note": "A payout row with no Stripe Transfer can be the documented synthetic-payout boundary, not a bug."
+    }
+  },
+  "notes": [
+    "payments.derived_state is a TRIGGER MIRROR of trades.status (fn_payments_sync_from_trade) - never evidence of Stripe state (R100).",
+    "trades.payout_status stays default on cancelled trades - judge payouts on seller_payouts (R100/QTA-2026-09-13).",
+    "A since-cancelled PI legitimately reads status=canceled today; use `events` to reconstruct historical state."
+  ]
+}

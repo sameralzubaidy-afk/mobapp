@@ -1,0 +1,146 @@
+{
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "trade": {
+    "id": "50849c0b-a048-46f0-8ee6-a4f03e6fa8cb",
+    "status": "cancelled",
+    "listing_id": "95c3552a-daed-453d-b5b9-131d3779b5a0",
+    "bundle_id": null,
+    "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+    "seller_id": "14be337c-aad6-403f-bab2-ba1a7d80b666",
+    "cash_amount_cents": 3500,
+    "sp_amount": 5,
+    "buyer_transaction_fee_cents": 149,
+    "seller_transaction_fee_cents": 700,
+    "tax_amount_cents": 280,
+    "cancellation_reason": "Can't do pickup",
+    "cancelled_at": "2026-09-14T00:24:08.239687+00:00",
+    "completed_at": null,
+    "created_at": "2026-09-14T00:16:31.676239+00:00",
+    "stripe_payment_intent_id": "pi_3UFNZT4I6kCJlvXo1KuC8ws8",
+    "payout_status": "pending"
+  },
+  "item": {
+    "id": "95c3552a-daed-453d-b5b9-131d3779b5a0",
+    "title": "Kids Kindle Tablet",
+    "price": 40,
+    "accepts_swap_points": true,
+    "tax_category_id": "e14198fb-1357-44f7-874e-e1fc831e331b"
+  },
+  "db": {
+    "payments": {
+      "id": "e893702d-2d62-4d30-afd6-9e6514976936",
+      "derived_state": "cancelled",
+      "derived_state_is_mirror": true,
+      "total_charged_cents": 3929,
+      "item_price_cents": 3500,
+      "platform_fee_cents": 149,
+      "tax_amount_cents": 280,
+      "sp_amount": 5,
+      "refunded_cents": 0,
+      "captured_at": "2026-09-14T00:20:33.20269+00:00",
+      "refunded_at": null,
+      "stripe_payment_intent_id": "pi_3UFNZT4I6kCJlvXo1KuC8ws8"
+    },
+    "tax_records": [
+      {
+        "id": "3afc702a-5468-4733-8c89-70ede086ac47",
+        "tax_status": "voided",
+        "taxable_amount_cents": 4000,
+        "tax_amount_cents": 280,
+        "refunded_tax_cents": 0,
+        "captured_at": null,
+        "voided_at": "2026-09-14T00:24:08.152207+00:00",
+        "stripe_refund_id": null,
+        "reconciliation_status": null
+      }
+    ],
+    "trade_refunds": [],
+    "seller_payouts": [],
+    "connect_account_id": null
+  },
+  "provider": {
+    "present": true,
+    "pi": {
+      "id": "pi_3UFNZT4I6kCJlvXo1KuC8ws8",
+      "status": "canceled",
+      "amount": 3929,
+      "amount_capturable": 0,
+      "amount_received": 0,
+      "latest_charge": "ch_3UFNZT4I6kCJlvXo17e3onFB",
+      "customer": "cus_Ungj4MptKp9CUg",
+      "currency": "usd",
+      "created": "2026-09-14T00:16:31.000Z",
+      "canceled_at": "2026-09-14T00:24:07.000Z",
+      "livemode": false,
+      "metadata": {
+        "bundle_id": "",
+        "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+        "idempotency_key": "pi_offer_49243010-f458-4744-add1-a6c84ab95f1f_95c3552a-daed-453d-b5b9-131d3779b5a0_13c29ca2-0c2d-4a1b-9c3d-5a191f7369c3_zhoml3",
+        "item_id": "95c3552a-daed-453d-b5b9-131d3779b5a0",
+        "item_price_cents": "3500",
+        "platform_fee_cents": "149",
+        "request_id": "263477ad-ec82-4128-b31e-e7975b4b174e",
+        "sp_amount": "5",
+        "tax_amount_cents": "280",
+        "type": "trade_offer_hold"
+      }
+    },
+    "charge": {
+      "id": "ch_3UFNZT4I6kCJlvXo17e3onFB",
+      "paid": true,
+      "status": "succeeded",
+      "amount": 3929,
+      "amount_refunded": 3929,
+      "refunded": true,
+      "captured": false,
+      "created": "2026-09-14T00:16:31.000Z"
+    },
+    "refunds": [
+      {
+        "id": "re_3UFNZT4I6kCJlvXo1KbKCyi8",
+        "amount": 3929,
+        "status": "succeeded",
+        "reason": "requested_by_customer",
+        "created": "2026-09-14T00:24:07.000Z",
+        "currency": "usd"
+      }
+    ],
+    "refund_count": 1
+  },
+  "checks": {
+    "pi_amount_vs_db_total_charged": {
+      "stripe_amount": 3929,
+      "db_total_charged_cents": 3929,
+      "verdict": "AGREE"
+    },
+    "capture_state": {
+      "stripe_amount_received": 0,
+      "stripe_amount_capturable": 0,
+      "stripe_captured": null,
+      "db_payments_captured_at": "2026-09-14T00:20:33.20269+00:00",
+      "db_tax_captured": false,
+      "db_tax_voided": true,
+      "note": "Stripe is authoritative for capture; payments.captured_at and tax_records are mirrors."
+    },
+    "refund_count": {
+      "stripe_refund_count": 1,
+      "db_trade_refund_rows": 0,
+      "verdict": "DISAGREE"
+    },
+    "single_refund_outcome": {
+      "stripe_refund_count": 1,
+      "expectation": "exactly 1 for a single refund; >1 = duplicate-refund defect",
+      "verdict": "OK"
+    },
+    "payout_reality": {
+      "db_payout_rows": 0,
+      "stripe_transfer_present": false,
+      "note": "A payout row with no Stripe Transfer can be the documented synthetic-payout boundary, not a bug."
+    }
+  },
+  "notes": [
+    "payments.derived_state is a TRIGGER MIRROR of trades.status (fn_payments_sync_from_trade) - never evidence of Stripe state (R100).",
+    "trades.payout_status stays default on cancelled trades - judge payouts on seller_payouts (R100/QTA-2026-09-13).",
+    "A since-cancelled PI legitimately reads status=canceled today; use `events` to reconstruct historical state."
+  ]
+}

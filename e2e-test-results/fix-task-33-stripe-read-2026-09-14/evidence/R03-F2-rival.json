@@ -1,0 +1,137 @@
+{
+  "key_scope": "SECRET_KEY_BREAK_GLASS",
+  "trade": {
+    "id": "67ba29fc-cf01-4713-8e8b-21e3fc460701",
+    "status": "cancelled",
+    "listing_id": "0fe228ee-6430-40fa-bcb4-ae07fc252f27",
+    "bundle_id": null,
+    "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+    "seller_id": "a1234567-0000-0000-0000-000000000002",
+    "cash_amount_cents": 1500,
+    "sp_amount": 5,
+    "buyer_transaction_fee_cents": 149,
+    "seller_transaction_fee_cents": 150,
+    "tax_amount_cents": 140,
+    "cancellation_reason": "offer_expired_competing",
+    "cancelled_at": "2026-09-14T00:53:56.19683+00:00",
+    "completed_at": null,
+    "created_at": "2026-09-14T00:53:56.19683+00:00",
+    "stripe_payment_intent_id": "pi_3UFO9f4I6kCJlvXo0iCaV1UR",
+    "payout_status": "pending"
+  },
+  "item": {
+    "id": "0fe228ee-6430-40fa-bcb4-ae07fc252f27",
+    "title": "Science Kit",
+    "price": 20,
+    "accepts_swap_points": true,
+    "tax_category_id": "e14198fb-1357-44f7-874e-e1fc831e331b"
+  },
+  "db": {
+    "payments": {
+      "id": "013bb078-eec1-4176-8f80-0d609c2f9d25",
+      "derived_state": "cancelled",
+      "derived_state_is_mirror": true,
+      "total_charged_cents": 1789,
+      "item_price_cents": 1500,
+      "platform_fee_cents": 149,
+      "tax_amount_cents": 140,
+      "sp_amount": 5,
+      "refunded_cents": 0,
+      "captured_at": null,
+      "refunded_at": null,
+      "stripe_payment_intent_id": "pi_3UFO9f4I6kCJlvXo0iCaV1UR"
+    },
+    "tax_records": [
+      {
+        "id": "4323ff10-feae-4eb6-ae54-e7005133df2c",
+        "tax_status": "voided",
+        "taxable_amount_cents": 2000,
+        "tax_amount_cents": 140,
+        "refunded_tax_cents": 0,
+        "captured_at": null,
+        "voided_at": "2026-09-14T14:26:27.158998+00:00",
+        "stripe_refund_id": null,
+        "reconciliation_status": null
+      }
+    ],
+    "trade_refunds": [],
+    "seller_payouts": [],
+    "connect_account_id": null
+  },
+  "provider": {
+    "present": true,
+    "pi": {
+      "id": "pi_3UFO9f4I6kCJlvXo0iCaV1UR",
+      "status": "requires_capture",
+      "amount": 1789,
+      "amount_capturable": 1789,
+      "amount_received": 0,
+      "latest_charge": "ch_3UFO9f4I6kCJlvXo0Rr9QV2W",
+      "customer": "cus_Ungj4MptKp9CUg",
+      "currency": "usd",
+      "created": "2026-09-14T00:53:55.000Z",
+      "canceled_at": null,
+      "livemode": false,
+      "metadata": {
+        "bundle_id": "",
+        "buyer_id": "49243010-f458-4744-add1-a6c84ab95f1f",
+        "idempotency_key": "pi_offer_49243010-f458-4744-add1-a6c84ab95f1f_0fe228ee-6430-40fa-bcb4-ae07fc252f27_11deae9b-8a8a-46f0-963f-6700c8ff305a_tf838f",
+        "item_id": "0fe228ee-6430-40fa-bcb4-ae07fc252f27",
+        "item_price_cents": "1500",
+        "platform_fee_cents": "149",
+        "request_id": "a10fbe12-6bf5-44b6-8e39-c5fb480fb1c7",
+        "sp_amount": "5",
+        "tax_amount_cents": "140",
+        "type": "trade_offer_hold"
+      }
+    },
+    "charge": {
+      "id": "ch_3UFO9f4I6kCJlvXo0Rr9QV2W",
+      "paid": true,
+      "status": "succeeded",
+      "amount": 1789,
+      "amount_refunded": 0,
+      "refunded": false,
+      "captured": false,
+      "created": "2026-09-14T00:53:55.000Z"
+    },
+    "refunds": [],
+    "refund_count": 0
+  },
+  "checks": {
+    "pi_amount_vs_db_total_charged": {
+      "stripe_amount": 1789,
+      "db_total_charged_cents": 1789,
+      "verdict": "AGREE"
+    },
+    "capture_state": {
+      "stripe_amount_received": 0,
+      "stripe_amount_capturable": 1789,
+      "stripe_captured": null,
+      "db_payments_captured_at": null,
+      "db_tax_captured": false,
+      "db_tax_voided": true,
+      "note": "Stripe is authoritative for capture; payments.captured_at and tax_records are mirrors."
+    },
+    "refund_count": {
+      "stripe_refund_count": 0,
+      "db_trade_refund_rows": 0,
+      "verdict": "AGREE"
+    },
+    "single_refund_outcome": {
+      "stripe_refund_count": 0,
+      "expectation": "exactly 1 for a single refund; >1 = duplicate-refund defect",
+      "verdict": "OK"
+    },
+    "payout_reality": {
+      "db_payout_rows": 0,
+      "stripe_transfer_present": false,
+      "note": "A payout row with no Stripe Transfer can be the documented synthetic-payout boundary, not a bug."
+    }
+  },
+  "notes": [
+    "payments.derived_state is a TRIGGER MIRROR of trades.status (fn_payments_sync_from_trade) - never evidence of Stripe state (R100).",
+    "trades.payout_status stays default on cancelled trades - judge payouts on seller_payouts (R100/QTA-2026-09-13).",
+    "A since-cancelled PI legitimately reads status=canceled today; use `events` to reconstruct historical state."
+  ]
+}
