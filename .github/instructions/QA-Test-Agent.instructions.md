@@ -1408,6 +1408,24 @@ ORDER BY jobid;
 
 *Evidence / origin: FIX-Task-36 (2026-09-14) — finding F1 in `e2e-test-results/qa-trd-closing-post-fix35-2026-09-14/report.md` §3 + its "Suggested to Improve Agent Rules"; fix, guard and sweep in `e2e-test-results/fix-task-36-2026-09-14/`. The sweep is `p2p-kids-marketplace/scripts/qa/cron-health.mjs` + `scripts/qa/lib/cron-health-rules.mjs`, whose `--self-test` takes the verbatim pre-fix command as its first fixture so the rule can never silently stop catching it.*
 
+---
+
+### 5.87 Standing rule — the first deep link after a `qa-login-as` switch is silently dropped; control-test before filing a dead link (2026-09-16, SUB Android Round 3) — R111
+
+**R111 — The first deep link fired immediately after a `qa-login-as` persona switch is routinely DROPPED — silently ignored, not mis-routed — and it is indistinguishable from a dead route. Re-fire it once; and before filing a link as a dead end, control-test it against a known-good sibling deep link from the same app state.**
+
+**The trap.** Three separate fires of `p2pkidsmarketplace://sp-wallet` made right after a persona switch did not navigate — the app simply stayed on (or restored) its retained route — while the sibling `p2pkidsmarketplace://sp-history` navigated normally moments later from the same state, and a clean `sp-wallet` re-fire then worked too. The failure mode looks EXACTLY like a registered deep link that has stopped navigating, which is a plausible-looking finding worth filing. It is not one: the linking layer was healthy throughout.
+
+**Rules.**
+1. **Re-fire once before concluding anything.** A deep link that appears dead immediately after an auth switch gets exactly one clean re-fire. If it works, the first fire was the auth-settle artifact — record it as friction, not as a finding.
+2. **Control-test with a known-good sibling.** When a link still appears dead, fire a **different, known-good deep link from the same app state** before filing anything. A sibling link navigating normally proves the handler and the linking config are alive, which converts "my link did nothing" from evidence into a contradiction. Only a link that fails *while a sibling succeeds* is a dead-link candidate.
+3. **Apply the control test before caching a dead end too.** The same discipline gates the running dead-end cache (R-NEW-2, §5.47) — a route is not added to it on the strength of one unexplained non-navigation.
+4. **Do not drop the control test to save a call.** Skipping it is how a false "registered link is dead" finding gets written — and a false finding costs far more than the one call the test costs.
+
+**Relation to existing rules (no duplication).** **R96 (§5.77) is the sibling and the softer case** — a deep link into an ALREADY-MOUNTED route **re-focuses the retained screen** rather than resetting it, so its symptom is "the screen did not remount"; R111's symptom is "the screen did not change at all immediately after an auth switch". Both are *driving* rules, not product findings. It also sits beside **R42 (§5.51 — verify the linking config BEFORE firing)** and **R-NEW-2 (§5.47 — deep-link-first + a cached dead-end list)**: R42 checks the route is registered, R111 checks the handler is alive *now*. The builder-agent counterpart is **"On-Device Live-Verification Discipline (Tier 1 …)" rule 4** in `.github/agents/Kids P2P App Builder.agent.md`, which carries the same control-test clause for live-verification work.
+
+*Evidence / origin: SUB Android Round 3 (2026-09-16, `e2e-test-results/qa-sub-android-r3-2026-09-16/report.md` friction #1/#4 + `ledger.md` decision-log row 2) — `sp-wallet` failed to navigate 3× immediately after `qa-login-as` persona switches; the bounded control test (`sp-history` navigated) plus a clean `sp-wallet` re-fire disproved a dead link and prevented a false finding. The round's §8.3 handoff flagged the rule; applied via `.github/prompts/apply-handoff-rule-suggestion.prompt.md`. Consolidated context in `/memories/repo/qa-sub-android-r3-2026-09-16.md`.*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

@@ -57,14 +57,21 @@ const psql = (argv, input) => {
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 };
 
-const firstError = (t) =>
-  t
+/**
+ * psql prefixes the primary failure line with `psql:<stdin>:<line>: `, so an
+ * anchored /^(ERROR|FATAL):/ test silently misses every real error and reports
+ * "(no output captured)" while only the bare HINT/CONTEXT lines survive.
+ * Strip the prefix first, and keep the primary ERROR line (plus its HINT/DETAIL,
+ * which the caller may find useful) rather than whichever line happened to match.
+ */
+const firstError = (t) => {
+  const lines = t
     .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => /^(ERROR|FATAL|DETAIL|HINT|CONTEXT):/.test(l))
-    .slice(0, 2)
-    .join(' | ')
-    .slice(0, 300) || '(no output captured)';
+    .map((l) => l.replace(/^psql:<stdin>:\d+:\s*/, '').trim());
+  const primary = lines.filter((l) => /^(ERROR|FATAL):/.test(l)).slice(0, 1);
+  const hint = lines.filter((l) => /^(DETAIL|HINT|CONTEXT):/.test(l)).slice(0, 1);
+  return [...primary, ...hint].join(' | ').slice(0, 300) || '(no output captured)';
+};
 
 /**
  * `supabase db reset` always applies supabase/migrations, and neither `--last 0` nor a
