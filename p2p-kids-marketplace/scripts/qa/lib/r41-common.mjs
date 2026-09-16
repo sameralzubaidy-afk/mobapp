@@ -54,6 +54,32 @@ export const PERSONAS = {
   'test-admin': { id: 'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
 };
 
+/**
+ * FIX-Task-39 item 4 (2026-09-16): standing QA personas whose auth uuid is NOT
+ * fixed — they are created on demand by their own fixture script
+ * (`qa:wallet-persona -- ensure`, `qa:payout-fixture -- ensure`, …), so they
+ * cannot live in PERSONAS above without a bogus id. `resolveUserId` consults this
+ * map and resolves them by EMAIL, which is how
+ * `qa:stripe-inspect -- by-user qa-wallet` / `--user qa-payout-seller` now work
+ * instead of silently treating the name as a raw uuid (the failure mode that made
+ * auditing the F2 orphan-PM fix slow and guess-prone).
+ *
+ * Deliberately NOT added to PERSONAS: several fixtures (`create-bundle-fixture`,
+ * `reset-offer-fixtures`, `express-complete-fixture`) treat PERSONAS membership as
+ * an allowlist of personas with KNOWN ids and read `.id` directly, so adding
+ * id-less entries there would widen those allowlists and hand them `undefined`.
+ * Keep this file the single source of truth for QA persona emails — mirror
+ * `src/services/qaPersonas.ts` when a persona is added.
+ */
+export const PERSONA_EMAIL_ALIASES = {
+  'qa-wallet': 'qa-wallet@kidsmarketplace.test',
+  'qa-payout-seller': 'qa-payout-seller@kidsmarketplace.test',
+  'test-noconvo': 'test-noconvo@kidsmarketplace.test',
+  'qa-deleted': 'qa-deleted@kidsmarketplace.test',
+  'qa-no-profile': 'qa-no-profile@kidsmarketplace.test',
+  'qa-linked-provider': 'qa-linked-provider@kidsmarketplace.test',
+};
+
 /** The admin id used to record fixture config edits (BP-48): samer@samer.com. */
 export const ADMIN_ID = '1a546991-5361-4b4e-b44b-eee9bf730757';
 
@@ -108,16 +134,25 @@ export function hasFlag(name) {
 
 /**
  * Resolve a persona/user reference to a real auth user id.
- * Accepts: a persona short-name, an email, or a raw uuid (passed through).
+ * Accepts: a persona short-name, a persona email-alias short-name
+ * (PERSONA_EMAIL_ALIASES — resolved by email), an email, or a raw uuid (passed through).
+ *
+ * FIX-Task-39 item 4 (2026-09-16): the email-alias branch previously did not exist,
+ * so an id-less persona name (`qa-wallet`) fell through to the raw-uuid branch and
+ * the caller got a confusing "no rows" result instead of that persona's data.
  */
 export async function resolveUserId(admin, ref) {
   if (!ref) return null;
   if (PERSONAS[ref]) return PERSONAS[ref].id;
-  if (ref.includes('@')) {
+  const aliasEmail = PERSONA_EMAIL_ALIASES[ref];
+  const emailToFind = aliasEmail ?? (ref.includes('@') ? ref : null);
+  if (emailToFind) {
     const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (error) throw new Error(`listUsers: ${error.message}`);
-    const hit = (data?.users ?? []).find((u) => u.email?.toLowerCase() === ref.toLowerCase());
-    if (!hit) throw new Error(`No auth user found for email '${ref}'`);
+    const hit = (data?.users ?? []).find(
+      (u) => u.email?.toLowerCase() === emailToFind.toLowerCase()
+    );
+    if (!hit) throw new Error(`No auth user found for '${ref}' (email ${emailToFind})`);
     return hit.id;
   }
   return ref; // assume raw uuid

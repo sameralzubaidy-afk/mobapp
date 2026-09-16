@@ -369,6 +369,39 @@ export async function getRecentPayouts(limit: number = 10): Promise<SellerPayout
 }
 
 /**
+ * FIX-Task-39 item 1 (2026-09-16): the TRUE, user-scoped number of payouts blocked
+ * on a payout method.
+ *
+ * `getRecentPayouts(limit)` is PAGINATED (PayoutSettingsScreen starts at 5 and
+ * grows via "Load More"), so counting `requires_action` rows inside that array
+ * under-reports the real backlog — a seller with 17 stuck payouts was told "5
+ * payouts need a payout method", which is the exact misreading the summary line
+ * exists to prevent. This is a head-only COUNT over the whole user scope
+ * (same idiom as `hasPendingPayouts` above), so the figure never depends on how
+ * much of the history has been scrolled into view.
+ */
+export async function getActionRequiredPayoutCount(): Promise<number> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { count, error } = await supabase
+    .from('seller_payouts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('status', 'requires_action');
+
+  if (error) {
+    throw error;
+  }
+
+  return count ?? 0;
+}
+
+/**
  * Get payout by ID
  */
 export async function getPayoutById(payoutId: string): Promise<SellerPayout | null> {

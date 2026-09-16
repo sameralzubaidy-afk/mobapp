@@ -326,12 +326,20 @@ export default function SpWalletScreen() {
                     <Text style={styles.pendingReleaseNoteIconText}>⏳</Text>
                   </View>
                   <View style={styles.pendingReleaseNoteContent}>
-                    <Text style={styles.pendingReleaseNoteTitle}>
-                      {totalPending} SP Pending Release
+                    {/* FIX-Task-39 item 6 (2026-09-16): this note and the "Pending" stat
+                        chip above are both DB-accurate but mean different things, and the
+                        old title ("39 SP Pending Release") reused the chip's word. This
+                        states what actually happens to the SP and that it isn't spendable
+                        yet, so the two figures can't be read as one number stated twice. */}
+                    <Text
+                      style={styles.pendingReleaseNoteTitle}
+                      testID="sp-wallet-pending-release-title"
+                    >
+                      {totalPending} SP Releasing Soon
                     </Text>
                     <Text style={styles.pendingReleaseNoteText}>
-                      Your pending SPs will be released individually, {releaseDays} days after each
-                      trade you complete.
+                      This SP comes from your completed sales and isn't spendable yet — each batch
+                      unlocks {releaseDays} days after its trade.
                     </Text>
                   </View>
                 </View>

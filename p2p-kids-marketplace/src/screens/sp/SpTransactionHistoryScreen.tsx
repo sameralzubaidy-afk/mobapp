@@ -106,6 +106,11 @@ export default function SpTransactionHistoryScreen() {
             accessible
             accessibilityRole="button"
             accessibilityLabel="Sp history tab all"
+            // FIX-Task-39 item 8 (2026-09-16): the active tab was conveyed by colour /
+            // underline only, so a screen reader could not tell which tab was selected.
+            // Keep the role as "button" (RN 0.81 does not register accessibilityRole="tab"
+            // on iOS — BP-53) and expose the state instead.
+            accessibilityState={{ selected: activeTab === 'all' }}
             style={styles.tabButton}
             onPress={() => setActiveTab('all')}
           >
@@ -117,6 +122,7 @@ export default function SpTransactionHistoryScreen() {
             accessible
             accessibilityRole="button"
             accessibilityLabel="Sp history tab earned"
+            accessibilityState={{ selected: activeTab === 'earned' }}
             style={styles.tabButton}
             onPress={() => setActiveTab('earned')}
           >
@@ -130,6 +136,7 @@ export default function SpTransactionHistoryScreen() {
             accessible
             accessibilityRole="button"
             accessibilityLabel="Sp history tab spent"
+            accessibilityState={{ selected: activeTab === 'spent' }}
             style={styles.tabButton}
             onPress={() => setActiveTab('spent')}
           >

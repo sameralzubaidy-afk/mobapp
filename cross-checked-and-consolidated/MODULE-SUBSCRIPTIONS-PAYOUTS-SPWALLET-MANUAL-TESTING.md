@@ -1326,7 +1326,16 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 
 **Expected Result:**
 - Shows `💳` **Wallet Not Found** with `Unable to load your SP wallet.`
-- **Flag:** this requires `getWallet` to return null (e.g., an RLS/read failure) — `getWallet` auto-inserts a missing wallet row, so this state is rare.
+
+**Fixture — this state is DETERMINISTIC, not "rare" (updated 2026-09-16, FIX-Task-39 item 2):**
+`getWallet` auto-inserts a missing wallet row, so the state cannot be reached by deleting data.
+Arm the session-local QA toggle instead (`getSimulatedWalletNotFoundMode()` short-circuits
+before any DB read/auto-insert — `src/services/sp/wallet.ts`):
+1. iOS: `xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=sp_wallet_not_found&value=not_found"`
+   Android (the `&` must be escaped for the device shell): `adb shell am start -W -a android.intent.action.VIEW -d "p2pkidsmarketplace://qa-dev-toggle?key=sp_wallet_not_found\&value=not_found" com.sameralzubaidi.p2pmarketplace`
+2. **Re-enter the SP Wallet** so it mounts fresh — the toggle is read on mount, and QA Task 37
+   needed an unmount/re-entry before the banner appeared (R96: a still-mounted screen keeps its state).
+3. **Disarm** with `value=none` when finished and verify the toggle's own read-back reports `none`.
 
 ### SUB-TC-I09 · SP Wallet — pending-release summary note
 
@@ -1340,7 +1349,14 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 1. As a subscriber with pending SP releases, open **SP Wallet**.
 
 **Expected Result:**
-- Note `{totalPending} SP Pending Release` with `Your pending SPs will be released individually, {releaseDays} days after each trade you complete.`
+- Note **`{totalPending} SP Releasing Soon`** with `This SP comes from your completed sales and isn't spendable yet — each batch unlocks {releaseDays} days after its trade.`
+- `{totalPending}` sums the seller's completed trades still inside the SP release window (earned SP not yet released). It is **not the same quantity** as the **Pending** stat chip on the same screen (that chip is `sp_wallets.pending_balance`, which can legitimately be larger) — do not assert the two as one number.
+
+**Copy updated 2026-09-16 (FIX-Task-39 item 6):** the note previously read
+`{totalPending} SP Pending Release` / "Your pending SPs will be released individually, {releaseDays} days after each trade you complete."
+The label reused the **Pending** stat chip's word for a different quantity, so QA Task 37 flagged
+the pair as confusing despite both numbers being DB-accurate. The copy now names the release
+behaviour and states the SP isn't spendable yet. `testID="sp-wallet-pending-release-title"` added.
 
 ---
 

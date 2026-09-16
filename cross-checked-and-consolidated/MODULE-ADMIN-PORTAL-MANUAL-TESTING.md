@@ -1677,10 +1677,17 @@ HTML5 drag-and-drop is not reliably drivable by the embedded browser driver (QA 
 4. Restore active, relaunch, confirm no banner.
 
 **Expected Result:**
-- Frozen → blue banner ("Swap Points Frozen — renew your subscription…") in Wallet + checkout.
-- Suspended → red banner ("Wallet Suspended — contact support…").
-- grace_period → yellow banner ("Grace Period Active — 90 days…").
+- Frozen → **info-blue** banner (title `Swap Points Frozen`) — "Your Swap Points are frozen. Renew your subscription to use them again." — in Wallet + checkout.
+- Suspended → **error-red** banner (title `Wallet Suspended`) — "Your SP wallet has been suspended. Please contact support for assistance."
+- grace_period → **warning-amber** banner (title `Grace Period Active`) — "You can keep spending existing Swap Points, but you won't earn new ones until you renew." — amber tint `#FFF3E0` / accent `#FFA726` (NOT yellow, NOT red), and the copy carries **no day count**.
 - Active → no banner.
+
+**Copy/token drift fixed 2026-09-16 (FIX-Task-39 item 3):** the previous expected results said
+`grace_period` shows a **"yellow"** banner reading **"Grace Period Active — 90 days…"**. Neither is
+shipped by `WalletWarningBanner.tsx` — it uses the design-system **warning-amber** pair
+(`#FFF3E0` / `#FFA726`) and a state-driven grace message with **no day count**. Verified on-device:
+QA Task 37 (Sub/Android 2a) scanned **86.21% `#FFF3E0` / 1.00% `#FFA726` / 0.00% red**, matching
+QA Task 31-T's record.
 
 ---
 

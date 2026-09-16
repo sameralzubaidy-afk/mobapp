@@ -44,6 +44,7 @@ import {
   requestFullWithdrawal,
   submitPayPalPayout,
   getRecentPayouts,
+  getActionRequiredPayoutCount,
   formatPayoutStatus,
   formatCentsToDollars,
   calculatePayoutFee,
@@ -171,10 +172,19 @@ export default function PayoutSettingsScreen() {
   const [balanceDisplay, setBalanceDisplay] = useState<BalanceDisplay | null>(null);
   const [recentPayouts, setRecentPayouts] = useState<SellerPayout[]>([]);
   // FIX-Task-37 item 9 (2026-09-16): how many payouts are blocked on a missing payout
-  // method. Derived from the SAME array the history list renders, so the summary and
-  // the rows can never disagree (BP-92). A seller with 17 stuck rows previously had to
-  // read all 17 to work out that they shared a single cause.
-  const actionRequiredPayoutCount = recentPayouts.filter(
+  // method. A seller with 17 stuck rows previously had to read all 17 to work out that
+  // they shared a single cause.
+  // FIX-Task-39 item 1 (2026-09-16): this is now the TRUE user-scoped total from
+  // `getActionRequiredPayoutCount()` (a head-only COUNT), NOT the count of
+  // `requires_action` rows inside the currently-loaded history page. Deriving it from
+  // `recentPayouts` under-reported the backlog by 12 in the FIX-Task-37 verification
+  // ("5 payouts need a payout method" against a real total of 17) because the list
+  // starts at 5 rows and grows via "Load More" — exactly the misreading this summary
+  // exists to prevent.
+  const [actionRequiredPayoutCount, setActionRequiredPayoutCount] = useState(0);
+  // How many of those blocked payouts are visible in the loaded page — used only to
+  // tell the seller why the list may show fewer rows than the total above it.
+  const visibleActionRequiredPayoutCount = recentPayouts.filter(
     (payout) => payout.status === 'requires_action'
   ).length;
   const [withdrawing, setWithdrawing] = useState(false);
@@ -251,9 +261,16 @@ export default function PayoutSettingsScreen() {
       setBalance(balanceData);
       setBalanceDisplay(formatBalanceForDisplay(balanceData));
 
-      // Load recent payouts (use current limit)
+      // Load recent payouts (use current limit) + the true action-required total.
+      // The count is best-effort: if it fails we keep the previous figure rather
+      // than paint a wrong number or blank the warning (BP-92).
       const payoutsData = await getRecentPayouts(payoutLimit);
       setRecentPayouts(payoutsData);
+      try {
+        setActionRequiredPayoutCount(await getActionRequiredPayoutCount());
+      } catch (countError) {
+        console.warn('Action-required payout count failed:', countError);
+      }
 
       const payoutConfig = await getAdminPayoutConfig();
       setAdminPayoutConfig(payoutConfig);
@@ -375,6 +392,18 @@ export default function PayoutSettingsScreen() {
 
   const handleAddMethod = () => {
     setShowAddMethodModal(true);
+  };
+
+  // FIX-Task-39 item 7 (2026-09-16): every "requires_action" payout shares ONE
+  // cause, so the seller should not have to open rows one by one to learn why.
+  // Informational only — no confirmation, no state change.
+  const handleShowActionRequiredWhy = () => {
+    Alert.alert(
+      'Why do these payouts need a payout method?',
+      'These are completed sales waiting on a payout method. Your earnings for them are saved. ' +
+        "They all share this one cause, so you can add or finish verifying a payout method " +
+        'instead of opening each payout.'
+    );
   };
 
   // DT-122 (I-2): resume a dropped Stripe Connect hosted-onboarding session
@@ -757,13 +786,38 @@ export default function PayoutSettingsScreen() {
         {/* FIX-Task-37 item 9 (2026-09-16): one aggregate line for the blocked rows.
             Each "requires_action" payout needs a payout method before it can move, so
             without this the seller sees N identical rows and no indication they share
-            one cause (up to 17 were observed in a single account). */}
+            one cause.
+            FIX-Task-39 item 1 (2026-09-16): this figure is the TRUE user-scoped total
+            (getActionRequiredPayoutCount), not the loaded page.
+            FIX-Task-39 item 7 (2026-09-16): the inline "Why?" explains the shared cause
+            without making the seller open every row. */}
         {actionRequiredPayoutCount > 0 && (
-          <Text style={styles.actionRequiredSummary} testID="payout-action-required-summary">
-            {actionRequiredPayoutCount} payout
-            {actionRequiredPayoutCount === 1 ? ' needs' : 's need'} a payout method
-          </Text>
+          <View style={styles.actionRequiredSummaryRow}>
+            <Text style={styles.actionRequiredSummary} testID="payout-action-required-summary">
+              {actionRequiredPayoutCount} payout
+              {actionRequiredPayoutCount === 1 ? ' needs' : 's need'} a payout method
+            </Text>
+            <TouchableOpacity
+              onPress={handleShowActionRequiredWhy}
+              testID="payout-action-required-why"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Why do these payouts need a payout method?"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.actionRequiredWhyText}>Why?</Text>
+            </TouchableOpacity>
+          </View>
         )}
+        {/* Only rendered when the loaded page shows fewer blocked rows than the total,
+            so the count above can never be read as a miscount of the list below. */}
+        {visibleActionRequiredPayoutCount > 0 &&
+          actionRequiredPayoutCount > visibleActionRequiredPayoutCount && (
+            <Text style={styles.actionRequiredHint} testID="payout-action-required-hint">
+              {visibleActionRequiredPayoutCount} of them are in the list below — tap Load More to
+              see the rest.
+            </Text>
+          )}
         {recentPayouts.length === 0 ? (
           <View style={styles.emptyHistory} testID="empty-history">
             <Text style={styles.emptyHistoryText}>No payouts yet</Text>
@@ -1724,10 +1778,28 @@ const styles = StyleSheet.create({
   // ── Section label ───────────────────────────────────────────────────────────
   // FIX-Task-37 item 9 (2026-09-16): aggregate line above the payout history list.
   // Warning amber — it is an action prompt, not neutral fine print.
+  // FIX-Task-39 item 7 (2026-09-16): the row pairs the count with an inline "Why?".
+  actionRequiredSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   actionRequiredSummary: {
     fontSize: 13,
     fontWeight: '600',
     color: '#FFA726',
+    flexShrink: 1,
+  },
+  actionRequiredWhyText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5DBB8E',
+    marginLeft: 8,
+  },
+  actionRequiredHint: {
+    fontSize: 12,
+    color: '#6B6B6B',
     marginBottom: 8,
   },
   sectionLabel: {

@@ -20,6 +20,8 @@
  *   npm run qa:stripe-inspect -- refunds --charge ch_123 | --pi pi_123 | --trade <uuid>
  *   npm run qa:stripe-inspect -- si seti_123 | --pm pm_123
  *   npm run qa:stripe-inspect -- pm pm_123
+ *   npm run qa:stripe-inspect -- pm-list --customer cus_123        <-- FIX-Task-39 item 4
+ *   npm run qa:stripe-inspect -- pm-list --user qa-wallet         <-- or a persona
  *   npm run qa:stripe-inspect -- customer cus_123 | --user test-buyer
  *   npm run qa:stripe-inspect -- subscription sub_123 | --user test-buyer
  *   npm run qa:stripe-inspect -- invoice in_123
@@ -64,6 +66,7 @@ const TRADE = flagValue('trade');
 const CHARGE = flagValue('charge');
 const PI = flagValue('pi');
 const PM = flagValue('pm');
+const CUSTOMER = flagValue('customer');
 const USER = flagValue('user') || flagValue('persona');
 const STATUS = flagValue('status');
 const TYPES = flagValue('types') || flagValue('type');
@@ -241,6 +244,70 @@ const COMMANDS = {
       card_last4: pm.card?.last4,
       card_exp: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : null,
       created: iso(pm.created),
+    }, ctx.scope);
+  },
+
+  /**
+   * FIX-Task-39 item 4 (2026-09-16): enumerate EVERY PaymentMethod attached to a
+   * customer in one call, instead of guessing pm_ ids one at a time. Verifying the
+   * F2 orphan/detached-PM state previously meant repeatedly probing individual ids
+   * and could not answer "is any PM still attached to this customer?".
+   *
+   * Read this against the DB: `subscriptions.stripe_payment_method_id` is the id the
+   * APP thinks it saved. An id held there that does NOT appear in this list has been
+   * DETACHED on Stripe (Stripe has no delete endpoint for a card PM, and a detached
+   * PM can never be re-attached — see qa:invalidate-payment-method).
+   */
+  async ['pm-list'](ctx) {
+    let customerId = CUSTOMER || (ID && String(ID).startsWith('cus_') ? ID : undefined);
+    if (!customerId && USER) {
+      const { admin } = getClients();
+      const userId = await resolveUserId(admin, USER);
+      const sub = (await admin.from('subscriptions').select('stripe_customer_id').eq('user_id', userId).maybeSingle()).data;
+      if (!sub?.stripe_customer_id) throw new Error(`No stripe_customer_id stored for ${USER}.`);
+      customerId = sub.stripe_customer_id;
+    }
+    if (!customerId) {
+      throw new Error('Provide --customer <cus_...>, a cus_... id, or --user <persona|email|uuid>.');
+    }
+
+    const rows = await stripeList(ctx, '/payment_methods', {
+      params: { customer: customerId },
+      account: ACCOUNT,
+      limit: LIMIT,
+    });
+
+    // Compare against the app's stored id so the orphan case is visible at a glance.
+    // Queried by customer id, so it works for BOTH the --customer and --user paths.
+    const { admin } = getClients();
+    const subRow = (
+      await admin
+        .from('subscriptions')
+        .select('stripe_payment_method_id')
+        .eq('stripe_customer_id', customerId)
+        .maybeSingle()
+    ).data;
+    const storedPmId = subRow?.stripe_payment_method_id ?? null;
+
+    emit(`payment_methods for ${customerId}`, {
+      customer: customerId,
+      count: rows.length,
+      // The generic printer collapses arrays of >3 to "[N items]", which would hide
+      // exactly the ids this subcommand exists to enumerate — so print them joined
+      // as one string (or use --json for the structured list).
+      payment_method_ids: rows.map((p) => p.id).join(', ') || '(none)',
+      payment_methods: rows.map((p) => ({
+        id: p.id,
+        type: p.type,
+        card_brand: p.card?.brand ?? null,
+        card_last4: p.card?.last4 ?? null,
+        card_exp: p.card ? `${p.card.exp_month}/${p.card.exp_year}` : null,
+        created: iso(p.created),
+        is_default_card: p.customer === customerId,
+      })),
+      app_stored_payment_method_id: storedPmId,
+      stored_pm_attached: storedPmId ? rows.some((p) => p.id === storedPmId) : null,
+      note: 'Only ATTACHED PMs are listed. A DB-held pm id missing here was detached on Stripe (detached card PMs can never be re-attached) — restore with `npm run qa:ensure-cards -- --persona <name>`.',
     }, ctx.scope);
   },
 
