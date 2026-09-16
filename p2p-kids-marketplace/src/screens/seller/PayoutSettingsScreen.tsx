@@ -27,6 +27,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { supabase } from '../../services/supabase/client';
 import { captureException } from '@/services/errorReporter';
 import { getSimulatedPayoutFetchFailure } from '@/services/devTestingService';
+import { withTimeout, isTimeoutError } from '@/utils/withTimeout';
 import {
   listPayoutMethods,
   createPayoutMethod,
@@ -71,6 +72,26 @@ import ScreenLayout from '@/components/ScreenLayout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+/**
+ * FIX-Task-46 item A (owner-approved 2026-09-16): upper bound on the WHOLE
+ * Payout Settings load.
+ *
+ * The screen awaits eight network legs and had no deadline anywhere, so on a
+ * degraded connection the seller watched a bare spinner for as long as the
+ * slowest leg took (measured: 84s on the Android emulator, 138s on a second
+ * run, against ~2.5s for the identical chain from the host — see the
+ * FIX-Task-46 handoff), with no data, no message and no way forward.
+ *
+ * Same family as the single-call bounds the repo already uses — FIX-Task-26
+ * item 5 (Review Offer), FIX-Task-41 item 7 (payment method) and FIX-Task-46's
+ * `STRIPE_CONNECT_SYNC_TIMEOUT_MS` — scaled up for a multi-leg screen load.
+ *
+ * The bound rejects the WAIT only; the in-flight requests keep running, so a
+ * late reply from the attempt that is still current is still applied (see
+ * `loadAttemptRef`) and the screen self-heals.
+ */
+const LOAD_DEADLINE_MS = 20000;
 
 // =============================================================================
 // Provider Helpers
@@ -207,6 +228,19 @@ export default function PayoutSettingsScreen() {
     message: '',
   });
 
+  // FIX-Task-46 item A (owner-approved 2026-09-16): true when the load hit
+  // `LOAD_DEADLINE_MS` (or otherwise could not finish) while the screen stays
+  // usable. Drives the inline notice + "Try again" instead of a bare spinner,
+  // and — together with `balance === null` — the withheld money figures
+  // (BP-92 rule 3: never paint a placeholder as if it were the real number).
+  const [loadDegraded, setLoadDegraded] = useState(false);
+
+  // FIX-Task-46: identifies the in-flight load attempt so a late reply from a
+  // superseded attempt (a retry, or a pull-to-refresh) cannot overwrite newer
+  // data. Same "is this slot still ours?" guard FIX-Task-41 item 7 added to the
+  // payment-method cache.
+  const loadAttemptRef = useRef(0);
+
   // DT-124 (Item 2): reload-on-return plumbing. loadPayoutMethods() best-effort
   // calls syncStripeConnectStatus(), so a full reload after a hosted Stripe
   // Express return — cold deep-link mount, warm refocus, or app foreground while
@@ -215,8 +249,17 @@ export default function PayoutSettingsScreen() {
   const isFocusedRef = useRef(false);
   const reloadRef = useRef<() => void>(() => {});
 
-  // Load payout methods on mount
+  // Load payout methods on mount.
+  //
+  // FIX-Task-46 item B (owner-approved 2026-09-16): stamp the coalescing window
+  // with the mount load's start time. `lastAutoReloadAtRef` started at 0, so the
+  // `now - 0 < 1500` test in `reloadRef` below could never pass on the first
+  // entry and the focus effect — which runs immediately after this effect on the
+  // same mount — fired a SECOND identical full load (measured on-device: two
+  // duplicate chains, doubling every request, which the DT-124 comment below
+  // already claims cannot happen).
   useEffect(() => {
+    lastAutoReloadAtRef.current = Date.now();
     loadPayoutMethods();
   }, []);
 
@@ -225,63 +268,102 @@ export default function PayoutSettingsScreen() {
   // =============================================================================
 
   const loadPayoutMethods = async () => {
+    const attempt = loadAttemptRef.current + 1;
+    loadAttemptRef.current = attempt;
+    const isCurrentAttempt = () => loadAttemptRef.current === attempt;
+
     try {
       setLoading(true);
+      setLoadDegraded(false);
 
-      // DT-118 (item 7): forced-fetch-failure QA toggle (SUB-TC-F07) — when
-      // armed, throw before any network call so the screen exercises its real
-      // load-failure UI (the catch Alert below). Fail-closed outside dev.
-      const simulatedFetchFailure = await getSimulatedPayoutFetchFailure();
-      if (simulatedFetchFailure === 'fetch_failure') {
-        throw new Error('Simulated payout fetch failure (QA toggle payout_fetch_failure)');
-      }
+      // FIX-Task-46 item A: the sequential chain lives in its own closure so the
+      // WHOLE thing can be bounded by one deadline. Every write is gated on the
+      // attempt still being current, so a superseded attempt can never paint
+      // over a newer one.
+      const runLoad = async () => {
+        // DT-118 (item 7): forced-fetch-failure QA toggle (SUB-TC-F07) — when
+        // armed, throw before any network call so the screen exercises its real
+        // load-failure UI (the catch Alert below). Fail-closed outside dev.
+        const simulatedFetchFailure = await getSimulatedPayoutFetchFailure();
+        if (simulatedFetchFailure === 'fetch_failure') {
+          throw new Error('Simulated payout fetch failure (QA toggle payout_fetch_failure)');
+        }
 
-      // Best-effort: sync Stripe Connect onboarding state from Stripe -> DB
-      // so the UI and payout eligibility reflect completion immediately.
-      try {
-        await syncStripeConnectStatus();
-      } catch (e) {
-        // Don't block the screen on sync failures; user can pull-to-refresh.
-        console.warn('Stripe Connect status sync failed:', e);
-      }
+        // Best-effort: sync Stripe Connect onboarding state from Stripe -> DB
+        // so the UI and payout eligibility reflect completion immediately.
+        try {
+          await syncStripeConnectStatus();
+        } catch (e) {
+          // Don't block the screen on sync failures; user can pull-to-refresh.
+          console.warn('Stripe Connect status sync failed:', e);
+        }
 
-      const response = await listPayoutMethods();
-      setMethods(response.methods);
-      setPrimaryMethodId(response.primary_method?.id || null);
+        const response = await listPayoutMethods();
+        if (!isCurrentAttempt()) return;
+        setMethods(response.methods);
+        setPrimaryMethodId(response.primary_method?.id || null);
 
-      // Check eligibility
-      const eligibilityCheck = await checkPayoutEligibility();
-      setEligibility({
-        can_receive_payouts: eligibilityCheck.can_receive_payouts,
-        message: eligibilityCheck.blocking_reason || 'Ready to receive payouts',
-      });
+        // Check eligibility
+        const eligibilityCheck = await checkPayoutEligibility();
+        if (!isCurrentAttempt()) return;
+        setEligibility({
+          can_receive_payouts: eligibilityCheck.can_receive_payouts,
+          message: eligibilityCheck.blocking_reason || 'Ready to receive payouts',
+        });
 
-      // Load balance
-      const balanceData = await getSellerBalance();
-      setBalance(balanceData);
-      setBalanceDisplay(formatBalanceForDisplay(balanceData));
+        // Load balance
+        const balanceData = await getSellerBalance();
+        if (!isCurrentAttempt()) return;
+        setBalance(balanceData);
+        setBalanceDisplay(formatBalanceForDisplay(balanceData));
 
-      // Load recent payouts (use current limit) + the true action-required total.
-      // The count is best-effort: if it fails we keep the previous figure rather
-      // than paint a wrong number or blank the warning (BP-92).
-      const payoutsData = await getRecentPayouts(payoutLimit);
-      setRecentPayouts(payoutsData);
-      try {
-        setActionRequiredPayoutCount(await getActionRequiredPayoutCount());
-      } catch (countError) {
-        console.warn('Action-required payout count failed:', countError);
-      }
+        // Load recent payouts (use current limit) + the true action-required total.
+        // The count is best-effort: if it fails we keep the previous figure rather
+        // than paint a wrong number or blank the warning (BP-92).
+        const payoutsData = await getRecentPayouts(payoutLimit);
+        if (!isCurrentAttempt()) return;
+        setRecentPayouts(payoutsData);
+        try {
+          const requiredCount = await getActionRequiredPayoutCount();
+          if (isCurrentAttempt()) setActionRequiredPayoutCount(requiredCount);
+        } catch (countError) {
+          console.warn('Action-required payout count failed:', countError);
+        }
 
-      const payoutConfig = await getAdminPayoutConfig();
-      setAdminPayoutConfig(payoutConfig);
+        const payoutConfig = await getAdminPayoutConfig();
+        if (!isCurrentAttempt()) return;
+        setAdminPayoutConfig(payoutConfig);
+
+        // FIX-Task-46 item A: the whole chain finished after all — a load that
+        // merely ran long must not leave the degraded notice on screen. Gated on
+        // the attempt still being current so a superseded chain cannot clear a
+        // notice a newer attempt just raised.
+        if (isCurrentAttempt()) setLoadDegraded(false);
+      };
+
+      await withTimeout(runLoad(), LOAD_DEADLINE_MS, 'Payout settings load timed out');
     } catch (error) {
       captureException(error, {
         tags: { screen: 'PayoutSettingsScreen', action: 'load_payout_data' },
       });
-      Alert.alert('Error', 'Failed to load payout data. Please try again.');
+      if (isTimeoutError(error)) {
+        // Degraded-but-usable (FIX-Task-46 item A): keep whatever loaded, explain
+        // inline, and offer a retry. Deliberately NOT a blocking Alert — the user
+        // is not being ejected, they are being told what is missing, and the
+        // money figures stay withheld until they are authoritative (BP-92).
+        if (isCurrentAttempt()) setLoadDegraded(true);
+      } else {
+        // SUB-TC-F07's expected result is this Alert (see devTestingService), so
+        // genuine load failures keep the blocking error they always had.
+        Alert.alert('Error', 'Failed to load payout data. Please try again.');
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      // Only the current attempt owns the spinner — a superseded attempt must not
+      // clear the loading state the newer attempt just set.
+      if (isCurrentAttempt()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -563,36 +645,81 @@ export default function PayoutSettingsScreen() {
           />
         }
       >
+        {/* FIX-Task-46 item A (owner-approved 2026-09-16): the load hit its deadline.
+            Explain it inline instead of blocking the seller with an alert — the screen
+            stays usable, the money figures stay withheld below (BP-92), and "Try again"
+            re-runs the load without ejecting them. Soft-tint banner idiom per
+            docx/design-system-passitup.md §6 warning (#FFF3E0 tint + #FFA726 accent),
+            same language as WalletWarningBanner / TrialReminderBanner. */}
+        {loadDegraded && (
+          <View style={styles.loadDegradedNotice} testID="payout-load-degraded-notice">
+            <Text style={styles.loadDegradedTitle}>Taking longer than expected</Text>
+            <Text style={styles.loadDegradedText} testID="payout-load-degraded-text">
+              {balance
+                ? // A previously-authoritative balance is still real data, so it stays
+                  // on screen (withheld only when there is nothing confirmed to show) —
+                  // but it may now be stale, and the copy has to say so rather than
+                  // claim it is hidden.
+                  `We couldn't finish loading everything, so some details may be missing and the balance below may be out of date.`
+                : `We couldn't finish loading everything, so some details may be missing. Your balance stays hidden until we can confirm it.`}
+            </Text>
+            <TouchableOpacity
+              style={styles.loadDegradedRetry}
+              onPress={handleRefresh}
+              testID="payout-load-retry-btn"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Try loading your payouts again"
+            >
+              <Text style={styles.loadDegradedRetryText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── Hero Balance Card ── */}
         <View style={styles.heroCard} testID="balance-hero-card">
           <View style={styles.heroTopRow}>
             <Coins size={24} color="white" weight="fill" testID="coins-icon" />
             <Text style={styles.heroLabel}>Available Balance</Text>
           </View>
+          {/* FIX-Task-46 item A: the figures are WITHHELD (`—`) until a real
+              `SellerBalance` has landed. The old `?? '$0.00'` fallback is not a
+              neutral default — it told a seller with a real balance that they had
+              nothing (BP-92 rule 3: a value painted before its fetch resolves must
+              be withheld, never faked). A genuine $0.00 balance still renders
+              `$0.00`, because that value comes from the server, not the fallback. */}
           <Text style={styles.heroBalance} testID="balance-amount">
-            {balanceDisplay?.available ?? '$0.00'}
+            {balanceDisplay?.available ?? '—'}
           </Text>
           <View style={styles.heroStatsRow}>
             <View style={styles.heroStatItem}>
               <Text style={styles.heroStatLabel}>Pending</Text>
               <Text style={styles.heroStatValue} testID="balance-pending">
-                {balanceDisplay?.pending ?? '$0.00'}
+                {balanceDisplay?.pending ?? '—'}
               </Text>
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStatItem}>
               <Text style={styles.heroStatLabel}>Lifetime Earned</Text>
               <Text style={styles.heroStatValue} testID="balance-lifetime">
-                {balanceDisplay?.lifetime ?? '$0.00'}
+                {balanceDisplay?.lifetime ?? '—'}
               </Text>
             </View>
           </View>
+          {/* FIX-Task-46 item A: while the balance is unknown the withdrawal is not
+              actionable. This is a no-op change for a KNOWN balance (including
+              $0.00), so SUB-TC-H01's "No Balance" alert on tap is preserved — but
+              the button must not invite a withdrawal whose amount we cannot state,
+              and `handleWithdrawClick`'s guard would otherwise tell a funded seller
+              "You have no available balance" (BP-92 rule 3). */}
           <TouchableOpacity
-            style={styles.requestPayoutBtn}
+            style={[styles.requestPayoutBtn, !balance && styles.requestPayoutBtnDisabled]}
             onPress={handleWithdrawClick}
+            disabled={!balance}
             testID="request-payout-btn"
             accessible
             accessibilityRole="button"
+            accessibilityState={{ disabled: !balance }}
             accessibilityLabel="Withdraw Now"
           >
             <ArrowDown size={16} color="#5DBB8E" />
@@ -601,8 +728,12 @@ export default function PayoutSettingsScreen() {
           {/* FIX-Task-44 item 7 (2026-09-16): surface the zero-balance constraint
               BEFORE the tap. The button deliberately stays enabled — SUB-TC-H01's
               expected result is the "No Balance" alert on tap — so this is an
-              additive inline hint, not a disabled state. */}
-          {(!balance || balance.available_balance_cents <= 0) && (
+              additive inline hint, not a disabled state.
+              FIX-Task-46 item A: gated on the balance being KNOWN. While the load
+              is still running or degraded `balance` is null, and telling a seller
+              with $909.40 "Nothing to withdraw yet" is a wrong statement, not a
+              neutral default (BP-92). */}
+          {balance && balance.available_balance_cents <= 0 && (
             <Text style={styles.noBalanceHint} testID="no-balance-hint">
               Nothing to withdraw yet — this unlocks when you have an available balance.
             </Text>
@@ -1799,6 +1930,50 @@ const styles = StyleSheet.create({
   requestPayoutBtnText: {
     color: '#5DBB8E',
     fontSize: 15,
+    fontWeight: '600',
+  },
+  // FIX-Task-46 item A (2026-09-16): the balance is not authoritative yet, so the
+  // withdrawal button is not actionable (see the render comment).
+  requestPayoutBtnDisabled: {
+    opacity: 0.5,
+  },
+  // FIX-Task-46 item A (2026-09-16): inline notice for a load that hit
+  // `LOAD_DEADLINE_MS` or could not finish. Warning tint + accent per
+  // docx/design-system-passitup.md §6 (#FFF3E0 / #FFA726), neutral text on the
+  // tint for AA-clean contrast — the same soft-tint banner idiom as
+  // WalletWarningBanner and TrialReminderBanner.
+  loadDegradedNotice: {
+    backgroundColor: '#FFF3E0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFA726',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 16,
+  },
+  loadDegradedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 3,
+  },
+  loadDegradedText: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  loadDegradedRetry: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FFA726',
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+  },
+  loadDegradedRetryText: {
+    color: '#B26A00',
+    fontSize: 14,
     fontWeight: '600',
   },
   // FIX-Task-44 item 7 (2026-09-16): zero-balance hint on the hero — tells the

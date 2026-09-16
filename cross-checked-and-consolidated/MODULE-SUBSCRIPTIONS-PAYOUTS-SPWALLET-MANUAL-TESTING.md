@@ -110,7 +110,7 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 | | SUB-TC-G10 | Payout history Load More |
 | | SUB-TC-G11 | NoMethodModal flow |
 | **H — Request & Withdraw 🔄 (live)** | SUB-TC-H01 | Withdraw Now — no-balance guard (amount entry removed) |
-| | SUB-TC-H02 | WithdrawModal summary — Available / Payout Fee / You'll Receive |
+| | SUB-TC-H02 | WithdrawModal summary — Available / Payout processing fee / You'll Receive |
 | | SUB-TC-H03 | Confirm Withdrawal success |
 | | SUB-TC-H04 | Withdraw blocked when no verified primary method |
 | | SUB-TC-H05 | Withdraw Now from Payout Settings hero (verified template) |
@@ -883,7 +883,7 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 2. Restore connectivity and pull-to-refresh (or reopen the screen).
 
 **Expected Result:**
-- A load failure surfaces an error alert **Failed to load payout data. Please try again.** (there is no inline error screen/Retry button on the live surface).
+- A load failure surfaces an error alert **Failed to load payout data. Please try again.** (there is no inline error *screen* for a thrown failure — FIX-Task-46's inline **Taking longer than expected** notice with **Try again** belongs to the slow-load path, not this one).
 - Pull-to-refresh re-runs the load and the hero/history render once the fetch succeeds.
 - **Note:** the old "Failed to Load Earnings + Retry" screen does not exist on the live surface.
 
@@ -1090,7 +1090,7 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 
 ---
 
-### SUB-TC-H02 · WithdrawModal summary — Available / Payout Fee / You'll Receive
+### SUB-TC-H02 · WithdrawModal summary — Available / Payout processing fee / You'll Receive
 
 **Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal, `calculatePayoutFee`)
 **Actors:** test-seller (verified method + balance > 0)
@@ -1102,7 +1102,7 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 1. As **test-seller** with a verified primary method and balance > 0, open Payout Settings and tap **[Withdraw Now]**.
 
 **Expected Result:**
-- **WithdrawModal** ("Withdraw Funds") shows: **Available Balance:** {available}, **Payout Fee:** -{fee}, **You'll Receive:** {available − fee}, and **Payout Method:** {primary method label}.
+- **WithdrawModal** ("Withdraw Funds") shows: **Available Balance:** {available}, **Payout processing fee ({Provider}):** -{fee}, **You'll Receive:** {available − fee}, and **Payout Method:** {primary method label}.
 - Fee matches `calculatePayoutFee(primaryMethod.method_type, available)` for the primary method (Stripe: $0.25 + 0.25%; PayPal/Venmo: 2% capped at $20.00).
 - There is no amount-entry field — the withdrawal is for the full available balance.
 

@@ -14,7 +14,10 @@ import {
   checkPayoutEligibility,
   formatPayoutMethodDisplay,
   createStripeAccountLinkUrl,
+  syncStripeConnectStatus,
+  STRIPE_CONNECT_SYNC_TIMEOUT_MS,
 } from '../payoutMethods';
+import { TimeoutError } from '../../utils/withTimeout';
 import * as ExpoLinking from 'expo-linking';
 import type { SellerPayoutMethod } from '../../types/payout.types';
 
@@ -553,6 +556,87 @@ describe('PayoutMethods Service', () => {
       });
 
       await expect(createStripeAccountLinkUrl('method_1')).rejects.toThrow('no URL returned');
+    });
+  });
+
+  // ===========================================================================
+  // FIX-Task-46 (2026-09-16): the sync EF call must be BOUNDED.
+  //
+  // A bare `fetch` in React Native has no timeout, so a stalled socket never
+  // rejects. `PayoutSettingsScreen.loadPayoutMethods()` awaits this call BEFORE
+  // every other read and can only recover from a THROWN error — a hang is not a
+  // throw, so before this fix one stalled request left the seller on a bare
+  // loading spinner with no data, no message and no way forward. Same class as
+  // FIX-Task-41 item 7 (Payment Methods `get-payment-method` invoke) and
+  // FIX-Task-26 item 5 (Review Offer, where `withTimeout` was introduced).
+  // ===========================================================================
+  describe('syncStripeConnectStatus — bounded EF call (FIX-Task-46)', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('rejects with a TimeoutError instead of hanging forever', async () => {
+      // Fake timers so the real 15s bound can be reached without waiting for it.
+      jest.useFakeTimers();
+      try {
+        // Pin the bound itself: the test advances by this constant, so without
+        // this assertion a later change to (say) several minutes would still
+        // pass while silently reintroducing a screen-length wedge.
+        expect(STRIPE_CONNECT_SYNC_TIMEOUT_MS).toBe(15000);
+        (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+          data: { session: { access_token: 'test-token' } },
+          error: null,
+        });
+
+        // A request that is issued but NEVER settles — the RN "stalled socket".
+        const neverSettles = jest.fn(() => new Promise<never>(() => {}));
+        global.fetch = neverSettles as unknown as typeof fetch;
+
+        const pending = syncStripeConnectStatus();
+        // Attach the rejection handler BEFORE tripping the bound so the
+        // rejection is never momentarily unhandled.
+        const settled = pending.then(
+          () => 'resolved',
+          (err: Error) => err
+        );
+
+        // Let getSession() resolve so the EF call is actually issued.
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(neverSettles).toHaveBeenCalledTimes(1);
+        expect(String(neverSettles.mock.calls[0][0])).toContain(
+          '/functions/v1/sync-stripe-connect-status'
+        );
+
+        // The bound trips.
+        jest.advanceTimersByTime(STRIPE_CONNECT_SYNC_TIMEOUT_MS + 1);
+
+        const outcome = await settled;
+        expect(outcome).toBeInstanceOf(TimeoutError);
+        expect((outcome as Error).message).toMatch(/timed out/i);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('still resolves normally when the EF answers in time', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { access_token: 'test-token' } },
+        error: null,
+      });
+
+      const answers = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      });
+      global.fetch = answers as unknown as typeof fetch;
+
+      await expect(syncStripeConnectStatus()).resolves.toBeUndefined();
+      expect(answers).toHaveBeenCalledTimes(1);
     });
   });
 });

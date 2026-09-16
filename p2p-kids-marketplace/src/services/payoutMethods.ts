@@ -8,6 +8,7 @@
 
 import { supabase } from '../config/supabase';
 import * as ExpoLinking from 'expo-linking';
+import { withTimeout } from '../utils/withTimeout';
 import type {
   SellerPayoutMethod,
   CreatePayoutMethodRequest,
@@ -26,6 +27,25 @@ const PAYOUT_METHODS_TABLE = 'seller_payout_methods';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 
+/**
+ * FIX-Task-46 (2026-09-16): hard bound on the `sync-stripe-connect-status`
+ * Edge Function call.
+ *
+ * A bare `fetch` in React Native has NO timeout, so a stalled socket never
+ * rejects. `PayoutSettingsScreen.loadPayoutMethods()` awaits this call at the
+ * TOP of its chain (before every other read) and can only recover from a
+ * THROWN error — a hang is not a throw, so the surrounding best-effort
+ * try/catch never fires and the screen sits on its bare loading spinner with no
+ * data and no message. This is the same class FIX-Task-41 item 7 fixed for the
+ * Payment Methods screen's `get-payment-method` invoke (see
+ * `PM_FETCH_TIMEOUT_MS` in `subscription.ts`) and FIX-Task-26 item 5 fixed for
+ * Review Offer (`src/utils/withTimeout.ts`).
+ *
+ * A timeout rejects only the WAIT — the in-flight request is not cancelled, so
+ * callers must treat it as "unknown outcome, safe to retry", never "it failed".
+ */
+export const STRIPE_CONNECT_SYNC_TIMEOUT_MS = 15000;
+
 // =============================================================================
 // Stripe Connect Status Sync (Fallback)
 // =============================================================================
@@ -33,6 +53,10 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 /**
  * Sync Stripe Connect status from Stripe -> DB.
  * This is a fallback for when `account.updated` webhooks are delayed or misconfigured.
+ *
+ * Rejects with `TimeoutError` if the Edge Function does not answer within
+ * `STRIPE_CONNECT_SYNC_TIMEOUT_MS` (FIX-Task-46) — callers that treat this as
+ * best-effort should catch and carry on.
  */
 export async function syncStripeConnectStatus(methodId?: string): Promise<void> {
   if (!SUPABASE_URL) {
@@ -46,14 +70,18 @@ export async function syncStripeConnectStatus(methodId?: string): Promise<void> 
     throw new Error('Not authenticated');
   }
 
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-stripe-connect-status`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify(methodId ? { methodId } : {}),
-  });
+  const res = await withTimeout(
+    fetch(`${SUPABASE_URL}/functions/v1/sync-stripe-connect-status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(methodId ? { methodId } : {}),
+    }),
+    STRIPE_CONNECT_SYNC_TIMEOUT_MS,
+    'Stripe Connect status sync timed out'
+  );
 
   if (!res.ok) {
     let message = 'Failed to sync Stripe status';

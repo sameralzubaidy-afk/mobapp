@@ -880,7 +880,7 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | SUB-TC-G10 | Payout history Load More |  | NEVER RUN |  |  | NEVER RUN |  |
 | SUB-TC-G11 | NoMethodModal flow |  | NEVER RUN |  |  | NEVER RUN |  |
 | SUB-TC-H01 | Withdraw Now — no-balance guard (amount entry removed) |  | NEVER RUN |  |  | NEVER RUN |  |
-| SUB-TC-H02 | WithdrawModal summary — Available / Payout Fee / You'll Receive |  | NEVER RUN |  |  | NEVER RUN |  |
+| SUB-TC-H02 | WithdrawModal summary — Available / Payout processing fee / You'll Receive |  | NEVER RUN |  |  | NEVER RUN |  |
 | SUB-TC-H03 | Confirm Withdrawal success |  | NEVER RUN |  |  | NEVER RUN |  |
 | SUB-TC-H04 | Withdraw blocked when no verified primary method |  | NEVER RUN |  |  | NEVER RUN |  |
 | SUB-TC-H05 | Withdraw Now from Payout Settings hero (verified template) |  | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` | ✅ PASS |  |
