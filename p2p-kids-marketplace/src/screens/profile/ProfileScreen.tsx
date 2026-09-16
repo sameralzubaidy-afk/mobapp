@@ -97,6 +97,12 @@ export default function ProfileScreen({ route }: any) {
     tradesCount: 0,
     completedTradesCount: 0,
   });
+  // FIX-Task-37 item 10 (2026-09-16): the stats row used to paint the useState SEED
+  // values (0 / 0) before the real counts arrived, so a seller with listings briefly
+  // saw "0 LISTINGS / 0 TRADES" — which reads as "you have nothing". Withhold the
+  // numbers until they are authoritative (BP-92) rather than painting a placeholder
+  // that a fetch later corrects.
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const [showProfileSavedBanner, setShowProfileSavedBanner] = useState(false);
   // DT97 (Item 5-2): bump to re-fetch the BadgeShowcase list after the badge
   // celebration modal dismisses so "My Badges (N)" reflects a new award at once.
@@ -300,6 +306,9 @@ export default function ProfileScreen({ route }: any) {
             if (error) {
               console.warn('Error loading profile stats:', error);
             }
+            // Mark the row authoritative either way, so a FAILED fetch falls back to
+            // the seed values instead of sticking on an em-dash forever.
+            setStatsLoaded(true);
           })(),
         ]);
       } catch (error: any) {
@@ -489,10 +498,14 @@ export default function ProfileScreen({ route }: any) {
               testID="profile-listings-stat"
               accessible
               accessibilityRole="button"
-              accessibilityLabel={`${profileStats.listingsCount} Listings`}
+              accessibilityLabel={
+                statsLoaded ? `${profileStats.listingsCount} Listings` : 'Loading listings count'
+              }
             >
               <Storefront size={18} color="#5DBB8E" weight="regular" />
-              <Text style={styles.statValue}>{profileStats.listingsCount}</Text>
+              <Text style={styles.statValue}>
+                {statsLoaded ? profileStats.listingsCount : '—'}
+              </Text>
               <Text style={styles.statLabel}>Listings</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -502,10 +515,12 @@ export default function ProfileScreen({ route }: any) {
               testID="profile-trades-stat"
               accessible
               accessibilityRole="button"
-              accessibilityLabel={`${profileStats.tradesCount} Trades`}
+              accessibilityLabel={
+                statsLoaded ? `${profileStats.tradesCount} Trades` : 'Loading trades count'
+              }
             >
               <Package size={18} color="#5DBB8E" weight="regular" />
-              <Text style={styles.statValue}>{profileStats.tradesCount}</Text>
+              <Text style={styles.statValue}>{statsLoaded ? profileStats.tradesCount : '—'}</Text>
               <Text style={styles.statLabel}>Trades</Text>
             </TouchableOpacity>
             <TouchableOpacity

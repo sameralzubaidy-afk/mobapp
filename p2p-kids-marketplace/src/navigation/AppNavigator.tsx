@@ -231,6 +231,12 @@ const linking = {
       // action: a dropped hosted session can now land back on Payout Settings
       // after a cold relaunch.
       PayoutSettings: 'payout-settings',
+      // FIX-Task-37 item 11 (2026-09-16): register the Payment Methods screen.
+      // Previously the ONLY ways in were Settings → Manage Payment Methods and the
+      // Trade offer "Add Payment Method" prompt — a ~6-call navigation path for QA
+      // and no way for support to link a user straight there. Also lets the screen
+      // be reached cold (`p2pkidsmarketplace://settings/payment-methods`).
+      PaymentMethods: 'settings/payment-methods',
     },
   },
 };

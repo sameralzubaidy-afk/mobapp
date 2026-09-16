@@ -583,6 +583,9 @@ describe('Subscription Service - TASK SUB-002', () => {
       mockGetSession.mockResolvedValue({
         data: {
           session: {
+            // FIX-Task-37 item 1: the PM cache is user-scoped, so the mocked
+            // session must carry a user id (the real getSession always does).
+            user: { id: 'user-cache-owner' },
             access_token: 'test-token',
             // Far-future expiry so the refresh branch is never hit in these tests.
             expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
@@ -642,6 +645,8 @@ describe('Subscription Service - TASK SUB-002', () => {
       mockGetSession.mockResolvedValue({
         data: {
           session: {
+            // FIX-Task-37 item 1: user-scoped cache — the session must carry a user id.
+            user: { id: 'user-cache-owner' },
             access_token: 'test-token',
             // Far-future expiry so the refresh branch is never hit in these tests.
             expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
@@ -691,12 +696,111 @@ describe('Subscription Service - TASK SUB-002', () => {
     });
   });
 
+  describe('getPaymentMethod — cross-account isolation (FIX-Task-37 item 1 / BP-95)', () => {
+    const farFuture = Math.floor(Date.now() / 1000) + 60 * 60;
+
+    const mockSessionFor = (userId: string) => {
+      mockGetSession.mockResolvedValue({
+        data: { session: { user: { id: userId }, access_token: `token-${userId}`, expires_at: farFuture } },
+        error: null,
+      } as any);
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockGetPaymentCardPreference.mockResolvedValue(null);
+      // Module-level cache persists across cases in this file — reset explicitly so
+      // each test is order-independent (BP-60 test isolation).
+      invalidatePaymentMethodCache();
+    });
+
+    it("never serves the previous user's cached card after a warm account switch", async () => {
+      // User A is signed in and their saved card is fetched + cached.
+      mockSessionFor('user-A');
+      mockInvoke.mockResolvedValueOnce({
+        data: {
+          payment_method: {
+            id: 'pm_A',
+            brand: 'mastercard',
+            last4: '4444',
+            exp_month: 12,
+            exp_year: 2035,
+          },
+        },
+        error: null,
+      });
+      const asUserA = await getPaymentMethod();
+      expect(asUserA?.id).toBe('pm_A');
+
+      // Warm in-app account switch (no relaunch): user B has NO saved card, but the
+      // module-level cache still holds user A's card.
+      mockSessionFor('user-B');
+      mockInvoke.mockResolvedValueOnce({ data: { payment_method: null }, error: null });
+
+      const asUserB = await getPaymentMethod();
+
+      // REGRESSION GUARD: before the fix this returned user A's MASTERCARD, i.e. one
+      // account was shown another account's payment card (privacy exposure).
+      expect(asUserB).toBeNull();
+      expect(mockInvoke).toHaveBeenCalledTimes(2);
+    });
+
+    it('still serves the cache for the SAME user (no redundant fetch)', async () => {
+      mockSessionFor('user-A');
+      mockInvoke.mockResolvedValueOnce({
+        data: {
+          payment_method: {
+            id: 'pm_A',
+            brand: 'visa',
+            last4: '1111',
+            exp_month: 12,
+            exp_year: 2035,
+          },
+        },
+        error: null,
+      });
+
+      const first = await getPaymentMethod();
+      const second = await getPaymentMethod();
+
+      expect(first?.id).toBe('pm_A');
+      expect(second?.id).toBe('pm_A');
+      // The prefetch win is preserved: the second read is served from the cache.
+      expect(mockInvoke).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats a session-less read as a cache miss (fail closed, never a stale card)', async () => {
+      mockSessionFor('user-A');
+      mockInvoke.mockResolvedValueOnce({
+        data: {
+          payment_method: {
+            id: 'pm_A',
+            brand: 'visa',
+            last4: '1111',
+            exp_month: 12,
+            exp_year: 2035,
+          },
+        },
+        error: null,
+      });
+      expect((await getPaymentMethod())?.id).toBe('pm_A');
+
+      // Signed out: no session → no owner → the cached card must NOT be served.
+      mockGetSession.mockResolvedValue({ data: { session: null }, error: null } as any);
+      const signedOut = await getPaymentMethod();
+
+      expect(signedOut).toBeNull();
+    });
+  });
+
   describe('getPaymentMethod — QA forced-card pass-through (Dev Task 44)', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       mockGetSession.mockResolvedValue({
         data: {
           session: {
+            // FIX-Task-37 item 1: user-scoped cache — the session must carry a user id.
+            user: { id: 'user-cache-owner' },
             access_token: 'test-token',
             // Far-future expiry so the refresh branch is never hit in these tests.
             expires_at: Math.floor(Date.now() / 1000) + 60 * 60,

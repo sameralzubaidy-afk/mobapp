@@ -227,9 +227,9 @@ async function applyQaLoginAs(
     //
     // `scope: 'local'` (not 'global') so clearing a failed local switch never
     // signs the persona out of any other device/session.
-    // Note: AuthContext has NO onAuthStateChange listener, so signing out the
-    // Supabase client does not clear React state on its own — setSession(null)
-    // below is what actually releases the stale persona.
+    // Note: AuthContext now HAS an onAuthStateChange listener (FIX-Task-37 item 1),
+    // but it is deliberately narrow — it only drops the user-scoped payment-method
+    // cache. React state is still released by the explicit setSession(null) below.
     try {
       await supabase.auth.signOut({ scope: 'local' });
       setSession(null);

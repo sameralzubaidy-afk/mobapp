@@ -170,6 +170,13 @@ export default function PayoutSettingsScreen() {
   const [balance, setBalance] = useState<SellerBalance | null>(null);
   const [balanceDisplay, setBalanceDisplay] = useState<BalanceDisplay | null>(null);
   const [recentPayouts, setRecentPayouts] = useState<SellerPayout[]>([]);
+  // FIX-Task-37 item 9 (2026-09-16): how many payouts are blocked on a missing payout
+  // method. Derived from the SAME array the history list renders, so the summary and
+  // the rows can never disagree (BP-92). A seller with 17 stuck rows previously had to
+  // read all 17 to work out that they shared a single cause.
+  const actionRequiredPayoutCount = recentPayouts.filter(
+    (payout) => payout.status === 'requires_action'
+  ).length;
   const [withdrawing, setWithdrawing] = useState(false);
   const [payoutLimit, setPayoutLimit] = useState(5); // Start with 5, increase on "Load More"
   const [loadingMore, setLoadingMore] = useState(false);
@@ -745,6 +752,16 @@ export default function PayoutSettingsScreen() {
           <Text style={styles.historyFeeNote} testID="payout-history-fee-note">
             Amounts below are what you receive after your payout provider's fee — Pass It Up
             charges no withdrawal fee.
+          </Text>
+        )}
+        {/* FIX-Task-37 item 9 (2026-09-16): one aggregate line for the blocked rows.
+            Each "requires_action" payout needs a payout method before it can move, so
+            without this the seller sees N identical rows and no indication they share
+            one cause (up to 17 were observed in a single account). */}
+        {actionRequiredPayoutCount > 0 && (
+          <Text style={styles.actionRequiredSummary} testID="payout-action-required-summary">
+            {actionRequiredPayoutCount} payout
+            {actionRequiredPayoutCount === 1 ? ' needs' : 's need'} a payout method
           </Text>
         )}
         {recentPayouts.length === 0 ? (
@@ -1705,6 +1722,14 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   // ── Section label ───────────────────────────────────────────────────────────
+  // FIX-Task-37 item 9 (2026-09-16): aggregate line above the payout history list.
+  // Warning amber — it is an action prompt, not neutral fine print.
+  actionRequiredSummary: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFA726',
+    marginBottom: 8,
+  },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '600',

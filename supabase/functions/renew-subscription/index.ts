@@ -18,6 +18,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.5.0?target=deno';
+// FIX-Task-37 item 2 (2026-09-16): retire the card a newly-attached one replaces,
+// so replaced PaymentMethods stop accumulating on the Stripe customer.
+import { retirePreviousPaymentMethod } from '../_shared/subscription-payment-method.ts';
 
 // NOTE (BP-41, 2026-08-09): validateStripePaymentMethodId + helpers INLINED from
 // ../_shared/stripe-payment-method-guard.ts (kept in sync) because the MCP
@@ -518,6 +521,24 @@ serve(async (req) => {
     }
 
     console.log('[renew-subscription] Updated subscription status to active');
+
+    // FIX-Task-37 item 2 (2026-09-16): retire the card this renewal REPLACED.
+    // Step 6 above only attaches when the supplied pm differs from the stored one,
+    // so the stored card is exactly the one that becomes unreachable here (the
+    // helper no-ops when they are the same). Runs after the new card is attached,
+    // set as the customer default, and persisted. Best-effort: never throws, so a
+    // detach problem cannot fail a renewal that has already been charged.
+    const retireResult = await retirePreviousPaymentMethod(stripe, {
+      customerId,
+      previousPaymentMethodId: sub.stripe_payment_method_id ?? null,
+      newPaymentMethodId: paymentMethodId,
+    });
+    if (retireResult.error) {
+      console.warn(
+        '[renew-subscription] replaced card could not be detached (non-fatal):',
+        retireResult.error,
+      );
+    }
 
     // 9. R6 (2026-08-09) + DT-118 (2026-09-05): unfreeze SP wallet via in-repo
     //    RPC so a resubscribed user's frozen balance becomes spendable again

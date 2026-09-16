@@ -10,6 +10,39 @@
 
 ---
 
+## ⚠️ Round scope & priorities — READ BEFORE DISPATCHING A SUB ROUND
+
+> **Added 2026-09-16 (FIX-Task-37 item 3).** The 2026-09-16 SUB Android round was dispatched with **priority 1 = "B13 Apple Pay / Google Pay"** and **priority 2 = "the native Stripe payment-sheet cluster (B03, B09–B12)"**. **Every one of those cases is RETIRED** — in-app subscription purchase was removed and joining is web-first. A round assigned against them cannot make progress, and the retired set had to be rediscovered mid-run. This block is the committed source of truth for SUB scope; reconcile any brief against it **before** assigning priorities.
+
+### 1 · Retired — do NOT assign priorities to these
+
+| Scope | Status | Why / where coverage lives now |
+|---|---|---|
+| **Group B (SUB-TC-B01 … B13)** | 🔴 **RETIRED** (2026-09-02) | In-app subscription purchase removed; membership is **web-first**. Coverage → **SUB-TC-N01/N02** + the Web Subscription Purchase E2E (QA Task 20). |
+| **SUB-TC-D02, SUB-TC-D04** | 🔴 **RETIRED** | In-app re-subscribe / renewal *payment* removed; web-first → SUB-TC-N01/N02 + Web E2E. |
+| **SUB-TC-B13 specifically** | 🔴 **RETIRED / N/A both platforms** | There is no in-app Apple Pay / Google Pay surface. The **live** native Stripe sheet (Group M) renders `"Pay with Link"` + `"Or use a card"` and **no Google Pay button** (verified on Android 2026-09-16). |
+| **SUB-TC-G02, G03** | ⛔ unconfigured | Non-runnable until the provider/config exists. |
+| **SUB-TC-L03** | ⛔ server-webhook only | No in-app surface. |
+
+Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx` marks the `SubscriptionPayment` / `SubscriptionSuccess` screens DEPRECATED (Dev Task 86) and there are **zero** `navigate('SubscriptionPayment' | 'SubscriptionSuccess')` call sites.
+
+### 2 · Runnable — the groups priorities should be drawn from
+
+**A** (plans/comparison) · **C** (manage & cancel) · **D01 / D03 / D05** (grace banner, expired, reactivate) · **E** (billing history & status) · **F / G** (payout methods & settings) · **H** (withdrawals) · **I / J / K** (SP wallet & ledger) · **M** (payment methods) · **N** (web-first join) · **R** (regression anchors).
+
+### 3 · Authoritative per-case state (do not re-derive a baseline)
+
+- **`e2e-test-results/QA-TESTCASE-STATUS-2026-09-03.md`** → the **SUB** section is the single source of truth for per-case verdicts. Since FIX-Task-37 item 7 it carries explicit **`iOS` / `Android`** verdict columns, so a platform-specific PARTIAL is countable instead of living only in free-text notes (`—` means *no platform-qualified verdict on record*, not "not run").
+- **SUB totals as at 2026-09-16:** 100 cases · **PASS 77** · **PARTIAL 2** · **OPEN 3** · **RETIRED 15** · **N/A 2** · **Remaining (ACTIVE) 1**.
+- ⚠️ The baseline quoted in the 2026-09-16 brief (`77/2/3/17 SKIPPED/1 inactive`) did **not** match the tracker — always take the numbers from the tracker, never from a brief's prose.
+
+### 4 · Known fixture gates (check before assigning)
+
+- **Payout-method legs** (F02 "with method", H-series withdrawals) were blocked through 2026-09-16 because **no QA persona held a `seller_payout_methods` row** — the only row platform-wide belonged to a non-QA demo account. Repaired by **FIX-Task-37 item 4**: `qa-payout-seller` now carries a verified primary method backed by a real test-mode Stripe Express account (`npm run qa:express-complete -- create`) plus a controlled balance (`npm run qa:payout-fixture -- --persona qa-payout-seller balance --amount <cents>`).
+- **Grace/wallet semantics:** `subscription.status = 'grace_period'` ⇒ `sp_wallets.state = 'grace_period'` — **spendable, cannot earn** (R6, owner decision 2026-08-09). The wallet is frozen **only at the end of the grace window** by `grace-period-cron`. Any expected result that says "SP frozen during grace" is the **stale pre-R6** model — see SUB-TC-D01 vs SUB-TC-I05 (the guide's I05 is the correct one).
+
+---
+
 ## Test Case Index
 
 | Group | TC# | Description |
@@ -44,7 +77,7 @@
 | | SUB-TC-C10 | My Subscription free-user state |
 | | SUB-TC-C11 | My Subscription "Learn More" link |
 | | SUB-TC-C12 | My Subscription "Member Since" value (latent bug) |
-| **D — Renewal, Grace & Expiry** | SUB-TC-D01 | Grace period banner + SP wallet frozen warning |
+| **D — Renewal, Grace & Expiry** | SUB-TC-D01 | Grace period banner + SP spendable/no-earn notice |
 | | SUB-TC-D02 | 🔴 RETIRED — in-app re-subscribe payment removed; web-first → SUB-TC-N01/N02 + Web E2E |
 | | SUB-TC-D03 | Subscription Expired screen — benefits lost + Renew |
 | | SUB-TC-D04 | 🔴 RETIRED — in-app renewal payment removed; web-first → SUB-TC-N01/N02 + Web E2E |
@@ -136,7 +169,7 @@
 | Trial user | test-trial@kidsmarketplace.test | Kids Club+ Trial (`status='trial'`, trial_end_date configurable) | Mid-trial, days remaining > 0 — **Standing fixture (2026-09-06, Dev Task 120)** — provision / switch branch via `npm run qa:r41-trial -- ensure [--days-remaining N]` (default 5 → trial-≤7d urgency badge; pass e.g. 14 → trial->7d, no badge); clean revert `npm run qa:r41-trial -- reset`. Password `TestTrial123!`; one-call login `qa-login-as?persona=test-trial` |
 | Free (trial available) | test-free@kidsmarketplace.test | None | Never used trial |
 | Free (trial used) | test-free-2@kidsmarketplace.test | None | `can_start_trial = false` |
-| Grace period | test-grace@kidsmarketplace.test | Grace period | SP wallet frozen |
+| Grace period | test-grace@kidsmarketplace.test | Grace period | SP wallet in `grace_period` — spendable, cannot earn (R6) |
 | Expired | test-expired@kidsmarketplace.test | Expired (`status='expired'`, past dates) | **Standing fixture (2026-09-03, Dev Task R41)** — genuine expired membership + frozen wallet for SUB-TC-C09/D03; login lands on SubscriptionExpired. Password `TestExpired123!`; one-call login `qa-login-as?persona=test-expired` |
 | Seller | test-seller@kidsmarketplace.test | Kids Club+ Active | Has payout balance + methods |
 | Admin | test-admin@kidsmarketplace.test | — | Required for admin-side payout/SP cases |
@@ -240,7 +273,7 @@
 **Expected Result:**
 - **Free:** Join surface shows the Kids Club+ value-prop, the "Membership is managed on the web" card, and CTA **[Join Kids Club+]** (canonical non-trial label — the retired "Start 30-Day Free Trial" CTA is gone; trial_enabled=false).
 - **Active/Trial:** Manage Kids Club+ shows the **Active** badge + Next Billing Date + cancel option + auto-renew toggle.
-- **Grace period:** Manage Kids Club+ shows the **Grace Period** badge + SP-frozen warning + **[Re-subscribe]** (SP frozen messaging).
+- **Grace period:** Manage Kids Club+ shows the **Grace Period** badge + a spendable-SP notice + **[Re-subscribe]**. **R6 (owner decision 2026-08-09):** during grace the wallet stays SPENDABLE — the user keeps spending existing SP and stops EARNING new SP. The wallet is frozen only when the grace window ENDS (see SUB-TC-I05 for the wallet-state view).
 - Cancellation modal (if opened) is titled "We'll miss you!" with the six reason options including "Other".
 
 ---
@@ -579,7 +612,7 @@
 
 ## Group D — Renewal, Grace & Expiry
 
-### SUB-TC-D01 · Grace period banner + SP wallet frozen warning
+### SUB-TC-D01 · Grace period banner + SP spendable/no-earn notice
 
 **Ref:** FLOW-12 · FLOW-10 · ManageKidsClubScreen
 **Actors:** test-grace
@@ -592,7 +625,8 @@
 
 **Expected Result:**
 - An urgency message ("Your subscription ended on …") with days left in grace (default 90) is shown.
-- A "Your SP wallet will be frozen if you don't re-subscribe" warning is displayed alongside a **[Re-subscribe]** CTA.
+- A notice explaining what happens to Swap Points if the user does not re-subscribe is displayed alongside a **[Re-subscribe]** CTA.
+  - **R6 correction (2026-09-16, FIX-Task-37 item 4):** this expected result previously read *"Your SP wallet will be frozen if you don't re-subscribe"*. That is the **stale pre-R6** model. During grace the wallet stays **SPENDABLE** — the user keeps spending existing SP and stops **EARNING** new SP; it is frozen only when the grace window **ENDS**. Assert the live banner copy on the device rather than this note, and cross-reference **SUB-TC-I05** (the wallet-state view of the same rule).
 
 ---
 

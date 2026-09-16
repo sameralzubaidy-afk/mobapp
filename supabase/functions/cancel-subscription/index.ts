@@ -140,8 +140,18 @@ async function hasSpActivity(
   }
 }
 
-// ─── Helper: Freeze SP wallet ─────────────────────────────────────────────────
-async function freezeSpWallet(
+// ─── Helper: move the SP wallet into the grace state ──────────────────────────
+// FIX-Task-37 item 4 (2026-09-16). This helper used to be called `freezeSpWallet`
+// and wrote `frozen_at` WITHOUT writing `state` — wrong in two ways:
+//   * it was an effective no-op on the wallet's state (the wallet kept whatever it
+//     already had, so nothing was actually frozen), and
+//   * it stamped `frozen_at` on a wallet that R6 keeps SPENDABLE, contradicting the
+//     model and misleading any UI or logic that reads `frozen_at`.
+// The live model (owner decision 2026-08-09, migration 20260810000010 = "R6") is: a
+// user IN grace can keep SPENDING existing SP but cannot EARN new SP, so the wallet
+// state is 'grace_period'. A true freeze ('frozen' + frozen_at) happens only when
+// the grace window ENDS (grace-period-cron -> rpc_set_sp_wallet_state(..., 'frozen')).
+async function enterGraceWallet(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   graceEndsAt: Date
@@ -150,19 +160,20 @@ async function freezeSpWallet(
     const { error } = await supabase
       .from('sp_wallets')
       .update({
-        frozen_at: new Date().toISOString(),
+        state: 'grace_period',
         grace_period_ends_at: graceEndsAt.toISOString(),
+        frozen_at: null,
       })
       .eq('user_id', userId);
 
     if (error) {
-      console.error('[cancel-subscription] Error freezing SP wallet:', error.message);
+      console.error('[cancel-subscription] Error moving SP wallet into grace:', error.message);
       // We don't throw here - subscription cancellation should still proceed
     } else {
-      console.log('[cancel-subscription] SP wallet frozen for user:', userId);
+      console.log('[cancel-subscription] SP wallet moved to grace_period for user:', userId);
     }
   } catch (err) {
-    console.error('[cancel-subscription] Unexpected error freezing SP wallet:', err);
+    console.error('[cancel-subscription] Unexpected error updating SP wallet grace state:', err);
   }
 }
 
@@ -352,9 +363,9 @@ serve(async (req: Request) => {
         graceEndsAt = graceEnd.toISOString();
 
         // Freeze SP wallet
-        await freezeSpWallet(supabaseAdmin, userId, graceEnd);
+        await enterGraceWallet(supabaseAdmin, userId, graceEnd);
 
-        message = `Your trial has been cancelled. Your Swap Points are frozen for ${gracePeriodDays} days. Re-subscribe to restore access.`;
+        message = `Your trial has been cancelled. You can keep spending your Swap Points for the next ${gracePeriodDays} days, but you won't earn new ones. Re-subscribe to start earning again.`;
       } else {
         // Trial user without SP activity → free
         newStatus = 'free';

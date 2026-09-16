@@ -122,3 +122,121 @@ export async function syncStripeDefaultPaymentMethod(
 
   return result;
 }
+
+// =============================================================================
+// FIX-Task-37 item 2 (2026-09-16) — retire the PaymentMethod a new card REPLACED
+// =============================================================================
+//
+// WHY THIS EXISTS (the F2 finding)
+// --------------------------------
+// Attaching a new card never detached the old one, so `attach-payment-method`
+// (and its three sibling attach sites) left every replaced PaymentMethod attached
+// to the Stripe customer forever. Verified live on 2026-09-16:
+//
+//     attach 4242            -> [4242]
+//     Update to 4444         -> [4444, 4242]   <- replaced card NOT detached
+//     Remove                 -> [4242]         <- the orphan survives removal
+//
+// The DB only ever names ONE card (`subscriptions.stripe_payment_method_id`), so
+// these orphans are invisible in the app while accumulating at the provider — one
+// test customer reached 4 attached PMs through routine testing alone.
+//
+// WHY A SHARED HELPER
+// -------------------
+// Four EFs attach a card and each would otherwise need its own copy of this logic
+// (`attach-payment-method`, `create-subscription-payment`,
+// `create-subscription-from-payment-method`, `renew-subscription`). One helper
+// keeps the skip rules and the failure semantics identical everywhere.
+//
+// SAFETY RULES (all deliberate)
+// -----------------------------
+//  * NEVER detach the card we just attached (`previous === new` is a no-op).
+//  * Only detach a card that is actually attached to THIS customer — Stripe
+//    rejects detaching a detached/foreign PM, and a needless failure would be
+//    logged as noise on every replace.
+//  * Best-effort: a detach failure must NEVER fail the user's action (the new card
+//    is already attached and persisted by the time this runs), so every outcome is
+//    returned and nothing is thrown.
+//  * Detaching is IRREVERSIBLE for that token: Stripe permanently refuses to
+//    re-attach a card that was detached from a customer
+//    ("...may not be used again"). That is acceptable here precisely because the
+//    card is being REPLACED — but it is why this must never run against the
+//    currently-stored card.
+
+export interface StripePreviousPaymentMethodClient {
+  paymentMethods: {
+    retrieve(id: string): Promise<unknown>;
+    detach(id: string): Promise<unknown>;
+  };
+}
+
+export interface RetireResult {
+  /** True only when Stripe confirmed the detach. */
+  detached: boolean;
+  /** Why nothing was detached (a legitimate no-op, not an error). */
+  skipped_reason?:
+    | 'no_customer'
+    | 'no_previous_pm'
+    | 'unchanged'
+    | 'not_attached_to_customer';
+  /** Present only when the detach was attempted and failed — never thrown. */
+  error?: string;
+}
+
+/**
+ * Detach the PaymentMethod that `newPaymentMethodId` replaced on `customerId`.
+ *
+ * Call this AFTER the new card is attached and the default has been synced, so the
+ * provider never has a window where the customer has no usable default.
+ *
+ * @param stripe               an initialised Stripe client
+ * @param opts.customerId      `cus_...` — skipped when falsy
+ * @param opts.previousPaymentMethodId  the `pm_...` the DB named BEFORE the
+ *                             replace (read it before overwriting the column)
+ * @param opts.newPaymentMethodId       the `pm_...` just attached
+ */
+export async function retirePreviousPaymentMethod(
+  stripe: StripePreviousPaymentMethodClient,
+  opts: {
+    customerId?: string | null;
+    previousPaymentMethodId?: string | null;
+    newPaymentMethodId?: string | null;
+  },
+): Promise<RetireResult> {
+  const { customerId, previousPaymentMethodId, newPaymentMethodId } = opts;
+
+  if (!customerId) return { detached: false, skipped_reason: 'no_customer' };
+  if (!previousPaymentMethodId) return { detached: false, skipped_reason: 'no_previous_pm' };
+  if (previousPaymentMethodId === newPaymentMethodId) {
+    return { detached: false, skipped_reason: 'unchanged' };
+  }
+
+  try {
+    // Confirm the PM really belongs to this customer before touching it. A PM that
+    // is already detached reports `customer: null`, and `detach` would 400 — that
+    // is a normal no-op on a repeat run, not a failure worth logging as an error.
+    const pm = (await stripe.paymentMethods.retrieve(previousPaymentMethodId)) as {
+      customer?: string | { id?: string } | null;
+    };
+    const rawCustomer = pm?.customer ?? null;
+    const attachedCustomerId =
+      typeof rawCustomer === 'string' ? rawCustomer : (rawCustomer?.id ?? null);
+
+    if (attachedCustomerId !== customerId) {
+      return { detached: false, skipped_reason: 'not_attached_to_customer' };
+    }
+
+    await stripe.paymentMethods.detach(previousPaymentMethodId);
+    console.log(
+      `[retire-payment-method] detached replaced ${previousPaymentMethodId} from ${customerId} (replaced by ${newPaymentMethodId})`,
+    );
+    return { detached: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[retire-payment-method] detach FAILED for ${previousPaymentMethodId} on ${customerId}:`,
+      msg,
+    );
+    return { detached: false, error: msg };
+  }
+}

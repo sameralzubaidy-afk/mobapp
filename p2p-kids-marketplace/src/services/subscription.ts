@@ -842,12 +842,23 @@ export interface PaymentMethodInfo {
 
 // In-memory cache + promise dedup: prefetched by CartCheckoutScreen on mount
 // so submit flow skips EF cold start. Promise dedup prevents concurrent EF calls.
+//
+// FIX-Task-37 item 1 (BP-95): these slots are USER-SCOPED. They used to be one
+// process-global entry with no session check, so after switching accounts inside
+// the same app process (e.g. an in-app persona switch — which does NOT relaunch the
+// app) a user could be shown the PREVIOUS user's saved card even though their own
+// account has none. On a shared family device that is a real privacy exposure, not
+// a cosmetic bug. Every entry now records the user id that produced it, and the
+// getter only honours an entry whose owner is the user signed in NOW.
 let _pmCache: PaymentMethodInfo | null | undefined;
+let _pmCacheUserId: string | null = null;
 let _pmPromise: Promise<PaymentMethodInfo | null> | null = null;
 
 /**
  * Get the buyer's saved Stripe payment method.
- * Results are cached in-memory for the session.
+ * Results are cached in-memory, SCOPED TO THE SIGNED-IN USER (FIX-Task-37 item 1 /
+ * BP-95) — an entry produced by a different user is treated as a miss, so a warm
+ * in-app account switch can never surface the previous user's card.
  * Pass forceRefresh=true to bypass cache (e.g., after adding a new PM).
  *
  * QA forced-card override (Dev Task 44): when the `payment_card` QA toggle is
@@ -861,11 +872,22 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
   const forcedCard = await getSimulatedPaymentCardPreference();
   const force = forceRefresh || forcedCard !== null;
 
-  if (!force && _pmCache !== undefined) {
+  // FIX-Task-37 item 1 (BP-95): resolve the CURRENT session BEFORE consulting the
+  // cache. The cached value is only valid for the user who produced it, so an entry
+  // owned by someone else (a warm in-app account switch) is a miss and the new
+  // user's own card state is fetched from the server instead.
+  const {
+    data: { session: scopeSession },
+  } = await supabase.auth.getSession();
+  const ownerId = scopeSession?.user?.id ?? null;
+  const cacheOwnedByCurrentUser = ownerId !== null && _pmCacheUserId === ownerId;
+
+  if (!force && cacheOwnedByCurrentUser && _pmCache !== undefined) {
     return _pmCache;
   }
-  // Dedup concurrent calls — share the same in-flight promise
-  if (!force && _pmPromise !== null) {
+  // Dedup concurrent calls — share the same in-flight promise, but only for the
+  // SAME user (a foreign in-flight request must never satisfy this read).
+  if (!force && cacheOwnedByCurrentUser && _pmPromise !== null) {
     return _pmPromise;
   }
 
@@ -920,6 +942,7 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
           console.log('[subscription] ℹ️ No payment method found');
           if (!forcedCard) {
             _pmCache = null;
+            _pmCacheUserId = ownerId;
           }
           return null;
         }
@@ -932,6 +955,7 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
           return pm;
         }
         _pmCache = pm;
+        _pmCacheUserId = ownerId;
         console.log('[subscription] ✅ Payment method retrieved');
         return _pmCache;
       } catch (error) {
@@ -939,6 +963,7 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
         console.error('[subscription] ❌ getPaymentMethod error:', err.message);
         if (!forcedCard) {
           _pmCache = null;
+          _pmCacheUserId = ownerId;
         }
         return null;
       }
@@ -949,6 +974,9 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
     // QA-forced read: do not dedupe against, or store into, the shared promise.
     return fetchPm();
   }
+  // FIX-Task-37 item 1: the in-flight request is owned by the user who started it,
+  // so a concurrent read from a DIFFERENT user never adopts this request's result.
+  _pmCacheUserId = ownerId;
   _pmPromise = fetchPm();
   return _pmPromise;
 }
@@ -965,9 +993,14 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
  *
  * Call this right after the backend confirms removal; the next read will
  * re-fetch from the Edge Function and see the true empty state.
+ *
+ * FIX-Task-37 item 1 (BP-95): also called on every auth transition
+ * (SIGNED_OUT / SIGNED_IN / USER_UPDATED) from AuthContext, and on logout, so a
+ * change of identity always drops the user-scoped entry.
  */
 export function invalidatePaymentMethodCache(): void {
   _pmCache = undefined;
+  _pmCacheUserId = null;
   _pmPromise = null;
 }
 

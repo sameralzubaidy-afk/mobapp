@@ -70,8 +70,13 @@ export const MONEY_ROUTINES_REQUIRE_EF = {
  * wired to the RPC, silently missed it. `--strict` promotes these to FAIL.
  */
 export const PASSTHROUGH_EQUIVALENT_BARE = {
+  // FIX-Task-37 item 5 (2026-09-16): the live job was re-pointed at the Edge
+  // Function, so this entry no longer matches any scheduled command. It is
+  // deliberately KEPT as a regression guard: if a future edit reverts the job to
+  // the bare RPC, it stays WARN (a classified, explained risk) instead of falling
+  // through to the generic "unclassified bare routine" WARN.
   rpc_release_pending_sp:
-    'release-pending-sp Edge Function currently just forwards to this RPC (verified 2026-09-14) — equivalent today, but a bare cron will silently miss any future EF-side logic',
+    'release-pending-sp Edge Function is a pure pass-through to this RPC (verified 2026-09-16); the cron was re-pointed at the EF by FIX-Task-37 item 5. A bare call here means that re-point regressed, and it will silently miss any future EF-side logic',
 };
 
 /**
@@ -219,7 +224,13 @@ export const SELF_TEST_FIXTURES = [
     jobname: 'release-pending-sp',
     command: 'SELECT public.rpc_release_pending_sp(200);',
     expect: 'WARN',
-    note: 'live pre-fix state of jobid 49 — EF is a pure pass-through today',
+    note: 'pre-fix state of jobid 49 — retained as the regression guard for a reverted re-point (FIX-Task-37 item 5)',
+  },
+  {
+    jobname: 'release-pending-sp',
+    command: "SELECT public.rpc_fire_edge_function('/release-pending-sp');",
+    expect: 'PASS',
+    note: 'post-fix (FIX-Task-37 item 5) — reaches the Edge Function; mirrors the FIX-Task-36 auto-complete re-point',
   },
   // ── allowlisted non-money bare routines ──────────────────────────────────
   {

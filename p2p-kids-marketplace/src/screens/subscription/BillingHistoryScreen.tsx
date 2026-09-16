@@ -62,7 +62,7 @@ function getStatusColor(status: string): string {
     case 'failed':
       return '#EF4444'; // Red
     case 'refunded':
-      return '#6B7280'; // Gray
+      return '#6B6B6B'; // Neutral 700 (BP-82: was a Tailwind gray)
     default:
       return '#9CA3AF'; // Default gray
   }
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   header: {
     flexDirection: 'row',
@@ -261,13 +261,13 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#0066CC',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   scrollView: {
     flex: 1,
@@ -284,12 +284,12 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     fontWeight: '500',
   },
   statusBadge: {
@@ -327,14 +327,14 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#111827',
+    color: '#1A1A1A',
     fontWeight: '600',
     marginBottom: 8,
   },
   amount: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   invoiceButton: {
@@ -343,26 +343,26 @@ const styles = StyleSheet.create({
   },
   invoiceButtonText: {
     fontSize: 14,
-    color: '#0066CC',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   errorContainer: {
     marginTop: 8,
     padding: 10,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FFF0F2',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#E85D75',
   },
   errorLabel: {
     fontSize: 12,
-    color: '#B91C1C',
+    color: '#E85D75',
     fontWeight: '600',
     marginBottom: 4,
   },
   errorMessage: {
     fontSize: 13,
-    color: '#DC2626',
+    color: '#E85D75',
     lineHeight: 18,
   },
   loadMoreButton: {
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   loadMoreText: {
     fontSize: 16,
-    color: '#0066CC',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
 });

@@ -13,6 +13,9 @@ import { useUserStore } from '../stores/userStore';
 // unrelated run. No-op outside dev/test builds (devTestingService gate).
 import { clearQaLocalValues } from '../services/devTestingService';
 import { invalidatePaymentMethodCache } from '../services/subscription';
+// FIX-Task-37 item 1 (BP-95): reuse the existing auth-state subscription helper
+// (previously exported but never consumed) for the user-scoped cache boundary.
+import { onAuthStateChange } from '../services/supabase/auth';
 import { isTransientNetworkError } from '../utils/userFacingError';
 import { redactForLogging } from '../utils/authError';
 
@@ -572,6 +575,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Sign out from Supabase
       const { error: signoutError } = await supabase.auth.signOut({ scope: 'global' });
 
+      // FIX-Task-9 item 1 (session boundary) + FIX-Task-37 item 1: drop the
+      // user-scoped payment-method cache as soon as the sign-out has been ISSUED.
+      // Deliberately BEFORE the error check below — a failed signOut used to throw
+      // straight past this invalidation, letting the prior user's card survive into
+      // the next login in the same process.
+      invalidatePaymentMethodCache();
+
       if (signoutError) {
         throw new AuthError('Logout failed', 'LOGOUT_FAILED', signoutError);
       }
@@ -581,12 +591,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // No-op outside dev/test builds (devTestingService gate) — release builds
       // are unaffected.
       await clearQaLocalValues();
-
-      // FIX-Task-9 item 1 (session boundary): drop the module-level payment-method
-      // cache on logout so a logout → different-persona login never reuses the prior
-      // persona's cached card. Without this, a stale pm survives until the process is
-      // relaunched (only terminate+relaunch cleared it in QA TRD Part 3).
-      invalidatePaymentMethodCache();
 
       // Clear session
       setSession(null);
@@ -601,6 +605,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsSignout(false);
     }
   }, [setSession, removeRealtimeChannel]);
+
+  /**
+   * FIX-Task-37 item 1 (BP-95): auth-transition cache boundary.
+   *
+   * The payment-method cache is user-scoped and the getter re-checks the session on
+   * every read, but BP-95 also requires the cache to be CLEARED on every identity
+   * transition (SIGNED_OUT / SIGNED_IN / USER_UPDATED). This is the app's first
+   * `onAuthStateChange` subscription and it is deliberately narrow: it only drops
+   * the payment-method cache. It never calls back into `supabase.auth.*`, because
+   * doing so from inside this callback can deadlock supabase-js.
+   *
+   * This matters for the warm in-app persona switch (`qa-login-as`), which replaces
+   * the Supabase session WITHOUT relaunching the app.
+   */
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) {
+      return;
+    }
+
+    const unsubscribe = onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        invalidatePaymentMethodCache();
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   /**
    * Initialize auth state on app load

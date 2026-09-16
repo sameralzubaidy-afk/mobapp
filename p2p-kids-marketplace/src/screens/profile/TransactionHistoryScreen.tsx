@@ -87,7 +87,7 @@ export default function TransactionHistoryScreen() {
         <View
           style={[
             styles.statusBadge,
-            { backgroundColor: item.status === 'succeeded' ? '#4CAF50' : '#E53935' },
+            { backgroundColor: item.status === 'succeeded' ? '#5DBB8E' : '#E85D75' },
           ]}
         >
           <Text
@@ -228,13 +228,13 @@ const styles = StyleSheet.create({
   // Mirrors the on-screen FAILED red + date sizing for visual consistency.
   failureReason: {
     fontSize: 12,
-    color: '#E53935',
+    color: '#E85D75',
     marginTop: 8,
     lineHeight: 16,
   },
   errorText: {
     fontSize: 14,
-    color: '#E53935',
+    color: '#E85D75',
     textAlign: 'center',
     marginBottom: 16,
   },

@@ -355,6 +355,15 @@ export default function PaymentMethodsScreen() {
                 Add a credit or debit card to submit offers on items. Your payment information is
                 securely stored with Stripe.
               </Text>
+              {/* FIX-Task-37 item 8 (2026-09-16): the Stripe sheet offers a "Pay with
+                  Link" opt-in (Stripe's saved-checkout service) that appeared with NO
+                  explanation anywhere in the app — a parent tapping "Add Payment
+                  Method" met an unfamiliar third-party brand out of context. Explained
+                  here so it is read BEFORE the sheet opens, with no extra tap. */}
+              <Text style={styles.linkExplainer} testID="pm-link-explainer">
+                Stripe may also offer to save your details with Link for faster checkout next time.
+                That is optional — you can always just pay with a card.
+              </Text>
               <TouchableOpacity
                 style={[styles.primaryButton, updating && styles.primaryButtonDisabled]}
                 onPress={handleAddPaymentMethod}
@@ -387,7 +396,8 @@ export default function PaymentMethodsScreen() {
             <Text style={styles.securityTitle}>Secure Payments</Text>
             <Text style={styles.securityText}>
               Your payment information is encrypted and processed securely through Stripe. We never
-              store your full card details on our servers.
+              store your full card details on our servers. Stripe may offer Link, its optional
+              saved-checkout service, when you add a card.
             </Text>
           </View>
         </View>
@@ -588,6 +598,15 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  // FIX-Task-37 item 8 (2026-09-16): explains Stripe's optional Link opt-in before
+  // the payment sheet is presented.
+  linkExplainer: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 8,
   },
   emptyText: {
     fontSize: 15,

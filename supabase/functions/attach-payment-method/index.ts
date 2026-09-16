@@ -18,7 +18,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.5.0?target=deno';
 // FIX-Task-34 item 2/3 (F6): write the default card to BOTH Stripe levels a
 // renewal consults (see _shared/subscription-payment-method.ts).
-import { syncStripeDefaultPaymentMethod } from '../_shared/subscription-payment-method.ts';
+// FIX-Task-37 item 2: also retire the card this one replaces.
+import {
+  retirePreviousPaymentMethod,
+  syncStripeDefaultPaymentMethod,
+} from '../_shared/subscription-payment-method.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -95,10 +99,15 @@ serve(async (req) => {
     // FIX-Task-34 item 2/3: the subscription id is needed to write the level that
     // a recurring renewal actually consults FIRST (see the sync call below).
     let stripeSubscriptionId: string | null = null;
+    // FIX-Task-37 item 2 (2026-09-16): the card this replace SUPERSEDES. Read it
+    // BEFORE the column is overwritten below — afterwards the outgoing pm id is
+    // unrecoverable from the DB, which is exactly how the orphans accumulated at
+    // Stripe while remaining invisible in the app.
+    let previousPaymentMethodId: string | null = null;
 
     const { data: subscriptionRow, error: subscriptionError } = await supabaseClient
       .from('subscriptions')
-      .select('stripe_customer_id, stripe_subscription_id')
+      .select('stripe_customer_id, stripe_subscription_id, stripe_payment_method_id')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -111,6 +120,9 @@ serve(async (req) => {
     }
     if (subscriptionRow?.stripe_subscription_id) {
       stripeSubscriptionId = subscriptionRow.stripe_subscription_id;
+    }
+    if (subscriptionRow?.stripe_payment_method_id) {
+      previousPaymentMethodId = subscriptionRow.stripe_payment_method_id;
     }
 
     // Fallback to user_subscriptions
@@ -211,6 +223,23 @@ serve(async (req) => {
     }
 
     console.log('[attach-payment-method] Payment method saved successfully for user:', userId);
+
+    // FIX-Task-37 item 2 (2026-09-16): retire the card this one REPLACED.
+    // Runs LAST on purpose — the new card is attached, is the default at both
+    // Stripe levels, and is already persisted in the DB before the old token is
+    // destroyed. Best-effort: `retirePreviousPaymentMethod` never throws and
+    // reports why it skipped, so a detach problem cannot fail the user's update.
+    const retired = await retirePreviousPaymentMethod(stripe, {
+      customerId,
+      previousPaymentMethodId,
+      newPaymentMethodId: paymentMethodId,
+    });
+    if (retired.error) {
+      console.warn(
+        '[attach-payment-method] replaced card could not be detached (non-fatal):',
+        retired.error
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: 'Payment method saved successfully' }),

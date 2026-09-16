@@ -88,7 +88,7 @@ export function SubscriptionBanner() {
 const styles = StyleSheet.create({
   container: {
     padding: 12,
-    backgroundColor: '#E6F3FF',
+    backgroundColor: '#E1F5FE',
     borderRadius: 8,
     marginVertical: 8,
     shadowColor: '#000',
@@ -103,18 +103,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 2,
   },
   message: {
     fontSize: 14,
-    color: '#374151',
+    color: '#6B6B6B',
     lineHeight: 20,
     marginBottom: 4,
   },
   cta: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0066CC',
+    color: '#5DBB8E',
   },
 });

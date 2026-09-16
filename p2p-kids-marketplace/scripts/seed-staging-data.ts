@@ -880,6 +880,38 @@ async function seedGracePersonaFixture(): Promise<void> {
     );
   }
 
+  // 2b. FIX-Task-37 item 4 (2026-09-16): pin the SP WALLET state too.
+  //
+  // This fixture used to write ONLY `subscriptions`, so the wallet kept whatever an
+  // earlier run happened to leave behind — on 2026-09-16 `test-grace` read
+  // subscriptions.status='grace' with sp_wallets.state='active', which matched
+  // neither the guide nor the code.
+  //
+  // The live model (owner decision 2026-08-09, migration 20260810000010 = "R6") is:
+  // a user IN grace can keep SPENDING existing SP but cannot EARN new SP, so the
+  // wallet state is 'grace_period' — NOT 'frozen'. 'frozen' is applied later, and
+  // only when the grace window actually ends (grace-period-cron ->
+  // rpc_set_sp_wallet_state(..., 'frozen')). Mirroring seedExpiredPersonaFixture()
+  // below, which already pins the R6 state for the expiry case.
+  const { error: walletError } = await adminSupabase.from('sp_wallets').upsert(
+    {
+      user_id: gu.id,
+      state: 'grace_period',
+      grace_period_ends_at: graceEndsAt,
+      frozen_at: null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  );
+
+  if (walletError) {
+    console.warn(`   ⚠️ G07 grace wallet upsert failed: ${walletError.message}`);
+  } else {
+    console.log(
+      "   ✓ test-grace sp_wallets.state='grace_period' (R6: can spend, cannot earn)"
+    );
+  }
+
   // 3. Ensure exactly ONE active draft (ResumeDraftBanner CTA).
   const { data: existingDrafts } = await adminSupabase
     .from('item_drafts')
@@ -924,12 +956,28 @@ async function seedGracePersonaFixture(): Promise<void> {
     .eq('user_id', gu.id)
     .maybeSingle();
 
+  // FIX-Task-37 item 4: assert the WALLET as well — that is the field that had
+  // silently drifted while the subscription row looked correct.
+  const { data: verifyWallet } = await adminSupabase
+    .from('sp_wallets')
+    .select('state')
+    .eq('user_id', gu.id)
+    .maybeSingle();
+
   if (verifyError) {
     console.warn(`   ⚠️ G07 VERIFY: subscription read failed: ${verifyError.message}`);
   } else if (verifySub?.status === 'grace' && verifySub.grace_ends_at) {
     console.log(`   ✓ G07 VERIFY OK: subscriptions.status='grace' + future grace_ends_at (${gu.email})`);
   } else {
     console.warn(`   ⚠️ G07 VERIFY FAIL: subscriptions.status=${verifySub?.status ?? 'null'}`);
+  }
+
+  if (verifyWallet?.state === 'grace_period') {
+    console.log("   ✓ G07 VERIFY OK: sp_wallets.state='grace_period' (R6 spendable grace)");
+  } else {
+    console.warn(
+      `   ⚠️ G07 VERIFY FAIL: sp_wallets.state=${verifyWallet?.state ?? 'null'} (expected 'grace_period')`
+    );
   }
 }
 

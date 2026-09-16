@@ -4,6 +4,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
+// FIX-Task-37 item 2 (2026-09-16): retire the card a newly-attached one replaces,
+// so replaced PaymentMethods stop accumulating on the Stripe customer.
+import { retirePreviousPaymentMethod } from '../_shared/subscription-payment-method.ts';
 
 // NOTE (BP-41, 2026-08-09): validateStripePaymentMethodId + helpers INLINED from
 // ../_shared/stripe-payment-method-guard.ts (kept in sync) because the MCP
@@ -622,6 +625,24 @@ serve(async (req) => {
     if (updateError) {
       console.error('[create-subscription-from-payment-method] Failed to update subscription:', updateError);
       // Continue anyway - webhook will sync status
+    }
+
+    // FIX-Task-37 item 2 (2026-09-16): retire the card this one REPLACED. Runs
+    // after the new card is attached, is the customer default, and is persisted —
+    // so the customer is never left without a usable default. Best-effort: the
+    // helper never throws, so a detach problem cannot fail a completed purchase.
+    const retireResult = await retirePreviousPaymentMethod(stripe, {
+      customerId,
+      previousPaymentMethodId:
+        (subscription as { stripe_payment_method_id?: string | null })
+          .stripe_payment_method_id ?? null,
+      newPaymentMethodId: paymentMethodId,
+    });
+    if (retireResult.error) {
+      console.warn(
+        '[create-subscription-from-payment-method] replaced card could not be detached (non-fatal):',
+        retireResult.error,
+      );
     }
 
     // Create billing history entry when payment succeeded (renewal or immediate paid activation).

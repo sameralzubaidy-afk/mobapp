@@ -341,8 +341,8 @@ R2 enforces the pickup countdown (previously tunable-but-unenforced) and adds th
 | **Free** | Never subscribed | No | N/A |
 | **Trial** | In 30-day free trial | Yes (full access) | N/A |
 | **Active** | Paid subscription active | Yes (full access) | N/A |
-| **Cancelled** | Subscription cancelled | No (wallet frozen) | 90 days |
-| **Grace Period** | Within 90 days of cancellation | No (wallet frozen) | Days remaining |
+| **Cancelled** | Subscription cancelled | No (wallet in grace — spendable, cannot earn) | 90 days |
+| **Grace Period** | Within 90 days of cancellation | No (wallet in grace — spendable, cannot earn) | Days remaining |
 | **Expired** | >90 days after cancellation | No (SP permanently lost) | N/A |
 
 **State Transitions:**
@@ -442,12 +442,12 @@ Grace Period → Active (user resubscribes)
 **BR-SUB-003: Cancellation**
 - User can cancel anytime
 - Cancellation effective at end of current billing period
-- SP wallet immediately frozen upon cancellation
+- SP wallet moves to `grace_period` upon cancellation — spendable, cannot earn new SP (R6, 2026-08-09 — supersedes the earlier "immediately frozen" wording)
 - 90-day grace period begins after subscription ends
 
 **BR-SUB-004: Grace Period**
 - User has 90 days to resubscribe and recover SP
-- SP wallet remains frozen (cannot earn or spend)
+- SP wallet stays in `grace_period` — the user can keep SPENDING existing SP but cannot EARN new SP. It is frozen only when the grace window ENDS (R6, 2026-08-09)
 - After 90 days → all SP permanently deleted
 - Notifications sent at Day 60, 30, 7, and 1 before expiration
 
@@ -724,7 +724,7 @@ Notifications:
 
 **BR-SP-008: Grace Period**
 - Exactly 90 calendar days from subscription cancellation
-- SP balance frozen (visible but not usable)
+- SP balance stays SPENDABLE during grace (visible and usable; no new earning); it is frozen — not deleted — when the grace window ends, and unfrozen on resubscribe (R6, 2026-08-09)
 - Resubscription within 90 days → instant unfreeze
 - After 90 days → permanent deletion (no admin override)
 
