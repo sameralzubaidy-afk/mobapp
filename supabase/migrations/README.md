@@ -69,3 +69,86 @@ resolution**. Two `apply_migration` calls issued in the same second therefore co
 `23505 duplicate key value violates unique constraint "schema_migrations_pkey"` and the second
 migration **silently does not apply**. **Apply migrations ONE PER CALL, sequentially** — never batch
 two of them in one tool block.
+
+---
+
+## 🛠️ FIX-Task-38 — the chain cannot (yet) be replayed from scratch
+
+`supabase db reset` **does not pass** today, and this is not only an ordering problem. The
+523 `.sql` files here are not a self-sufficient history: parts of the base schema were created
+out-of-band and were never captured as migrations.
+
+### Defect 1 — ordering (the reported symptom)
+
+141 legacy-numbered files (`006_…`, `315_…`) sort **before** the timestamped chain, so the CLI
+replays them first and dies at file 2:
+
+```
+Applying migration 006_resolve_active_node_and_waitlist.sql...
+Applying migration 007_add_member_count_to_nodes.sql...
+ERROR: relation "public.nodes" does not exist (SQLSTATE 42P01)
+```
+
+`006` survives only because plpgsql resolves names lazily inside function bodies; `007` does a
+real `ALTER TABLE`. `nodes` is created by `20241213000001_add_auth_module_tables.sql`, which
+replays last of all.
+
+### Defect 2 — missing base schema (the reason renumbering alone is not enough)
+
+1. **`public.trades` had no creator in any migration, ever.** 64 statements across the chain
+   read or alter it. Verified against the working tree *and* the full git history
+   (`git log -S 'CREATE TABLE trades'`); the only occurrence was inside
+   `archive/misc./temp.sql` — a partial Dec-2025 schema dump, not a migration.
+2. **Node identity columns were declared `TEXT`.** `20241213000001` creates `nodes.id`,
+   `profiles.node_id` and `zip_codes.node_id` as `TEXT`, but the live schema stores them as
+   `uuid`, and no migration converts them. The **only** migration that creates `public.items`
+   (`20251217000002_create_items_table_node_filtering.sql`) therefore failed with
+   `operator does not exist: text = uuid` on `p.node_id = gn.id`, which blocked the 34
+   statements depending on `items`.
+3. **`cron` is not part of the local base schema**, yet 35 statements use `cron.job`.
+
+### Repair added
+
+`20241213000003_base_schema_repair_node_ids_and_trades.sql` (Mode B — idempotent rerunnable):
+
+- `CREATE EXTENSION IF NOT EXISTS pg_cron;`
+- retypes `nodes.id` / `zip_codes.node_id` / `profiles.node_id` to `uuid`, dropping and
+  re-adding the two FKs onto `nodes(id)`;
+- `CREATE TABLE IF NOT EXISTS public.trades (…)` — the 95 live columns, `id` as PRIMARY KEY.
+
+It sits immediately after `20241213000001` and **before** `20241214000003` creates the
+`profiles_with_auth` view — otherwise `ALTER COLUMN TYPE` fails with *"cannot alter type of a
+column used by a view or rule"*.
+
+**Measured effect**, replaying every file against a pristine local database:
+**288 → 448** of 523 files apply; unresolved **234 → 75**.
+
+### Still blocking a clean reset
+
+75 files remain across ~30 error classes — a long tail, not one defect:
+
+- `admin_config_category` enum values missing (7 files);
+- functions that need an explicit `DROP FUNCTION` before a return-type change
+  (`apply_referral_code`, `complete_trade_v2`, `admin_force_cancel_trade_db` — 12 files);
+- tables whose own creator still fails, cascading to their dependents
+  (`tax_rules` / `tax_categories` / `tax_records`, `id_badge_verification_*`, `cpsc_*`,
+  `trade_events`, `listing_offer_stats` — ~20 files);
+- tables with **no creator at all**: `favorites`, `swap_points_ledger`, `admin_users`.
+
+**Until those are resolved, Tier 2's "DB rebuild from migrations" leg stays blocked.**
+
+### How to reproduce and iterate
+
+`scripts/migrations/replay-probe.mjs` performs a pristine reset and then applies every file,
+deferring failures and retrying, so it reports *what can never apply* rather than just the first
+error:
+
+```bash
+node scripts/migrations/replay-probe.mjs            # reset + replay
+node scripts/migrations/replay-probe.mjs --no-reset # iterate on the current DB
+```
+
+**Do not renumber the legacy files until the chain applies end-to-end.** The apply order is
+derived from what actually succeeds, so repairing the remaining 75 files will move it again —
+renumbering first means renaming the whole set twice.
+

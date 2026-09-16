@@ -41,7 +41,7 @@ export const colors = {
 
   // Semantic Colors
   success: {
-    500: '#4CAF50', // Success messages, completed trades
+    500: '#5DBB8E', // Success messages, completed trades — canonical brand green (design-system §1)
     100: '#E8F5E9', // Success banner backgrounds
   },
 
@@ -56,7 +56,7 @@ export const colors = {
   },
 
   info: {
-    500: '#29B6F6', // Informational messages
+    500: '#5B8FB9', // Informational messages — canonical info blue (design-system §1)
     100: '#E1F5FE', // Info banner backgrounds
   },
 
