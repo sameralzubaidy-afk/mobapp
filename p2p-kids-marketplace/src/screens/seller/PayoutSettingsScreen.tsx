@@ -446,6 +446,17 @@ export default function PayoutSettingsScreen() {
     }
   };
 
+  // FIX-Task-44 item 5 (2026-09-16): a failed withdrawal used to leave the modal
+  // open over pre-failure state — the server had already rejected this method /
+  // amount, so re-confirming against the same stale summary could only fail again.
+  // Close the modal and re-fetch so the next attempt starts from server truth.
+  // `refreshing` (not `loading`) is used so the screen does not flash its spinner.
+  const closeWithdrawModalAndRefresh = () => {
+    setShowWithdrawModal(false);
+    setRefreshing(true);
+    loadPayoutMethods();
+  };
+
   const handleWithdrawClick = () => {
     if (!balance || balance.available_balance_cents <= 0) {
       Alert.alert('No Balance', 'You have no available balance to withdraw');
@@ -494,14 +505,17 @@ export default function PayoutSettingsScreen() {
           'Withdrawal Failed',
           isUnverifiedMethod
             ? "Your payout method isn't verified yet. Please finish verifying it before withdrawing."
-            : result.error || 'Unable to process withdrawal'
+            : result.error || 'Unable to process withdrawal',
+          [{ text: 'OK', onPress: closeWithdrawModalAndRefresh }]
         );
       }
     } catch (error) {
       captureException(error, {
         tags: { screen: 'PayoutSettingsScreen', action: 'withdrawal' },
       });
-      Alert.alert('Error', 'Failed to process withdrawal. Please try again.');
+      Alert.alert('Error', 'Failed to process withdrawal. Please try again.', [
+        { text: 'OK', onPress: closeWithdrawModalAndRefresh },
+      ]);
     } finally {
       setWithdrawing(false);
     }
@@ -584,6 +598,15 @@ export default function PayoutSettingsScreen() {
             <ArrowDown size={16} color="#5DBB8E" />
             <Text style={styles.requestPayoutBtnText}>Withdraw Now</Text>
           </TouchableOpacity>
+          {/* FIX-Task-44 item 7 (2026-09-16): surface the zero-balance constraint
+              BEFORE the tap. The button deliberately stays enabled — SUB-TC-H01's
+              expected result is the "No Balance" alert on tap — so this is an
+              additive inline hint, not a disabled state. */}
+          {(!balance || balance.available_balance_cents <= 0) && (
+            <Text style={styles.noBalanceHint} testID="no-balance-hint">
+              Nothing to withdraw yet — this unlocks when you have an available balance.
+            </Text>
+          )}
           {/* DT-119 (item 3): hero balance figures (Available/Pending/Lifetime) are
               gross — provider fees are deducted when each payout is sent. History
               rows below show the net (received) amount. */}
@@ -643,9 +666,20 @@ export default function PayoutSettingsScreen() {
                       {providerIcon}
                     </View>
                     <View style={styles.methodCardInfo}>
-                      <Text style={styles.methodCardProviderName} testID="provider-name">
-                        {providerName}
-                      </Text>
+                      {/* FIX-Task-44 item 6 (2026-09-16): the "Verified & Active"
+                          badge is identical for primary and secondary methods, so
+                          primary status was only conveyed by the small radio/check
+                          glyph. This chip makes it scannable next to the name. */}
+                      <View style={styles.methodCardNameRow}>
+                        <Text style={styles.methodCardProviderName} testID="provider-name">
+                          {providerName}
+                        </Text>
+                        {method.is_primary && (
+                          <View style={styles.primaryChip} testID={`primary-chip-${method.id}`}>
+                            <Text style={styles.primaryChipText}>Primary</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.methodCardAccount} testID="account-id">
                         {accountIdentifier}
                       </Text>
@@ -1767,6 +1801,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  // FIX-Task-44 item 7 (2026-09-16): zero-balance hint on the hero — tells the
+  // seller why the withdrawal cannot complete before they tap the button.
+  noBalanceHint: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 10,
+    lineHeight: 15,
+  },
   // DT-119 (item 3): hero balance footnote — hero figures are gross (before
   // provider fees); the payout-history rows show the net received amount.
   heroFeeNote: {
@@ -1887,11 +1929,34 @@ const styles = StyleSheet.create({
   methodCardInfo: {
     flex: 1,
   },
+  // FIX-Task-44 item 6 (2026-09-16): provider name + primary chip on one row.
+  methodCardNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
   methodCardProviderName: {
     fontSize: 15,
     fontWeight: '600',
     color: '#1A1A1A',
-    marginBottom: 2,
+    flexShrink: 1,
+  },
+  // FIX-Task-44 item 6 (2026-09-16): primary-method chip — same tinted chip
+  // language as statusBadge (#E8F5F0 / #5DBB8E), beside the provider name.
+  primaryChip: {
+    backgroundColor: '#E8F5F0',
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  primaryChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#5DBB8E',
+    letterSpacing: 0.3,
   },
   methodCardAccount: {
     fontSize: 13,
@@ -2116,7 +2181,10 @@ const styles = StyleSheet.create({
   historyFeeNote: {
     fontSize: 11,
     color: '#999999',
-    marginTop: -12,
+    // FIX-Task-44 item 2 (2026-09-16): was -12, which pulled this note up over
+    // the "PAYOUT HISTORY" section label (measured 21px AX overlap) whenever at
+    // least one payout row existed. The label already reserves marginBottom: 4.
+    marginTop: 0,
     marginBottom: 12,
   },
   // DT-119 (item 2): CTA on requires_action payout rows → opens the Add Payout

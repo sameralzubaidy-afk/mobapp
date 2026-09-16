@@ -384,31 +384,74 @@ of the rebuild.
 > **32 with no local file at all**, and 304 local files with no ledger row. A file-level attribution
 > is therefore not derivable, so the binding test is that a creator exists in the chain.
 
-### 🔴 Tier 2 (`supabase db reset`) is STILL BLOCKED — now an OWNER DECISION
+### 🔴 Tier 2 (`supabase db reset`) — ordering blocker fixed, one role-privilege step still owed
 
-`db reset` gets further than ever — it now replays the whole set — but still fails, on **role
-privileges**, not on ordering or content:
+*Re-diagnosed in FIX-Task-43 (2026-09-16). The phase-3 text that stood here blamed `postgres`
+having `rolsuper = false`; **that is not the cause** — see blocker 2 below.*
 
-| Failure | Statement | Cause |
+Two blockers were found, in this order.
+
+**1 · The migration set itself was broken — FIXED.**
+
+Seven migration files were **duplicated**: the original name *and* its renumbered name, byte-identical,
+re-introduced after the phase-3 renumbering. `077_add_auto_payout_admin_config.sql` therefore sorted
+**first** (legacy prefixes sort before 14-digit ones) and `supabase db reset` died on
+`relation "public.admin_config" does not exist` — never reaching a privilege check at all. FIX-Task-43
+removed the seven leftovers, each `cmp`-verified byte-identical to the copy it was removed against.
+The set is back to **528 files, 0 non-14-digit names**.
+
+> ⚠️ **A renumbering is not durable until it is committed.** Those seven names reappeared after the
+> phase-3 run. Re-verify the set before trusting a renumber:
+> `ls supabase/migrations | grep -E '\.sql$' | grep -vcE '^[0-9]{14}_'` must print `0`.
+
+**2 · `CREATE POLICY … ON storage.objects` fails under the CLI — OPEN, needs the local bootstrap step.**
+
+| Failure | Statement | Measured cause |
 |---|---|---|
-| `permission denied for function pg_read_file` (42501) | `CREATE EXTENSION …` | the CLI's migration session runs as `postgres`, which has **`rolsuper = false`** in this local stack |
-| `must be owner of table objects` (42501) | `CREATE POLICY … ON storage.objects` | `storage.objects` is owned by `supabase_storage_admin`, and `postgres` is **not** a member of it |
+| `must be owner of table objects` (42501) | `CREATE POLICY … ON storage.objects` | the CLI applies migrations as `postgres`, and `postgres` is **not** a member of `supabase_storage_admin`, which owns `storage.objects` |
 
-**The same statements succeed through psql:** the probe applies all 528 files, and applying
-`20241214000005_create_user_avatars_bucket.sql` by hand creates all four storage policies *and* the
-bucket. So this is a **CLI execution-context mismatch, not a migration-content defect.**
+Measured on a **fresh CLI-built volume** (so this is not volume drift), with a throwaway diagnostic
+migration that raised its findings into the CLI's own error output:
 
-- The `CREATE EXTENSION` class **was** repaired — 7 unguarded sites now use the
-  `DO $$ … EXCEPTION WHEN OTHERS THEN RAISE NOTICE` guard this repo's pg_cron migrations already
-  used. Fail-soft is safe there because the platform provides those extensions. It took `db reset`
-  from 19 to 29 files before the next blocker.
-- The `storage.objects` **policy** class was deliberately **NOT** repaired. Guarding RLS policies on
-  `storage.objects` would silently skip **security** controls; making the reset pass is not worth
-  weakening bucket protection by hand. **Owner decision required** — a scoped privilege fix, a
-  documented quarantine of those statements, or accepting the probe as the local tier-2 evidence.
+```
+current_user=postgres  session_user=postgres  is_superuser=off
+db_owner=postgres      objects_owner=supabase_storage_admin
+pg_has_role('postgres','supabase_storage_admin','MEMBER') = false
+CREATE POLICY …  ->  42501 must be owner of table objects
+```
 
-**Every other Tier-2 leg is unaffected and still required** — DB lint, the smoke scripts, and real
-invocation of every changed branch.
+**`rolsuper = false` is NOT the cause.** A stock `supabase/postgres:17.6.1.054` container booted on a
+fresh volume has exactly the same role state — `postgres` not superuser, not a member of
+`supabase_storage_admin`, `storage.objects` owned by `supabase_storage_admin` — and a plain
+`psql -U postgres` session **can** create the policy, including the exact statement the CLI fails on.
+The divergence is in the CLI's execution context, not in the database or in the migration content.
+
+**The image already ships this fix and documents why.** Its bootstrap applies, as `supabase_admin`,
+`…/docker-entrypoint-initdb.d/migrations/20220609081115_grant-supabase-auth-admin-and-supabase-storage-admin-to-postgres.sql`:
+
+```sql
+-- "This is done so that the `postgres` role can manage auth tables triggers,
+--  storage tables policies, etc. which unblocks the revocation of superuser access."
+grant supabase_auth_admin, supabase_storage_admin to postgres;
+```
+
+The image only runs that file through its own `migrate.sh` on a first-time `initdb`; the CLI's
+"Initialising schema" step does not — so a CLI-built local database never receives the membership.
+
+> ⚠️ **Do NOT put that GRANT in `supabase/roles.sql`.** The CLI does run `roles.sql` before
+> migrations, but as a **non-superuser**, and these roles are reserved in the Supabase Postgres
+> build: `ERROR: "supabase_auth_admin" role memberships are reserved, only superusers can grant
+> them (42501)` — which aborts `supabase start` outright. The grant must come from a superuser
+> connection: use `scripts/migrations/local-stack-privileges.sh` (loopback-guarded, idempotent,
+> local-stack only, never staging/production).
+
+**The `storage.objects` policies are NOT to be fail-softened.** Guarding them so the reset goes green
+would silently drop real bucket-security controls. The privilege gap gets fixed instead.
+
+**Tier-2 status: still NOT a real gate.** The ordering blocker is gone, but a green reset cannot be
+confirmed until the bootstrap step above has been applied to a live local stack. Every other Tier-2
+leg — DB lint, all smoke scripts, real invocation of every changed branch — is unaffected and still
+required.
 
 ### Which files were repaired to get from 14 → 0
 

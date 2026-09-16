@@ -1110,7 +1110,7 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 
 ### SUB-TC-H03 · Confirm Withdrawal success
 
-**Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal → `requestFullWithdrawal`) · `request_seller_payout` RPC
+**Ref:** FLOW-22 · PayoutSettingsScreen (WithdrawModal → `requestFullWithdrawal`) · `request_seller_payout` RPC → `dispatch-manual-payouts` EF (Stripe `transfers.create`)
 **Actors:** test-seller (verified method)
 **Surfaces:** mobile
 
@@ -1121,8 +1121,9 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 
 **Expected Result:**
 - Alert **Withdrawal Requested** — "Your withdrawal of {amount} has been initiated. After fees, you will receive {net}."
-- The modal closes, the balance refreshes, and the payout appears as PENDING in PAYOUT HISTORY.
-- DB read-back confirms the `seller_payouts` row (R11/R24) — **zero residue only if this is the intended withdrawal fixture**.
+- The modal closes, the balance refreshes, and the payout appears in PAYOUT HISTORY with a **Completed** status and a green check, showing the **net** amount plus a "{Provider} fee: {fee}" line.
+- ⚠️ **The withdrawal is dispatched to the provider — it is not a DB-only record** (FIX-Task-44 item 3, 2026-09-16). `request_seller_payout` inserts the `seller_payouts` row as `processing`, then the DEV-TASK-124 trigger posts it to `dispatch-manual-payouts`, which mints a real **Stripe test-mode transfer** (`livemode:false`, reversible) and moves the row to **`completed`** with a `provider_reference_id`. In test mode this settles in seconds, so expect **Completed**; if the row is read while the dispatch call is still in flight it may briefly show `Processing` — re-check or pull-to-refresh.
+- DB read-back confirms the `seller_payouts` row (R11/R24) — **zero residue only if this is the intended withdrawal fixture**; note that each withdrawal also leaves a real (test-mode) transfer object on the connected account.
 
 ---
 

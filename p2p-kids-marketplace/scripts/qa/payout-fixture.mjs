@@ -31,10 +31,15 @@
  *           two               verified primary + verified secondary (G04/G05/G11)
  *           mixed             verified stripe_connect primary + unverified paypal
  *                             secondary (G04/G05 multi-method + F02 list display)
- *       Method rows are DB-controlled (no real Stripe onboarding); `withdraw`
- *       uses request_seller_payout which checks DB is_verified/is_primary only —
- *       it never mints a real outgoing transfer, which is exactly the safety QA
- *       needs. (Real-Connect onboarding E2E remains a G01-class follow-up.)
+ *       Method rows are DB-controlled (no real Stripe onboarding).
+ *       ⚠️ FIX-Task-44 item 1 (2026-09-16): `withdraw` DOES reach the provider.
+ *       Since DEV-TASK-124 (item 1, owner-approved) an AFTER-INSERT trigger on
+ *       seller_payouts posts the new row to the `dispatch-manual-payouts` Edge
+ *       Function, which calls stripe.transfers.create(...) and marks the row
+ *       completed. So a manual withdrawal mints a REAL Stripe TEST-MODE transfer
+ *       (livemode:false, reversible) — it is NOT a DB-only action. See the
+ *       `withdraw` subcommand below. (Real-Connect onboarding E2E remains a
+ *       G01-class follow-up.)
  *   balance --amount <cents> [--dry-run]
  *       → set a CONTROLLED available balance (available=N, pending=0,
  *         lifetime=N, trades=0). H-series: below-min ~150 (floor is 200 = $2.00),
@@ -53,11 +58,17 @@
  *   withdraw [--full | --amount <cents>] [--dry-run]
  *       → drive a REAL withdrawal through the production request_seller_payout
  *         RPC as the persona (persona JWT — closest to the app). Creates a real
- *         seller_payouts row (status 'processing', trade_id NULL, provider from
- *         the primary method) + deducts available. Prints the payout row id +
- *         before/after available. THIS is the DT-118 "real withdrawal driven"
- *         proof. Needs a method + available balance (methods single-verified +
- *         balance 500 first).
+ *         seller_payouts row (trade_id NULL, provider from the primary method) +
+ *         deducts available, then the DT-124 dispatch trigger posts the row to
+ *         `dispatch-manual-payouts`, which mints a REAL Stripe TEST-MODE transfer
+ *         and lands the row `completed` with a provider_reference_id. Prints the
+ *         payout row id + before/after available. THIS is the DT-118 "real
+ *         withdrawal driven" proof. Needs a method + available balance (methods
+ *         single-verified + balance 500 first).
+ *       ⚠️ NOT a cheap DB-only fixture: every run creates a real (test-mode)
+ *         Stripe Transfer object on the persona's connected account, and those
+ *         objects accumulate. Plan fixture/rehearsal work accordingly, and do not
+ *         treat a withdrawal as an inexpensive way to reset balance state.
  *   status
  *       → read-only: profile / subscription / methods / balance / recent payouts
  *         / fixture trades.
@@ -71,8 +82,9 @@
  * Two-phase provisioning: this file is Phase 1 (dev-authored). Running it
  * against staging is Phase 2 (Samer approval; one call at a time).
  *
- * Env: .env / .env.staging (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY). Stripe
- * key is NOT needed (no real transfer is minted).
+ * Env: .env / .env.staging (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY). This
+ * script needs no Stripe key of its own, but `withdraw` DOES cause a real
+ * test-mode transfer to be minted server-side by `dispatch-manual-payouts`.
  */
 import { getClients, resolveUserId, personaOrThrow, argValue, hasFlag, log, exchangeJwt } from './lib/r41-common.mjs';
 import { createClient } from '@supabase/supabase-js';
