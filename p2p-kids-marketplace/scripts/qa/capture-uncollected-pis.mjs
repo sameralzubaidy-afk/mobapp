@@ -27,6 +27,15 @@
  *   `derived_state='succeeded'` with a stamped `captured_at` while Stripe was still
  *   holding an uncaptured authorization. Only Stripe answers this question.
  *
+ * WHAT IT WRITES (FIX-Task-36 item 2 / approved further-consideration 2B)
+ *   For each capture: the Stripe PI is captured, the tax record is moved out of
+ *   `quoted` (`rpc_mark_tax_collected`), and a `financial_audit_log` row is written
+ *   with the SAME idempotency keys the product Edge Function uses
+ *   (`capture_<tradeId>` / `tax_collected_<tradeId>`) — so the journal stays
+ *   complete and a re-run can never double-log. `after_state.source` reads
+ *   `qa_capture_remediation`, which honestly distinguishes these rows from a
+ *   normal product auto-complete.
+ *
  * AUTH: a WRITER, so it uses the fixture test-mode secret key at
  * `~/.dt11-stripe-key` (never echoed) — not `STRIPE_QA_READONLY_KEY`.
  *
@@ -67,6 +76,39 @@ async function stripeCall(key, path, method = 'GET') {
     throw new Error(`HTTP ${res.status} ${json?.error?.code || ''} ${json?.error?.message || ''}`.trim());
   }
   return json;
+}
+
+/**
+ * Write a financial audit row, mirroring the product Edge Function's
+ * `logFinancialAudit` (supabase/functions/process-auto-complete/index.ts).
+ * Non-blocking: an audit failure must never abort a capture that already
+ * succeeded at Stripe — it is logged and the loop continues.
+ * Idempotent by `idempotencyKey`, so a re-run never double-logs.
+ */
+async function logFinancialAudit(admin, {
+  mutationType,
+  entityType,
+  entityId,
+  afterState,
+  amountCents = null,
+  idempotencyKey,
+}) {
+  try {
+    const { error } = await admin.rpc('fn_log_financial_audit', {
+      p_mutation_type: mutationType,
+      p_entity_type: entityType ?? null,
+      p_entity_id: entityId ?? null,
+      p_actor_id: null, // system/QA remediation — no user actor
+      p_before_state: {},
+      p_after_state: afterState ?? {},
+      p_amount_cents: amountCents,
+      p_idempotency_key: idempotencyKey ?? null,
+      p_node_id: null,
+    });
+    if (error) console.error(`      ⚠️  audit ${mutationType}: ${redact(error.message)}`);
+  } catch (err) {
+    console.error(`      ⚠️  audit ${mutationType}: ${redact(err instanceof Error ? err.message : err)}`);
+  }
 }
 
 async function main() {
@@ -180,6 +222,39 @@ async function main() {
       });
       if (error) console.error(`      ⚠️  rpc_mark_tax_collected: ${redact(error.message)}`);
       else console.log(`      tax: ${JSON.stringify(data)}`);
+
+      // FIX-Task-36 item 2 (approved further-consideration 2B) — write the SAME
+      // financial-audit rows the product Edge Function writes, so the journal
+      // stays complete and a later audit can see WHO collected this money. The
+      // key difference is `source`, which honestly marks these rows as a QA
+      // remediation rather than a normal product auto-complete.
+      await logFinancialAudit(admin, {
+        mutationType: 'payment_captured',
+        entityType: 'trade',
+        entityId: r.trade_id,
+        afterState: {
+          stripe_payment_intent_id: r.pi,
+          stripe_charge_id: chargeId,
+          source: 'qa_capture_remediation',
+        },
+        amountCents: r.cash_amount_cents,
+        idempotencyKey: `capture_${r.trade_id}`,
+      });
+
+      // Only journal `tax_collected` when the tax ledger ACTUALLY moved (the EF
+      // logs it unconditionally; here the RPC's own answer decides). A trade with
+      // no tax record answers `action: 'noop'` — journaling that would put a false
+      // tax-collection entry in the financial journal.
+      const taxMoved = !error && data?.success !== false && data?.data?.new_status === 'collected';
+      if (taxMoved) {
+        await logFinancialAudit(admin, {
+          mutationType: 'tax_collected',
+          entityType: 'trade',
+          entityId: r.trade_id,
+          afterState: { stripe_charge_id: chargeId },
+          idempotencyKey: `tax_collected_${r.trade_id}`,
+        });
+      }
     } catch (err) {
       failures.push(`${r.pi}: ${redact(err.message)}`);
       console.error(`   ❌ ${r.pi}: ${redact(err.message)}`);

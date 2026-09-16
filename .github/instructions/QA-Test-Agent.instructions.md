@@ -1372,6 +1372,41 @@ where the no-op steps are purely a **delay generator** (`mobile_get_orientation`
 
 *Evidence / origin: FIX-Task-28 item 5 (2026-09-13); report `e2e-test-results/qa-fix28-verify-lowsp-n-s-2026-09-13/report.md` (Phase 0 item 5) + `ledger.md`. Siblings: R105 (§5.82 — a capture you cannot grep correctly is not a verified negative), R95/R106 (§5.77/§5.83 — batch read/write timing).*
 
+### 5.86 Standing rule — "name the cron/caller, not just the function": no money-path finding closes until you assert what the SCHEDULED caller invokes (2026-09-14, FIX-Task-36) — R110
+
+**R110 — Before closing any money-path finding, assert what the scheduled caller INVOKES — not merely that the function is correct.**
+
+The playbook already had the two halves of this discipline and still missed the bug, because each points at a different role than the one that actually ran the broken code:
+
+- **R14 (§5.38)** — *drive the Edge Function, not the bare RPC.* A **tester** rule. The test recipe was rewritten correctly, and the playbook recorded it.
+- **R100 (§5.79)** — *name the WRITER of a value before filing.* A **reader** rule. It correctly explains why `payments.derived_state = 'succeeded'` is not capture evidence.
+- **Neither asks who the TIMER invokes.** So the Edge Function was fixed, the playbook was fixed — and `cron.job` kept calling the bare RPC the entire time.
+
+**The check (one query, in every money-path round).**
+
+```sql
+SELECT jobid, jobname, schedule, active, command
+FROM cron.job
+WHERE command ILIKE '%rpc_%'
+ORDER BY jobid;
+```
+
+…or, from the app repo, **`npm run qa:cron-health`** (FIX-Task-36). It classifies every active job by what it invokes:
+
+- **FAIL** — a routine that *structurally* needs its Edge Function (a provider step, an audit/ledger write) is invoked **bare**.
+- **WARN** — the EF is currently a pure **pass-through**, so the bare call is equivalent *today* but will silently miss any future EF-side logic (exactly the FIX-Task-36 shape). `--strict` escalates it.
+- **PASS** — the job reaches an EF (`rpc_fire_edge_function(...)`, `net.http_post(...)`, or a named EF wrapper such as `invoke_grace_period_cron(...)`), or invokes an explicitly allowlisted non-money routine.
+
+**Worked example (FIX-Task-36, 2026-09-14).** FIX-Task-35 had *just* fixed the auto-complete capture defect in the Edge Function and codified R14. Hours later, during the closing sweep, a 15-minute tick flipped **3 trades to `completed` with uncaptured authorizations — $53.87 never collected**. jobid 42 read `SELECT public.rpc_process_auto_complete(100);` — the bare RPC, a clock-driven status flip with no payment step. Two independent proofs named the caller (§5.37 / R12): **no `payment_captured` row in `financial_audit_log`** for any of the 3 (the EF writes one per capture, `idempotency_key = capture_<tradeId>`), and the job's own command text. The rows *looked* collected only because `payments.derived_state` / `captured_at` mirror `trades.status` (R100).
+
+**Why "name the caller" is not redundant with testing the EF.** The QA path is **user-driven**; a scheduled job is not. Nothing in a normal case run ever surfaces a cron's command text — that is exactly why the defect survived two application-code fixes. Treat the cron inventory as its own verification surface.
+
+**Report it as its own leg.** A money-path verdict whose scheduled caller has not been checked is a **PARTIAL**, not a PASS — record `cron caller: NOT checked` in the handoff's Money Verification Layers rather than implying coverage.
+
+**Relation to existing rules (no duplication).** R110 is the third leg of one set: **R14** = the tester's leg (drive the EF), **R100** = the reader's leg (name the writer), **R110** = the scheduler's leg (name the caller). It composes with **BP-21/BP-22** on the DB side (an RPC refactor must ship its `cron.schedule` in the same migration; never bake a credential into a cron header) and with the **copy-consistency class-sweep** instinct: when a defect class is fixed on one surface, sweep every *other surface that reaches the same code* — for a cron-reachable routine, that surface is `cron.job`.
+
+*Evidence / origin: FIX-Task-36 (2026-09-14) — finding F1 in `e2e-test-results/qa-trd-closing-post-fix35-2026-09-14/report.md` §3 + its "Suggested to Improve Agent Rules"; fix, guard and sweep in `e2e-test-results/fix-task-36-2026-09-14/`. The sweep is `p2p-kids-marketplace/scripts/qa/cron-health.mjs` + `scripts/qa/lib/cron-health-rules.mjs`, whose `--self-test` takes the verbatim pre-fix command as its first fixture so the rule can never silently stop catching it.*
+
 ## 6. Judgment — three distinct layers, ALL required
 
 ### 6.1 Hard assertion

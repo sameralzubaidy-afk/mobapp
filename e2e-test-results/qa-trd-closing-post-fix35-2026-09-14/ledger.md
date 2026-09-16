@@ -47,3 +47,4 @@ Scope note: **no Android verdict this round** (R80). Stripe evidence = `key_scop
 3. Add a "job points at a bare RPC" assertion to the money-path sweep family.
 4. Let `qa:ef-repro` drive admin-only EFs (service credential or `x-admin-ui-secret`).
 5. *Not in scope, untouched:* the 2 subscription-drift findings, the migration-ordering repair, O3-C06 layer 3.
+6. **Post-run dev-server state** — my Metro on `:8081` was terminated after the round closed (exit 137) and a **separate Metro now holds `:8082`** (left untouched). Before any device case: `npm run metro:kill` → `npm run start:single`. A dev-client *"Failed to connect to …:8081"* is environmental (**R77 #16**), not an app defect.
