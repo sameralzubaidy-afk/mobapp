@@ -775,6 +775,11 @@ Issue: "A migration replay / `supabase db reset` fails on a file I did NOT touch
 ✅ Check: The chain was re-measured as a WHOLE after the fix (pass-1 applied count + total unresolved), not just the file that was repaired — a newly-succeeding early file can create state (schema, extension, enum label) that a later file assumed absent (BP-96)
 ✅ Check: The per-file error being investigated is the ROOT cause, not the LAST error from the probe's final deferred pass — re-run that one file alone against the settled DB to get the real cause (BP-96)
 ✅ Check: The remaining gap was enumerated by diffing the live schema against the replayed schema (truth), not by reading the probe's failure list (symptom) (BP-96)
+✅ Check: **EVERY pass's applied count** was compared, not just pass 1 — a hoist in phase 3 moved `unresolved` 1 → 3 while pass 1 stayed flat at 389; only pass 2 (135 → 133) exposed it (BP-96 rule 6)
+✅ Check: No `GRANT` / `COMMENT` / `DROP … IF EXISTS` targets a function signature that a **different** file creates — four files commented on a 4-arg `get_tax_summary_for_period` they never create, while creating the 5-arg version (BP-96 rule 7)
+✅ Check: Where two files define the same object, the earlier one applies first — otherwise the older body silently wins and the fingerprint (identity, not body) stays green (BP-96 rule 8)
+✅ Check: A `db reset` failure was classified as CONTENT vs EXECUTION CONTEXT before "fixing" it — and no security-relevant statement (`CREATE POLICY` on `storage.objects`) was fail-softened just to get green (BP-96 rule 9)
+✅ Check: A renumbered chain was confirmed by **`pass 1: applied <N>, deferred 0`** — a single-pass, zero-deferral replay is what `db reset` actually requires (BP-96 detection checklist)
 See also: BP-96 (re-measure the whole chain after a repair; probe errors are last-errors; enumerate gaps by schema fingerprint), BP-9 (migration dependency order), BP-47 (the latest definition is authoritative)
 
 Issue: "E2E test fails right after signup because trigger-created rows (subscription, notification prefs, SP wallet) are missing"

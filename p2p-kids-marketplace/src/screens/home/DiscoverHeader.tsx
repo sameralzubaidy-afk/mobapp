@@ -41,8 +41,13 @@ export default function DiscoverHeader() {
 
   return (
     <View style={styles.header}>
-      {/* Empty left spacer keeps the title centred (matches AppHeader tab variant) */}
-      <View style={styles.headerActionBtn} />
+      {/* Empty left spacer keeps the title centred.
+          FIX-Task-41 item 1b (class sweep, completed 2026-09-16): a layout spacer
+          must NEVER reuse `headerActionBtn` — its grey 44×44 background renders an
+          empty disc that reads as a dead control. Discover is the only tab screen
+          with its OWN header (it does not use AppHeader's `tab` variant), which is
+          why the first sweep missed this instance. */}
+      <View style={styles.headerActionSpacer} pointerEvents="none" />
 
       <Text testID="screen-title" style={styles.title} numberOfLines={1}>
         Discover
@@ -126,6 +131,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexShrink: 0,
+  },
+  // FIX-Task-41 item 1b: layout-only spacer — same box as a real icon button so
+  // the centre title stays centred, but with NO background (see AppHeader's
+  // `headerActionSpacer` for the canonical instance).
+  headerActionSpacer: {
+    width: 44,
+    height: 44,
   },
   headerActionBtn: {
     width: 44,

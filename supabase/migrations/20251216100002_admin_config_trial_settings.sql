@@ -2,24 +2,23 @@
 -- MODULE-12 ADMIN: Admin configuration table for trial period and feature toggles
 
 -- =============================================================================
--- 1. CREATE admin_config TABLE
+-- 1. CREATE admin_config TABLE - SUPERSEDED, intentionally skipped
 -- =============================================================================
-
-CREATE TABLE IF NOT EXISTS admin_config (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  config_key TEXT NOT NULL UNIQUE,
-  config_value JSONB NOT NULL,
-  description TEXT,
-  enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_admin_config_key ON admin_config(config_key);
-CREATE INDEX IF NOT EXISTS idx_admin_config_enabled ON admin_config(enabled);
+-- FIX-Task-40 phase 3. This file was written against an early
+-- `admin_config(config_key, config_value, enabled, ...)` design that never
+-- shipped. The CANONICAL table is created by 20250113_create_admin_config.sql
+-- (`key`, `value`, `category`, `data_type`, `is_secret`, `is_active`, ...) and
+-- that file sorts EARLIER, so on a chain-built or live database the CREATE below
+-- was already a no-op and the two `config_key` indexes could not apply at all
+-- ("column config_key does not exist") - which is why this migration never
+-- reached staging (staging has no such migration row and no `config_key` column).
+-- Verified against staging's captured fingerprint before removing anything:
+--   * staging HAS `idx_admin_config_key` but on (key) - created by 20250113;
+--   * staging has NO `idx_admin_config_enabled` (it has idx_admin_config_is_active);
+--   * staging HAS `update_admin_config_updated_at()` and NO other migration
+--     creates it, so that one object is RETAINED below (fidelity SUBSET).
+-- Original legacy DDL removed: legacy admin_config CREATE TABLE + the
+-- `config_key` / `enabled` indexes (see git history for the verbatim text).
 
 -- Enable RLS
 ALTER TABLE admin_config ENABLE ROW LEVEL SECURITY;
@@ -45,86 +44,36 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS admin_config_updated_at_trigger ON admin_config;
-CREATE TRIGGER admin_config_updated_at_trigger
-  BEFORE UPDATE ON admin_config
-  FOR EACH ROW
-  EXECUTE FUNCTION update_admin_config_updated_at();
+-- FIX-Task-40 phase 3: the trigger RE-POINT is intentionally skipped. Staging's
+-- `admin_config_updated_at_trigger` executes `update_admin_config_timestamp()`
+-- (created by 20250113_create_admin_config.sql); re-pointing it here would make the
+-- replayed trigger definition diverge from the live one (fidelity rule 3, CONFLICT).
+-- `update_admin_config_updated_at()` itself is still defined - staging carries it.
+-- Original statements removed: DROP TRIGGER + CREATE TRIGGER admin_config_updated_at_trigger.
 
 -- =============================================================================
--- 2. INSERT DEFAULT ADMIN CONFIGURATIONS
+-- 2. INSERT DEFAULT ADMIN CONFIGURATIONS - SUPERSEDED, intentionally skipped
 -- =============================================================================
-
--- Trial period configuration
-INSERT INTO admin_config (config_key, config_value, description, enabled)
-VALUES (
-  'trial_subscription',
-  '{
-    "enabled": true,
-    "duration_days": 30,
-    "description": "30-day no-card trial for new Kids Club+ subscribers"
-  }'::JSONB,
-  'Configuration for trial subscription enrollment',
-  TRUE
-)
-ON CONFLICT (config_key) DO NOTHING;
-
--- SP (Swap Points) configuration
-INSERT INTO admin_config (config_key, config_value, description, enabled)
-VALUES (
-  'swap_points_config',
-  '{
-    "enabled": true,
-    "earning_enabled": true,
-    "spending_enabled": true,
-    "max_percent_payment": 50,
-    "pending_days": 3,
-    "expiry_days": 90,
-    "description": "Swap Points configuration for marketplace"
-  }'::JSONB,
-  'Configuration for Swap Points system',
-  TRUE
-)
-ON CONFLICT (config_key) DO NOTHING;
-
--- Feature flags
-INSERT INTO admin_config (config_key, config_value, description, enabled)
-VALUES (
-  'feature_flags',
-  '{
-    "apple_signin": true,
-    "google_signin": true,
-    "social_sharing": false,
-    "referral_program": true,
-    "donation_mode": true,
-    "description": "Feature toggles for the marketplace"
-  }'::JSONB,
-  'Feature flags and toggles',
-  TRUE
-)
-ON CONFLICT (config_key) DO NOTHING;
+-- These three INSERTs (`trial_subscription`, `swap_points_config`, `feature_flags`)
+-- target the never-shipped `config_key`/`config_value`/`enabled` columns, so they
+-- cannot run against the canonical table. They are NOT rewritten to canonical
+-- columns on purpose: that would seed config keys on a rebuilt database that
+-- staging is not known to carry, i.e. a silent DATA divergence dressed up as a
+-- schema fix. The keys these rows were meant to provide are seeded - where they are
+-- actually used - by the canonical admin_config migrations. `is_trial_enabled()`
+-- and `get_trial_duration_days()` below degrade safely when the row is absent.
+-- Original statements removed: 3 x INSERT INTO admin_config (config_key, ...).
 
 -- =============================================================================
--- 3. CREATE RPC: Get admin config
+-- 3. CREATE RPC: Get admin config - SUPERSEDED, intentionally skipped
 -- =============================================================================
-
-CREATE OR REPLACE FUNCTION get_admin_config(p_config_key TEXT)
-RETURNS TABLE (config_value JSONB, enabled BOOLEAN)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    ac.config_value,
-    ac.enabled
-  FROM admin_config ac
-  WHERE ac.config_key = p_config_key
-    AND ac.enabled = TRUE;
-END;
-$$;
-
-COMMENT ON FUNCTION get_admin_config IS 'MODULE-12: Retrieve admin configuration by key';
+-- `get_admin_config(text)` selects `ac.config_value` / `ac.enabled`, columns that do
+-- not exist on the canonical table, so it would be a permanently-broken RPC.
+-- Checked before removing: staging does NOT have it, it has no call sites in the
+-- mobile app / Edge Functions / admin portal (all of which use
+-- `fn_get_admin_config_values`), and the replayed database never had it either.
+-- Original statement removed: CREATE OR REPLACE FUNCTION get_admin_config(TEXT)
+-- plus its COMMENT.
 
 -- =============================================================================
 -- 4. CREATE RPC: Check if trial is enabled

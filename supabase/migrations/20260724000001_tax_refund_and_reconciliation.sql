@@ -804,7 +804,17 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.get_tax_summary_for_period(date, date, uuid, text) IS
+-- FIX-Task-40 phase 3: this COMMENT originally targeted the FOUR-argument overload
+-- - which this file does not create (it creates the five-argument version) and which
+-- 20260724000002_fix_tax_refund_reconciliation.sql DROPs. In a strict filename replay
+-- the 4-arg overload still exists at this point, so the statement passed; in any order
+-- that applies 20260724000002 first it fails with
+--   function public.get_tax_summary_for_period(date, date, uuid, text) does not exist
+-- - and that was the last blocker keeping this file out of the replay. Retargeted to
+-- the signature this file actually defines, which makes the statement
+-- order-independent. It does not change the end state: the surviving comment text on
+-- that signature comes from the newest migration that sets it.
+COMMENT ON FUNCTION public.get_tax_summary_for_period(date, date, uuid, text, text) IS
 'REPLACED (2026-07-24): Now filters by tax_status for accurate reporting. Tax Collected = captured only. Tax Refunded = verified Stripe refunds only. Pending/Voided tax shown operationally but excluded from Net Tax Payable. Supports status_filter param for transaction and refund views.';
 
 GRANT EXECUTE ON FUNCTION public.get_tax_summary_for_period(DATE, DATE, UUID, TEXT, TEXT)

@@ -101,7 +101,16 @@ WHERE tc.key = 'clothing_footwear'
     WHERE tr.tax_category_id = tc.id
       AND tr.jurisdiction = 'CT'
       AND tr.is_active = TRUE
-      AND tr.min_item_price_cents = 5000
+      -- FIX-Task-40 phase 3: the original guard only matched a rule whose
+      -- min_item_price_cents was EXACTLY 5000, so on a freshly rebuilt database it
+      -- reported "absent" even though an active CT rule already SPANS the
+      -- $50-and-over band ("Default - Clothing and Footwear", open-ended) - and the
+      -- price-band overlap trigger then rejected this INSERT. The guard now asks the
+      -- same question the trigger asks: does an active CT rule already COVER the
+      -- $50-and-over band? Behaviour on staging (where no such spanning rule exists)
+      -- is unchanged - the insert still runs there.
+      AND (tr.min_item_price_cents IS NULL OR tr.min_item_price_cents <= 5000)
+      AND (tr.max_item_price_cents IS NULL OR tr.max_item_price_cents > 5000)
   );
 
 -- ============================================================================

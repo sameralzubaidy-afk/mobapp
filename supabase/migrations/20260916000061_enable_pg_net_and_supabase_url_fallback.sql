@@ -14,7 +14,16 @@
 -- ================================================================
 
 -- 1) Enable pg_net extension (creates schema net + functions like net.http_post)
-CREATE EXTENSION IF NOT EXISTS pg_net;
+-- FIX-Task-40 phase 3: guarded - same class as 20241213000000_add_push_tokens_table
+-- (CREATE EXTENSION aborts `supabase db reset` for the non-superuser `postgres` role).
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_net';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_net extension could not be created here: %', SQLERRM;
+  END;
+END $$;
 
 -- 2) Optional: seed Supabase URL in admin_config (preferred over DB GUC)
 -- NOTE: Replace the value with your real project URL.

@@ -4,8 +4,21 @@
 -- Mode: idempotent (safe to re-run)
 
 -- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net;
+-- FIX-Task-40 phase 3: guarded - same class as 20241213000000_add_push_tokens_table
+-- (CREATE EXTENSION aborts `supabase db reset` for the non-superuser `postgres` role).
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_cron';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_cron extension could not be created here: %', SQLERRM;
+  END;
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_net';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_net extension could not be created here: %', SQLERRM;
+  END;
+END $$;
 
 -- STEP 1: Create wrapper RPC that invokes the Edge Function
 -- SECURITY DEFINER is required because pg_cron runs in DB context and must read DB settings.

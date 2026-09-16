@@ -203,7 +203,16 @@ END $$;
 -- ============================================================================
 -- 5. ENSURE PostGIS EXTENSION (required for ST_DistanceSphere)
 -- ============================================================================
-CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
+-- FIX-Task-40 phase 3: guarded - same class as 20241213000000_add_push_tokens_table
+-- (CREATE EXTENSION aborts `supabase db reset` for the non-superuser `postgres` role).
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'postgis extension could not be created here: %', SQLERRM;
+  END;
+END $$;
 
 -- ============================================================================
 -- VERIFICATION QUERY (run after migration applied)

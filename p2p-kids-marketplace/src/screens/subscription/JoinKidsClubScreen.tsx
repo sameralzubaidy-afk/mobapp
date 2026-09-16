@@ -107,15 +107,20 @@ export default function JoinKidsClubScreen() {
           </Text>
         </View>
 
-        {/* Single non-purchase CTA */}
-        <View style={styles.ctaWrap}>
-          <JoinKidsClubButton emailHint={user?.email} />
-        </View>
-
+        {/* FIX-Task-41 item 11 (owner decision 2026-09-16): the "No charge in the
+            app…" footnote sits ABOVE the CTA. This screen's content (~2063px) is
+            SHORTER than its ScrollView viewport (~2166px), so it does not scroll at
+            rest and bottom padding cannot lift the last child clear of the floating
+            tab pill. Moving it above the CTA makes it readable without scrolling. */}
         <Text style={styles.footnote}>
           No charge in the app. You'll be taken to passitup.com to complete your membership
           securely.
         </Text>
+
+        {/* Single non-purchase CTA */}
+        <View style={styles.ctaWrap}>
+          <JoinKidsClubButton emailHint={user?.email} />
+        </View>
       </ScrollView>
     </ScreenLayout>
   );

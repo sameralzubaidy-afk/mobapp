@@ -193,18 +193,27 @@ END$$;
 -- Uses existing admin_config table (config_value JSONB).
 -- ---------------------------------------------------------------------------
 
-INSERT INTO public.admin_config (config_key, config_value, description, enabled)
+INSERT INTO public.admin_config (key, value, description, category, data_type)
 VALUES (
   'cart_settings',
   jsonb_build_object(
     'min_cart_value_cents', 2000,
     'max_saved_carts', 3,
     'saved_cart_expiry_days', 7
-  ),
+  )::text,
   'MODULE-15.2 Cart system settings: minimum cart value, saved-cart limits, expiry',
-  true
+  -- FIX-Task-40 phase 3: this INSERT used the never-shipped
+  -- `(config_key, config_value, enabled)` shape. The canonical admin_config
+  -- (20250113_create_admin_config.sql) is `key` / `value TEXT` / `category NOT NULL`
+  -- / `data_type NOT NULL DEFAULT 'string'`, so the row is written in that shape.
+  -- `feature_flags` is the canonical category for a settings blob and `json` matches
+  -- the value's real type (valid_data_type allows json). The row is NOT skippable -
+  -- 20260528100002_cart_system_rpcs.sql reads admin_config.cart_settings for the
+  -- minimum-cart-value rule, so it must exist.
+  'feature_flags',
+  'json'
 )
-ON CONFLICT (config_key) DO NOTHING;
+ON CONFLICT (key) DO NOTHING;
 
 COMMIT;
 

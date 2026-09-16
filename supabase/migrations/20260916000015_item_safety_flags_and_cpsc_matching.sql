@@ -14,7 +14,16 @@
 -- STEP 1: ENABLE pg_trgm EXTENSION FOR FUZZY MATCHING
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- FIX-Task-40 phase 3: guarded - same class as 20241213000000_add_push_tokens_table
+-- (CREATE EXTENSION aborts `supabase db reset` for the non-superuser `postgres` role).
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_trgm';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_trgm extension could not be created here: %', SQLERRM;
+  END;
+END $$;
 
 -- =============================================================================
 -- STEP 2: CREATE item_safety_flags TABLE

@@ -365,6 +365,123 @@ CREATE POLICY v_referrer_sp_service_role_all ON public.v_referrer_sp
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- =====================================================================
+-- FIX-Task-40 phase 3: `referrals` columns staging carries that NO migration
+-- ever added. `20260207000010_referral_logic_alignment.sql` (and its siblings)
+-- UPDATE referrals.completed_at, which failed with
+--   column "completed_at" of relation "referrals" does not exist
+-- because the column is created nowhere in the chain.
+-- Shapes taken verbatim from the captured staging fingerprint
+-- (/tmp/staging-fp1.txt): 10 columns, plus the two profile FKs and the two UNIQUE
+-- constraints that reference the new columns. All statements are idempotent
+-- (Mode B) so they are safe to re-run.
+-- =====================================================================
+
+ALTER TABLE public.referrals
+  ADD COLUMN IF NOT EXISTS referrer_id                    uuid,
+  ADD COLUMN IF NOT EXISTS referee_id                     uuid,
+  ADD COLUMN IF NOT EXISTS trial_extension_applied        boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS reward_granted_at              timestamptz,
+  ADD COLUMN IF NOT EXISTS completed_at                   timestamptz,
+  ADD COLUMN IF NOT EXISTS captured_sp_referrer_amount    integer,
+  ADD COLUMN IF NOT EXISTS captured_sp_referee_amount     integer,
+  ADD COLUMN IF NOT EXISTS captured_expiration_days       integer,
+  ADD COLUMN IF NOT EXISTS trade_bonus_awarded_at         timestamptz,
+  ADD COLUMN IF NOT EXISTS listing_bonus_awarded_at       timestamptz;
+
+-- ADD CONSTRAINT has no IF NOT EXISTS, so each one is guarded by name.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conrelid = 'public.referrals'::regclass AND conname = 'fk_referrals_referrer') THEN
+    ALTER TABLE public.referrals ADD CONSTRAINT fk_referrals_referrer
+      FOREIGN KEY (referrer_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conrelid = 'public.referrals'::regclass AND conname = 'fk_referrals_referee') THEN
+    ALTER TABLE public.referrals ADD CONSTRAINT fk_referrals_referee
+      FOREIGN KEY (referee_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conrelid = 'public.referrals'::regclass AND conname = 'referrals_referrer_id_referee_id_key') THEN
+    ALTER TABLE public.referrals ADD CONSTRAINT referrals_referrer_id_referee_id_key
+      UNIQUE (referrer_id, referee_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conrelid = 'public.referrals'::regclass AND conname = 'referrals_referred_user_id_key') THEN
+    ALTER TABLE public.referrals ADD CONSTRAINT referrals_referred_user_id_key
+      UNIQUE (referred_user_id);
+  END IF;
+END $$;
+
+-- =====================================================================
+-- FIX-Task-40 phase 3: `zip_waitlist` - staging carries it (8 columns, RLS on,
+-- 4 policies) but the chain NEVER creates it. Its only creator,
+-- `006_resolve_active_node_and_waitlist.sql`, guards the CREATE behind
+-- "IF EXISTS (... table_name = 'nodes')" - and `006` sorts FIRST among the legacy
+-- files, before `20241213000001_add_auth_module_tables.sql` creates `nodes`, so the
+-- guard is always false on a fresh rebuild. Two consequences: a staging table was
+-- missing from the replay, and `20260903000001_dev_task_97_admin_identity_reconcile`
+-- failed with 'relation "public.zip_waitlist" does not exist' when it drops the
+-- admin policy.
+-- Column shapes are verbatim from the captured staging fingerprint
+-- (/tmp/staging-fp1.txt). RLS is enabled here; 006 then adds its own policies
+-- (its guards now pass because the table exists) and 20260903000001 owns the admin
+-- policy, exactly as the chain intends.
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS public.zip_waitlist (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  email             text NOT NULL,
+  requested_zip     text NOT NULL,
+  assigned_node_id  uuid REFERENCES public.nodes(id) ON DELETE SET NULL,
+  status            text DEFAULT 'pending' CHECK (status IN ('pending', 'notified', 'joined')),
+  created_at        timestamptz DEFAULT now(),
+  updated_at        timestamptz DEFAULT now(),
+  CONSTRAINT zip_waitlist_unique UNIQUE (user_id, requested_zip)
+);
+
+ALTER TABLE public.zip_waitlist ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================================
+-- FIX-Task-40 phase 3: hoist the `tax_status` ENUM TYPE to the base repair.
+--
+-- WHY: the type's only creator is 20260723000002_tax_status_lifecycle.sql, which is
+-- itself deferred on the tax-schema tables in a first replay pass. That deferral
+-- cascaded: the label-commit migration (20260601000001_tax_status_add_missing_values)
+-- could not run either, so 20260724000001_tax_refund_and_reconciliation.sql failed in
+-- pass 1 with SQLSTATE 55P04 and was retried LATER - after
+-- 20260724000002_fix_tax_refund_reconciliation.sql had already applied - where it then
+-- re-created the same five-argument `get_tax_summary_for_period` with its OLDER body.
+-- That is a silent body regression the schema fingerprint cannot see (it records the
+-- function's identity, not its body).
+--
+-- Creating the type early lets the label commit and both consumers resolve in pass 1,
+-- in filename order, which is the order they were written for.
+--
+-- Faithful, not inventive: the labels below are EXACTLY the six the real creator
+-- declares (quoted, collected, voided, capture_failed, refunded, partially_refunded);
+-- `pending_refund` and `reconciliation_required` are still committed later, by
+-- 20260601000001, so the enum-label commit semantics are unchanged. The real creator's
+-- block is guarded by IF NOT EXISTS on pg_type, so it skips cleanly when it runs.
+-- =====================================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+                 WHERE n.nspname = 'public' AND t.typname = 'tax_status') THEN
+    CREATE TYPE public.tax_status AS ENUM (
+      'quoted',
+      'collected',
+      'voided',
+      'capture_failed',
+      'refunded',
+      'partially_refunded'
+    );
+  END IF;
+END $$;
+
+-- =====================================================================
 -- Verification (run one statement at a time):
 --   select table_name, count(*) from information_schema.columns
 --   where table_schema='public'

@@ -3,7 +3,17 @@
 -- Required for AUTH-V3-006 (PhoneService + PasswordService)
 
 -- Enable pgcrypto extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- FIX-Task-40 phase 3: guarded - same class as 20241213000000_add_push_tokens_table.
+-- The local `postgres` role is not a superuser, so an unguarded CREATE EXTENSION
+-- aborts `supabase db reset` (permission denied for function pg_read_file, 42501).
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS pgcrypto';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pgcrypto extension could not be created here: %', SQLERRM;
+  END;
+END $$;
 
 -- ===== FUNCTION 1: hash_otp_code =====
 -- Hash OTP code using bcrypt (called from send-phone-otp Edge Function)

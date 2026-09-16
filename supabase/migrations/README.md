@@ -215,7 +215,7 @@ its guard now sees `uuid` and skips — so the ordering coincidence no longer ma
 | `20250114000000_admin_config_category_add_missing_values.sql` | commits the 3 missing enum labels |
 | `20241213000004_base_schema_repair_missing_base_objects.sql` | `profiles.role` + 13 creator-less tables, with live PKs/indexes/RLS/policies |
 | `20241213000005_base_schema_repair_missing_base_functions.sql` | 11 creator-less functions, verbatim from `pg_get_functiondef()` |
-| `20260913000000_base_schema_repair_deferred_constraints.sql` | the FKs/triggers/`user_has_role` policies that cannot be declared early |
+| `20260916000145_base_schema_repair_deferred_constraints.sql` | the FKs/triggers/`user_has_role` policies that cannot be declared early (renumbered in phase 3 — a filename is an ORDER KEY, see the phase-3 section at the end of this file) |
 
 Individual broken files also fixed: `008` (`gn.id::TEXT` → `::uuid`), `084` (a `*/` inside a
 `/* */` comment closed it early → "syntax error at 30"), `20251218000002` (unguarded FK add),
@@ -317,5 +317,118 @@ Renumbering changes every version key and makes this worse.
 - **Structural alternative:** the 527-file history provably does not describe how staging was
   built; collapsing to one baseline migration + fresh history is cleaner long-term, at the cost of
   per-migration traceability.
+
+---
+
+## ✅ FIX-Task-40 phase 3 — the chain applies end-to-end, and filenames are now an ORDER KEY
+
+Continues FIX-38 / FIX-40. **Read this before the two sections above — it supersedes their
+"still blocking" statements.**
+
+### Result: `unresolved: 0`, and the whole chain applies in ONE pass
+
+```
+node scripts/migrations/replay-probe.mjs
+  migrations : 528 files in supabase/migrations
+  pass 1: applied 528, deferred 0
+  applied    : 528/528
+  unresolved : 0
+```
+
+**"pass 1: applied 528, deferred 0" is the important line.** A single-pass, zero-deferral replay
+is exactly the property `supabase db reset` needs (it applies in strict filename order with no
+deferral), so the apply ORDER is now correct — not merely "everything can be squeezed in somewhere".
+
+### The chain has been renumbered
+
+The 141 legacy-numbered files (`006_…`, `315_…`) are gone:
+
+```bash
+node scripts/migrations/renumber.mjs           # dry run FIRST - prints counts + first renames
+node scripts/migrations/renumber.mjs --apply   # renames; writes /tmp/renumber-map.json
+```
+
+It renamed **252 of 528** files so that lexicographic filename order IS the dependency-valid order;
+the other 276 keep their original names (the script preserves each file's own timestamp wherever the
+order allows).
+
+> ⚠️ **A migration filename is now an ORDER KEY, not a date.** Several legacy files legitimately
+> carry `20240101…` versions. Do not infer a file's age from its prefix, never renumber by hand, and
+> re-run the tool (dry run first) after any repair that changes the derived order — a repair can
+> move the order and leave the filenames lying about it.
+
+### The fidelity gate has been run — every exception is named
+
+```bash
+node scripts/migrations/fidelity-check.mjs
+```
+
+It compares the rebuilt schema against the captured staging fingerprints on the three agreed rules
+(SUBSET / EXPLAINED / CONFLICT) and prints each exception by name.
+
+| Rule | Result |
+|---|---|
+| SUBSET — every staging object exists in the replay | **119 missing** (38 policies, 26 columns, 21 indexes, 21 functions, 9 constraints, 4 triggers) |
+| EXPLAINED — every replay-only object has provenance | **60 explained** · **0 with NO creator** |
+| CONFLICT — no shared object differs | **114** (79 functions, 18 columns, 4 indexes, 3 constraints, 4 policies, 3 enum labels, 2 RLS flags, 1 view) |
+
+**Every one is enumerated in
+`e2e-test-results/fix-task-40-phase3-2026-09-16/fidelity-exceptions.md`** — a passing check must
+never be read as "no diff". They are expected: staging was built partly out-of-band and is not at the
+repo head. `NO CREATOR: 0` is the meaningful number — it means no replay-only object is an invention
+of the rebuild.
+
+> ⚠️ **Rule 2 is deliberately "provenance", not "maps to a migration absent from staging's ledger".**
+> Staging's `schema_migrations` holds 266 rows whose `version` values are APPLY timestamps rather
+> than filename prefixes, and whose `name` values are inconsistently prefixed — 253 unique names,
+> **32 with no local file at all**, and 304 local files with no ledger row. A file-level attribution
+> is therefore not derivable, so the binding test is that a creator exists in the chain.
+
+### 🔴 Tier 2 (`supabase db reset`) is STILL BLOCKED — now an OWNER DECISION
+
+`db reset` gets further than ever — it now replays the whole set — but still fails, on **role
+privileges**, not on ordering or content:
+
+| Failure | Statement | Cause |
+|---|---|---|
+| `permission denied for function pg_read_file` (42501) | `CREATE EXTENSION …` | the CLI's migration session runs as `postgres`, which has **`rolsuper = false`** in this local stack |
+| `must be owner of table objects` (42501) | `CREATE POLICY … ON storage.objects` | `storage.objects` is owned by `supabase_storage_admin`, and `postgres` is **not** a member of it |
+
+**The same statements succeed through psql:** the probe applies all 528 files, and applying
+`20241214000005_create_user_avatars_bucket.sql` by hand creates all four storage policies *and* the
+bucket. So this is a **CLI execution-context mismatch, not a migration-content defect.**
+
+- The `CREATE EXTENSION` class **was** repaired — 7 unguarded sites now use the
+  `DO $$ … EXCEPTION WHEN OTHERS THEN RAISE NOTICE` guard this repo's pg_cron migrations already
+  used. Fail-soft is safe there because the platform provides those extensions. It took `db reset`
+  from 19 to 29 files before the next blocker.
+- The `storage.objects` **policy** class was deliberately **NOT** repaired. Guarding RLS policies on
+  `storage.objects` would silently skip **security** controls; making the reset pass is not worth
+  weakening bucket protection by hand. **Owner decision required** — a scoped privilege fix, a
+  documented quarantine of those statements, or accepting the probe as the local tier-2 evidence.
+
+**Every other Tier-2 leg is unaffected and still required** — DB lint, the smoke scripts, and real
+invocation of every changed branch.
+
+### Which files were repaired to get from 14 → 0
+
+Return-type `DROP FUNCTION` prologues (`…admin_trade_tools`, `…dev_task_57_rpc_identity_lockdown`);
+the three-creator `admin_config` tangle (canonical is `20241215100005_create_admin_config.sql` — the other
+two were superseded duplicates, one of which also supplied the still-live
+`update_admin_config_updated_at()`); **10 missing `referrals` columns** and **`zip_waitlist`** (a
+staging table the chain never created, because its only creator guards on `nodes` existing while it
+sorts first); `cart_settings` re-seeded in canonical shape; the dead `sp_transaction_type` design
+guarded; `077`'s NULL-actor RPC replaced with a canonical INSERT; a `DROP TRIGGER … ON cpsc_recalls`
+guarded; the tax-band overlap guard broadened to the question the trigger asks; and **four files
+whose `COMMENT ON FUNCTION` targeted a 4-argument overload they do not create** (the class that hid
+behind the last unresolved file). The `tax_status` enum TYPE was hoisted into the base repair so the
+tax chain resolves in pass 1 — without it, `20260724000001` applies *after* `20260724000002` and
+silently re-creates `get_tax_summary_for_period` with its **older body**, which the schema
+fingerprint cannot see (it records identity, not the body).
+
+> ⚠️ **Canary discipline, learned the hard way this round.** The pass-1 "applied" count did **not**
+> catch that hoist's regression — pass 1 stayed flat at 389 while `unresolved` went 1 → 3. What
+> caught it was **pass 2 dropping 135 → 133**. Compare the WHOLE per-pass ladder after every
+> change, not just pass 1.
 
 

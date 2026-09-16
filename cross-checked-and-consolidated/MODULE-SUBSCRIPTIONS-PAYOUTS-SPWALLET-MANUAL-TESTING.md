@@ -33,13 +33,15 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 ### 3 · Authoritative per-case state (do not re-derive a baseline)
 
 - **`e2e-test-results/QA-TESTCASE-STATUS-2026-09-03.md`** → the **SUB** section is the single source of truth for per-case verdicts. Since FIX-Task-37 item 7 it carries explicit **`iOS` / `Android`** verdict columns, so a platform-specific PARTIAL is countable instead of living only in free-text notes (`—` means *no platform-qualified verdict on record*, not "not run").
-- **SUB totals as at 2026-09-16:** 100 cases · **PASS 77** · **PARTIAL 2** · **OPEN 3** · **RETIRED 15** · **N/A 2** · **Remaining (ACTIVE) 1**.
+- **SUB totals as at 2026-09-16:** 100 cases · **PASS 78** · **PARTIAL 2** · **OPEN 2** · **RETIRED 15** · **N/A 2** · **Remaining (ACTIVE) 0**.
+  > Reconciled 2026-09-16 (FIX-Task-41 follow-through): this line read `PARTIAL 2 · OPEN 3 · Remaining 1`, which disagreed with the tracker's `PARTIAL 3 · OPEN 2 · Remaining 0`. **The tracker is canonical** (per the bullet above) — the line now matches it, and it reflects **SUB-TC-M07 🟡 PARTIAL → ✅ PASS** after the retry-success leg was driven on-device. Remaining non-PASS set: **PARTIAL** = C05, L05 · **OPEN** = D06, D07 (both fixture/clock-gated, BLOCKED — see their rows for the named reason). The pre-existing ±1 row-set residual (99 of 100 accounted) still stands and is **not** resolved by this flip.
 - ⚠️ The baseline quoted in the 2026-09-16 brief (`77/2/3/17 SKIPPED/1 inactive`) did **not** match the tracker — always take the numbers from the tracker, never from a brief's prose.
 
 ### 4 · Known fixture gates (check before assigning)
 
 - **Payout-method legs** (F02 "with method", H-series withdrawals) were blocked through 2026-09-16 because **no QA persona held a `seller_payout_methods` row** — the only row platform-wide belonged to a non-QA demo account. Repaired by **FIX-Task-37 item 4**: `qa-payout-seller` now carries a verified primary method backed by a real test-mode Stripe Express account (`npm run qa:express-complete -- create`) plus a controlled balance (`npm run qa:payout-fixture -- --persona qa-payout-seller balance --amount <cents>`).
 - **Grace/wallet semantics:** `subscription.status = 'grace_period'` ⇒ `sp_wallets.state = 'grace_period'` — **spendable, cannot earn** (R6, owner decision 2026-08-09). The wallet is frozen **only at the end of the grace window** by `grace-period-cron`. Any expected result that says "SP frozen during grace" is the **stale pre-R6** model — see SUB-TC-D01 vs SUB-TC-I05 (the guide's I05 is the correct one).
+- **M07 true-retry-success leg (now UNBLOCKED — FIX-Task-41 follow-through, 2026-09-16):** `test-payfail-retry@kidsmarketplace.test` (id `…0018`, password `TestPayfailRetry123!`, one-tap login `qa-login-as?persona=test-payfail-retry`) is a payfail-shaped persona that ALSO carries real Stripe ids and **no open invoice**, so all four `retry-failed-payment` guards pass and the `resolve_without_invoice` success branch is genuinely reachable. Provision/reconcile with `npm run qa:payfail-retry -- ensure`, check drivability with `-- status` (guard-by-guard verdict + `DRIVABLE`/`NOT DRIVABLE`), tear down with `-- reset`. **Driving M07 CLEARS `payment_retry_count`/`payment_failed_at`** — re-run `ensure` for a repeat drive, and keep it separate from `test-payfail` (whose failure flags back ACC-TC-G02).
 
 ---
 
@@ -1694,7 +1696,8 @@ behaviour and states the SP isn't spendable yet. `testID="sp-wallet-pending-rele
 
 **Locator hints:**
 - Add → `pm-add-button` (or `pm-update-button` with a saved card) · Remove → `pm-remove-button`.
-- Alerts are native `Alert.alert` — assert by title (Payment Method Added / Saved / Success / Removed).
+- Alerts are raised via `Alert.alert` in source, but on this build they render through the in-app **`GlobalAlertProvider`** — verified empirically on-device 2026-09-16 (FIX-Task-41 follow-through): the true-retry-success dialog surfaced in the AX tree as `global-alert-button-0` with label `"Payment Method Added, Your card was saved successfully."`, so the button **is** locator-instrumentable and the native-modal pixel-scan fallback is **not** needed. Assert by title: Payment Method Added / Saved / Success / Removed.
+- On a persona that already has a card on file the CTA is `pm-update-button` ("Update Payment Method"); the Stripe sheet then offers the saved card (already selected) plus a "New card" row, and the primary button reads **`Set up`**. Both CTAs run the same `handleAddPaymentMethod` → `retryFailedPayment` sequence, so either drives the retry branches.
 
 ---
 

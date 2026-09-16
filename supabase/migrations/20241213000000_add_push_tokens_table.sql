@@ -3,7 +3,20 @@
 
 -- Create push_tokens table
 -- Ensure pgcrypto extension for gen_random_uuid()
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- FIX-Task-40 phase 3: guarded. The local `postgres` role is NOT a superuser
+-- (rolsuper = false), so an unguarded CREATE EXTENSION aborts `supabase db reset`
+-- with a misleading "permission denied for function pg_read_file" (42501) even
+-- though the platform already provides the extension. The guard is the pattern the
+-- repo's pg_cron migrations already use; the migration's real purpose is the
+-- push_tokens table below.
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE EXTENSION IF NOT EXISTS pgcrypto';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pgcrypto extension could not be created here: %', SQLERRM;
+  END;
+END $$;
 
 CREATE TABLE IF NOT EXISTS push_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

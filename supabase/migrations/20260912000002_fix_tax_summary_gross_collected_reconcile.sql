@@ -424,7 +424,11 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.get_tax_summary_for_period(date, date, uuid, text) IS
+-- FIX-Task-40 phase 3: retargeted from the FOUR-argument overload, which this file
+-- does not create and 20260724000002_fix_tax_refund_reconciliation.sql DROPs, to the
+-- five-argument signature this file does create. Same class as the fix in
+-- 20260724000001_tax_refund_and_reconciliation.sql.
+COMMENT ON FUNCTION public.get_tax_summary_for_period(date, date, uuid, text, text) IS
 'REPLACED (2026-09-12 FIX-Task-20 item 2): header now uses the GROSS-collected convention — collected = tax_status IN (collected, refunded, partially_refunded), matching the by_jurisdiction breakdown, with net = gross collected - refunds. Previously based on 2026-08-31 DT71 (Refunds-tab guard + per-jurisdiction tax_voided_cents). Voided tracked separately. Tax Refunded = verified Stripe refunds only.';
 
 GRANT EXECUTE ON FUNCTION public.get_tax_summary_for_period(DATE, DATE, UUID, TEXT, TEXT)
