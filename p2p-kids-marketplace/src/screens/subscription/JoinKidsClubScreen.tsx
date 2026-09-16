@@ -123,7 +123,9 @@ export default function JoinKidsClubScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  contentContainer: { padding: 20, paddingBottom: 48 },
+  // FIX-Task-41 item 11 (BP-58): 48pt was not enough — the "No charge in the app…"
+  // footnote sat underneath the floating tab pill at rest (SUB Android R3).
+  contentContainer: { padding: 20, paddingBottom: 100 },
   headline: {
     fontSize: 24,
     fontWeight: '800',

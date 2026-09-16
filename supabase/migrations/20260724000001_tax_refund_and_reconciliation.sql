@@ -804,7 +804,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.get_tax_summary_for_period IS
+COMMENT ON FUNCTION public.get_tax_summary_for_period(date, date, uuid, text) IS
 'REPLACED (2026-07-24): Now filters by tax_status for accurate reporting. Tax Collected = captured only. Tax Refunded = verified Stripe refunds only. Pending/Voided tax shown operationally but excluded from Net Tax Payable. Supports status_filter param for transaction and refund views.';
 
 GRANT EXECUTE ON FUNCTION public.get_tax_summary_for_period(DATE, DATE, UUID, TEXT, TEXT)

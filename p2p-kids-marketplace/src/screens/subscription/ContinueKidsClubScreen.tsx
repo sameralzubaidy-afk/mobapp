@@ -339,6 +339,11 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    // FIX-Task-41 item 9 (BP-58): the floating tab pill overlays the bottom
+    // ~110pt of the screen, which clipped "Continue on the web" and nearly
+    // covered "Maybe later" (SUB Android R3). Keep the CTAs and the fine print
+    // clear of the pill.
+    paddingBottom: 100,
   },
   header: {
     alignItems: 'center',

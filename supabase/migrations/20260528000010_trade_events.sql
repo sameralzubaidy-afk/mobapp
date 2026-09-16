@@ -33,9 +33,11 @@ DROP POLICY IF EXISTS "Admin role read trade_events" ON trade_events;
 CREATE POLICY "Admin role read trade_events" ON trade_events
   FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM admin_users WHERE user_id = auth.uid()
-    )
+    -- NOTE (FIX-Task-40): this policy referenced `admin_users`, a table that
+    -- exists nowhere — not in any migration and not in the live database.  The
+    -- repo's canonical admin predicate is user_has_role(), which the admin
+    -- surfaces (admin_audit_logs, admin global search, ...) already use.
+    public.user_has_role(auth.uid(), 'admin'::text)
   );
 
 -- ============================================================

@@ -117,8 +117,21 @@ export default function TransactionHistoryScreen() {
           <LoadingSpinner />
         ) : error ? (
           <View style={styles.center}>
+            {/* FIX-Task-41 items 3 + 8: the error branch renders the SAME receipt
+                icon as the empty branch, so a load failure reads as a deliberate
+                state rather than a blank screen (and the guide's "receipt icon +
+                error text + [Retry]" description is true again — SUB Android R3
+                doc-drift finding). */}
+            <Receipt size={64} color="#ccc" weight="regular" />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={onRefresh} style={styles.retryButton}>
+            <TouchableOpacity
+              onPress={onRefresh}
+              style={styles.retryButton}
+              testID="transaction-history-retry-button"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Retry"
+            >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>

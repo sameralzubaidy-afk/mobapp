@@ -10,13 +10,18 @@
 -- =============================================================================
 
 -- Use upsert function to avoid duplicate key conflicts
+-- NOTE (FIX-Task-40): passing six arguments matched TWO overloads — the legacy
+-- six-parameter form and the seven-parameter form whose last argument has a
+-- default — so PostgreSQL raised "function is not unique". Supplying the actor
+-- explicitly selects the canonical signature.
 SELECT upsert_admin_config_setting(
   'enable_automatic_seller_payout',
   'false',
   'fees'::admin_config_category,
   'boolean',
   false,
-  true
+  true,
+  NULL::uuid
 );
 
 -- Add description if needed (update existing record)

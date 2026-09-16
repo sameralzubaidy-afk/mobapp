@@ -392,7 +392,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.get_tax_summary_for_period IS
+COMMENT ON FUNCTION public.get_tax_summary_for_period(date, date, uuid, text) IS
 'REPLACED (2026-08-01): fixed Refunds report-type SQL bug (missing FROM-clause entry for table tr). Otherwise identical to 2026-07-24 status-filtered version. Tax Collected = captured only. Tax Refunded = verified Stripe refunds only.';
 
 GRANT EXECUTE ON FUNCTION public.get_tax_summary_for_period(DATE, DATE, UUID, TEXT, TEXT)

@@ -41,7 +41,16 @@ BEGIN
         v_fn.proname,
         v_fn.identity_args
       );
-      EXECUTE v_alter_sql;
+      -- NOTE (FIX-Task-40): the sweep ran over EVERY SECURITY DEFINER function
+      -- in `public`, including extension-owned ones (PostGIS st_estimatedextent),
+      -- which belong to another role — ALTER FUNCTION then aborted the whole
+      -- migration with "must be owner of function".  Not being able to harden a
+      -- function we do not own is not a migration failure; skip it loudly.
+      BEGIN
+        EXECUTE v_alter_sql;
+      EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE 'FIX-Task-40: skipped (not owner): %', v_fn.proname;
+      END;
     END IF;
   END LOOP;
 END;

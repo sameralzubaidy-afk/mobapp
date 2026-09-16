@@ -48,7 +48,15 @@ export interface AppHeaderProps {
   /**
    * Whether to show the notification bell.
    * Default: true. Pass false on checkout / payment screens only
-   * (CartCheckoutScreen, SubscriptionPaymentScreen, RequestPayoutScreen).
+   * (CartCheckoutScreen, SubscriptionPaymentScreen, RequestPayoutScreen,
+   * JoinKidsClubScreen).
+   *
+   * FIX-Task-41 item 1: when false, the bell's slot renders as a TRANSPARENT
+   * 40x40 spacer (no background) so the centre title stays optically centred.
+   * It used to reuse `headerActionBtn`'s grey circle, which produced an empty
+   * grey disc that looked like a tappable control but carried no icon and never
+   * surfaced in the accessibility tree — the "ghost notification bell" seen on
+   * JoinKidsClub (SUB Android R3 finding F1).
    */
   showBell?: boolean;
   /** Override the back-button press handler. Default: navigation.goBack(). */
@@ -205,15 +213,21 @@ export default function AppHeader({ variant, title, showBell = true, onBack }: A
   if (variant === 'tab') {
     return (
       <View style={styles.header}>
-        {/* Empty left spacer keeps title centred — no back button on tab screens */}
-        <View style={styles.headerActionBtn} />
+        {/* Empty left spacer keeps the title centred — no back button on tab
+            screens. FIX-Task-41 item 1 (class sweep): layout-only + transparent,
+            so it is not mistaken for a dead control. */}
+        <View style={styles.headerActionSpacer} pointerEvents="none" />
 
         <Text testID="screen-title" style={styles.detailTitle} numberOfLines={1}>
           {title ?? ''}
         </Text>
 
         <View style={styles.headerActions}>
-          {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
+          {showBell ? (
+            renderBell()
+          ) : (
+            <View style={styles.headerActionSpacer} pointerEvents="none" />
+          )}
           {renderChat()}
         </View>
       </View>
@@ -239,9 +253,20 @@ export default function AppHeader({ variant, title, showBell = true, onBack }: A
         {title ?? ''}
       </Text>
 
-      {/* Right cluster keeps title reasonably centred; chat always present */}
+      {/* Right cluster keeps title reasonably centred; chat always present.
+          FIX-Task-41 item 1: the hidden-bell slot is a transparent spacer, never
+          the grey `headerActionBtn` circle (that rendered an unusable "ghost"
+          disc — see the showBell prop docs). */}
       <View style={styles.headerActions}>
-        {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
+        {showBell ? (
+          renderBell()
+        ) : (
+          <View
+            style={styles.headerActionSpacer}
+            pointerEvents="none"
+            testID="header-bell-spacer"
+          />
+        )}
         {renderChat()}
       </View>
     </View>
@@ -293,6 +318,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F4F4',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  // FIX-Task-41 item 1: layout-only spacer for the intentionally hidden bell.
+  // Same box as a real icon button (so the centre title stays centred) but with
+  // NO background — an empty grey disc reads as a broken/dead control and is
+  // invisible to assistive technology.
+  headerActionSpacer: {
+    width: 40,
+    height: 40,
   },
 
   // ── detail variant ────────────────────────────────────────────────────────

@@ -855,6 +855,20 @@ let _pmCacheUserId: string | null = null;
 let _pmPromise: Promise<PaymentMethodInfo | null> | null = null;
 
 /**
+ * FIX-Task-41 item 7 (F5 investigation): hard bound on the get-payment-method
+ * Edge Function call.
+ *
+ * A `functions.invoke` with no timeout can hang at the socket layer — e.g. the
+ * warm `qa-login-as` session flip tears down the keep-alive connection while the
+ * request is in flight. The calling screen awaits this promise with no timeout of
+ * its own, so the hang presented as a PERMANENT "Fetching payment method…"
+ * spinner, and — because the request promise was cached for the life of the
+ * process — every later same-user read re-adopted the same dead promise. Only a
+ * terminate + relaunch recovered it (the R101 in-process wedge).
+ */
+const PM_FETCH_TIMEOUT_MS = 15000;
+
+/**
  * Get the buyer's saved Stripe payment method.
  * Results are cached in-memory, SCOPED TO THE SIGNED-IN USER (FIX-Task-37 item 1 /
  * BP-95) — an entry produced by a different user is treated as a miss, so a warm
@@ -892,6 +906,12 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
   }
 
   const fetchPm = (): Promise<PaymentMethodInfo | null> => {
+    // FIX-Task-41 item 7: a response may land AFTER `invalidatePaymentMethodCache()`
+    // ran (identity change / remove-card). Only the request that still owns the
+    // slot may write it — otherwise a late reply from the previous user
+    // overwrites a newer entry and mislabels its owner.
+    const cacheSlotIsStillOurs = () => !forcedCard && _pmCacheUserId === ownerId;
+
     return (async (): Promise<PaymentMethodInfo | null> => {
       try {
         console.log(
@@ -928,6 +948,9 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
             Authorization: `Bearer ${accessToken}`,
             ...(anonKey ? { apikey: anonKey } : {}),
           },
+          // FIX-Task-41 item 7: bound the request so a stalled socket can never
+          // wedge the calling screen (or the shared promise slot) forever.
+          timeout: PM_FETCH_TIMEOUT_MS,
           // QA forced-card toggle (dev/test only — never armed in release): ask
           // the EF to return a specific saved card instead of its default.
           ...(forcedCard ? { body: { force_card: forcedCard } } : {}),
@@ -940,7 +963,7 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
 
         if (!data || !data.payment_method) {
           console.log('[subscription] ℹ️ No payment method found');
-          if (!forcedCard) {
+          if (cacheSlotIsStillOurs()) {
             _pmCache = null;
             _pmCacheUserId = ownerId;
           }
@@ -954,6 +977,11 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
           console.log(`[subscription] ✅ Payment method retrieved (QA forced: ${forcedCard})`);
           return pm;
         }
+        if (!cacheSlotIsStillOurs()) {
+          // The identity changed while this request was in flight — hand the
+          // value back to the caller but leave the cache for the new user.
+          return pm;
+        }
         _pmCache = pm;
         _pmCacheUserId = ownerId;
         console.log('[subscription] ✅ Payment method retrieved');
@@ -961,7 +989,7 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
       } catch (error) {
         const err = error as Error;
         console.error('[subscription] ❌ getPaymentMethod error:', err.message);
-        if (!forcedCard) {
+        if (cacheSlotIsStillOurs()) {
           _pmCache = null;
           _pmCacheUserId = ownerId;
         }
@@ -977,8 +1005,23 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
   // FIX-Task-37 item 1: the in-flight request is owned by the user who started it,
   // so a concurrent read from a DIFFERENT user never adopts this request's result.
   _pmCacheUserId = ownerId;
-  _pmPromise = fetchPm();
-  return _pmPromise;
+  const inFlight = fetchPm();
+  _pmPromise = inFlight;
+
+  // FIX-Task-41 item 7: never let the in-flight slot OUTLIVE its request. The
+  // slot used to keep a settled (or hung) promise forever, so every later
+  // same-user read re-adopted the same dead promise — a single stalled request
+  // became a process-lifetime wedge that only a relaunch cleared. Releasing it
+  // here means the next read simply retries.
+  void inFlight
+    .catch(() => null) // fetchPm never rejects; keeps the chain unhandled-safe
+    .then(() => {
+      if (_pmPromise === inFlight) {
+        _pmPromise = null;
+      }
+    });
+
+  return inFlight;
 }
 
 /**

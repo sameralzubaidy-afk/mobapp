@@ -770,6 +770,13 @@ Issue: "A function/RPC broke right after a migration that 'only' renamed a colum
 ✅ Check: The patched object was actually INVOKED (`SELECT public.<fn>();`) — plpgsql resolves names at run time, so `CREATE OR REPLACE` success is not evidence the body is correct (BP-90, BP-81)
 See also: BP-90 (patch a live function body with anchored tokens + survival guards + immediate invocation), BP-47 (the latest definition is authoritative — patch the live body), BP-46 (run-time name resolution)
 
+Issue: "A migration replay / `supabase db reset` fails on a file I did NOT touch — or a fix I just made INCREASED the number of failing files"
+
+✅ Check: The chain was re-measured as a WHOLE after the fix (pass-1 applied count + total unresolved), not just the file that was repaired — a newly-succeeding early file can create state (schema, extension, enum label) that a later file assumed absent (BP-96)
+✅ Check: The per-file error being investigated is the ROOT cause, not the LAST error from the probe's final deferred pass — re-run that one file alone against the settled DB to get the real cause (BP-96)
+✅ Check: The remaining gap was enumerated by diffing the live schema against the replayed schema (truth), not by reading the probe's failure list (symptom) (BP-96)
+See also: BP-96 (re-measure the whole chain after a repair; probe errors are last-errors; enumerate gaps by schema fingerprint), BP-9 (migration dependency order), BP-47 (the latest definition is authoritative)
+
 Issue: "E2E test fails right after signup because trigger-created rows (subscription, notification prefs, SP wallet) are missing"
 
 ✅ Check: The target DB's signup trigger is actually attached AND its handler body matches the latest migration (BP-47)
@@ -827,7 +834,8 @@ See also: BP-57 (a behavior fix that makes an auto-path work breaks manual-fallb
 Issue: "A CTA / Save / Submit button (or a sticky bottom bar) is hidden behind the floating bottom nav pill"
 
 ✅ Check: Scroll content uses `paddingBottom: 100`; fixed bottom bars use `bottom: 120`; in-flow bars above a fixed bar use `marginBottom: 200` (BP-58)
-See also: BP-58 (bottom-anchored UI must clear the floating pill nav — the pill top sits ~110pt from the screen bottom)
+✅ Check: The content actually OVERFLOWS the viewport (ScrollView frame vs the last child's `y + height + paddingBottom`) — if it fits, the screen never scrolls and padding cannot lift the trailing element, so the fix must be a layout change instead (BP-58)
+See also: BP-58 (bottom-anchored UI must clear the floating pill nav — the pill top sits ~110pt from the screen bottom; padding only helps when the content overflows)
 
 Issue: "A screen renders a visible junk line like `accessible accessibilityRole="button" ...` inside a `<Text>` (accessibility props pasted as literal children)"
 
@@ -1058,6 +1066,8 @@ When you need to verify runtime behavior instead of guessing from static code:
 Use Metro MCP (`mcp_metro-mcp_*`) to inspect the running app directly: `get_console_logs`, `get_network_requests`, `get_redux_state`/`get_redux_actions`, `get_component_tree`, `get_current_route`, `get_errors`/`get_bundle_errors`. Prefer this over asking the user to read console output manually.
 Use XcodeBuildMCP (`mcp_xcodebuildmcp_*`) to build and run on the iOS Simulator (`build_run_sim`) and capture evidence (`screenshot`, `record_sim_video`) instead of only telling the user to “open the simulator.” Call `session_show_defaults` first per that tool's own instructions.
 Use mobile-mcp (`mcp_mobile-mcp_*`) for cross-platform simulator/device interaction (tap, swipe, screenshot) when Metro MCP is not connected.
+Resolve the mobile-mcp **device identifier** from `mobile_list_available_devices` before the first `mobile_*` call — it is the toolset's own id, NOT the adb/simctl id. On the Android emulator that means the AVD name (`Medium_Phone_API_36.1`), so a batch addressed to `emulator-5554` fails with `Device "emulator-5554" not found` (FIX-Task-41, 2026-09-16 — one wasted cycle). A "disabled by the user" error from a `mobile_*` tool is a category gate, not a blocker — call the matching `activate_<category>_tools` per the MCP rule above.
+`mobile_open_url` accepts only `http(s)://`, so drive an app deep link (QA one-tap login / `qa-dev-toggle` / a screen route) from the terminal instead: `adb -s <serial> shell am start -W -a android.intent.action.VIEW -d "p2pkidsmarketplace://<path>" com.sameralzubaidi.p2pmarketplace` (iOS: `xcrun simctl openurl booted "p2pkidsmarketplace://<path>"`); escape a multi-param `&` as `\&` for the device shell.
 When driving mobile-mcp taps on a SCROLLABLE screen, never tap a target whose AX-tree coordinates sit at/under the floating pill band or below the visible fold — AX coordinates for below-the-fold scroll content are logical, not hit-testable (DT105, 2026-09-04: Profile "App Settings" was reported at y910-963, under the pill, and a tap at that coordinate hit the "My Badges (1)" showcase row instead). Scroll the target up into the visible, pill-free band, re-list the element tree for fresh coordinates, then tap — never trust a single off-screen AX snapshot.
 These tools do NOT replace the Tier 0 Compile Gate — only use them AFTER typecheck/lint pass (see HP-2a).
 12 Hardening Protocol (mandatory)
@@ -1504,7 +1514,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
 - BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
 - BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
-- BP-58 Bottom-anchored UI on pill-nav screens — scroll content needs `paddingBottom: 100`, fixed bottom bars `bottom: 120`, and in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar).
+- BP-58 Bottom-anchored UI on pill-nav screens — scroll content needs `paddingBottom: 100`, fixed bottom bars `bottom: 120`, and in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar). Padding only helps when the content actually OVERFLOWS the viewport — a screen whose content fits never scrolls, so verify overflow before treating padding as the fix.
 - BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: typecheck + grep for bare prop-lines followed by a JSX child + Prettier (a formatter rewriting the region signals structural problems).
 - BP-60 Test isolation — a `renderScreen()`-style helper that accepts or defaults to a shared/mutable route/params object leaks state between tests (e.g. an earlier test's `draftId` silently carries into a later test and disables draft-auto-save); always pass explicit, freshly-constructed params per test, and check for this pattern before blaming a flaky-looking failure on the feature code.
 - BP-61 Accessibility-prop text as literal `<Text>` children — accessibility props must be JSX attributes on the opening tag, never rendered children (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole` inside JSX children) whenever writing or reviewing `<Text>` components.
@@ -1542,6 +1552,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-93 Jest mocks must return identity-stable objects — an inline `useNavigation: () => ({…})` mock re-creates every dependent `useCallback` per render, so a `useFocusEffect` loops and the screen never leaves its loading state; use a module-level `mock`-prefixed constant and debug by asserting mock call counts (jest output is suppressed) (FIX-Task-26, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-94 A `jest.mock()` factory must mirror the module's FULL export surface — adding a new import to the module under test requires adding that export to every factory that stubs it in the SAME pass; an unlisted export is `undefined` at call time, its `TypeError` is swallowed by the consumer's own `try/catch` (soft-fail), and the test then asserts on the fallback/error branch while staying green — give each factory export an explicit impl + `beforeEach` default (`clearAllMocks` does NOT reset implementations) (FIX-Task-28, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
 - BP-95 Client-side in-memory caches of USER-SCOPED data must be keyed by user and cleared on auth transitions (`SIGNED_OUT`/`SIGNED_IN`/`USER_UPDATED`) — never one process-global module slot read without a session check (a `_pmCache` in `subscription.ts` served one account the previous user's saved card after a warm `qa-login-as` persona switch; DB column + Stripe customer both empty, and a fresh-process control rendered the correct empty state — QA SUB Android Round 1, 2026-09-16). Companion of BP-15: BP-15 = correct on refresh, BP-95 = correct on identity change — full text: `.github/instructions/mobile-client.instructions.md`.
+- BP-96 Re-measure the WHOLE migration chain after any fix that flips a previously-failing file to passing — a newly-succeeding early file creates state a later file assumed absent (fixing `084`'s block comment let its `CREATE SCHEMA IF NOT EXISTS cron` placeholder break the FIX-38 repair's `CREATE EXTENSION pg_cron`, deleting `public.trades` and cascading to ~77 files: 448/523 → 347/527); watch the pass-1 applied count as the canary, read a deferred-replay probe's per-file error as its LAST error not the root cause, enumerate the gap by diffing the live schema against the replayed schema rather than reading the failure list (that diff found 30 tables / 82 functions / 124 policies where the failure list suggested 3 tables), and prefer creating an object correctly at its creator over repairing it later (FIX-Task-40, 2026-09-16) — full text: `.github/instructions/supabase-sql.instructions.md`.
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 
@@ -1649,7 +1660,7 @@ BP-56: Discover/Design Code Must Use the Canonical Pass-It-Up Tokens (never lega
 
 BP-57: Behavior-Fix Test Drift — a fix that makes an auto-verify/auto-submit path actually work breaks tests written around the old broken behavior (manual-fallback reliance); audit & update those tests — full text moved to `.github/instructions/mobile-client.instructions.md`.
 
-BP-58: Bottom-Anchored UI Must Clear the Floating Pill Nav (PersistentTabBar) — full text moved to `.github/instructions/mobile-client.instructions.md`.
+BP-58: Bottom-Anchored UI Must Clear the Floating Pill Nav (PersistentTabBar) — includes the "padding only works when the content overflows the viewport" precondition; full text moved to `.github/instructions/mobile-client.instructions.md`.
 
 BP-60: Shared Test-Render Helpers Must Receive Explicit Clean Params (test isolation) — full text moved to `.github/instructions/mobile-client.instructions.md`.
 

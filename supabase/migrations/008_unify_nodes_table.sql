@@ -68,7 +68,7 @@ BEGIN
       updated_at
     )
     SELECT 
-      gn.id::TEXT,  -- Convert UUID to TEXT
+      gn.id::uuid,  -- nodes.id is uuid (base-schema repair 20241213000003)
       gn.name,
       gn.city,
       gn.state,

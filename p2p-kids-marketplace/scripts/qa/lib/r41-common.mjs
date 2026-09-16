@@ -45,6 +45,9 @@ export const PERSONAS = {
   'test-trial': { id: 'a1234567-0000-0000-0000-000000000015', email: 'test-trial@kidsmarketplace.test', password: 'TestTrial123!' },
   // 2026-09-07: standing payment-failure persona (ACC-TC-G02) — qa:payfail ensure/reset.
   'test-payfail': { id: 'a1234567-0000-0000-0000-000000000016', email: 'test-payfail@kidsmarketplace.test', password: 'TestPayfail123!' },
+  // FIX-Task-41 item 5 (2026-09-16): M07 true-retry-success persona —
+  // qa:payfail-retry ensure/status/reset (real Stripe ids + no open invoice).
+  'test-payfail-retry': { id: 'a1234567-0000-0000-0000-000000000018', email: 'test-payfail-retry@kidsmarketplace.test', password: 'TestPayfailRetry123!' },
   'test-suspended': { id: 'a1234567-0000-0000-0000-00000000000f', email: 'test-suspended@kidsmarketplace.test', password: 'TestSuspended123!' },
   // FIX-Task-23 item 1: this was `…000014`, which is ALSO the DEV-TASK-96
   // no-conversation persona (`test-noconvo` — seed-staging-data.ts noConversationUser),

@@ -54,10 +54,12 @@ BEGIN
   -- The calling code (AccountService) must call supabase.auth.linkIdentity after this RPC succeeds.
   INSERT INTO public.admin_audit_logs (
     actor_id,
-    action,
+    -- NOTE (FIX-Task-40): the live table uses action_type / payload.  This insert
+    -- referenced `action` and `details`, columns that exist on no table anywhere.
+    action_type,
     entity_type,
     entity_id,
-    details,
+    payload,
     created_at
   ) VALUES (
     v_user_id,

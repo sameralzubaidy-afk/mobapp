@@ -153,7 +153,10 @@ BEGIN
     RAISE EXCEPTION 'Expected price_cents = 499, found %', v_price_cents;
   END IF;
   
-  RAISE NOTICE 'SUCCESS: Kids Club+ price is $%.%% (% cents)', 
+  -- NOTE (FIX-Task-40): the format string used `%%` (an escaped literal percent)
+  -- while three arguments were supplied, so PostgreSQL aborted with "too many
+  -- parameters specified for RAISE". Three real placeholders match three args.
+  RAISE NOTICE 'SUCCESS: Kids Club+ price is $%.% (% cents)', 
     v_price_cents / 100, 
     LPAD((v_price_cents % 100)::TEXT, 2, '0'),
     v_price_cents;

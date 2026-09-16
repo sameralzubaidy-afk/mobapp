@@ -43,6 +43,15 @@ export const QA_PERSONAS: Record<string, QaPersona> = {
   // payment_retry_count>=1. Provision via `npm run qa:payfail -- ensure`;
   // clean revert via `npm run qa:payfail -- reset`.
   'test-payfail': { email: 'test-payfail@kidsmarketplace.test', password: 'TestPayfail123!' },
+  // FIX-Task-41 item 5 (2026-09-16): payfail-shaped persona that ALSO carries real
+  // Stripe ids + a subscription with no open invoice, so SUB-TC-M07's
+  // true-retry-success branch ("Payment Method Added") is genuinely drivable.
+  // Deliberately separate from test-payfail: driving M07 clears the failure flags.
+  // Provision via `npm run qa:payfail-retry -- ensure`; revert via `-- reset`.
+  'test-payfail-retry': {
+    email: 'test-payfail-retry@kidsmarketplace.test',
+    password: 'TestPayfailRetry123!',
+  },
   // DEV-TASK-109 (item 2): standing disposable SP-wallet persona for the
   // freeze/suspend mobile legs (L05/L07/L08, B04) — Kids Club+ active with an
   // admin-freezable wallet. Provision via `npm run qa:wallet-persona -- ensure`.

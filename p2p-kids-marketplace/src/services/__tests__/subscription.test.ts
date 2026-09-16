@@ -793,6 +793,86 @@ describe('Subscription Service - TASK SUB-002', () => {
     });
   });
 
+  describe('getPaymentMethod — request bounds + late-response guards (FIX-Task-41 item 7)', () => {
+    const farFuture = Math.floor(Date.now() / 1000) + 60 * 60;
+
+    const mockSessionFor = (userId: string) => {
+      mockGetSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: userId },
+            access_token: `token-${userId}`,
+            expires_at: farFuture,
+          },
+        },
+        error: null,
+      } as any);
+    };
+
+    const pmFor = (id: string) => ({
+      id,
+      brand: 'visa',
+      last4: '1111',
+      exp_month: 12,
+      exp_year: 2035,
+    });
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockGetPaymentCardPreference.mockResolvedValue(null);
+      invalidatePaymentMethodCache();
+    });
+
+    it('bounds the Edge Function call so a stalled request cannot wedge the screen', async () => {
+      mockSessionFor('user-A');
+      mockInvoke.mockResolvedValueOnce({ data: { payment_method: null }, error: null });
+
+      await getPaymentMethod();
+
+      // REGRESSION GUARD: without an explicit timeout the invoke could hang at the
+      // socket layer and the calling screen stayed on "Fetching payment method…"
+      // forever (the F5 wedge).
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'get-payment-method',
+        expect.objectContaining({ timeout: 15000 })
+      );
+    });
+
+    it('a response landing after an identity change never overwrites the new user cache', async () => {
+      // User A's request is in flight (never settles yet).
+      let resolveStaleRequest: (value: any) => void = () => {};
+      const staleRequest = new Promise((resolve) => {
+        resolveStaleRequest = resolve;
+      });
+      mockSessionFor('user-A');
+      mockInvoke.mockReturnValueOnce(staleRequest as any);
+      const asUserA = getPaymentMethod();
+      // Let A's read get past its own session read and actually reach the (pending)
+      // EF call before the switch — otherwise B's read consumes A's queued mock.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(mockInvoke).toHaveBeenCalledTimes(1);
+
+      // Warm in-app account switch to B while A's request is still in flight.
+      mockSessionFor('user-B');
+      invalidatePaymentMethodCache();
+      mockInvoke.mockResolvedValueOnce({
+        data: { payment_method: pmFor('pm_B') },
+        error: null,
+      });
+      const asUserB = await getPaymentMethod();
+      expect(asUserB?.id).toBe('pm_B');
+
+      // A's stale reply finally lands, carrying A's card.
+      resolveStaleRequest({ data: { payment_method: pmFor('pm_A') }, error: null });
+      expect((await asUserA)?.id).toBe('pm_A'); // the original caller still gets its value
+
+      // REGRESSION GUARD: B's cached entry must survive. Before the fix the late
+      // reply re-wrote the slot with A's card under owner A, so B refetched.
+      expect((await getPaymentMethod())?.id).toBe('pm_B');
+      expect(mockInvoke).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('getPaymentMethod — QA forced-card pass-through (Dev Task 44)', () => {
     beforeEach(() => {
       jest.clearAllMocks();

@@ -6,11 +6,23 @@
 -- ================================================================
 
 -- Add foreign key constraint if it doesn't exist
-ALTER TABLE items
-ADD CONSTRAINT items_seller_id_fkey 
-FOREIGN KEY (seller_id) 
-REFERENCES profiles(id) 
-ON DELETE CASCADE;
+-- NOTE (FIX-Task-40): an equivalent `items_seller_id_fkey` is already created
+-- earlier in the chain (referencing auth.users(id), which is the correct target —
+-- `items.seller_id` holds an auth user id, not a profiles.id).  Declaring it again
+-- unconditionally aborted the whole replay with "constraint already exists", so
+-- the add is now guarded and becomes a no-op when the constraint is present.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'items_seller_id_fkey'
+      AND conrelid = 'public.items'::regclass
+  ) THEN
+    ALTER TABLE public.items
+      ADD CONSTRAINT items_seller_id_fkey
+      FOREIGN KEY (seller_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- VERIFICATION QUERY (run after migration)

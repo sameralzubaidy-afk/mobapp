@@ -131,4 +131,21 @@ describe('AppHeader — Header Redesign', () => {
     fireEvent.press(getByTestId('header-chat-btn'));
     expect(mockNavigate).toHaveBeenCalledWith('InboxTab');
   });
+
+  // ── FIX-Task-41 item 1: hidden bell must leave no "ghost" disc ────────────
+  it('renders a transparent spacer (not a grey disc) when the bell is hidden', () => {
+    const { queryByTestId, getByTestId } = render(
+      <AppHeader variant="detail" title="Kids Club+" showBell={false} />
+    );
+
+    expect(queryByTestId('header-notifications-btn')).toBeNull();
+
+    const spacer = getByTestId('header-bell-spacer');
+    const style = spacer.props.style as Record<string, unknown>;
+    expect(style.width).toBe(40);
+    expect(style.height).toBe(40);
+    // The whole point of the fix: the placeholder carries NO background, so it
+    // cannot be mistaken for a dead, untappable control.
+    expect(style.backgroundColor).toBeUndefined();
+  });
 });

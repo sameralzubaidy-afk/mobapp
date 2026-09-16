@@ -32,7 +32,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-AS $
+AS $$
 DECLARE
   v_user_sp_balance INT DEFAULT 0;
   v_available_points INT DEFAULT 0;

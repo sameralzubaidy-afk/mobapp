@@ -416,7 +416,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.get_tax_summary_for_period IS
+COMMENT ON FUNCTION public.get_tax_summary_for_period(date, date, uuid, text) IS
 'REPLACED (2026-08-31 DT71): identical to 2026-08-01 status-filtered version + Refunds-tab tax_status guard + per-jurisdiction tax_voided_cents. Tax Collected = captured only. Tax Refunded = verified Stripe refunds only. Voided tracked separately.';
 
 GRANT EXECUTE ON FUNCTION public.get_tax_summary_for_period(DATE, DATE, UUID, TEXT, TEXT)

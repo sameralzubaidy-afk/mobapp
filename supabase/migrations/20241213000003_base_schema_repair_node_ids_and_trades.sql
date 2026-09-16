@@ -67,7 +67,45 @@ END $$;
 -- and `cron` is NOT part of the local Supabase base schema (only three late
 -- migrations create the extension). Creating it here makes the chain
 -- self-sufficient. Idempotent: a no-op wherever it is already installed.
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+--
+-- FIX-Task-40: `CREATE EXTENSION IF NOT EXISTS pg_cron` alone is NOT safe here.
+-- `084_add_pg_cron_send_message_emails.sql` and
+-- `20251226_add_pg_cron_and_auto_complete.sql` both sort EARLIER than this file
+-- and, as their first step, run `CREATE SCHEMA IF NOT EXISTS cron` as a fallback
+-- for environments where pg_cron cannot be installed. pg_cron's own install
+-- script then runs a bare `CREATE SCHEMA cron`, so with that empty placeholder
+-- present the extension can never be installed — the statement aborts the whole
+-- file with `schema "cron" already exists`, which silently removes `public.trades`
+-- and cascades into ~77 other files.
+--
+-- So: drop the placeholder first, but only when it is genuinely empty, so a
+-- populated `cron` schema (a real pg_cron install) can never be lost.
+DO $$
+DECLARE
+  v_placeholder_is_empty boolean;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    RETURN;
+  END IF;
+
+  IF to_regnamespace('cron') IS NOT NULL THEN
+    SELECT NOT EXISTS (SELECT 1 FROM pg_class WHERE relnamespace = 'cron'::regnamespace)
+       AND NOT EXISTS (SELECT 1 FROM pg_proc  WHERE pronamespace = 'cron'::regnamespace)
+       AND NOT EXISTS (SELECT 1 FROM pg_type  WHERE typnamespace  = 'cron'::regnamespace)
+      INTO v_placeholder_is_empty;
+
+    IF v_placeholder_is_empty THEN
+      DROP SCHEMA cron;
+      RAISE NOTICE 'FIX-Task-40: dropped the empty cron placeholder left by 084';
+    END IF;
+  END IF;
+
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_cron;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'FIX-Task-40: pg_cron could not be installed (%); cron.* callers will fail on this database', SQLERRM;
+  END;
+END $$;
 
 -- =====================================================================
 -- SECTION 3 — public.trades base table (live shape, 95 columns)

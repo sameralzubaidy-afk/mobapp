@@ -151,10 +151,8 @@ Verification after Block 2:
 
 To modify frequency:
   - Every hour: '0 * * * *'
-  - Every 30 minutes: '*/30 * * * *'
-  - Every 6 hours: '0 */6 * * *'
-
-Rollback:
+    - Every 30 minutes: '0,30 * * * *'
+    - Every 6 hours: '0 0,6,12,18 * * *'
   - To remove the scheduled job: call `SELECT cron.unschedule('send_message_emails_hourly');`
   - To drop wrapper function and audit table: 
     DROP FUNCTION public.scheduled_send_message_emails();

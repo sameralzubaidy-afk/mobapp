@@ -83,7 +83,12 @@ CREATE TABLE IF NOT EXISTS profiles (
   city TEXT,
   state TEXT,
   zip_code TEXT,
-  node_id TEXT, -- REFERENCES nodes(id) ON DELETE SET NULL, -- FK added later
+  -- FIX-Task-40: declared TEXT originally, but the live schema stores node ids as
+  -- uuid.  Declaring it correctly here removes the need for the later
+  -- ALTER COLUMN TYPE in 20241213000003, which aborted with "cannot alter type of
+  -- a column used by a view or rule" whenever profiles_with_auth (created by the
+  -- very next timestamped file) had already been applied.
+  node_id UUID, -- REFERENCES nodes(id) ON DELETE SET NULL, -- FK added later
   
   -- Profile completion status
   profile_completed BOOLEAN NOT NULL DEFAULT false,
@@ -148,7 +153,8 @@ CREATE TRIGGER profiles_updated_at_trigger
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS nodes (
-  id TEXT PRIMARY KEY,
+  -- FIX-Task-40: uuid, matching the live schema (was TEXT).
+  id UUID PRIMARY KEY,
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'waitlist', 'inactive')),
   launch_date DATE,
@@ -163,7 +169,8 @@ CREATE TABLE IF NOT EXISTS nodes (
 
 CREATE TABLE IF NOT EXISTS zip_codes (
   zip TEXT PRIMARY KEY,
-  node_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE RESTRICT,
+  -- FIX-Task-40: uuid, matching nodes.id (was TEXT).
+  node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE RESTRICT,
   city TEXT,
   state TEXT,
   latitude DECIMAL(10, 8),

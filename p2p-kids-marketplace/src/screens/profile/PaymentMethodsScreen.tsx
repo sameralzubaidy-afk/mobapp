@@ -27,6 +27,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { CreditCard, CheckCircle, Lock } from 'phosphor-react-native';
 import { getPaymentMethod, invalidatePaymentMethodCache, PaymentMethodInfo } from '@/services/subscription';
+import { useAuth } from '@/hooks/useAuth';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { supabase } from '@/config/supabase';
 import { retryFailedPayment } from '@/services/paymentRetry';
@@ -85,6 +86,10 @@ async function attachPaymentMethodToCustomer(
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function PaymentMethodsScreen() {
   const navigation = useNavigation();
+  // FIX-Task-41 item 7: the screen follows the signed-in identity (see the
+  // re-fetch effect below) instead of only fetching once per mount.
+  const { session } = useAuth();
+  const userId = session?.user?.id;
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -107,9 +112,17 @@ export default function PaymentMethodsScreen() {
     }
   }, []);
 
+  // FIX-Task-41 item 7 (F5 investigation): re-fetch when the SIGNED-IN USER
+  // changes, not only on mount. `fetchPaymentMethod` is identity-stable, so the
+  // previous `[fetchPaymentMethod]` dependency ran this effect exactly once per
+  // mount — after a warm `qa-login-as` persona switch on an already-mounted
+  // screen the previous user's card stayed on screen (or the screen stayed stuck
+  // on its loading state) until the process was restarted. Keying on the user id
+  // makes the screen follow the identity, which is the same boundary FIX-Task-37
+  // item 1 enforces for the cache itself.
   useEffect(() => {
     fetchPaymentMethod();
-  }, [fetchPaymentMethod]);
+  }, [fetchPaymentMethod, userId]);
 
   // Handle adding/updating payment method via Stripe Payment Sheet
   const handleAddPaymentMethod = async () => {

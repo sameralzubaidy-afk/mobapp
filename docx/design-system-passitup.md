@@ -169,6 +169,53 @@ Text-only variant:
 
 ---
 
+### 4.2b Inverse-Hero Pill Button (on a primary-green hero card)
+
+**Style**: White pill on a solid primary-green hero surface — the **inverse** of
+4.1 (green pill on white). This is a first-class, canonical variant, **not** a
+design deviation: on a `#5DBB8E` hero card a green pill would have no contrast,
+so the primary action inverts to a white pill with green text.
+
+```tsx
+Container (hero card):
+- Background: #5DBB8E
+- Border Radius: 16px
+- Padding: 20px
+
+Button (inverse pill):
+- Background: #FFFFFF
+- Border Radius: 26px (pill)
+- Padding: 10px vertical / 20px horizontal
+- alignSelf: flex-start (NOT full width — it sits inside a hero, not on a form)
+- Icon: 16px, #5DBB8E (leading)
+- Text: 15px, weight 600, #5DBB8E
+
+Hero supporting text (on green):
+- Label: 14px, rgba(255,255,255,0.85), weight 500
+- Value: 32px, weight 700, #FFFFFF
+- Stat label: 12px, rgba(255,255,255,0.75) · Stat value: 16px, weight 600, #FFFFFF
+- Divider: 1px × 28px, rgba(255,255,255,0.3)
+- Footnote: 11px, rgba(255,255,255,0.7)
+```
+
+**Canonical instance**: Seller **Payout Settings** balance hero
+(`src/screens/seller/PayoutSettingsScreen.tsx` — `balance-hero-card` +
+`request-payout-btn` "Withdraw Now"). Its white-pill-on-green treatment is the
+reference implementation for this variant; treat it as compliant when auditing
+the screen.
+
+**Example**:
+```tsx
+<View style={styles.heroCard}>      {/* #5DBB8E, radius 16, padding 20 */}
+  <Text style={styles.heroBalance}>$50.00</Text>
+  <TouchableOpacity style={styles.requestPayoutBtn}>   {/* white pill, radius 26 */}
+    <Text style={styles.requestPayoutBtnText}>Withdraw Now</Text>   {/* #5DBB8E */}
+  </TouchableOpacity>
+</View>
+```
+
+---
+
 ### 4.3 Text Input Fields (Filled Style)
 
 **Style**: No border, light gray fill background
@@ -703,6 +750,7 @@ Use this template when asking AI to create/update screens:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | May 4, 2026 | Initial design system based on Whisk inspiration. Covers colors, typography, buttons, inputs, OTP, social login. |
+| 1.1 | Sep 16, 2026 | Added §4.2b **Inverse-Hero Pill Button** (white pill on a primary-green hero card) as a canonical variant, with the Payout Settings balance hero as its reference implementation — previously undocumented, so it risked being mis-filed as a design deviation (FIX-Task-41 item 10). |
 
 ---
 

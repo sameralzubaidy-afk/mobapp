@@ -94,8 +94,11 @@ $$;
 
 -- 2. Update RLS on items to allow buyers to see items they are purchasing
 -- This fixes the "Untitled" and "Item" (default) issue in the UI.
-DROP POLICY IF EXISTS \"Buyers can view items they are purchasing\" ON items;
-CREATE POLICY \"Buyers can view items they are purchasing\" ON items
+-- NOTE (FIX-Task-40): these statements carried JS-escaped quotes, which psql
+-- rejects — a backslash outside a string is read as a meta-command, producing
+-- "invalid command" on the following word. Plain SQL needs no escaping here.
+DROP POLICY IF EXISTS "Buyers can view items they are purchasing" ON items;
+CREATE POLICY "Buyers can view items they are purchasing" ON items
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM trades
