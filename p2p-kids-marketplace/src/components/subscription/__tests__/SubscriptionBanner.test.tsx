@@ -114,7 +114,10 @@ describe('SubscriptionBanner', () => {
 
     const { getByText } = render(<SubscriptionBanner />);
 
-    expect(getByText(/Swap Points are frozen/)).toBeTruthy();
+    // FIX-Task-50 item 1 (class sweep, 2026-09-17): the grace banner must state the
+    // R6 rule (SP stays spendable, new earnings stop) — never the stale pre-R6
+    // "Swap Points are frozen" claim.
+    expect(getByText(/still spend your Swap Points/)).toBeTruthy();
     expect(getByText('Re-subscribe')).toBeTruthy();
   });
 

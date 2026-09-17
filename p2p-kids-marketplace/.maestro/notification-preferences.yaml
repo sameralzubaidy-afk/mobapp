@@ -98,7 +98,8 @@ appId: com.p2pkidsmarketplace
 - assertVisible: "Saved"
 
 # Step 12: Verify All Changes Persisted (Scroll Back Up)
-- scrollUp
+- swipe:
+    direction: UP
 - assertVisible:
     id: "category-section-subscription"
 

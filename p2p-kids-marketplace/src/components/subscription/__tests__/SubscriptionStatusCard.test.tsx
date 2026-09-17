@@ -73,7 +73,7 @@ describe('SubscriptionStatusCard', () => {
 
     const { getByText } = render(<SubscriptionStatusCard subscription={subscription} />);
 
-    expect(getByText('Grace period (SP frozen)')).toBeTruthy();
+    expect(getByText('Grace period (no new points)')).toBeTruthy();
   });
 
   it('should render expired subscription correctly', () => {

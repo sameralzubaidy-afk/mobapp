@@ -26,7 +26,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { supabase } from '../../services/supabase/client';
 import { captureException } from '@/services/errorReporter';
-import { getSimulatedPayoutFetchFailure } from '@/services/devTestingService';
+import {
+  getSimulatedPayoutFetchFailure,
+  getSimulatedPayoutLoadStall,
+} from '@/services/devTestingService';
 import { withTimeout, isTimeoutError } from '@/utils/withTimeout';
 import {
   listPayoutMethods,
@@ -70,6 +73,7 @@ import {
 } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+import { getFriendlyPayoutFailureReason } from '@/utils/payoutFailureCopy';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -211,6 +215,10 @@ export default function PayoutSettingsScreen() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [payoutLimit, setPayoutLimit] = useState(5); // Start with 5, increase on "Load More"
   const [loadingMore, setLoadingMore] = useState(false);
+  // FIX-Task-47 item 3 (2026-09-16): whether the server holds MORE payout rows
+  // than the current page. The Load More button used to render whenever any row
+  // existed, so on the last page it stayed visible and did nothing when tapped.
+  const [hasMorePayouts, setHasMorePayouts] = useState(false);
   const [adminPayoutConfig, setAdminPayoutConfig] = useState<AdminPayoutConfig | null>(null);
 
   // Bottom sheet state
@@ -289,6 +297,20 @@ export default function PayoutSettingsScreen() {
           throw new Error('Simulated payout fetch failure (QA toggle payout_fetch_failure)');
         }
 
+        // FIX-Task-50 item 5 (2026-09-17): dev-only slow-load hook. Awaiting a
+        // promise that never settles makes this attempt hit `LOAD_DEADLINE_MS`, so
+        // the FIX-Task-47 item 12 degraded state ("Taking longer than expected" +
+        // Try again, money figures withheld) is reachable on demand instead of only
+        // by editing app source — the same technique as `offer_load_stall`. No
+        // request is sent, and the real load runs untouched on a release build
+        // (`getSimulatedPayoutLoadStall` is fail-closed outside dev/test).
+        if ((await getSimulatedPayoutLoadStall()) === 'stall') {
+          console.warn(
+            '[PayoutSettingsScreen] payout load simulated stall (qa_local_payout_load_stall)'
+          );
+          await new Promise<never>(() => {});
+        }
+
         // Best-effort: sync Stripe Connect onboarding state from Stripe -> DB
         // so the UI and payout eligibility reflect completion immediately.
         try {
@@ -320,9 +342,12 @@ export default function PayoutSettingsScreen() {
         // Load recent payouts (use current limit) + the true action-required total.
         // The count is best-effort: if it fails we keep the previous figure rather
         // than paint a wrong number or blank the warning (BP-92).
-        const payoutsData = await getRecentPayouts(payoutLimit);
+        // FIX-Task-47 item 3 (2026-09-16): ask for ONE extra row so `hasMore` is
+        // provable without a second count query; the extra row is never displayed.
+        const payoutsData = await getRecentPayouts(payoutLimit + 1);
         if (!isCurrentAttempt()) return;
-        setRecentPayouts(payoutsData);
+        setHasMorePayouts(payoutsData.length > payoutLimit);
+        setRecentPayouts(payoutsData.slice(0, payoutLimit));
         try {
           const requiredCount = await getActionRequiredPayoutCount();
           if (isCurrentAttempt()) setActionRequiredPayoutCount(requiredCount);
@@ -421,8 +446,10 @@ export default function PayoutSettingsScreen() {
     try {
       const newLimit = payoutLimit + 5;
       setPayoutLimit(newLimit);
-      const payoutsData = await getRecentPayouts(newLimit);
-      setRecentPayouts(payoutsData);
+      // Same +1 probe as the initial load, so the button disappears on the last page.
+      const payoutsData = await getRecentPayouts(newLimit + 1);
+      setHasMorePayouts(payoutsData.length > newLimit);
+      setRecentPayouts(payoutsData.slice(0, newLimit));
     } catch (error) {
       captureException(error, {
         tags: { screen: 'PayoutSettingsScreen', action: 'load_more_payouts' },
@@ -706,6 +733,19 @@ export default function PayoutSettingsScreen() {
               </Text>
             </View>
           </View>
+          {/* FIX-Task-50 item 7 (2026-09-17): the hero says "Pending" and the
+              payout-history rows below say "Pending" too — the same word for two
+              different things (money earned but not yet released, vs. a payout
+              queue state). One line under the figures names what moves THIS number
+              into Available. Deliberately no day count: the release window is
+              `admin_config.payout_buffer_days`, which this screen does not read
+              (BP-28 — never hardcode an admin-configurable number). Withheld while
+              the balance is unknown, so it never explains a `—` (BP-92). */}
+          {balance && (
+            <Text style={styles.pendingExplainer} testID="balance-pending-explainer">
+              Pending becomes Available automatically once each sale&apos;s release window ends.
+            </Text>
+          )}
           {/* FIX-Task-46 item A: while the balance is unknown the withdrawal is not
               actionable. This is a no-op change for a KNOWN balance (including
               $0.00), so SUB-TC-H01's "No Balance" alert on tap is preserved — but
@@ -996,21 +1036,32 @@ export default function PayoutSettingsScreen() {
                 onSetUpPayoutMethod={handleAddMethod}
               />
             ))}
-            <TouchableOpacity
-              style={styles.loadMoreButton}
-              onPress={handleLoadMore}
-              disabled={loadingMore}
-              testID="load-more-button"
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Load more payout history"
-            >
-              {loadingMore ? (
-                <ActivityIndicator size="small" color="#5DBB8E" />
-              ) : (
-                <Text style={styles.loadMoreButtonText}>Load More</Text>
-              )}
-            </TouchableOpacity>
+            {/* FIX-Task-47 item 3 (2026-09-16): gated on `hasMorePayouts`. It used to
+                render unconditionally whenever a row existed, so the last page showed
+                a tappable button that did nothing. */}
+            {hasMorePayouts ? (
+              <TouchableOpacity
+                style={styles.loadMoreButton}
+                onPress={handleLoadMore}
+                disabled={loadingMore}
+                testID="load-more-button"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Load more payout history"
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color="#5DBB8E" />
+                ) : (
+                  <Text style={styles.loadMoreButtonText}>Load More</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              /* FIX-Task-47 item 11 (2026-09-16): an explicit end-of-list state, so the
+                 history ends deliberately instead of with a dead control. */
+              <View style={styles.endOfHistory} testID="payout-history-end">
+                <Text style={styles.endOfHistoryText}>That&apos;s all your payouts</Text>
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -1220,7 +1271,12 @@ function PayoutHistoryCard({ payout, onSetUpPayoutMethod }: PayoutHistoryCardPro
       )}
       {payout.failure_reason && (
         <View style={styles.failureReasonBox}>
-          <Text style={styles.failureReasonText}>⚠️ {payout.failure_reason}</Text>
+          {/* FIX-Task-47 item 5 (2026-09-16): `failure_reason` is FREE TEXT written
+              by provider webhooks AND by QA/operator scripts, so it must never be
+              rendered raw (a QA cleanup note shipped verbatim to a real seller). */}
+          <Text style={styles.failureReasonText}>
+            ⚠️ {getFriendlyPayoutFailureReason(payout.failure_reason)}
+          </Text>
         </View>
       )}
     </View>
@@ -1984,6 +2040,15 @@ const styles = StyleSheet.create({
     marginTop: 10,
     lineHeight: 15,
   },
+  // FIX-Task-50 item 7 (2026-09-17): one-line explainer under the hero figures —
+  // says what moves "Pending" into "Available", so the hero figure and the
+  // payout-history "Pending" statuses are not read as the same thing.
+  pendingExplainer: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 10,
+    lineHeight: 15,
+  },
   // DT-119 (item 3): hero balance footnote — hero figures are gross (before
   // provider fees); the payout-history rows show the net received amount.
   heroFeeNote: {
@@ -2397,6 +2462,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#5DBB8E',
+  },
+  // FIX-Task-47 item 11 (2026-09-16): end-of-list state replacing the dead button.
+  endOfHistory: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  endOfHistoryText: {
+    fontSize: 13,
+    color: '#999999',
   },
   // ── PayoutMethodCard (legacy, unused) ───────────────────────────────────────
   legacyMethodCard: {

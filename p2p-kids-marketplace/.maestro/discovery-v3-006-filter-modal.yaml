@@ -156,7 +156,8 @@ appId: com.p2pkidsmarketplace.app
 - waitForAnimationToEnd
 
 # Wait for autocomplete (200ms debounce)
-- wait: 300
+- waitForAnimationToEnd:
+    timeout: 300
 
 # If suggestions appear, tap one
 - runFlow:
@@ -240,7 +241,7 @@ appId: com.p2pkidsmarketplace.app
 
 - tapOn:
     id: "filter-price-max"
-- clearText
+- eraseText: 50
 - inputText: "150"
 - hideKeyboard
 

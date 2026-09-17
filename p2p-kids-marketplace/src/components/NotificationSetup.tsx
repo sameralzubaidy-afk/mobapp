@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { supabase } from '@/config/supabase';
+import { colors } from '@/theme/colors';
 import {
   registerForPushNotifications,
   savePushToken,
@@ -132,7 +133,7 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
         {/* Status Display */}
         {status === 'requesting' && (
           <View style={styles.loadingSection}>
-            <ActivityIndicator size={32} color="#4CAF50" />
+            <ActivityIndicator size={32} color={colors.success[500]} />
             <Text style={styles.loadingText}>Setting up notifications...</Text>
           </View>
         )}
@@ -170,7 +171,7 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
             title={loading ? 'Setting up...' : 'Enable Notifications'}
             onPress={handleEnableNotifications}
             disabled={loading}
-            color="#4CAF50"
+            color={colors.success[500]}
           />
         )}
 
@@ -178,7 +179,9 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
           <Button title="Maybe Later" onPress={onComplete} color="#999" disabled={loading} />
         )}
 
-        {status === 'success' && <Button title="Continue" onPress={onComplete} color="#4CAF50" />}
+        {status === 'success' && (
+          <Button title="Continue" onPress={onComplete} color={colors.success[500]} />
+        )}
       </View>
     </SafeAreaView>
   );

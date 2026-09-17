@@ -65,6 +65,21 @@ export function AutoRenewToggle({ initialValue, onToggled }: AutoRenewToggleProp
 
   return (
     <View style={styles.container}>
+      {/* FIX-Task-50 item 9 (2026-09-17): the OFF-state disclosure now sits ABOVE
+          the switch row. It used to render below the row, so a parent reading the
+          OFF switch first saw no explanation of what OFF means without scrolling
+          past the control (SUB Android Round 6 UX note). Moving it above makes the
+          OFF state self-explanatory in reading order. */}
+      {!isEnabled && (
+        <View style={styles.warningBox}>
+          <Text style={styles.warningIcon}>⚠️</Text>
+          <Text style={styles.warningText}>
+            Auto-renew is disabled. Your subscription will end after this period unless you
+            re-enable it.
+          </Text>
+        </View>
+      )}
+
       <View style={styles.content}>
         <View style={styles.textContainer}>
           <Text style={styles.title}>Auto-Renew</Text>
@@ -92,16 +107,6 @@ export function AutoRenewToggle({ initialValue, onToggled }: AutoRenewToggleProp
           />
         )}
       </View>
-
-      {!isEnabled && (
-        <View style={styles.warningBox}>
-          <Text style={styles.warningIcon}>⚠️</Text>
-          <Text style={styles.warningText}>
-            Auto-renew is disabled. Your subscription will end after this period unless you
-            re-enable it.
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -139,13 +144,15 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     lineHeight: 20,
   },
+  // FIX-Task-50 item 9: the OFF disclosure renders ABOVE the switch row, so the
+  // divider flips to the bottom edge and the box sits above the control it explains.
   warningBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   warningIcon: {
     fontSize: 16,

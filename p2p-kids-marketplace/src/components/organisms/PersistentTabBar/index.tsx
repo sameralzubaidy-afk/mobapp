@@ -20,7 +20,7 @@
  *  header chat icon — see useUnreadMessagesBadge in AppHeader.)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useNavigationState, NavigationState } from '@react-navigation/native';
@@ -55,13 +55,33 @@ import { colors, borderRadius, shadows, spacing, componentSpacing } from '@/them
 // home-indicator inset, not the tab-bar band. The pill hides here so the whole
 // sticky footer is reachable without scrolling on BOTH the grace and expired
 // branches (they share the identical footer path).
+// SubscriptionExpired (root Stack screen, mounted as the navigator's
+// initialRouteName when session.subscription_status === 'expired') is a
+// full-screen decision gate whose own bottom CTAs must be reachable. SUB Android
+// Round 6 (2026-09-17, finding F2) measured `continue-free-link` at y2200-2296
+// UNDER the pill band (y2190-2295), with its centre inside the Sell pill
+// (x467-614 / y2169-2287) — so tapping "Continue with Free Plan" opened the Sell
+// action sheet instead of continuing on the free plan, and `renew-button` was
+// partly covered at the default scroll position too. The pill hides here so both
+// CTAs are fully clear of it (the gate offers its own "Continue with Free Plan"
+// escape, so hiding the pill cannot trap the user).
 // TODO(REFACTOR): BulkListingCreate is the same class of full-screen form and
 // may need the same treatment — not included to keep this fix scoped.
 const TAB_BAR_HIDDEN_ROUTES = new Set<string>([
   'ItemCreate',
   'NotificationSetup',
   'ManageKidsClub',
+  'SubscriptionExpired',
 ]);
+
+/**
+ * True when the floating pill must NOT render for `routeName`.
+ * Exported so AppNavigator can apply the SAME decision from the active route it
+ * tracks itself (FIX-Task-50 item 2) without duplicating the allowlist.
+ */
+export function isTabBarHiddenRoute(routeName?: string | null): boolean {
+  return routeName ? TAB_BAR_HIDDEN_ROUTES.has(routeName) : false;
+}
 
 // ─── Sell Action Sheet (self-contained modal) ─────────────────────────────────
 
@@ -225,11 +245,32 @@ export function PersistentTabBar() {
   const { activeCount: activeTradeCount } = useTradesBadge(userId);
 
   const navState = useNavigationState((s: NavigationState) => s);
+  // FIX-Task-50 item 2 (2026-09-17): re-read the navigation state ONE render after
+  // mount. On the login / session-restore path the pill mounts in the SAME commit
+  // that creates the navigator (AppNavigator's keyed Stack.Navigator), so its first
+  // snapshot is taken BEFORE that navigator commits its state — and React
+  // Navigation's 'state' event for that first commit has already fired by the time
+  // this component's subscription effect runs, so no further render is scheduled
+  // and the pill kept rendering forever on a hidden route. That is exactly how the
+  // Subscription Expired gate (mounts as `initialRouteName` for an expired user at
+  // launch) kept the pill over its CTAs, with the pill's centre inside the Sell tab
+  // — so tapping "Continue with Free Plan" opened the Sell sheet (SUB Android
+  // Round 6 finding F2). Routes reached by a normal navigate() were unaffected,
+  // which is why the pre-existing ItemCreate / NotificationSetup / ManageKidsClub
+  // hides all worked.
+  const [, recheckRouteAfterMount] = useState(0);
+  useEffect(() => {
+    recheckRouteAfterMount(1);
+  }, []);
   const activeTab = computeActiveTab(navState);
 
-  // Do not render the floating pill on full-screen form routes (ItemCreate) —
-  // it would occlude the form's bottom-anchored CTA. See TAB_BAR_HIDDEN_ROUTES.
-  if (TAB_BAR_HIDDEN_ROUTES.has(navState?.routes?.[navState.index]?.name)) {
+  // Do not render the floating pill on full-screen form / decision-gate routes
+  // (ItemCreate, NotificationSetup, ManageKidsClub, SubscriptionExpired) — it
+  // would occlude their bottom-anchored CTAs. See TAB_BAR_HIDDEN_ROUTES.
+  // FIX-Task-50 item 2: AppNavigator applies the same helper from the active route
+  // it tracks itself, because this component's own navigation-state snapshot does
+  // not refresh when the route is the navigator's INITIAL route.
+  if (isTabBarHiddenRoute(navState?.routes?.[navState.index]?.name)) {
     return null;
   }
 

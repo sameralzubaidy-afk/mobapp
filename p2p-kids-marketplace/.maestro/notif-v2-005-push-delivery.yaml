@@ -23,14 +23,16 @@ appId: com.kidsp2p.marketplace
 
 - tapOn:
     id: "settings-test-push-notification-button"
-- waitForAnimationToEnd: 2000
+- waitForAnimationToEnd:
+    timeout: 2000
 
 - assertVisible:
     text: "Test Notification Sent ✅"
 - tapOn: "OK"
 
 # Wait for push notification to arrive
-- waitForAnimationToEnd: 5000
+- waitForAnimationToEnd:
+    timeout: 5000
 
 # Verify notification appears in notification shade (platform-specific)
 # Note: Maestro cannot directly verify notification shade on iOS/Android
@@ -57,14 +59,17 @@ appId: com.kidsp2p.marketplace
     commands:
       - tapOn:
           id: "settings-test-push-notification-button"
-      - waitForAnimationToEnd: 1000
+      - waitForAnimationToEnd:
+          timeout: 1000
       - tapOn: "OK" # Dismiss success alert
-      - waitForAnimationToEnd: 500
+      - waitForAnimationToEnd:
+          timeout: 500
 
 # 11th attempt should be rate limited
 - tapOn:
     id: "settings-test-push-notification-button"
-- waitForAnimationToEnd: 2000
+- waitForAnimationToEnd:
+    timeout: 2000
 
 - assertVisible:
     text: "Rate Limited ⏱️"
@@ -92,7 +97,8 @@ appId: com.kidsp2p.marketplace
 
 - tapOn:
     id: "settings-test-push-notification-button"
-- waitForAnimationToEnd: 2000
+- waitForAnimationToEnd:
+    timeout: 2000
 
 - assertVisible:
     text: "Quiet Hours 🌙"
@@ -120,7 +126,8 @@ appId: com.kidsp2p.marketplace
 
 - tapOn:
     id: "settings-test-push-notification-button"
-- waitForAnimationToEnd: 2000
+- waitForAnimationToEnd:
+    timeout: 2000
 
 - assertVisible:
     text: "Send Failed ❌"
@@ -136,7 +143,8 @@ appId: com.kidsp2p.marketplace
 
 - tapOn:
     id: "settings-enable-notifications-button"
-- waitForAnimationToEnd: 1000
+- waitForAnimationToEnd:
+    timeout: 1000
 
 # Grant permissions (simulated - actual permission prompt may vary by platform)
 # Re-registration flow
@@ -161,7 +169,8 @@ appId: com.kidsp2p.marketplace
 
 - tapOn:
     text: "Notification Preferences"
-- waitForAnimationToEnd: 1000
+- waitForAnimationToEnd:
+    timeout: 1000
 
 - assertVisible: "Notification Preferences"
 - assertVisible: "Subscription"
@@ -209,7 +218,8 @@ appId: com.kidsp2p.marketplace
 # Note: This is difficult to assert in Maestro due to timing
 # Documented in manual test guide instead
 
-- waitForAnimationToEnd: 2000
+- waitForAnimationToEnd:
+    timeout: 2000
 - assertVisible:
     text: "Test Notification Sent ✅"
 - tapOn: "OK"

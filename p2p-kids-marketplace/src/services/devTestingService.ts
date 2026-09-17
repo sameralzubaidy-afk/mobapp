@@ -1531,6 +1531,49 @@ export async function getSimulatedSubscriptionReadFailure(): Promise<QaSubscript
 }
 
 // ========================================
+// QA PAYOUT-LOAD STALL SIMULATION (FIX-Task-50 item 5 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that makes the Payout Settings load NEVER settle,
+ * so the screen's `LOAD_DEADLINE_MS` (20s) bound fires and the degraded state
+ * becomes reachable on demand.
+ * Absence, 'none', or any unknown value = no simulation (fail-closed).
+ * Values: 'stall' | 'none'
+ *   - 'stall' → the load closure awaits a promise that never resolves, so the
+ *     whole chain hits the deadline and `PayoutSettingsScreen` renders
+ *     `payout-load-degraded-notice` ("Taking longer than expected" +
+ *     `payout-load-retry-btn`), with the money figures withheld (BP-92).
+ *
+ * Why this exists: FIX-Task-47 item 12 added that degraded state, but it is
+ * duration-gated (LOAD_DEADLINE_MS = 20000) and a healthy staging load finishes
+ * in ~2-10s, so the branch could only be forced by editing app source — which the
+ * execution-only QA agent is not allowed to do (SUB Android Round 6, 2026-09-17).
+ * This is the same solution that unblocked `offer_load_stall` (FIX-Task-27 item 4)
+ * and `subscription_read_failure` (FIX-Task-28 item 1).
+ *
+ * FAIL-CLOSED (never active outside dev/test): `isDevEnvironment()` gates the
+ * whole read — release builds return 'none' and the real chain always runs.
+ * The simulation never alters server state (no request is sent once it is armed).
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   adb shell am start -W -a android.intent.action.VIEW -d "p2pkidsmarketplace://qa-dev-toggle?key=payout_load_stall&value=stall" com.sameralzubaidi.p2pmarketplace
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=payout_load_stall&value=stall"
+ *   ...&value=none to disarm
+ */
+export const QA_PAYOUT_LOAD_STALL_KEY = 'qa_local_payout_load_stall';
+
+export type QaPayoutLoadStallMode = 'stall' | 'none';
+
+export async function getSimulatedPayoutLoadStall(): Promise<QaPayoutLoadStallMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_PAYOUT_LOAD_STALL_KEY);
+  return value === 'stall' ? 'stall' : 'none';
+}
+
+// ========================================
 // QA DEV-TOGGLE DEEP-LINK KEY/VALUE VALIDATION (A03/D02/C04/L01-L04/J07-J12)
 // ========================================
 
@@ -1556,6 +1599,7 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   seller_read_failure: QA_SELLER_READ_FAILURE_KEY,
   profile_read_failure: QA_PROFILE_READ_FAILURE_KEY,
   subscription_read_failure: QA_SUBSCRIPTION_READ_FAILURE_KEY,
+  payout_load_stall: QA_PAYOUT_LOAD_STALL_KEY,
 };
 
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
@@ -1576,6 +1620,7 @@ const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_SELLER_READ_FAILURE_KEY]: ['read_failure', 'none'],
   [QA_PROFILE_READ_FAILURE_KEY]: ['once', 'persist', 'none'],
   [QA_SUBSCRIPTION_READ_FAILURE_KEY]: ['read_failure', 'none'],
+  [QA_PAYOUT_LOAD_STALL_KEY]: ['stall', 'none'],
 };
 
 /**

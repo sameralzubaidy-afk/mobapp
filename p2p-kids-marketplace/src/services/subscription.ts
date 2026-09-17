@@ -16,6 +16,7 @@ import {
   getSimulatedSubscriptionReadFailure,
 } from './devTestingService';
 import { isTransientNetworkError } from '../utils/userFacingError';
+import { withLoadTiming } from '../utils/loadTiming';
 
 /**
  * Subscription status enum (V2.1)
@@ -152,6 +153,39 @@ function normalizeSubscriptionStatus(rawStatus: unknown): SubscriptionStatus {
 }
 
 /**
+ * FIX-Task-47 item 1 (2026-09-16): SINGLE SOURCE OF TRUTH for the "period end"
+ * date rendered on subscription screens.
+ *
+ * Precedence matters. `subscription_expires_at` is NOT populated on staging for
+ * active members (`getSubscriptionSummary` maps it from `trial_ends_at` first),
+ * so a chain that omits `next_billing_date` renders a STALE trial-end date as
+ * "Next Billing Date"/"Access Until" — and `daysRemaining` goes to ≤ 0, which
+ * hides the "Days Remaining" row entirely.
+ *
+ * ManageKidsClubScreen previously did exactly that while MySubscriptionScreen had
+ * the correct chain, so the app contradicted itself. Both now render this helper
+ * and cannot drift again.
+ */
+export function getSubscriptionPeriodEnd(
+  subscription:
+    | Pick<
+        SubscriptionSummary,
+        'next_billing_date' | 'subscription_expires_at' | 'trial_ends_at'
+      >
+    | null
+    | undefined
+): string | null {
+  if (!subscription) return null;
+
+  return (
+    subscription.next_billing_date ||
+    subscription.subscription_expires_at ||
+    subscription.trial_ends_at ||
+    null
+  );
+}
+
+/**
  * Get complete subscription summary for a user (V2.1)
  *
  * MODULE-11 TASK SUB-002 implementation using enhanced subscriptions table
@@ -160,7 +194,34 @@ function normalizeSubscriptionStatus(rawStatus: unknown): SubscriptionStatus {
  * @param userId - User ID to check subscription for
  * @returns SubscriptionSummary with all feature flags and status details
  */
+// FIX-Task-47 item 2 (2026-09-16): IN-FLIGHT DEDUP, keyed by user.
+// Every screen showing subscription state runs its own read (MySubscriptionScreen
+// and UpgradePlanScreen via useSubscription; ManageKidsClubScreen directly), so
+// moving between them re-issued the identical `get_subscription_status` +
+// `get_user_transaction_fee` pair and doubled the load chain. Concurrent reads for
+// the SAME user now share one request; a different user never adopts another
+// user's in-flight result, and the slot is cleared on settle so the next read
+// (including a retry after a failure) starts fresh.
+let _summaryPromise: Promise<SubscriptionSummary> | null = null;
+let _summaryPromiseUserId: string | null = null;
+
 export async function getSubscriptionSummary(userId: string): Promise<SubscriptionSummary> {
+  if (_summaryPromise !== null && _summaryPromiseUserId === userId) {
+    return _summaryPromise;
+  }
+
+  _summaryPromiseUserId = userId;
+  _summaryPromise = fetchSubscriptionSummary(userId);
+
+  try {
+    return await _summaryPromise;
+  } finally {
+    _summaryPromise = null;
+    _summaryPromiseUserId = null;
+  }
+}
+
+async function fetchSubscriptionSummary(userId: string): Promise<SubscriptionSummary> {
   try {
     // FIX-Task-28 item 1 (dev/test-only, fail-closed): QA failure-injection so the
     // transient branch below can be exercised on demand. The throw is INSIDE the try
@@ -174,7 +235,10 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     }
 
     // Call enhanced RPC function from TASK SUB-002
-    const { data, error } = await supabase.rpc('get_subscription_status', { p_user_id: userId });
+    const { data, error } = await withLoadTiming(
+      'subscription.get_subscription_status (rpc)',
+      supabase.rpc('get_subscription_status', { p_user_id: userId })
+    );
 
     if (error) {
       if (isTransientNetworkError(error)) {
@@ -238,7 +302,10 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     // This allows admins to adjust fees without code changes
     let transactionFeeCents = 299; // Default fallback
     try {
-      transactionFeeCents = await getTransactionFee(userId);
+      transactionFeeCents = await withLoadTiming(
+        'subscription.getTransactionFee (rpc)',
+        getTransactionFee(userId)
+      );
     } catch (err) {
       // If dynamic fee fetch fails, use fallback based on subscriber status
       console.warn('[subscription] ⚠️ Failed to fetch dynamic fee, using fallback:', err);
@@ -883,7 +950,13 @@ const PM_FETCH_TIMEOUT_MS = 15000;
  * restores the real server-selected card on the next call.
  */
 export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMethodInfo | null> {
-  const forcedCard = await getSimulatedPaymentCardPreference();
+  // FIX-Task-47 item 2: this AsyncStorage read used to sit BETWEEN the calling
+  // screen and its first log line, so it silently contributed to the measured
+  // "gap before the fetch is even issued". Timed so it can be attributed.
+  const forcedCard = await withLoadTiming(
+    'subscription.getPaymentMethod:pref-read',
+    getSimulatedPaymentCardPreference()
+  );
   const force = forceRefresh || forcedCard !== null;
 
   // FIX-Task-37 item 1 (BP-95): resolve the CURRENT session BEFORE consulting the
@@ -892,7 +965,7 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
   // user's own card state is fetched from the server instead.
   const {
     data: { session: scopeSession },
-  } = await supabase.auth.getSession();
+  } = await withLoadTiming('subscription.getPaymentMethod:session-scope', supabase.auth.getSession());
   const ownerId = scopeSession?.user?.id ?? null;
   const cacheOwnedByCurrentUser = ownerId !== null && _pmCacheUserId === ownerId;
 
@@ -923,7 +996,10 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
         const {
           data: { session },
           error: authError,
-        } = await supabase.auth.getSession();
+        } = await withLoadTiming(
+          'subscription.getPaymentMethod:session (in-fetch)',
+          supabase.auth.getSession()
+        );
         if (authError || !session) {
           console.error('[subscription] ❌  No active session');
           return null;
@@ -943,18 +1019,21 @@ export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMet
         const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
         // Call the get-payment-method Edge Function
-        const { data, error } = await supabase.functions.invoke('get-payment-method', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            ...(anonKey ? { apikey: anonKey } : {}),
-          },
-          // FIX-Task-41 item 7: bound the request so a stalled socket can never
-          // wedge the calling screen (or the shared promise slot) forever.
-          timeout: PM_FETCH_TIMEOUT_MS,
-          // QA forced-card toggle (dev/test only — never armed in release): ask
-          // the EF to return a specific saved card instead of its default.
-          ...(forcedCard ? { body: { force_card: forcedCard } } : {}),
-        });
+        const { data, error } = await withLoadTiming(
+          'subscription.get-payment-method (EF)',
+          supabase.functions.invoke('get-payment-method', {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              ...(anonKey ? { apikey: anonKey } : {}),
+            },
+            // FIX-Task-41 item 7: bound the request so a stalled socket can never
+            // wedge the calling screen (or the shared promise slot) forever.
+            timeout: PM_FETCH_TIMEOUT_MS,
+            // QA forced-card toggle (dev/test only — never armed in release): ask
+            // the EF to return a specific saved card instead of its default.
+            ...(forcedCard ? { body: { force_card: forcedCard } } : {}),
+          })
+        );
 
         if (error) {
           console.error('[subscription] ❌ Get payment method error:', error.message);

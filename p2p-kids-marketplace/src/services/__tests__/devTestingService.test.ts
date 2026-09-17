@@ -45,11 +45,14 @@ import {
   QA_PROFILE_READ_FAILURE_KEY,
   // FIX-Task-28 item 1 — subscription-status read failure
   QA_SUBSCRIPTION_READ_FAILURE_KEY,
+  // FIX-Task-50 item 5 — Payout Settings load stall
+  QA_PAYOUT_LOAD_STALL_KEY,
   getSimulatedCartRemoveFailure,
   getSimulatedOfferLoadStall,
   getSimulatedSellerReadFailure,
   consumeSimulatedProfileReadFailure,
   getSimulatedSubscriptionReadFailure,
+  getSimulatedPayoutLoadStall,
 } from '../devTestingService';
 
 jest.mock('@/config/supabase', () => ({
@@ -360,6 +363,8 @@ describe('devTestingService — session-local QA toggle storage + validation', (
       profile_read_failure: QA_PROFILE_READ_FAILURE_KEY,
       // FIX-Task-28 item 1 — subscription-status read failure.
       subscription_read_failure: QA_SUBSCRIPTION_READ_FAILURE_KEY,
+      // FIX-Task-50 item 5 — Payout Settings load stall.
+      payout_load_stall: QA_PAYOUT_LOAD_STALL_KEY,
     });
   });
 
@@ -377,6 +382,27 @@ describe('devTestingService — session-local QA toggle storage + validation', (
 
     await setQaLocalValue(QA_SUBSCRIPTION_READ_FAILURE_KEY, 'none');
     await expect(getSimulatedSubscriptionReadFailure()).resolves.toBe('none');
+  });
+
+  it('payout_load_stall stalls the Payout Settings load on demand (FIX-Task-50 item 5)', async () => {
+    // Default: disarmed, so release/tests always exercise the real load chain.
+    await expect(getSimulatedPayoutLoadStall()).resolves.toBe('none');
+
+    await setQaLocalValue(QA_PAYOUT_LOAD_STALL_KEY, 'stall');
+    await expect(getSimulatedPayoutLoadStall()).resolves.toBe('stall');
+
+    // Only the documented values are accepted, the short name maps to this key, and
+    // an unknown stored value fails closed to no simulation.
+    expect(isValidQaToggleValue(QA_PAYOUT_LOAD_STALL_KEY, 'stall')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYOUT_LOAD_STALL_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_PAYOUT_LOAD_STALL_KEY, 'read_failure')).toBe(false);
+    expect(QA_TOGGLE_SHORT_NAMES.payout_load_stall).toBe(QA_PAYOUT_LOAD_STALL_KEY);
+
+    await setQaLocalValue(QA_PAYOUT_LOAD_STALL_KEY, 'bogus');
+    await expect(getSimulatedPayoutLoadStall()).resolves.toBe('none');
+
+    await setQaLocalValue(QA_PAYOUT_LOAD_STALL_KEY, 'none');
+    await expect(getSimulatedPayoutLoadStall()).resolves.toBe('none');
   });
 
   it('isValidQaToggleValue accepts only the documented values per key', () => {

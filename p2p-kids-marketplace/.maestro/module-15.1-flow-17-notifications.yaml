@@ -106,7 +106,7 @@ appId: com.passitup.app # Replace with actual app bundle ID
 
 - swipe:
     direction: DOWN
-    start: 50%, 30%
+    duration: 800
 - waitForAnimationToEnd
 
 # Verify list still visible after refresh

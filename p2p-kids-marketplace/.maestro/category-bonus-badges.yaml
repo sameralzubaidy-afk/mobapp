@@ -14,7 +14,8 @@ appId: com.kidsp2p.marketplace
 - tapOn:
     index: 0 # Select first photo
 - tapOn: "Add"
-- swipeUp
+- swipe:
+    direction: UP
 - tapOn:
     id: "category-input"
 
@@ -42,7 +43,8 @@ appId: com.kidsp2p.marketplace
 - inputText: "50"
 
 # Verify SP preview is shown
-- waitForAnimationToEnd: 1000
+- waitForAnimationToEnd:
+    timeout: 1000
 - assertVisible:
     id: "sp-preview"
     enabled: true

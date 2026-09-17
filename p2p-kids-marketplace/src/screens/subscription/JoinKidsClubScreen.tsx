@@ -17,6 +17,7 @@ import ScreenLayout from '@/components/ScreenLayout';
 import { JoinKidsClubButton } from '@/components/subscription/JoinKidsClubButton';
 import { useAuth } from '@/hooks/useAuth';
 import { getActiveMemberFeeCents } from '@/services/adminConfig';
+import { isMemberFeeAvailable } from '@/utils/memberFeeCopy';
 
 // Static benefit rows (no money literal). The flat-fee row is built at render time
 // from live admin_config so copy can't drift from the charged fee (QA Task 20 F-2).
@@ -35,31 +36,38 @@ const STATIC_BENEFITS = [
 
 export default function JoinKidsClubScreen() {
   const { user } = useAuth();
-  // Canonical default 149¢ = the seed value of buyer_fee_active_member_cents (BP-13);
-  // replaced by the live config value as soon as it loads.
-  const [flatFeeCents, setFlatFeeCents] = useState<number>(149);
+  // FIX-Task-47 item 4: `null` = the live fee could not be read. There is no
+  // 149 fallback any more — the copy below drops the amount rather than inventing
+  // a plausible-but-wrong number (the seed value is not a safe thing to guess).
+  const [flatFeeCents, setFlatFeeCents] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
     getActiveMemberFeeCents()
       .then((cents) => {
-        if (mounted && Number.isFinite(cents) && cents >= 0) setFlatFeeCents(Math.round(cents));
+        if (mounted && cents !== null) setFlatFeeCents(Math.round(cents));
       })
       .catch(() => {
-        // Keep the canonical 149 default on a config-fetch failure.
+        // Stay unavailable — never substitute a number.
       });
     return () => {
       mounted = false;
     };
   }, []);
 
-  const flatFeeDisplay = `$${(flatFeeCents / 100).toFixed(2)}`;
+  const flatFeeDisplay = isMemberFeeAvailable(flatFeeCents)
+    ? `$${(flatFeeCents / 100).toFixed(2)}`
+    : '';
   const benefits = [
     STATIC_BENEFITS[0],
     {
       icon: Receipt,
-      title: `Pay a flat ${flatFeeDisplay} fee instead of a percentage`,
-      body: `Members pay one flat ${flatFeeDisplay} safety & platform fee per checkout, instead of the free-user percentage fee.`,
+      title: isMemberFeeAvailable(flatFeeCents)
+        ? `Pay a flat ${flatFeeDisplay} fee instead of a percentage`
+        : 'Pay one flat fee instead of a percentage',
+      body: isMemberFeeAvailable(flatFeeCents)
+        ? `Members pay one flat ${flatFeeDisplay} safety & platform fee per checkout, instead of the free-user percentage fee.`
+        : 'Members pay one flat safety & platform fee per checkout, instead of the free-user percentage fee.',
     },
     STATIC_BENEFITS[1],
   ];

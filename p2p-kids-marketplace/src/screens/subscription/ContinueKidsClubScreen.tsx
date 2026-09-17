@@ -23,7 +23,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getTrialStatus, TrialStatus } from '../../services/subscriptions/trialConversion';
 import { getSubscriptionPrice, getTrialDays, getActiveMemberFeeCents } from '../../services/adminConfig';
 import { openJoinKidsClubWeb } from '../../utils/subscriptionWeb';
-import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
+import { formatDollarAmount } from '@/utils/formatPrice';
+import { memberFeeBenefitText } from '@/utils/memberFeeCopy';
 import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
 // DT-119 (item 1): source colors from the shared Pass-It-Up semantic tokens so
@@ -42,10 +43,10 @@ export default function ContinueKidsClubScreen() {
   const [monthlyPrice, setMonthlyPrice] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(30);
   const [loadingStatus, setLoadingStatus] = useState(true);
-  // Flat Safety & Platform Fee (Kids Club+ member fee) — canonical default 149c,
-  // replaced live from admin_config so copy can't drift from the charged fee
-  // (JoinKidsClubScreen pattern; BP-13/BP-28).
-  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
+  // Flat Safety & Platform Fee (Kids Club+ member fee) — FIX-Task-47 item 4: no
+  // hardcoded default. `null` means the live admin_config value could not be read
+  // and the benefit copy drops the amount instead of inventing one (BP-13/BP-28).
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number | null>(null);
 
   const isActiveSubscription = trialStatus?.status === 'active';
   const isTrialSubscription = trialStatus?.status === 'trial';
@@ -60,12 +61,12 @@ export default function ContinueKidsClubScreen() {
     let mounted = true;
     getActiveMemberFeeCents()
       .then((cents) => {
-        if (mounted && Number.isFinite(cents) && cents >= 0) {
+        if (mounted && cents !== null) {
           setActiveMemberFlatCents(Math.round(cents));
         }
       })
       .catch(() => {
-        // Keep the canonical 149 default on a config-fetch failure.
+        // FIX-Task-47 item 4: stay unavailable — never substitute a number.
       });
     return () => {
       mounted = false;
@@ -152,7 +153,7 @@ export default function ContinueKidsClubScreen() {
               <BenefitItem icon="💰" text="Earn & spend Swap Points on purchases" />
               <BenefitItem
                 icon="🧾"
-                text={`Flat ${formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade`}
+                text={memberFeeBenefitText(activeMemberFlatCents)}
               />
               <BenefitItem icon="⭐" text="Priority listing visibility" />
               <BenefitItem icon="✨" text="Access to exclusive features" />
@@ -224,7 +225,7 @@ export default function ContinueKidsClubScreen() {
             <BenefitItem icon="💰" text="Earn & spend Swap Points on purchases" />
             <BenefitItem
               icon="🧾"
-              text={`Flat ${formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade`}
+              text={memberFeeBenefitText(activeMemberFlatCents)}
             />
             <BenefitItem icon="⭐" text="Priority listing visibility" />
             <BenefitItem icon="✨" text="Access to exclusive features" />

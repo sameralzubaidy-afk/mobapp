@@ -66,8 +66,7 @@ tags:
 # For now, simulate by directly navigating back
 
 # State 10: Go back to Dashboard without completing
-- tapOn:
-    accessibilityLabel: "Back"
+- tapOn: "Back"
 - waitForAnimationToEnd
 
 # State 11: Draft should auto-save and banner should appear
@@ -84,8 +83,7 @@ tags:
 - assertVisible: "Add Photos"
 
 # State 13: Go back again
-- tapOn:
-    accessibilityLabel: "Back"
+- tapOn: "Back"
 - waitForAnimationToEnd
 
 # State 14: Dismiss the banner
@@ -119,8 +117,7 @@ tags:
 - assertVisible: "Add Photos"
 
 # State 18: Go back and discard the draft
-- tapOn:
-    accessibilityLabel: "Back"
+- tapOn: "Back"
 - waitForAnimationToEnd
 - tapOn: "My Listings"
 - tapOn:
@@ -149,8 +146,7 @@ tags:
 - assertVisible: "Bulk Upload"
 
 # State 22: Go back - bulk draft should save
-- tapOn:
-    accessibilityLabel: "Back"
+- tapOn: "Back"
 - waitForAnimationToEnd
 
 # State 23: Return to Dashboard - banner should show for bulk draft
@@ -166,8 +162,7 @@ tags:
 - assertVisible: "Bulk Upload"
 
 # Final: Cleanup - discard all drafts
-- tapOn:
-    accessibilityLabel: "Back"
+- tapOn: "Back"
 - tapOn: "My Listings"
 - tapOn:
     id: "tab-drafts"

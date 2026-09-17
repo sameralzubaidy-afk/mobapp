@@ -61,7 +61,11 @@ export function useGracePeriodStatus({
     } else if (daysRemaining <= 7) {
       message = `Only ${daysRemaining} days left! Re-subscribe to keep your Swap Points.`;
     } else {
-      message = `You have ${daysRemaining} days to re-subscribe before your Swap Points are deleted.`;
+      // FIX-Task-50 item 1 (class sweep, 2026-09-17): same claim as
+      // `GracePeriodBanner` — the points are FROZEN at the end of grace (and
+      // restored on resubscribe), never deleted. Kept in sync with the banner copy
+      // so the two cannot drift if this hook is wired up again.
+      message = `You have ${daysRemaining} days to re-subscribe, or your Swap Points will be frozen until you do.`;
     }
 
     return {

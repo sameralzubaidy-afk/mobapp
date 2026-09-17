@@ -204,7 +204,14 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
 
       const rpcCall = (supabase.rpc as jest.Mock).mock.calls[0][1];
       expect(rpcCall.p_title).toContain('Cancelled');
-      expect(rpcCall.p_body).toContain('90-day grace period');
+      // FIX-Task-50 item 1 (class sweep, 2026-09-17): the body must state the R6
+      // rule (SP stays spendable, only new earnings stop). It previously asserted
+      // "90-day grace period" — the stale pre-R6 "SP frozen" wording, and a
+      // hardcoded window length that is actually admin_config.grace_period_days.
+      expect(rpcCall.p_body).toContain('can still spend your Swap Points');
+      expect(rpcCall.p_body).toContain("won't earn new ones");
+      expect(rpcCall.p_body).not.toContain('will be frozen');
+      expect(rpcCall.p_body).not.toContain('90-day');
       expect(rpcCall.p_data.event).toBe('subscription_cancelled');
     });
   });

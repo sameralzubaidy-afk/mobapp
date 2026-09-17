@@ -55,10 +55,11 @@
  *                          [--is-active true|false] [--is-secret true|false]
  *                          [--admin-id <uuid>] [--dry-run]
  *
- * Defaults for `set`: category=feature_flags, data-type=string, is-active=true,
- * is-secret=false, admin-id=null. Valid categories: subscription, swap_points,
- * fees, sms, email, moderation, safety, analytics, feature_flags, payout_fees,
- * referral, trade, tax, health.
+ * Default for `set`: every column the caller did not pass is INHERITED from the
+ * existing row (FIX-Task-50 item 4) — previously category/type/is_active/is_secret
+ * fell back to feature_flags/string/true/false and silently rewrote them. Valid
+ * categories: subscription, swap_points, fees, sms, email, moderation, safety,
+ * analytics, feature_flags, payout_fees, referral, trade, tax, health.
  *
  * Env: reads SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from p2p-kids-marketplace/.env
  *      (or .env.staging), same convention as reset-offer-fixtures.mjs.
@@ -94,8 +95,14 @@ const hasFlag = (name) => argv.includes(name);
 
 const key = flagValue('--key');
 const value = flagValue('--value');
-const category = flagValue('--category') || 'feature_flags';
-const dataType = flagValue('--data-type') || 'string';
+// FIX-Task-50 item 4 (2026-09-17): these are FLAGS, not resolved defaults. `set`
+// now inherits whatever the row already has unless the flag is passed explicitly —
+// the old `|| 'string'` / `|| 'feature_flags'` defaults silently rewrote the row's
+// data_type (number→string) on any fixture write that omitted the flag, which is a
+// real cross-run hazard (SUB Android Round 6 finding F4; it also rewrote
+// `pending_sp_release_days` once before, during the FIX-Task-37 verification).
+const categoryFlag = flagValue('--category'); // null when not passed
+const dataTypeFlag = flagValue('--data-type'); // null when not passed
 const isActive = flagValue('--is-active');   // null | 'true' | 'false'
 const isSecret = flagValue('--is-secret');   // null | 'true' | 'false'
 const adminId = flagValue('--admin-id') || null;
@@ -170,12 +177,40 @@ async function cmdSet() {
     console.error('❌ set requires --key <key> AND --value <value>');
     process.exit(2);
   }
+
+  // FIX-Task-50 item 4: read the CURRENT row first and inherit everything the
+  // caller did not override. A fixture write must never mutate a column's type (or
+  // silently move a row's category / flip is_active) just because a flag was
+  // omitted — that is what made `pending_sp_release_days` come back as a string.
+  // A key that does not exist yet may only be created with BOTH --category and
+  // --data-type passed explicitly (never guessed from defaults).
+  const existing = await readKey(key);
+  if (!existing && (!categoryFlag || !dataTypeFlag)) {
+    console.error(
+      `❌ No admin_config row for key "${key}". Creating a new key requires an explicit\n` +
+        '   --category <cat> AND --data-type <t> (refusing to guess them).'
+    );
+    process.exit(2);
+  }
+
+  const category = categoryFlag ?? existing.category;
+  const dataType = dataTypeFlag ?? existing.data_type;
   if (!CATEGORIES.includes(category)) {
     console.error(`❌ Invalid category "${category}". Valid: ${CATEGORIES.join(', ')}`);
     process.exit(2);
   }
-  const p_is_active = toBool(isActive, true);
-  const p_is_secret = toBool(isSecret, false);
+
+  const inherited = [];
+  if (!categoryFlag) inherited.push(`category=${category}`);
+  if (!dataTypeFlag) inherited.push(`data_type=${dataType}`);
+  if (!isActive) inherited.push(`is_active=${existing.is_active}`);
+  if (!isSecret) inherited.push(`is_secret=${existing.is_secret}`);
+  if (inherited.length) {
+    console.log(`ℹ️  Inherited from the existing row: ${inherited.join(', ')}`);
+  }
+
+  const p_is_active = isActive === null ? existing.is_active : toBool(isActive, true);
+  const p_is_secret = isSecret === null ? existing.is_secret : toBool(isSecret, false);
 
   const call = {
     p_key: key,
@@ -210,7 +245,13 @@ async function cmdSet() {
   console.log('🔎 Read-back from admin_config:');
   if (readBack) {
     printRow(readBack);
-    const ok = readBack.value === String(value) && readBack.is_active === p_is_active;
+    const ok =
+      readBack.value === String(value) &&
+      readBack.is_active === p_is_active &&
+      // FIX-Task-50 item 4: also assert the columns a fixture write used to be able
+      // to clobber silently — a type/category change is a defect, not a write.
+      readBack.data_type === dataType &&
+      readBack.category === category;
     console.log(ok ? '✅ DB read-back matches the requested write.' : '⚠️  DB read-back differs from the requested write — inspect above.');
   } else {
     console.error('❌ Read-back returned no row — write did not persist.');
@@ -227,12 +268,17 @@ USAGE:
   npm run qa:admin-config-set -- set --key <k> --value <v> [options]
 
 set OPTIONS:
-  --category <cat>   admin_config_category enum (default: feature_flags)
-  --data-type <t>    string | number | boolean | json (default: string)
-  --is-active <b>    true|false (default: true)
-  --is-secret <b>    true|false (default: false)
+  --category <cat>   admin_config_category enum (default: the row's CURRENT category)
+  --data-type <t>    string | number | boolean | json (default: the row's CURRENT type)
+  --is-active <b>    true|false (default: the row's CURRENT value)
+  --is-secret <b>    true|false (default: the row's CURRENT value)
   --admin-id <uuid>  actor recorded in updated_by (default: null)
   --dry-run          print the RPC call without executing
+
+FIX-Task-50 item 4: the set subcommand requires the key to EXIST and inherits every
+column you do not override explicitly, so a fixture write can never silently change a
+row's data_type (the number->string hazard) or move its category. Pass a flag only when
+you genuinely want to change that column.
 
 LEGITIMATE PATHS (the RPC guard still applies; nothing is bypassed):
   A. this helper  -> service_role -> upsert_admin_config_setting

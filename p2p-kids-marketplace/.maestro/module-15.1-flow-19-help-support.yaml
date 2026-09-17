@@ -143,7 +143,7 @@ appId: com.p2pkids.marketplace  # Replace with actual app ID
 # Clear search
 - tapOn:
     id: "search-input"
-- clearTextField
+- eraseText: 50
 - hideKeyboard
 - waitForAnimationToEnd
 

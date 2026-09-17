@@ -55,7 +55,8 @@ appId: com.p2pkidsmarketplace.app
     id: "discover-search-input"
 - waitForAnimationToEnd
 - inputText: "LEGO"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 
 # Verify search was triggered (debounce: 200ms)
 - assertVisible:
@@ -70,7 +71,8 @@ appId: com.p2pkidsmarketplace.app
 - tapOn:
     id: "discover-search-input"
 - inputText: "bicycle"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 - assertVisible:
     id: "discover-results-list"
 
@@ -83,7 +85,8 @@ appId: com.p2pkidsmarketplace.app
 - tapOn:
     id: "discover-search-input"
 - inputText: "books"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 - assertVisible:
     id: "discover-results-list"
 
@@ -153,7 +156,8 @@ appId: com.p2pkidsmarketplace.app
 - tapOn:
     id: "discover-search-input"
 - inputText: "BICYCLE"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 
 # Clear and refocus to check recent searches
 - tapOn:
@@ -186,7 +190,8 @@ appId: com.p2pkidsmarketplace.app
 - tapOn:
     id: "discover-search-input"
 - inputText: "LE"
-- waitForAnimationToEnd: 100ms
+- waitForAnimationToEnd:
+    timeout: 100
 
 # Verify autocomplete dropdown appears
 - assertVisible:
@@ -197,7 +202,8 @@ appId: com.p2pkidsmarketplace.app
 
 # Type more to complete: "LEGO"
 - inputText: "GO"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 
 # Verify search executes
 - assertVisible:

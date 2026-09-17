@@ -20,6 +20,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 import { getActiveMemberFeeCents } from '@/services/adminConfig';
+import { isMemberFeeAvailable } from '@/utils/memberFeeCopy';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 
@@ -225,7 +226,13 @@ export default function TradeSuccessScreen() {
         // the real savings. A placeholder/QA tradeId resolves to no row (0) →
         // fall back to the feeSavingsCents route param so H01's real-figure
         // copy is still verifiable (FIX-PARAMS, QA Task 16).
-        const computed = paidFeeCents > 0 ? Math.max(0, paidFeeCents - activeMemberFlatCents) : 0;
+        // FIX-Task-47 item 4: `activeMemberFlatCents` is `number | null` now
+        // (null = the live admin_config value could not be read). Without this
+        // guard a null coerces to 0 and reports the WHOLE paid fee as "savings".
+        const computed =
+          isMemberFeeAvailable(activeMemberFlatCents) && paidFeeCents > activeMemberFlatCents
+            ? paidFeeCents - activeMemberFlatCents
+            : 0;
         setFeeSavingsCents(computed > 0 ? computed : feeSavingsParamCents);
       } catch {
         setFeeSavingsCents(feeSavingsParamCents);

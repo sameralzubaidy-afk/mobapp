@@ -22,12 +22,12 @@ appId: com.p2pkidsmarketplace.app
 
 # Navigate to Browse/Discovery screen
 - tapOn:
-    testID: "tab-browse"
+    id: "tab-browse"
 - assertVisible: "Browse"
 
 # Open category filter modal
 - tapOn:
-    testID: "filter-category-button"
+    id: "filter-category-button"
 - assertVisible: "Select Category"
 
 # === VERIFY: Empty categories hidden ===
@@ -41,9 +41,9 @@ appId: com.p2pkidsmarketplace.app
 # === VERIFY: Bonus badge visible for categories with sp_earning_multiplier > 1.10 ===
 # If "Electronics" has multiplier=1.20, should show bonus badge icon or text
 - assertVisible:
-    testID: "category-row-electronics"
+    id: "category-row-electronics"
 - assertVisible:
-    testID: "bonus-badge-electronics"
+    id: "bonus-badge-electronics"
 
 # === VERIFY: SP preview shown (for subscribers) ===
 # Tap on a category to see detail (if modal shows SP preview on tap)
@@ -53,23 +53,23 @@ appId: com.p2pkidsmarketplace.app
 
 # Close modal
 - tapOn:
-    testID: "close-category-modal"
+    id: "close-category-modal"
 
 # === VERIFY: Selected category filters items ===
 - tapOn:
-    testID: "filter-category-button"
+    id: "filter-category-button"
 - tapOn: "Toys"
 - waitForAnimationToEnd
 
 # Verify only Toys items shown in feed
 - assertVisible:
-    testID: "item-card-0"
+    id: "item-card-0"
 # Verify filter chip shows "Toys"
 - assertVisible: "Toys"
 
 # Clear filter
 - tapOn:
-    testID: "clear-category-filter"
+    id: "clear-category-filter"
 - assertNotVisible: "Toys"  # Filter chip removed
 
 # === END TEST ===

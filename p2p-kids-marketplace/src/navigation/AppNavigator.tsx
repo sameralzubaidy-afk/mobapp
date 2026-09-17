@@ -9,7 +9,7 @@ import { navigationRef } from '@/navigation/navigationRef';
 import { isTransientNetworkError } from '@/utils/userFacingError';
 import { HomeTabNavigator } from '@/navigation/HomeTabNavigator';
 import { CartProvider } from '@/contexts/CartContext';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
+import { PersistentTabBar, isTabBarHiddenRoute } from '@/components/organisms/PersistentTabBar';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
 import ConversationsListScreen from '@/screens/messaging/ConversationsListScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
@@ -48,7 +48,6 @@ import BundleBuilderScreen from '@/screens/cart/BundleBuilderScreen';
 import MoreFromThisSellerScreen from '@/screens/home/MoreFromThisSellerScreen';
 import FavoritesScreen from '@/screens/favorites/FavoritesScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
-import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import RequestPayoutScreen from '@/screens/payouts/RequestPayoutScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
@@ -286,6 +285,10 @@ export function RootNavigator() {
   }, [isLoading]);
 
   const lastRouteNameRef = React.useRef<string | undefined>(undefined);
+  // FIX-Task-50 item 2: the ACTIVE ROUTE NAME as state — the pill's visibility is
+  // decided from it (see `pillHiddenForRoute`), because the pill's own navigation
+  // -state snapshot does not refresh while the route is the navigator's initial one.
+  const [activeRouteName, setActiveRouteName] = React.useState<string | null>(null);
   const pendingNotificationDataRef = React.useRef<NotificationDeepLinkData | null>(null);
   const notificationSourceRef = React.useRef<'push' | 'in_app' | 'cold_start'>('push');
 
@@ -452,6 +455,14 @@ export function RootNavigator() {
       const name = route?.name;
       if (!name) return;
 
+      // FIX-Task-50 item 2 (2026-09-17): mirror the active route into STATE so the
+      // floating pill's visibility can be decided here, from the real route. The
+      // pill's own navigation-state snapshot does not refresh while the route is the
+      // navigator's INITIAL route, so an expired user launching the app onto the
+      // Subscription Expired gate kept the pill over the gate's CTAs (SUB Android
+      // Round 6 finding F2).
+      setActiveRouteName((previous) => (previous === name ? previous : name));
+
       if (lastRouteNameRef.current !== name) {
         lastRouteNameRef.current = name;
         // Keep logs short; large params can slow Android.
@@ -489,6 +500,26 @@ export function RootNavigator() {
     !currentUserId ||
     (onboardingCheckComplete && onboardingCheckedUserId === currentUserId);
 
+  // Determine which stack to show based on auth status.
+  // Authenticated users should land in the dashboard stack immediately after login.
+  // Declared BEFORE the early return so the hook below (which resets the tracked
+  // route on every navigator remount) can depend on `navigatorKey`.
+  const isAuthenticated = session !== null;
+  const isSuspended = session?.user?.account_status === 'suspended';
+  const isSubscriptionExpired = session?.subscription_status === 'expired';
+
+  // MODULE-18 EDU-004: Show onboarding carousel if needed
+  const showOnboardingCarousel = isAuthenticated && shouldShowOnboardingCarousel;
+  const navigatorKey = `${currentUserId ?? 'guest'}:${showOnboardingCarousel ? 'onboarding' : 'home'}:${isSubscriptionExpired ? 'expired' : 'active'}`;
+
+  // FIX-Task-50 item 2: a navigator (re)mount resets the tracked route — its
+  // initial route may be the expired decision gate, which must not wear the pill.
+  // Until the first navigation reports a route, `activeRouteName` is null and the
+  // pill decision falls back to `isSubscriptionExpired` below.
+  React.useEffect(() => {
+    setActiveRouteName(null);
+  }, [navigatorKey]);
+
   if ((isLoading && !forceRender) || !onboardingDecisionReady) {
     return (
       <View
@@ -499,15 +530,14 @@ export function RootNavigator() {
     );
   }
 
-  // Determine which stack to show based on auth status.
-  // Authenticated users should land in the dashboard stack immediately after login.
-  const isAuthenticated = session !== null;
-  const isSuspended = session?.user?.account_status === 'suspended';
-  const isSubscriptionExpired = session?.subscription_status === 'expired';
+  // The pill is hidden by route (see TAB_BAR_HIDDEN_ROUTES / isTabBarHiddenRoute) OR
+  // — before any navigation has been observed — while the expired gate is the
+  // navigator's initial route.
+  const pillHiddenForRoute =
+    activeRouteName === null
+      ? isSubscriptionExpired
+      : isTabBarHiddenRoute(activeRouteName);
 
-  // MODULE-18 EDU-004: Show onboarding carousel if needed
-  const showOnboardingCarousel = isAuthenticated && shouldShowOnboardingCarousel;
-  const navigatorKey = `${currentUserId ?? 'guest'}:${showOnboardingCarousel ? 'onboarding' : 'home'}:${isSubscriptionExpired ? 'expired' : 'active'}`;
   return (
     <NavigationContainer
       ref={navigationRef}
@@ -721,15 +751,15 @@ export function RootNavigator() {
               component={PayoutSettingsScreen}
               options={{ headerShown: false }}
             />
-            {/* DEPRECATED (Dev Task 86, 2026-09-02): SellerEarnings/RequestPayout have
-                no live callers (their only caller was the dead PayoutDashboardScreen).
-                Kept registered for safety; removal is tracked in each screen file. */}
-            <Stack.Screen
-              name="SellerEarnings"
-              component={SellerEarningsScreen}
-              options={{ headerShown: false }}
-            />
-            {/* MODULE-15.1 FLOW-22: Request Payout (redesigned) — DEPRECATED, see above */}
+            {/* FIX-Task-48 item 2 (2026-09-16): the dead "SellerEarnings" route and its
+                dead "PayoutDashboard" counterpart were retired — route + screen +
+                unit test + navigation/types.ts entry all removed. Neither had a live
+                in-app caller (PayoutDashboard's only outgoing links were the two
+                screens in this family, and SellerEarnings' only caller was
+                PayoutDashboard). PayoutSettings is the LIVE consolidated payout
+                surface. */}
+            {/* MODULE-15.1 FLOW-22: Request Payout (redesigned) — DEPRECATED, kept
+                registered for legacy push/deep-link safety. */}
             <Stack.Screen
               name="RequestPayout"
               component={RequestPayoutScreen}
@@ -1038,8 +1068,14 @@ export function RootNavigator() {
             (MODULE-18 EDU-004): that flow is gated by Skip/Continue → Home and
             shows its own bottom buttons, so the global nav must not overlap them.
             It re-appears automatically once the carousel completes and the
-            navigator key flips to 'home'. */}
-        {isAuthenticated && !isSuspended && !showOnboardingCarousel && <PersistentTabBar />}
+            navigator key flips to 'home'.
+
+            FIX-Task-50 item 2 (2026-09-17): also hidden on the routes in
+            `TAB_BAR_HIDDEN_ROUTES`, decided here from the active route this
+            component tracks (`activeRouteName`) — see `pillHiddenForRoute`. */}
+        {isAuthenticated && !isSuspended && !showOnboardingCarousel && !pillHiddenForRoute && (
+          <PersistentTabBar />
+        )}
 
         {/* F03 (ACC-TC-F03): real connectivity boundary — navigates to the
             Offline screen when the network drops during active (authenticated)

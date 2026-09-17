@@ -849,7 +849,7 @@ Columns: **Latest** = latest verdict on record · **Date** = date of that verdic
 | SUB-TC-C10 | My Subscription free-user state |  | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` | ✅ PASS |  |
 | SUB-TC-C11 | My Subscription "Learn More" link |  | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` | ✅ PASS |  |
 | SUB-TC-C12 | My Subscription "Member Since" value (latent bug) |  | PASS | 2026-09-02 | `qa-task19-sub-kickoff-2026-09-02` | ✅ PASS |  |
-| SUB-TC-D01 | Grace period banner + SP wallet frozen warning |  | NEVER RUN |  |  | NEVER RUN |  |
+| SUB-TC-D01 | Grace period banner + SP spendable/no-earn notice |  | NEVER RUN |  |  | NEVER RUN |  |
 | SUB-TC-D02 | 🔴 RETIRED — in-app re-subscribe payment removed; web-first → SUB-TC-N01/N02 + Web E2E |  | NEVER RUN |  |  | NEVER RUN |  |
 | SUB-TC-D03 | Subscription Expired screen — benefits lost + Renew |  | PASS | 2026-09-03 | `qa-task25-consolidated-2026-09-03` | ✅ PASS |  |
 | SUB-TC-D04 | 🔴 RETIRED — in-app renewal payment removed; web-first → SUB-TC-N01/N02 + Web E2E |  | NEVER RUN |  |  | NEVER RUN |  |

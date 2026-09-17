@@ -20,6 +20,7 @@ import {
   CreditCard,
 } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
+import { getSubscriptionPeriodEnd } from '@/services/subscription';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrialEligibility } from '@/hooks/useTrialEligibility';
 import { MY_SUBSCRIPTION_BENEFITS, TRIAL_MARKETING_BENEFIT } from '@/constants/subscriptionPlans';
@@ -57,7 +58,7 @@ export default function MySubscriptionScreen() {
   if (loading) {
     return (
       <ScreenLayout variant="detail" title="My Subscription">
-        <LoadingSpinner />
+        <LoadingSpinner slowHint="Still loading your subscription…" />
       </ScreenLayout>
     );
   }
@@ -65,11 +66,9 @@ export default function MySubscriptionScreen() {
   const status = subscription?.status || 'free';
   const isPaid = status === 'active' || status === 'trial';
   const planName = isPaid ? 'Kids Club+' : 'Free';
-  const renewalDateSource =
-    subscription?.next_billing_date ||
-    subscription?.subscription_expires_at ||
-    subscription?.trial_ends_at;
-  const renewalDate = formatRenewalDate(renewalDateSource);
+  // FIX-Task-47 item 1 (2026-09-16): shared precedence helper. This screen had
+  // the correct chain inline; Manage Kids Club+ did not. Both use the helper now.
+  const renewalDate = formatRenewalDate(getSubscriptionPeriodEnd(subscription));
   // "Member Since" = when the account was created (the user joined as a member),
   // not the current billing period start (which resets monthly) and not the
   // subscription row's created_at (which is set at signup for all users anyway).

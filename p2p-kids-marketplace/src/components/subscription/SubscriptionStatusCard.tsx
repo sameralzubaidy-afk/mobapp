@@ -68,7 +68,10 @@ export function SubscriptionStatusCard({
       case 'canceled':
         return 'Kids Club+ will end soon';
       case 'grace_period':
-        return 'Grace period (SP frozen)';
+        // FIX-Task-50 item 1 (class sweep, 2026-09-17): R6 model — SP stays
+        // spendable during grace; only new earnings stop (the wallet freezes when
+        // the grace window ends). The old label said "(SP frozen)".
+        return 'Grace period (no new points)';
       case 'expired':
         return 'Subscription expired';
       case 'paused':

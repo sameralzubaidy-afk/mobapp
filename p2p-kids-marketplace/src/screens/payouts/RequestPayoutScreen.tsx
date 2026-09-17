@@ -3,10 +3,11 @@
 // DO NOT CHANGE: data fetch, navigation, payout business logic
 //
 // DEPRECATED (Dev Task 86, 2026-09-02): This screen is effectively DEAD — it is
-// still registered (AppNavigator route "RequestPayout") but its ONLY caller is the
-// dead, unregistered PayoutDashboardScreen, so no live flow navigates here. The LIVE
-// payout surface is PayoutSettingsScreen → "Withdraw Now" modal (full-withdrawal
-// only — there is no partial/amount entry UI). Do NOT add new navigation or callers.
+// still registered (AppNavigator route "RequestPayout") but it has NO live in-app
+// caller (its only caller was the PayoutDashboardScreen retired in FIX-Task-48,
+// 2026-09-16), so no live flow navigates here. The LIVE payout surface is
+// PayoutSettingsScreen → "Withdraw Now" modal (full-withdrawal only — there is no
+// partial/amount entry UI). Do NOT add new navigation or callers.
 // Removal requires cleaning the AppNavigator route + navigation/types.ts entry +
 // src/__tests__/screens/RequestPayoutScreen.test.tsx.
 

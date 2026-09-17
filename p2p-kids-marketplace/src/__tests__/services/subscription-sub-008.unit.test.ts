@@ -131,7 +131,11 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
         data: {
           success: true,
           new_status: 'grace_period',
-          message: 'Your trial has been cancelled. Your Swap Points are frozen.',
+          // FIX-Task-50 item 1 (class sweep, 2026-09-17): mirror the LIVE
+          // cancel-subscription Edge Function message — the fixture still carried
+          // the pre-R6 "Swap Points are frozen" wording the EF no longer sends.
+          message:
+            'Your trial has been cancelled. You can keep spending your Swap Points for the next 30 days, but you won\'t earn new ones. Re-subscribe to start earning again.',
           grace_period_ends_at: '2026-05-22T00:00:00Z',
         },
         error: null,

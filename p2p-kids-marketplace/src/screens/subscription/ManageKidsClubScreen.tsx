@@ -35,19 +35,21 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { captureException } from '@/services/errorReporter';
 import {
   getSubscriptionSummary,
+  getSubscriptionPeriodEnd,
   cancelSubscription,
   getPaymentMethod,
   resubscribe,
   SubscriptionSummary,
 } from '@/services/subscription';
 import { getGracePeriodDays, getActiveMemberFeeCents } from '@/services/adminConfig';
-import { formatPrice } from '@/utils/formatPrice';
+import { memberFeeBenefitText } from '@/utils/memberFeeCopy';
 import { PaymentMethodSection } from '@/components/subscription/PaymentMethodSection';
 import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
 import { BillingHistoryLink } from '@/components/subscription/BillingHistoryLink';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+import { loadEnd, loadStart, withLoadTiming } from '@/utils/loadTiming';
 
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
 const CANCELLATION_REASONS = [
@@ -103,7 +105,8 @@ export default function ManageKidsClubScreen() {
   const [customReason, setCustomReason] = useState('');
   const [gracePeriodDays, setGracePeriodDays] = useState<number>(90); // Default 90, fetched dynamically
   // R1 — Tiered Buyer-Fee Engine: flat active-member fee (dynamic).
-  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
+  // FIX-Task-47 item 4: `null` = the live value could not be read (no 149 fallback).
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number | null>(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [checkingPaymentMethod, setCheckingPaymentMethod] = useState(false);
   const [renewing, setRenewing] = useState(false);
@@ -120,32 +123,24 @@ export default function ManageKidsClubScreen() {
     }
   }, [showCancelModal]);
 
-  // Fetch subscription on mount
-  const fetchPaymentMethodStatus = useCallback(
-    async (currentSummary?: SubscriptionSummary) => {
-      if (!userId) {
-        setHasPaymentMethod(false);
-        return;
-      }
+  // FIX-Task-47 item 2 (2026-09-16): the payment-method read must NOT be serialised
+  // behind the subscription/config fan-out — it is independent of it, and it was the
+  // extra serial leg measured on Android (the screen's first paint waited for
+  // slowest(config+subscription) THEN the PM call). This returns the answer WITHOUT
+  // touching state so it can join the same Promise.all; `null` means "the read did
+  // not tell us", and the caller falls back to the summary's own field — the same
+  // behaviour as before, one serial leg sooner.
+  const resolvePaymentMethodPresence = useCallback(async (): Promise<boolean | null> => {
+    if (!userId) return false;
 
-      setCheckingPaymentMethod(true);
-      try {
-        const paymentMethod = await getPaymentMethod();
-        if (paymentMethod) {
-          setHasPaymentMethod(true);
-          return;
-        }
-
-        setHasPaymentMethod(Boolean(currentSummary?.stripe_payment_method_id));
-      } catch (error) {
-        console.warn('[ManageKidsClub] Failed fetching payment method:', error);
-        setHasPaymentMethod(Boolean(currentSummary?.stripe_payment_method_id));
-      } finally {
-        setCheckingPaymentMethod(false);
-      }
-    },
-    [userId]
-  );
+    try {
+      const paymentMethod = await getPaymentMethod();
+      return paymentMethod ? true : null;
+    } catch (error) {
+      console.warn('[ManageKidsClub] Failed fetching payment method:', error);
+      return null;
+    }
+  }, [userId]);
 
   const fetchSubscription = useCallback(async () => {
     if (!userId) {
@@ -153,29 +148,93 @@ export default function ManageKidsClubScreen() {
       return;
     }
 
+    setCheckingPaymentMethod(true);
+    const loadStartedAt = loadStart('ManageKidsClubScreen.fetchSubscription');
     try {
-      const [summary, graceDays, memberFeeCents] = await Promise.all([
-        getSubscriptionSummary(userId),
-        getGracePeriodDays(true),
-        getActiveMemberFeeCents(true),
+      const [summary, graceDays, memberFeeCents, resolvedHasPaymentMethod] = await Promise.all([
+        withLoadTiming(
+          'ManageKidsClubScreen.getSubscriptionSummary',
+          getSubscriptionSummary(userId)
+        ),
+        withLoadTiming('ManageKidsClubScreen.getGracePeriodDays', getGracePeriodDays(true)),
+        withLoadTiming(
+          'ManageKidsClubScreen.getActiveMemberFeeCents',
+          getActiveMemberFeeCents(true)
+        ),
+        resolvePaymentMethodPresence(),
       ]);
       setSubscription(summary);
       setGracePeriodDays(graceDays);
       setActiveMemberFlatCents(memberFeeCents);
-      await fetchPaymentMethodStatus(summary);
+      setHasPaymentMethod(resolvedHasPaymentMethod ?? Boolean(summary.stripe_payment_method_id));
+      // FIX-Task-50 item 3 (2026-09-17): return the fresh summary so the
+      // auto-renew convergence loop below can tell whether the row has caught up
+      // with the switch yet. Callers that ignore the value are unaffected.
+      return summary;
     } catch (error) {
       captureException(error, {
         tags: { screen: 'ManageKidsClubScreen', action: 'fetch_subscription' },
       });
       Alert.alert('Error', 'Failed to load subscription details');
     } finally {
+      loadEnd('ManageKidsClubScreen.fetchSubscription', loadStartedAt);
+      setCheckingPaymentMethod(false);
       setLoading(false);
     }
-  }, [userId, fetchPaymentMethodStatus]);
+  }, [userId, resolvePaymentMethodPresence]);
 
   useEffect(() => {
     fetchSubscription();
   }, [fetchSubscription]);
+
+  // `fetchSubscription` now returns the fresh summary (FIX-Task-50 item 3), which
+  // does not satisfy `PaymentMethodSection`'s `() => void | Promise<void>` prop — so
+  // this thin wrapper keeps that existing contract unchanged for the payment path.
+  const refreshSubscription = useCallback((): void => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
+
+  // FIX-Task-50 item 3 (2026-09-17): re-enabling Auto-Renew must CONVERGE, not
+  // contradict itself. The mutation is confirmed the instant the Edge Function
+  // returns, but the subscription ROW flips `cancelled -> active` on Stripe's
+  // asynchronous `customer.subscription.updated` WEBHOOK — seconds AFTER that
+  // response. `onToggled` used to call `fetchSubscription()` exactly once, which
+  // read the pre-webhook row, so the screen kept rendering
+  // "Cancelled / Your plan will not renew" beside the now-ON switch until it was
+  // remounted (SUB Android Round 6 finding F3). Re-read a BOUNDED number of times
+  // until the row's status agrees with the switch — the same bounded-retry-after-
+  // a-write discipline as `readProfileWithRetry` in services/auth. Every pass is a
+  // plain read: nothing is optimistically faked (BP-92 — the screen only ever
+  // paints the server's answer), and the loop stops as soon as they agree.
+  const AUTO_RENEW_CONVERGENCE_ATTEMPTS = 4;
+  const AUTO_RENEW_CONVERGENCE_DELAY_MS = 1500;
+
+  const statusContradictsAutoRenew = useCallback(
+    (summary: SubscriptionSummary | undefined, autoRenewEnabled: boolean): boolean => {
+      const status = (summary?.status ?? '').toLowerCase();
+      const isCancelledStatus = status === 'cancelled' || status === 'canceled';
+      return autoRenewEnabled ? isCancelledStatus : status === 'active' || status === 'trial';
+    },
+    []
+  );
+
+  const handleAutoRenewToggled = useCallback(
+    async (autoRenewEnabled: boolean) => {
+      // The first read is immediate — for a DB-only update it is already enough.
+      let summary = await fetchSubscription();
+
+      for (
+        let attempt = 1;
+        attempt < AUTO_RENEW_CONVERGENCE_ATTEMPTS &&
+        statusContradictsAutoRenew(summary, autoRenewEnabled);
+        attempt++
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, AUTO_RENEW_CONVERGENCE_DELAY_MS));
+        summary = await fetchSubscription();
+      }
+    },
+    [fetchSubscription, statusContradictsAutoRenew]
+  );
 
   // Handle cancellation
   const handleCancel = async () => {
@@ -311,7 +370,7 @@ export default function ManageKidsClubScreen() {
     return (
       <ScreenLayout variant="detail" title="Manage Kids Club+">
         <View style={styles.loadingContainer}>
-          <LoadingSpinner />
+          <LoadingSpinner slowHint="Still loading your subscription…" />
           <Text style={styles.loadingText}>Loading subscription details...</Text>
         </View>
       </ScreenLayout>
@@ -350,7 +409,7 @@ export default function ManageKidsClubScreen() {
   const isExpired = subscription.status === 'expired';
   const canCancel = isTrial || isActive;
 
-  const periodEndDate = subscription.subscription_expires_at || subscription.trial_ends_at;
+  const periodEndDate = getSubscriptionPeriodEnd(subscription);
   const daysLeft = daysRemaining(periodEndDate);
 
   return (
@@ -407,14 +466,32 @@ export default function ManageKidsClubScreen() {
             </View>
           )}
 
+          {/* FIX-Task-47 item 10 (2026-09-16): a plain-language helper line so a
+              wrong billing date is noticeable to both users and future QA — the
+              date above must agree with what this sentence promises. */}
+          {(isTrial || isActive || isCancelled) && periodEndDate && (
+            <Text style={styles.billingHelperText} testID="manage-kids-club-billing-helper">
+              {isTrial
+                ? 'Your free trial ends on the date shown above.'
+                : isCancelled
+                  ? 'Your plan will not renew — you keep access until the date shown above.'
+                  : 'Your plan renews monthly on the date shown above.'}
+            </Text>
+          )}
+
           {/* Grace Period Info */}
+          {/* FIX-Task-50 item 1 (2026-09-17): R6 model — during grace the wallet is
+              SPENDABLE (no new earnings); it is frozen only when the grace window
+              ENDS. The old copy claimed "Your Swap Points are frozen", which
+              contradicted the SP Wallet screen for the same user, the same build
+              and the same session (SUB Android Round 6 finding F1). */}
           {isGracePeriod && subscription.grace_ends_at && (
             <View style={styles.warningBox}>
               <Text style={styles.warningTitle}>Grace Period Active</Text>
               <Text style={styles.warningText}>
-                Your Swap Points are frozen. Re-subscribe before{' '}
-                <Text style={styles.bold}>{formatDate(subscription.grace_ends_at)}</Text> to restore
-                access, or they will be permanently deleted.
+                Your Swap Points are still spendable, but you won&apos;t earn new ones. Re-subscribe
+                before <Text style={styles.bold}>{formatDate(subscription.grace_ends_at)}</Text> to
+                keep earning and keep your points available.
               </Text>
             </View>
           )}
@@ -432,9 +509,13 @@ export default function ManageKidsClubScreen() {
           {isCancelled && (
             <View style={styles.infoBox}>
               <Text style={styles.infoBoxTitle}>Your subscription is cancelled</Text>
+              {/* FIX-Task-50 item 1 (class sweep): the same pre-R6 "frozen" claim lived
+                  in this second branch of the SAME screen — the billing period ends
+                  into a grace period where SP stays spendable. */}
               <Text style={styles.infoBoxText}>
                 You will continue to have Kids Club+ benefits until your billing period ends. After
-                that, your Swap Points will be frozen for a {gracePeriodDays}-day grace period.
+                that you enter a {gracePeriodDays}-day grace period: you can still spend your Swap
+                Points, but you won&apos;t earn new ones until you re-subscribe.
               </Text>
             </View>
           )}
@@ -443,8 +524,11 @@ export default function ManageKidsClubScreen() {
         {/* Management Section (Payment Method & Auto-Renew) */}
         {(isActive || isTrial || isCancelled) && (
           <View style={styles.card}>
-            <PaymentMethodSection onPaymentMethodUpdated={fetchSubscription} />
-            <AutoRenewToggle initialValue={isActive || isTrial} onToggled={fetchSubscription} />
+            <PaymentMethodSection onPaymentMethodUpdated={refreshSubscription} />
+            <AutoRenewToggle
+              initialValue={isActive || isTrial}
+              onToggled={handleAutoRenewToggled}
+            />
           </View>
         )}
 
@@ -458,7 +542,7 @@ export default function ManageKidsClubScreen() {
             <View style={styles.benefitsList}>
               <Text style={styles.benefitItem}>✓ Earn & spend Swap Points on purchases</Text>
               <Text style={styles.benefitItem}>
-                ✓ Flat {formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade
+                ✓ {memberFeeBenefitText(activeMemberFlatCents)}
               </Text>
               <Text style={styles.benefitItem}>✓ Priority listing visibility</Text>
               <Text style={styles.benefitItem}>✓ Access to exclusive features</Text>
@@ -759,6 +843,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1A1A',
   },
+  // FIX-Task-47 item 10 (2026-09-16): helper line under the billing-date row.
+  billingHelperText: {
+    fontSize: 12,
+    color: '#999999',
+    lineHeight: 18,
+  },
   warningBox: {
     backgroundColor: '#FFF3E0',
     borderRadius: 12,
@@ -905,8 +995,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 20,
   },
+  // FIX-Task-47 item 13 (2026-09-16): was `maxHeight: 250`, a hard cap that clipped
+  // the 6th reason ("Other reason") out of view inside a fixed-height sheet. The
+  // list now sizes to its content and, because the sheet is capped at 80% height,
+  // `flexShrink` lets it scroll ONLY when the sheet would otherwise overflow — so
+  // the reasons are all visible on a normal device and the Keep/Confirm buttons
+  // stay pinned instead of being pushed off-screen.
   reasonsList: {
-    maxHeight: 250,
+    flexShrink: 1,
   },
   reasonItem: {
     flexDirection: 'row',

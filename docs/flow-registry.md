@@ -670,8 +670,8 @@ Review Offer's 20s offer-load timeout → retry card).
 **Mobile screens.**
 - `PayoutSettings` — `screens/seller/PayoutSettingsScreen.tsx` — balance hero, payout-method cards, Add Payout Method + Withdraw modals, payout history (live; deep link `payout-settings`).
 - `RequestPayout` — `screens/payouts/RequestPayoutScreen.tsx` — registered but no live caller [deprecated DT-86].
-- `SellerEarnings` — `screens/seller/SellerEarningsScreen.tsx` — registered but no live caller [deprecated DT-86].
-- `PayoutDashboard` — `screens/payouts/PayoutDashboardScreen.tsx` — unrouted (superseded by PayoutSettings).
+- `SellerEarnings` — removed: route, screen and unit test deleted (no live caller; superseded by PayoutSettings).
+- `PayoutDashboard` — removed: unrouted screen and unit test deleted (superseded by PayoutSettings).
 
 **Functions/features.** Edge Functions: `create-stripe-connect-account`, `create-stripe-account-link`, `sync-stripe-connect-status`, `payout-settings-redirect`, `initiate-payout`, `process-paypal-payout`, `release-due-payouts` (cron), `dispatch-manual-payouts`; RPCs: `create_seller_payout_on_trade_completion`, `recompute_seller_balance` (service_role), `request_seller_payout`, `set_primary_payout_method`; DB: `seller_payout_methods`, `seller_payouts`, `seller_balance`, `trades.payout_*`; client: `services/payoutMethods.ts`, `payoutService.ts`, `payoutRouter.ts`, `sellerBalance.ts`; QA: `qa:payout-fixture` persona + runbook.
 

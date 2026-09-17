@@ -55,7 +55,8 @@ appId: com.p2pkidsmarketplace.app
 - tapOn:
     id: "discover-search-input"
 - inputText: "xyzabc123456"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 
 # Verify empty state is shown
 - assertVisible:
@@ -81,7 +82,8 @@ appId: com.p2pkidsmarketplace.app
 - tapOn:
     id: "discover-search-input"
 - inputText: "bicycle"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 
 # Clear and now search with a typo
 - tapOn:
@@ -92,7 +94,8 @@ appId: com.p2pkidsmarketplace.app
 - tapOn:
     id: "discover-search-input"
 - inputText: "bycicle"
-- waitForAnimationToEnd: 300ms
+- waitForAnimationToEnd:
+    timeout: 300
 
 # Verify "Did you mean..." suggestion appears (if no results)
 # This is conditional: only shows if no results AND there's a close match in recent searches

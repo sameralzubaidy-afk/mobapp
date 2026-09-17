@@ -6,7 +6,8 @@
  * 1. Selects all users in 'grace_period' status
  * 2. Calculates days remaining until grace_ends_at
  * 3. Sends reminder notifications at admin-configured thresholds
- * 4. Expires subscriptions when grace period ends (status → 'expired', SP deletion)
+ * 4. Expires subscriptions when grace period ends (status → 'expired', SP wallet
+ *    FROZEN — R6 2026-08-09: never deleted, so a resubscribe restores it)
  * 
  * Scheduled: Daily at 3:00 AM UTC
  * Invoked by: pg_cron job 'grace-period-daily'
@@ -135,7 +136,8 @@ serve(async (_req) => {
 
     console.log(`[grace-period-cron] User ${sub.user_id}: ${daysRemaining} days remaining`);
 
-    // Case 1: Grace period expired → transition to 'expired' and delete SP
+    // Case 1: Grace period expired → transition to 'expired' and FREEZE SP (R6:
+    // frozen, not deleted — a resubscribe restores the balance).
     if (daysRemaining <= 0) {
       await expireSubscription(supabaseClient, sub.user_id, sub.id);
       expiredCount++;
@@ -174,7 +176,7 @@ serve(async (_req) => {
 });
 
 /**
- * Expires a subscription and permanently deletes SP
+ * Expires a subscription and FREEZES the SP wallet (R6: never deleted).
  */
 async function expireSubscription(
   supabaseClient: any,
@@ -356,7 +358,7 @@ function getReminderBody(daysRemaining: number): string {
   } else if (daysRemaining <= 7) {
     return `You have ${daysRemaining} days to re-subscribe before your Swap Points are frozen.`;
   } else if (daysRemaining <= 30) {
-    return `Your Kids Club+ grace period ends in ${daysRemaining} days. Re-subscribe to restore your Swap Points access.`;
+    return `Your Kids Club+ grace period ends in ${daysRemaining} days. Re-subscribe to keep your Swap Points available.`;
   } else {
     return `You have ${daysRemaining} days remaining in your grace period. Re-subscribe anytime to restore full access.`;
   }

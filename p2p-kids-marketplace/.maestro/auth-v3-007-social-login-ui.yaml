@@ -30,7 +30,9 @@ tags:
 - runFlow:
     when:
       visible: "Get Started"
-    file: ./common/navigate-to-login.yaml
+    commands:
+      - tapOn: "Get Started"
+      - waitForAnimationToEnd
 
 # =====================================================
 # SCENARIO 1: Social Login Buttons Render (Login Mode)

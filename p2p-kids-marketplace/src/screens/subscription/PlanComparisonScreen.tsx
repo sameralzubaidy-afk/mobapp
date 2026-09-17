@@ -19,7 +19,8 @@ import {
   isTrialEnabled,
 } from '@/services/adminConfig';
 import { TIER_COMPARISON_ROWS } from '@/constants/subscriptionPlans';
-import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
+import { formatDollarAmount } from '@/utils/formatPrice';
+import { memberFeeComparisonCell } from '@/utils/memberFeeCopy';
 import { captureException } from '@/services/errorReporter';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
@@ -35,7 +36,9 @@ export default function PlanComparisonScreen() {
   // when it is ON (QA Task 20 F-3).
   const [trialEnabled, setTrialEnabled] = useState<boolean>(false);
   // R1 — Tiered Buyer-Fee Engine: flat active-member fee (dynamic from admin_config).
-  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
+  // FIX-Task-47 item 4: `null` = the live value could not be read. Deliberately NOT
+  // seeded with 149 — a plausible wrong number is worse than an explicit state.
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -83,7 +86,7 @@ export default function PlanComparisonScreen() {
         ...row,
         name: 'Transaction fee (per trade)',
         free: 'Flat on 1st trade, then %',
-        kidsClubPlus: `${formatPrice(activeMemberFlatCents)} flat`,
+        kidsClubPlus: memberFeeComparisonCell(activeMemberFlatCents),
       };
     }
 
@@ -118,7 +121,7 @@ export default function PlanComparisonScreen() {
   if (loading) {
     return (
       <ScreenLayout variant="detail" title="Compare Plans">
-        <LoadingSpinner />
+        <LoadingSpinner slowHint="Still loading plan details…" />
       </ScreenLayout>
     );
   }

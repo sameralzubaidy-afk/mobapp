@@ -45,8 +45,18 @@ export const colors = {
     100: '#E8F5E9', // Success banner backgrounds
   },
 
+  // Warning scale. 500/100 are the canonical design-system steps (design-system §1).
+  // The 900/800/400 steps are the dark-TEXT and border variants for amber-tinted
+  // surfaces — the design system previously defined only the light 500/100 steps, so
+  // screens had no token for dark text on an amber card and fell back to one-off
+  // Tailwind amber hexes (FIX-Task-49 item 2). Contrast ratios are WCAG AA measured
+  // against the amber card surface #FEF3C7; see design-system §1 "Warning — Dark Text
+  // & Borders on Tinted Surfaces".
   warning: {
+    900: '#78350F', // Dark warning text — body/labels on #FEF3C7 · 8.15:1 (AA)
+    800: '#92400E', // Dark warning text — titles/emphasis on #FEF3C7 · 6.37:1 (AA)
     500: '#FFA726', // Caution, pending actions
+    400: '#FBBF24', // Warning borders/dividers on amber-tinted cards (non-text)
     100: '#FFF3E0', // Warning banner backgrounds
   },
 

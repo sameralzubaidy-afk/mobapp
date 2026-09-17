@@ -118,7 +118,7 @@ export default function UpgradePlanScreen() {
   if (loading || configLoading) {
     return (
       <ScreenLayout variant="detail" title="Upgrade Plan">
-        <LoadingSpinner />
+        <LoadingSpinner slowHint="Still loading plan details…" />
       </ScreenLayout>
     );
   }

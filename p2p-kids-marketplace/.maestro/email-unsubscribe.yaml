@@ -17,14 +17,16 @@ appId: com.p2pkidsmarketplace
     url: "p2pkidsmarketplace://unsubscribe?token=VALID_TOKEN_HERE"
 
 # Step 2: Verify loading state appears briefly
-- assertVisible: 
-    id: "loading-indicator"
+- extendedWaitUntil:
+    visible:
+      id: "loading-indicator"
     timeout: 2000
 
 # Step 3: Verify success screen displays
 - waitForAnimationToEnd
-- assertVisible: 
-    id: "success-title"
+- extendedWaitUntil:
+    visible:
+      id: "success-title"
     timeout: 5000
 - assertVisible: "You've Been Unsubscribed"
 
@@ -62,14 +64,16 @@ appId: com.p2pkidsmarketplace
     url: "p2pkidsmarketplace://unsubscribe?token=invalid-token-12345"
 
 # Step 2: Verify loading state
-- assertVisible: 
-    id: "loading-indicator"
+- extendedWaitUntil:
+    visible:
+      id: "loading-indicator"
     timeout: 2000
 
 # Step 3: Verify error screen displays
 - waitForAnimationToEnd
-- assertVisible: 
-    id: "error-title"
+- extendedWaitUntil:
+    visible:
+      id: "error-title"
     timeout: 5000
 - assertVisible: "Unable to Unsubscribe"
 
@@ -95,8 +99,9 @@ appId: com.p2pkidsmarketplace
     url: "p2pkidsmarketplace://unsubscribe?token=expired-token-67890"
 
 # Step 2: Verify error screen displays
-- assertVisible: 
-    id: "error-title"
+- extendedWaitUntil:
+    visible:
+      id: "error-title"
     timeout: 5000
 - assertVisible: "Unable to Unsubscribe"
 

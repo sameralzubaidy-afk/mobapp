@@ -37,6 +37,32 @@ Warning: #FFA726 (caution states)
 Info: #5B8FB9 (informational messages)
 ```
 
+### Warning — Dark Text & Borders on Tinted Surfaces
+
+The warning steps above (`#FFA726` / `#FFF3E0`) are **light** values — caution surfaces,
+icon fills and banner tints. They are *not* text colors for an amber card. Any surface
+that puts dark text on a tinted amber background must use the dark steps below; without
+them each screen invents its own amber hex — which is exactly how the Item Detail
+"Price Breakdown" card ended up on one-off Tailwind amber values until FIX-Task-49.
+
+```
+Warning dark text — body / labels:      #78350F   (warning-900 · 8.15:1 on #FEF3C7 · 8.27:1 on #FFF3E0)
+Warning dark text — titles / emphasis:  #92400E   (warning-800 · 6.37:1 on #FEF3C7 · 6.46:1 on #FFF3E0)
+Warning border / divider (non-text):    #FBBF24   (warning-400)
+Warning surface tint (amber card):      #FEF3C7 / #F59E0B
+                                        (already tokenized as SP gold: sp-100 / sp-500)
+```
+
+- **Code**: `colors.warning[900]`, `colors.warning[800]`, `colors.warning[400]` in
+  `src/theme/colors.ts`.
+- Every text value above clears WCAG AA (4.5:1 for normal text) on **both** amber tints.
+- **Canonical instance**: Item Detail → "💰 Price Breakdown" card
+  (`src/screens/home/ItemDetailScreen.tsx` — `feeCard`, `feeCardTitle`, `feeLabel`,
+  `feeValue`, `feeTotalLabel`, `feeTotalValue`, `divider`, `savingsNote`,
+  `savingsNoteText`).
+- **Use these** for any future warning-style surface (amber caution banner, expiry note,
+  fee-disclosure card). Do not add new amber hexes.
+
 ### Swap Points (SP) Color
 ```
 SP Gold: #F59E0B (SP currency indicator)
@@ -522,14 +548,20 @@ Elements:
 
 ### Contrast Ratios (WCAG AA)
 ```
-Normal Text (16px+): 4.5:1 minimum
-Large Text (18px+ or 14px bold): 3:1 minimum
+Normal text:   4.5:1 minimum
+Large text:    3:1 minimum  (WCAG "large" = 24px / 18pt, or 18.66px / 14pt BOLD.
+                             An 18px *bold* label is NOT large text — it still
+                             needs 4.5:1.)
 UI Components: 3:1 minimum
 
-Verified Combinations:
-✅ #5DBB8E on white: 3.8:1 (large text only)
-✅ #1A1A1A on white: 18.5:1 (all text)
-✅ #6B6B6B on white: 5.7:1 (all text)
+Verified combinations (re-measured 2026-09-17 with the WCAG 2.1 relative-luminance
+formula; the previous figures in this block were inaccurate):
+✅ #1A1A1A on white: 17.40:1 (all text)
+✅ #6B6B6B on white: 5.33:1 (all text)
+⚠️ #5DBB8E on white: 2.34:1 — fails AA for ALL text sizes, including large text
+   (the previous "3.8:1 (large text only)" figure was incorrect). Never use the brand
+   green as TEXT on a light background. As a button/hero SURFACE with white text it
+   measures the same 2.34:1 — recorded as an open enhancement request below.
 ```
 
 ### Touch Targets
@@ -546,6 +578,33 @@ All interactive elements MUST have visible focus state:
 - Buttons: Darker background (#4DAA7A)
 - Links: Underline
 ```
+
+### Documented Token Exceptions (Intentional)
+
+Deliberate, reviewed deviations from the token set. These are **not** oversights — do not
+"fix" them without re-measuring the contrast first.
+
+| Surface | Token a naive audit expects | What actually ships | Why |
+|---|---|---|---|
+| Item Detail load-error title (`ItemDetailScreen` → `errorTitle`) | `colors.error[500]` = `#E85D75` | `#c62828` | On this screen's `#f9f9f9` background `#c62828` measures **5.34:1** (AA pass) while the brand error token measures only **3.19:1** (AA fail for the 18px bold title). Accessibility wins over token uniformity here; the durable fix is enhancement #1 below. |
+
+### Open Enhancement Requests
+
+Unresolved design-system gaps found during audits. **Owner decision required — no code
+change has been made for any of these.**
+
+1. **AA-safe error-red variant for text on light backgrounds.** `colors.error[500]`
+   (`#E85D75`) measures only **3.36:1 on white** and **3.19:1 on `#f9f9f9`**, so it fails
+   WCAG AA (4.5:1) for normal text — every screen that renders an error *message* in the
+   brand error token inherits the tension Item Detail hit. Proposed: add a darker sibling
+   for text-on-light use (e.g. `#C91D39` — same hue family as the brand red, darkened to
+   **5.65:1 on white** / **5.36:1 on `#f9f9f9`**), keeping `#E85D75` for fills, icons and
+   dark backgrounds. Filed as `sameralzubaidy-afk/mobapp#21`.
+2. **Brand green used as a text/surface color.** `#5DBB8E` measures **2.34:1 on white**,
+   and white text on `#5DBB8E` measures the same **2.34:1** — below AA for *all* text
+   sizes, including large text (3:1). In practice the brand green ships as a button/hero
+   *surface* carrying white text, so resolving this is a brand-level decision rather than
+   a token swap. Flagged for the owner; no change made under FIX-Task-49.
 
 ---
 
@@ -685,6 +744,11 @@ export const colors = {
 };
 ```
 
+> This reference block predates the warning scale extension, so it lists only the light
+> `warning` step. The dark text/border variants — `warning-900 #78350F`,
+> `warning-800 #92400E`, `warning-400 #FBBF24` — are defined in §1 above and in the
+> canonical code (`src/theme/colors.ts`).
+
 ### Spacing Tokens (TypeScript)
 ```typescript
 export const spacing = {
@@ -751,6 +815,7 @@ Use this template when asking AI to create/update screens:
 |---------|------|---------|
 | 1.0 | May 4, 2026 | Initial design system based on Whisk inspiration. Covers colors, typography, buttons, inputs, OTP, social login. |
 | 1.1 | Sep 16, 2026 | Added §4.2b **Inverse-Hero Pill Button** (white pill on a primary-green hero card) as a canonical variant, with the Payout Settings balance hero as its reference implementation — previously undocumented, so it risked being mis-filed as a design deviation (FIX-Task-41 item 10). |
+| 1.2 | Sep 17, 2026 | Added §1 **Warning — Dark Text & Borders on Tinted Surfaces** (`warning-900 #78350F`, `warning-800 #92400E`, `warning-400 #FBBF24`) and applied them to the Item Detail "Price Breakdown" card, which previously carried one-off amber hexes; added §6 **Documented Token Exceptions** (Item Detail's intentional `#c62828` error title) and §6 **Open Enhancement Requests** (AA-safe error-red variant; brand-green contrast); corrected the §6 verified-contrast figures, which were inaccurate (FIX-Task-49). |
 
 ---
 

@@ -54,7 +54,6 @@ appId: com.kidsp2p.marketplace
 # Verify "Last updated" label (new FLOW-25 design)
 - assertVisible:
     text: ".*Last updated.*"
-    regex: true
 
 # Back button (CaretLeft replacing Ionicons)
 - tapOn:
@@ -71,7 +70,6 @@ appId: com.kidsp2p.marketplace
 
 - assertVisible:
     text: ".*Last updated.*"
-    regex: true
 
 - tapOn:
     id: "back-button"

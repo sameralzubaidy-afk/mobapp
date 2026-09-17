@@ -51,8 +51,9 @@ appId: com.sameralzubaidy.p2pkidsmarketplace
     id: "login-submit-button"
 
 - waitForAnimationToEnd
-- assertVisible:
-    id: "home-screen"
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
     timeout: 10000
 
 # ════════════════════════════════════════════════════════════════════════════

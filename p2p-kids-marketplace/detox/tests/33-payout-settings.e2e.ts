@@ -9,8 +9,9 @@
  * testIDs used:
  *   tab-home, action-tile-payouts, add-bank-row, bank-row
  *
- * Note: PayoutDashboard and SellerEarnings are navigated programmatically
- * from payouts context only. PayoutSettings is the user-facing entry point.
+ * Note: PayoutDashboard and SellerEarnings (the only programmatically-navigated
+ * payout screens) were retired in FIX-Task-48 (2026-09-16). PayoutSettings is the
+ * single user-facing payout entry point.
  */
 import { loginAsSeller } from '../helpers/auth';
 import { dismissSystemDialogs } from '../helpers/dialogs';

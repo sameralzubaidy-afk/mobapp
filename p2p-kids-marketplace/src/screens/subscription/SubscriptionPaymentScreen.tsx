@@ -22,7 +22,8 @@ import {
   getActiveMemberFeeCents,
   invalidateConfigCache,
 } from '@/services/adminConfig';
-import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
+import { formatDollarAmount } from '@/utils/formatPrice';
+import { memberFeePaymentLine } from '@/utils/memberFeeCopy';
 import { captureException, captureMessage } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -42,7 +43,8 @@ export function SubscriptionPaymentScreen() {
   const [monthlyPriceDollars, setMonthlyPriceDollars] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(DEFAULT_TRIAL_DAYS);
   // R1 — Tiered Buyer-Fee Engine: flat active-member fee (dynamic).
-  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
+  // FIX-Task-47 item 4: `null` = unreadable; the copy drops the amount instead.
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number | null>(null);
   const [configLoading, setConfigLoading] = useState<boolean>(true);
 
   const loadPricingConfig = useCallback(async () => {
@@ -80,7 +82,8 @@ export function SubscriptionPaymentScreen() {
       // Show 0 to indicate configuration error
       setMonthlyPriceDollars(0);
       setTrialDays(DEFAULT_TRIAL_DAYS);
-      setActiveMemberFlatCents(149);
+      // FIX-Task-47 item 4: the fee is UNKNOWN here — never fall back to a number.
+      setActiveMemberFlatCents(null);
     } finally {
       setConfigLoading(false);
     }
@@ -140,7 +143,7 @@ export function SubscriptionPaymentScreen() {
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Lower Transaction Fees</Text>
               <Text style={styles.benefitDescription}>
-                Pay a flat {formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade
+                {memberFeePaymentLine(activeMemberFlatCents)}
               </Text>
             </View>
           </View>

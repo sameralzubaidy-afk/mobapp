@@ -13,6 +13,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
@@ -53,6 +54,7 @@ const BENEFITS = [
 
 export default function SubscriptionExpiredScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   // DEV-TASK-100: read the real expiry from the subscription row (same fetch
   // logic as MySubscriptionScreen / ManageKidsClubScreen via useSubscription).
   const { subscription, loading } = useSubscription();
@@ -94,7 +96,11 @@ export default function SubscriptionExpiredScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Subscription Expired">
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.expiredScroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <View style={styles.iconContainer}>
             <XCircle size={64} color="#FF6B6B" weight="fill" />
@@ -139,38 +145,46 @@ export default function SubscriptionExpiredScreen() {
             </View>
           ))}
         </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Don't let your benefits slip away. Renew now to continue enjoying the full Pass It Up
-            experience.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.renewButton}
-            onPress={handleRenew}
-            testID="renew-button"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Renew button"
-            activeOpacity={0.8}
-          >
-            <Text style={styles.renewButtonText}>Renew Plan</Text>
-            <CaretRight size={20} color="#FFFFFF" weight="bold" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.continueLink}
-            onPress={handleContinueFree}
-            testID="continue-free-link"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Continue free link"
-          >
-            <Text style={styles.continueLinkText}>Continue with Free Plan</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      {/* FIX-Task-50 item 8 (2026-09-17): this is a DECISION GATE — Renew or
+          Continue Free must be visible without scrolling. The two CTAs used to sit
+          at the tail of the scrolling content, below three benefit cards, so a
+          parent had to scroll past the pitch to act on it. They now live in a
+          pinned footer outside the ScrollView (the same DT-124 Item 9 sticky-footer
+          idiom ManageKidsClubScreen uses for its grace/expired CTA), which also
+          keeps them fully clear of the bottom of the screen — see item 2, where the
+          floating pill used to cover "Continue with Free Plan". */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <Text style={styles.footerText}>
+          Don't let your benefits slip away. Renew now to continue enjoying the full Pass It Up
+          experience.
+        </Text>
+
+        <TouchableOpacity
+          style={styles.renewButton}
+          onPress={handleRenew}
+          testID="renew-button"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Renew button"
+          activeOpacity={0.8}
+        >
+          <Text style={styles.renewButtonText}>Renew Plan</Text>
+          <CaretRight size={20} color="#FFFFFF" weight="bold" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.continueLink}
+          onPress={handleContinueFree}
+          testID="continue-free-link"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Continue free link"
+        >
+          <Text style={styles.continueLinkText}>Continue with Free Plan</Text>
+        </TouchableOpacity>
+      </View>
     </ScreenLayout>
   );
 }
@@ -182,7 +196,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 40,
+    paddingBottom: 24,
+  },
+  // FIX-Task-50 item 8: the ScrollView fills the space above the pinned footer so
+  // the decision CTAs stay on screen while the benefits list scrolls.
+  expiredScroll: {
+    flex: 1,
   },
   header: {
     alignItems: 'center',
@@ -285,9 +304,15 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     lineHeight: 18,
   },
+  // FIX-Task-50 item 8: pinned decision footer (mirrors ManageKidsClubScreen's
+  // DT-124 Item 9 sticky footer). The bottom inset is applied inline so the CTAs
+  // clear the gesture area.
   footer: {
     paddingHorizontal: 24,
-    marginTop: 20,
+    paddingTop: 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
     alignItems: 'center',
   },
   footerText: {
@@ -295,7 +320,7 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 32,
+    marginBottom: 16,
     paddingHorizontal: 10,
   },
   renewButton: {
@@ -306,7 +331,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 16,
+    marginBottom: 8,
     shadowColor: '#5DBB8E',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,

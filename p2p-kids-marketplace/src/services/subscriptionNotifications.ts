@@ -156,7 +156,11 @@ export async function notifyCancellationConfirmed(
   return sendSubscriptionNotification({
     userId,
     title: 'Subscription Cancelled',
-    body: `Your Kids Club+ subscription has been cancelled. You'll have access until ${formattedDate}, then enter a 90-day grace period where your Swap Points will be frozen.`,
+    // FIX-Task-50 item 1 (class sweep, 2026-09-17): R6 model — the grace period keeps
+    // SP SPENDABLE and only stops new earnings; the wallet freezes when it ends.
+    // The hardcoded "90-day" was also dropped: the window length is
+    // admin_config.grace_period_days (30 on staging), so the copy must not assert it.
+    body: `Your Kids Club+ subscription has been cancelled. You'll have access until ${formattedDate}, then a grace period where you can still spend your Swap Points but won't earn new ones.`,
     data: {
       event: 'subscription_cancelled',
       access_until: accessUntil,

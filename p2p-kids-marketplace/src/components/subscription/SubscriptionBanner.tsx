@@ -38,7 +38,11 @@ export function SubscriptionBanner() {
       return 'You are on a free trial of Kids Club+. Add a card to keep your Swap Points.';
     }
     if (isGrace) {
-      return 'Your Swap Points are frozen. Re-subscribe to use them again.';
+      // FIX-Task-50 item 1 (class sweep, 2026-09-17): R6 model — during grace the
+      // wallet stays SPENDABLE and only stops EARNING. The old "Your Swap Points
+      // are frozen. Re-subscribe to use them again." was the stale pre-R6 claim
+      // and contradicted the SP Wallet screen for the same user.
+      return "You can still spend your Swap Points — re-subscribe to start earning new ones.";
     }
     if (isExpired) {
       return 'Kids Club+ expired. Re-subscribe to start earning Swap Points again.';

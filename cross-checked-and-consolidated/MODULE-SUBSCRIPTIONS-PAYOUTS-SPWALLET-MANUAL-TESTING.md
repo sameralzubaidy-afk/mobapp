@@ -33,8 +33,10 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 ### 3 · Authoritative per-case state (do not re-derive a baseline)
 
 - **`e2e-test-results/QA-TESTCASE-STATUS-2026-09-03.md`** → the **SUB** section is the single source of truth for per-case verdicts. Since FIX-Task-37 item 7 it carries explicit **`iOS` / `Android`** verdict columns, so a platform-specific PARTIAL is countable instead of living only in free-text notes (`—` means *no platform-qualified verdict on record*, not "not run").
-- **SUB totals as at 2026-09-16:** 100 cases · **PASS 78** · **PARTIAL 2** · **OPEN 2** · **RETIRED 15** · **N/A 2** · **Remaining (ACTIVE) 0**.
-  > Reconciled 2026-09-16 (FIX-Task-41 follow-through): this line read `PARTIAL 2 · OPEN 3 · Remaining 1`, which disagreed with the tracker's `PARTIAL 3 · OPEN 2 · Remaining 0`. **The tracker is canonical** (per the bullet above) — the line now matches it, and it reflects **SUB-TC-M07 🟡 PARTIAL → ✅ PASS** after the retry-success leg was driven on-device. Remaining non-PASS set: **PARTIAL** = C05, L05 · **OPEN** = D06, D07 (both fixture/clock-gated, BLOCKED — see their rows for the named reason). The pre-existing ±1 row-set residual (99 of 100 accounted) still stands and is **not** resolved by this flip.
+- **SUB totals as at 2026-09-16:** 100 cases · **PASS 75** · **PARTIAL 2** · **OPEN 5** · **RETIRED 15** · **N/A 2** · **Remaining (ACTIVE) 0**.
+  > 🔁 **Reconciled 2026-09-16 (FIX-Task-47 item 9).** This line read `PASS 78 · PARTIAL 2 · OPEN 2`. **The tracker is canonical** (per the bullet above), and after SUB Android Round 5 the tracker's §1 roll-up and section header both read **PASS 75 · PARTIAL 2 · OPEN 5** — this line now matches them. Round 5 flipped **C03 · C06 · F08 → 🔴 STILL OPEN** (Android FAIL) and **C05 → ✅ PASS** while **A05 → 🟡 PARTIAL**.
+  > Remaining non-PASS set: **OPEN** = **C03**, **C06**, **F08**, **D06**, **D07** (verified against the tracker's own rows). The **2 PARTIAL** rows are deliberately NOT enumerated here — the tracker's SUB body currently shows MORE PARTIAL-annotated rows (**A05**, **I07**, **J04**, **L05**) than its `PARTIAL 2` roll-up, so this line quotes the roll-up and leaves the row-level reconciliation to the tracker (flagged there for the next roll-up edit, FIX-Task-47 item 9). The pre-existing ±1 row-set residual (99 of 100 accounted) still stands.
+  > ⚠️ **C03 / C06 / F08 were CODE-FIXED on 2026-09-16 by FIX-Task-47** (items 1, 3 and 11 — billing-date source, `hasMore`-gated Load More + end-of-list state). They stay **🔴 OPEN** until an Android round re-drives them: a code fix is not a verdict.
 - ⚠️ The baseline quoted in the 2026-09-16 brief (`77/2/3/17 SKIPPED/1 inactive`) did **not** match the tracker — always take the numbers from the tracker, never from a brief's prose.
 
 ### 4 · Known fixture gates (check before assigning)
@@ -81,7 +83,7 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 | | SUB-TC-C12 | My Subscription "Member Since" value (latent bug) |
 | **D — Renewal, Grace & Expiry** | SUB-TC-D01 | Grace period banner + SP spendable/no-earn notice |
 | | SUB-TC-D02 | 🔴 RETIRED — in-app re-subscribe payment removed; web-first → SUB-TC-N01/N02 + Web E2E |
-| | SUB-TC-D03 | Subscription Expired screen — benefits lost + Renew |
+| | SUB-TC-D03 | Subscription Expired screen — what's missing out on + Renew (web-first join) |
 | | SUB-TC-D04 | 🔴 RETIRED — in-app renewal payment removed; web-first → SUB-TC-N01/N02 + Web E2E |
 | | SUB-TC-D05 | Reactivate from cancelled state |
 | | SUB-TC-D06 | 📦 moved to Fixture-Gated Backlog (clock/push fixture) |
@@ -156,7 +158,8 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 - App is running on iOS Simulator and/or Android Emulator.
 - The following test accounts exist and are confirmed (see Accounts table).
-- Admin portal has `subscription_price`, `trial_days`, `transaction_fee_subscriber_cents`, `transaction_fee_non_subscriber_cents`, `grace_period_days`, and `sp_expiration_days` configured (so dynamic values render).
+- Admin portal has `subscription_price`, `trial_days`, `grace_period_days`, and `sp_expiration_days` configured (so dynamic values render).
+- 💰 **Fee key (corrected 2026-09-16, FIX-Task-47 item 4):** the flat fee rendered on **Plans / Compare Plans / Payment** is `admin_config.buyer_fee_active_member_cents` — **NOT** `transaction_fee_subscriber_cents`. Editing the latter does **not** move the cell (verified live). `buyer_fee_active_member_cents` is the key actually wired into the UI and the same value the server charges (`fn_get_buyer_fee_for_checkout`), so it is the authoritative key for these assertions. Reference map: `buyer_fee_first_trade_cents` = live (server-read); `transaction_fee_subscriber_cents` = live but **display/preview only** (education SP calculator); `transaction_fee_member_cents` = **DEAD** (admin read-only "Legacy fee keys (audit only)" field; no code reads it).
 - test-seller has completed trades producing an available payout balance > 0 and lifetime earnings.
 - test-buyer (subscriber) has a Swap Points balance with at least one earned and one spent ledger entry, and at least one batch expiring within 30 days.
 - test-free has never started a trial (for trial-eligibility cases) — or a second free account `test-free-2` that has already used its trial.
@@ -184,9 +187,11 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 ### SUB-TC-A01 · Subscription Plans screen — Free vs Kids Club+ cards
 
-**Ref:** FLOW-12 · SubscriptionPlansScreen
+**Ref:** FLOW-12 · **UpgradePlanScreen** (the live plans-cards surface)
 **Actors:** test-free
 **Surfaces:** mobile
+
+> 🔧 **Ref corrected 2026-09-16 (FIX-Task-47 item 9):** this case cited `SubscriptionPlansScreen`, which is an **unregistered orphan** — nothing navigates to it. The live surface that renders the Free vs Kids Club+ cards is **`UpgradePlanScreen`** (`ScreenLayout title="Upgrade Plan"`); the route `SubscriptionChoice` maps to `JoinKidsClubScreen` for the web-first join path.
 
 **Objective:** Verify the Plans screen renders both tiers with correct icons, pricing, and CTAs.
 
@@ -197,8 +202,9 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Expected Result:**
 - Header reads "Plans" with sub-heading "Choose Your Plan".
 - **Free** card: grey crown icon, "$0", "forever"; no trial CTA (free user already on free).
-- **Kids Club+** card: green crown icon, the configured monthly price, and a "{N}-day free trial" label.
-- Kids Club+ CTA reads **[Start {N}-day Trial]**.
+- **Kids Club+** card: green crown icon and the configured monthly price.
+- Kids Club+ CTA starts the join path.
+  - 🔧 **Trial copy corrected 2026-09-16 (FIX-Task-47 item 9):** this row used to promise a "{N}-day free trial" label and a **[Start {N}-day Trial]** CTA. Trials are **disabled** on staging (`admin_config.trial_enabled=false`) and the app copy is config-gated (`useTrialEligibility`), so **no trial label and no trial CTA render**. If `trial_enabled` is ever flipped back on, the trial copy returns automatically — so assert the live surface rather than this line.
 - Feature rows show a check icon for included features and an X for excluded ones (Trade with PIPs, Reduced fees, transaction-fee comparison).
 
 ---
@@ -218,9 +224,11 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Expected Result:**
 - Header "Compare Plans" with sub-heading "Choose What Works For You".
 - Column 1 = feature names; Column 2 = Free (grey crown, $0, "Forever"); Column 3 = Kids Club+ (green crown, monthly price, "/month", **POPULAR** badge).
-- Rows include monthly subscription, trial period ("{N} days"), and transaction fee (free fee vs subscriber fee), each with a check/X or text value.
+- Rows include monthly subscription, trial period, and transaction fee (the free-user fee vs the Kids Club+ flat fee), each with a check/X or text value.
+  - 🔧 **Trial row corrected 2026-09-16 (FIX-Task-47 item 9):** with `admin_config.trial_enabled=false` (the staging state) this row reads **"No"**, not "{N} days".
 - "Why Upgrade to Kids Club+?" section shows "Trade with PIPs" and "Lower fees".
-- **[Free Plan]** returns to the previous screen; **[Start {N}-day Trial]** navigates to the payment screen with isRenewal = false.
+- **[Free Plan]** returns to the previous screen; the Kids Club+ CTA starts the join path.
+  - 🔧 **CTA corrected 2026-09-16 (FIX-Task-47 item 9):** the CTA is **not** "[Start {N}-day Trial]" while `trial_enabled=false`, and in-app subscription purchase is retired (web-first — see SUB-TC-N01/N02).
 
 ---
 
@@ -233,13 +241,13 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Objective:** Verify prices/fees shown in app come from admin config, not hardcoded.
 
 **Steps:**
-1. As **test-admin**, change the subscription monthly price (e.g., to a distinct value) and the subscriber transaction fee in admin config; save.
+1. As **test-admin**, change the subscription monthly price (e.g., to a distinct value) and **`buyer_fee_active_member_cents`** in admin config (`/settings/trade-timing` → "Flat Fee — Active Members"); save.
 2. As **test-free**, open Plans, Compare Plans, and the payment screen.
 
 **Expected Result:**
 - The new monthly price appears on Plans, Comparison, Upgrade, and Payment screens.
-- The new subscriber/non-subscriber transaction fee values appear in the comparison and on the payment "Lower Transaction Fees" benefit line.
-- If config is missing, screens fail safe (show a loading spinner / $0.00 placeholder and log an error) rather than crashing.
+- The new flat fee appears in the comparison's fee cell (rendered as "{fee} flat") and on the payment benefit line ("Pay a flat {fee} Safety & Platform Fee on every trade").
+- 🔧 **Fail-safe behaviour corrected 2026-09-16 (FIX-Task-47 item 4):** when the fee key cannot be read the screens show an **explicit unavailable state** — the comparison cell reads "Flat fee unavailable" and the benefit sentence drops the amount ("Flat Safety & Platform Fee on every trade"). They do **not** fall back to a hardcoded $1.49 and do **not** crash. (Previously a failed read silently rendered a plausible-but-wrong $1.49 that neither a user nor QA could detect.)
 
 ---
 
@@ -401,7 +409,9 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 **Expected Result:**
 - Plan card shows a green crown, "Kids Club+ Plan", the monthly price, an "ACTIVE member" badge, the renewal date, and a "Member Since" date.
-- Benefits list shows the three subscription benefits with green check icons.
+- Benefits list shows the subscription benefits with green check icons — **2 lines** as shipped, **not three**.
+  - 🔧 **Corrected 2026-09-17 (FIX-Task-50 item 6).** The live source is `MY_SUBSCRIPTION_BENEFITS` in `src/constants/subscriptionPlans.ts`: *"Trade with PIPs — help buyers save and sellers move inventory faster"* and *"Reduced transaction fees — save on every purchase"*. A **third** line (*"30-day free trial to explore all benefits"*) is appended **only** when `admin_config.trial_enabled = true` (greyed out on staging). Assert the count from the constants on the day of the run.
+  - ⚠️ **Do not compare this list with Manage Kids Club+** — that screen renders a *different*, 4-line "Kids Club+ Benefits" list (earn & spend SP / reduced member fee / priority visibility / exclusive features). Two different lists are correct; they are not the same surface.
 - A **[Manage Subscription]** action is present (not the upgrade CTA shown to free users).
 
 ---
@@ -420,13 +430,14 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Expected Result:**
 - Billing History → Transaction/Billing History screen.
 - Payment Method → Manage Kids Club+ screen.
-- Get Help → an alert with the support email.
+- Get Help → the in-app **Contact Support** form (subject + message + **Send Message**, "Have a question or issue? Send us a message and we'll get back to you within 24 hours.").
+  - 🔧 **Corrected 2026-09-17 (FIX-Task-50 item 6).** This previously read *"an alert with the support email"*. The live surface is the in-app form (route `ContactSupport`) and **no raw support email may be shown** — §6.4's canonical rule. Do not assert a native alert or a mailto address here.
 
 ---
 
 ### SUB-TC-C03 · Manage Kids Club+ — status, next billing, days remaining
 
-> ⚠️ **Needs re-verification (2026-08-12):** The helper text "You'll continue to have access until the end of your current billing period." was not found verbatim — verify the actual helper copy.
+> ✅ **Resolved 2026-09-16 (FIX-Task-47 item 9).** The quoted helper text does not exist on the live screen. The actual copy is the **cancel note under [Cancel Kids Club+]**: "You will keep your benefits until the end of your billing period." (active) / "Cancelling your trial will end it immediately." (trial). The screen also renders a **billing helper line** under the billing-date row added by FIX-Task-47 item 10 (`testID="manage-kids-club-billing-helper"`, e.g. "Your plan renews monthly on the date shown above.") whose wording must agree with the date above it.
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (active)
@@ -439,8 +450,9 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 **Expected Result:**
 - Shows current status, next billing date, and days remaining (rounded up).
-- Includes **[Cancel Subscription]**, **[View Billing History]**, an auto-renew toggle, and a payment-method section (with masked card / "Add Payment Method").
-- Helper text: "You'll continue to have access until the end of your current billing period."
+  - 🔧 **Billing-date source (corrected 2026-09-16, FIX-Task-47 item 1):** the date is `next_billing_date || subscription_expires_at || trial_ends_at`. `subscription_expires_at` is **not populated on staging** for active members, so any screen that omits `next_billing_date` renders a **stale trial-end date** (and the "Days Remaining" row disappears, because the stale date is in the past). The reliable assertion is a cross-check: **Manage Kids Club+ and My Subscription must show the SAME date for the same user.** That cross-check is what exposed the bug — the app contradicted itself.
+- Includes **[Cancel Kids Club+]**, a billing-history link, an auto-renew toggle, and a payment-method section (with masked card / "Add Payment Method").
+- Cancel note (live copy): "You will keep your benefits until the end of your billing period." (active) / "Cancelling your trial will end it immediately." (trial).
 
 ---
 
@@ -480,6 +492,8 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 - After confirming, the subscription is set to cancel at period end (a trial ends immediately) and the status updates; a "Cancellation Confirmed" message appears.
 - Note: the separate retention screen (CancelSubscriptionScreen, reached from My Subscription) has **no** reason selector — "I still want to cancel" there confirms via a "Cancel Subscription?" alert using a hardcoded reason.
 
+> 🔁 **Reactivating after cancelling (corrected 2026-09-16, FIX-Task-47 item 7):** there is **no `[Reactivate Membership]` button anywhere in the app**. On a cancelled-but-still-within-period subscription the live reactivation path is the **Auto-Renew switch** on Manage Kids Club+ — it renders **OFF** for a cancelled row, and turning it **ON** calls `update-auto-renew`, which clears Stripe's `cancel_at_period_end` and restores the subscription (no new charge while still inside the paid period). See SUB-TC-C06 and SUB-TC-D05.
+
 **Setup:**
 - Logged in as **test-buyer** who is an **active Kids Club+ subscriber** (trial or paid) so the Manage Kids Club+ cancel path is reachable. A seeded active subscriber is required; a cancelled/expired account will not render the [Cancel Kids Club+] button.
 
@@ -504,7 +518,7 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 ### SUB-TC-C06 · Cancelled subscription stays active until period end
 
-> ⚠️ **Needs re-verification (2026-08-12):** The "can reactivate" message was not found verbatim — verify the actual reactivation messaging.
+> ✅ **Resolved 2026-09-16 (FIX-Task-47 item 7).** There is no "can reactivate" message and no `[Reactivate Membership]` control on the live screen. The cancelled state actually renders: the status badge **Cancelled**, the **Access Until** row (same date source as the Next Billing Date row — see SUB-TC-C03), and an info box reading *"Your subscription is cancelled — You will continue to have Kids Club+ benefits until your billing period ends. After that, your Swap Points will be frozen for a {N}-day grace period."* Reactivation uses the **Auto-Renew switch** (below).
 
 **Ref:** FLOW-12 · ManageKidsClubScreen
 **Actors:** test-buyer (just cancelled)
@@ -517,7 +531,8 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 **Expected Result:**
 - Status shows cancelled but still active until the period end date.
-- SP wallet remains usable until the period ends; a "can reactivate" message is shown.
+- SP wallet remains usable until the period ends.
+- **Reactivation:** the Manage Kids Club+ **Auto-Renew switch** is shown **OFF** for a cancelled row; turning it **ON** reactivates the subscription (Stripe `cancel_at_period_end` cleared; no new charge while still within the paid period). Do **not** look for a `[Reactivate Membership]` button — it does not exist.
 
 ---
 
@@ -595,20 +610,20 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Expected Result:**
 - Navigates to the Help screen with the `sp_definition` section.
 
-### SUB-TC-C12 · My Subscription "Member Since" value (latent bug)
+### SUB-TC-C12 · My Subscription "Member Since" value
 
 **Ref:** FLOW-12 · MySubscriptionScreen
 **Actors:** test-buyer
 **Surfaces:** mobile
 
-**Objective:** Document the hardcoded "Member Since" value as a latent bug to verify.
+**Objective:** Verify the **Member Since** row reflects the account's real join date.
 
 **Steps:**
 1. As a paid member, open **My Subscription** and read the **Member Since** row.
 
 **Expected Result:**
-- The row renders the literal `May 2024` regardless of the actual subscription start date.
-- **Flag for product:** this is a hardcoded string, not derived from the subscription record — worth a product-side look.
+- The row renders the signed-in account's **real** join date.
+- ✅ **"Latent bug" framing RETIRED 2026-09-16 (FIX-Task-47 item 9).** The value is **correctly derived, not hardcoded**: `MySubscriptionScreen` renders `formatRenewalDate(user.created_at)`, i.e. `auth.users.created_at`, and a QA round confirmed it DB-exact. The older claim ("renders the literal `May 2024`" + "flag for product") described a hardcoded string that does not exist. Assert the rendered date against the account's `created_at` instead.
 
 ---
 
@@ -620,15 +635,18 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Actors:** test-grace
 **Surfaces:** mobile
 
-**Objective:** Verify grace-period messaging and the SP-freeze warning.
+**Objective:** Verify grace-period messaging and the SP spendable / no-new-earnings notice.
 
 **Steps:**
 1. As **test-grace**, open Manage Kids Club+ / Kids Club+ overview.
 
 **Expected Result:**
-- An urgency message ("Your subscription ended on …") with days left in grace (default 90) is shown.
-- A notice explaining what happens to Swap Points if the user does not re-subscribe is displayed alongside a **[Re-subscribe]** CTA.
+- The grace notice is anchored to an **absolute re-subscribe-by date**, not a countdown: "Grace Period Active" + **"Re-subscribe before {grace_ends_at} …"** (rendered from `subscriptions.grace_ends_at`, e.g. "November 9, 2026" for `test-grace`) + the **[Re-subscribe to Kids Club+]** CTA.
+  - 🔧 **Corrected 2026-09-17 (FIX-Task-50 item 6).** This read *"an urgency message ("Your subscription ended on …") with days left in grace (default 90)"* — neither element exists on the live screen: there is no "ended on" line and no days-left count, only the absolute date. Assert the date against the DB value.
+- The notice states the **R6** rule — SP stays **SPENDABLE**, only new **EARNINGS** stop. Live copy (FIX-Task-50 item 1, 2026-09-17):
+  > "Your Swap Points are still spendable, but you won't earn new ones. Re-subscribe before {date} to keep earning and keep your points available."
   - **R6 correction (2026-09-16, FIX-Task-37 item 4):** this expected result previously read *"Your SP wallet will be frozen if you don't re-subscribe"*. That is the **stale pre-R6** model. During grace the wallet stays **SPENDABLE** — the user keeps spending existing SP and stops **EARNING** new SP; it is frozen only when the grace window **ENDS**. Assert the live banner copy on the device rather than this note, and cross-reference **SUB-TC-I05** (the wallet-state view of the same rule).
+  - **FIX-Task-50 item 1 (2026-09-17) — the app contradicted ITSELF here.** The live banner still claimed *"Your Swap Points are frozen"* while the SP Wallet screen (same user, same build, same session) said the points were spendable. The wrong copy was swept app-wide: the Manage grace **and** cancelled branches, `SubscriptionBanner`, `SubscriptionStatusCard`, the cancellation notification (client **and** the `stripe-webhook-subscriptions` writer) and the SP Wallet grace banner now all state the R6 rule. **Cross-screen assertion:** Manage Kids Club+ and the SP Wallet screen must not contradict each other for the same user.
 
 ---
 
@@ -640,9 +658,9 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 ---
 
-### SUB-TC-D03 · Subscription Expired screen — benefits lost + Renew
+### SUB-TC-D03 · Subscription Expired screen — what's missing + Renew
 
-> ⚠️ **Needs re-verification (2026-08-12):** Index title says "benefits lost" but the screen uses "What you're missing out on:" — verify the intended description matches current copy.
+> ✅ **Resolved 2026-09-17 (FIX-Task-50 item 6).** The "benefits lost" wording is **not a defect**: the live heading is *"What you're missing out on:"* and that copy is confirmed correct. This case is now titled to match the shipped copy; the 2026-08-12 ⚠️ note is retired.
 
 **Ref:** FLOW-12 · SubscriptionExpiredScreen
 **Actors:** A user whose grace period has fully expired
@@ -654,9 +672,12 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 1. Trigger / fast-forward to a fully expired subscription and open the **Subscription Expired** screen.
 
 **Expected Result:**
-- Header "Subscription Expired" with "Your {planName} plan ended on {expiredDate}".
-- "What you're missing out on:" lists Trade with PIPs, Reduced Fees, and Keep Your Points.
-- **[Renew Plan]** → payment screen with isRenewal = true; **[Continue with Free Plan]** → Discover.
+- Header "Subscription Expired" with "Your {planName} plan ended on {expiredDate}" — the date is the subscription row's own period end (`current_period_end`), never a route param.
+- "What you're missing out on:" lists Trade with PIPs, Reduced Fees, and Keep Your Points (three benefit cards).
+- **[Renew Plan]** → the **web-first Kids Club+ join surface** ("Membership is managed on the web" + **Join on the web**); **[Continue with Free Plan]** → **Discover**.
+  - 🔧 **Corrected 2026-09-17 (FIX-Task-50 item 6).** This read *"[Renew Plan] → payment screen with isRenewal = true"*. That in-app payment screen was **retired 2026-09-02 (web-first)** — see SUB-TC-B01/B02 and SUB-TC-D04. Expect the join surface, not a payment form.
+- Both CTAs are **pinned above the fold** — visible without scrolling (FIX-Task-50 item 8), and **fully clear of the bottom of the screen**: the floating pill nav is **hidden** on this route (FIX-Task-50 item 2), so tapping **Continue with Free Plan** must open **Discover** and never the **Sell** action sheet.
+  - 🔧 **Corrected 2026-09-17 (FIX-Task-50 item 2).** Before the fix `continue-free-link` sat under the pill band (y2200–2296 vs the pill's 2190–2295) with its centre inside the Sell pill, and driving it opened the Sell sheet — a wrong-flow mis-hit, not a cosmetic overlap. Re-assert this after any change to the screen's layout or to the tab bar.
 
 ---
 
@@ -677,10 +698,14 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Objective:** Verify reactivation before expiry restores active status.
 
 **Steps:**
-1. As a cancelled user (still within period), tap **[Reactivate Membership]**.
+1. As a cancelled user (still **within** the paid period), open **Manage Kids Club+**.
+2. In the management card, switch **Auto-Renew** back **ON** (it renders OFF for a cancelled row).
+3. Reopen the screen (or pull-to-refresh) and confirm the status badge returns to **Active**.
 
 **Expected Result:**
-- The subscription returns to Active without a new charge if still within the paid period; messaging confirms reactivation.
+- The subscription returns to Active without a new charge while still within the paid period, and the Auto-Renew switch stays ON.
+- 🔧 **Control corrected 2026-09-16 (FIX-Task-47 item 7):** the live mechanism is the **Auto-Renew switch** — there is **no `[Reactivate Membership]` button** on Android or iOS. The older wording described a control that does not exist, which made this case un-runnable as written. Wiring: `AutoRenewToggle` → `updateAutoRenew(true)` → `update-auto-renew` Edge Function → Stripe `cancel_at_period_end: false` → the `customer.subscription.updated` webhook restores the row's status.
+- ⚠️ **Do not confuse two controls:** **Re-subscribe to Kids Club+** (`resubscribe-kids-club-button`) is a DIFFERENT path that only appears in the `grace_period` / `expired` states — i.e. after the period has already ended.
 
 > 📦 **SUB-TC-D06 · Subscription event notifications** and **SUB-TC-D07 · Grace reminder notifications** were **moved (2026-09-02) to the Fixture-Gated Backlog** at the end of this guide (clock/push-fixture dependent — not runnable on the live app without fast-forward tooling). Their full case bodies live there; see that section.
 
@@ -899,7 +924,9 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 1. As **test-seller** with more than 5 payouts, open Payout Settings and tap **Load More** in PAYOUT HISTORY.
 
 **Expected Result:**
-- The list grows by **5** per tap (initial page = 5); **Load More** disappears when no more payouts remain; pull-to-refresh resets the list to the first 5.
+- The list grows by **5** per tap (initial page = 5); pull-to-refresh resets the list to the first 5.
+- ✅ **Load More now disappears on the last page (fixed 2026-09-16, FIX-Task-47 item 3).** The screen proves `hasMore` by requesting one row past the page size, so the button is only rendered while more rows exist — as this line always claimed but the build did not do (the button used to render unconditionally whenever any row existed, and a tap at the last page was a silent no-op; that was the Android SUB-TC-F08 FAIL).
+- **End-of-list state (FIX-Task-47 item 11):** once the last page is loaded the list ends with **"That's all your payouts"** (`testID="payout-history-end"`) instead of a dead button.
 
 ---
 
@@ -1826,9 +1853,11 @@ The hosted drive runs in **system Safari** (the app opens the `account_link`). C
 - Success signal (API): `details_submitted=true`, `payouts_enabled=true`, `charges_enabled=true`, `currently_due=[]`.
 - Known-good staging Connect accounts: `acct_1U9DMMKX7Q9JD914` (test-seller) · `acct_1TqgWD4BuYEBpSwh` (verified staging seller, user `d84bcc68-…`) · `acct_1UCgIu4HHYZdHIok` (QA Task 37 disposable — deleted after).
 
-### D05 — Reactivate from cancelled / grace (hosted Checkout card form)
+### Grace/expired re-subscribe — hosted Checkout card form (NOT SUB-TC-D05)
 
-When re-subscribing drives a real Checkout session in Safari (D05-style reactivation), the card form has its own recipe:
+> **Scope corrected 2026-09-16 (FIX-Task-47 item 7).** **SUB-TC-D05** (reactivate a cancelled subscription while still inside the paid period) uses the **Auto-Renew switch** on Manage Kids Club+ and never opens Checkout. This recipe applies only to the **grace_period / expired** re-subscribe path, where the period has already ended and a real (web-first) purchase is required.
+
+When re-subscribing drives a real Checkout session in Safari, the card form has its own recipe:
 
 - Select the **Card** radio to reveal the embedded card fields.
 - **After the first focus misdirection, Cmd+A select-all + retype EVERY field** — hosted Checkout fields are embedded and misdirect taps (QA Task 37: tapping "ZIP" appended to the CARDHOLDER field).
@@ -1970,9 +1999,9 @@ Pull-to-refresh is **not** a sync. After a hosted Express completion returns to 
 | Cancel reason modal + final confirm | SUB-TC-C05 |
 | Cancelled active until period end | SUB-TC-C06, SUB-TC-R04 |
 | Auto-renew toggle / update payment | SUB-TC-C07 |
-| Grace period banner + SP freeze warning (FLOW-10/12) | SUB-TC-D01 |
+| Grace period banner + SP spendable / no-earn notice (FLOW-10/12) | SUB-TC-D01 |
 | 🔴 RETIRED — in-app re-subscribe from grace (web-first; → N01/N02 + Web E2E) | SUB-TC-D02 |
-| Subscription Expired screen | SUB-TC-D03 |
+| Subscription Expired screen — what's missing out on + Renew (web-first join) | SUB-TC-D03 |
 | 🔴 RETIRED — in-app renewal payment (web-first; → N01/N02 + Web E2E) | SUB-TC-D04 |
 | Reactivate from cancelled | SUB-TC-D05 |
 | 📦 Subscription event notifications (FLOW-17) — fixture-gated backlog | SUB-TC-D06 |

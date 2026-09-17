@@ -85,7 +85,8 @@ export type RootStackParamList = {
   Chat: { tradeId: string };
   // MODULE-06 (EXT): Seller Payout routes
   PayoutSettings: { showNoMethodModal?: boolean } | undefined;
-  SellerEarnings: undefined;
+  // FIX-Task-48 item 2 (2026-09-16): `SellerEarnings` was retired (dead screen);
+  // `RequestPayout` stays registered for legacy push/deep-link safety.
   RequestPayout: undefined;
   // Admin routes
   AdminDashboard: undefined;

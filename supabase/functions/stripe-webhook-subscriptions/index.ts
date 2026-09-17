@@ -1283,7 +1283,11 @@ async function sendCancellationConfirmationNotification(userId: string, accessUn
       category: 'subscription',
       type: 'subscription',
       title: 'Subscription Cancelled',
-      body: `Your Kids Club+ subscription has been cancelled. You'll have access until ${formattedDate}, then enter a 90-day grace period where your Swap Points will be frozen.`,
+      // FIX-Task-50 item 1 (class sweep, 2026-09-17): R6 model — during grace the wallet
+      // stays SPENDABLE and only new EARNING stops; it freezes when the grace window ends.
+      // The hardcoded "90-day" was dropped too: the window is
+      // admin_config.grace_period_days (30 on staging), so the copy must not assert it.
+      body: `Your Kids Club+ subscription has been cancelled. You'll have access until ${formattedDate}, then a grace period where you can still spend your Swap Points but won't earn new ones.`,
       channels: ['push', 'in_app'],
       data: {
         event: 'subscription_cancelled',
@@ -1303,7 +1307,8 @@ async function sendCancellationConfirmationNotification(userId: string, accessUn
       body: {
         user_id: userId,
         title: 'Subscription Cancelled',
-        body: `You'll have access until ${formattedDate}. Your Swap Points will be frozen after.`,
+        // FIX-Task-50 item 1 (class sweep): same R6 wording as the in-app copy above.
+        body: `You'll have access until ${formattedDate}. After that you can still spend your Swap Points, but you won't earn new ones.`,
         data: {
           type: 'subscription',
           event: 'subscription_cancelled',

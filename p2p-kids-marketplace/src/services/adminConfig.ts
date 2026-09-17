@@ -3,6 +3,7 @@
 
 import { supabase } from '../config/supabase';
 import { getSimulatedConfigFetchFailure } from './devTestingService';
+import { withLoadTiming } from '../utils/loadTiming';
 import { AppState } from 'react-native';
 
 export interface AdminConfig {
@@ -80,7 +81,13 @@ export interface AdminConfig {
   // Tiered Buyer-Fee Engine (R1) — flat/percentage buyer fee params.
   // Read via fn_get_buyer_fee_for_checkout (authoritative); these mirrors exist
   // so the config cache can expose them if needed.
-  buyer_fee_active_member_cents: number;
+  //
+  // FIX-Task-47 item 4 (2026-09-16): OPTIONAL by design. It is deliberately
+  // absent from `getDefaultConfig()`, so `undefined` means "the live value could
+  // not be read" and `getActiveMemberFeeCents()` surfaces that as `null`. A
+  // default of 149 here would silently re-introduce the plausible-but-wrong
+  // fallback this change removes.
+  buyer_fee_active_member_cents?: number;
   buyer_fee_first_trade_cents: number;
   buyer_fee_subsequent_percentage: number;
   buyer_fee_subsequent_fixed_cents: number;
@@ -92,6 +99,15 @@ export interface AdminConfig {
 let configCache: AdminConfig | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// FIX-Task-47 item 2 (2026-09-16): IN-FLIGHT DEDUP.
+// The subscription screens fan out several FORCED reads at once (Manage Kids Club+
+// issues 2, Upgrade Plan 3, Compare Plans 4). A forced read bypasses the TTL cache,
+// so each one re-issued the FULL admin_config SELECT, all concurrently, and every
+// reply raced to write the same cache slot. Concurrent callers now share one
+// request. The slot is cleared as soon as it settles, so the next read (including a
+// retry after a failure) starts fresh.
+let _configPromise: Promise<AdminConfig> | null = null;
 
 function normalizeSubscriptionPriceMonthly(rawValue: number): number {
   if (!Number.isFinite(rawValue) || rawValue <= 0) {
@@ -116,6 +132,26 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
     return configCache;
   }
 
+  // FIX-Task-47 item 2 (2026-09-16): share ONE in-flight read between concurrent
+  // callers (see the `_configPromise` note above).
+  if (_configPromise !== null) {
+    return _configPromise;
+  }
+
+  _configPromise = loadAdminConfig();
+
+  try {
+    return await _configPromise;
+  } finally {
+    _configPromise = null;
+  }
+}
+
+/**
+ * The actual read, kept separate so `getAdminConfig` can own the in-flight slot
+ * without duplicating the cache / simulation-failure logic.
+ */
+async function loadAdminConfig(): Promise<AdminConfig> {
   // QA TRD-TC-B05i (dev-only, session-local): simulate the admin_config fetch
   // failing — exercises the fail-soft path (getDefaultConfig) on demand WITHOUT
   // touching shared-staging admin_config. Fail-closed outside dev/test.
@@ -136,10 +172,10 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
         }[]
       | null = null;
 
-    const { data: keyValueRows, error: keyValueError } = await supabase
-      .from('admin_config')
-      .select('key, value, data_type')
-      .eq('is_active', true);
+    const { data: keyValueRows, error: keyValueError } = await withLoadTiming(
+      'adminConfig.admin_config (select)',
+      supabase.from('admin_config').select('key, value, data_type').eq('is_active', true)
+    );
 
     if (!keyValueError && keyValueRows) {
       configRows = keyValueRows as {
@@ -290,7 +326,13 @@ function getDefaultConfig(): AdminConfig {
     charge_one_fee_per_bundle: false,
 
     // Tiered Buyer-Fee Engine (R1) — seed defaults; admin_config is authoritative.
-    buyer_fee_active_member_cents: 149,
+    //
+    // FIX-Task-47 item 4 (2026-09-16): `buyer_fee_active_member_cents` is
+    // DELIBERATELY ABSENT here. It is the fee the Kids Club+ screens RENDER, so a
+    // default would let a failed config fetch advertise a wrong $1.49 that looks
+    // perfectly plausible and is unverifiable by users or QA.
+    // `getActiveMemberFeeCents()` returns null instead, and every surface shows
+    // an explicit unavailable state (see `utils/memberFeeCopy.ts`).
     buyer_fee_first_trade_cents: 149,
     buyer_fee_subsequent_percentage: 5.0,
     buyer_fee_subsequent_fixed_cents: 199,
@@ -497,21 +539,30 @@ export async function getBuyerFeeForCheckout(
 /**
  * R1 — Tiered Buyer-Fee Engine: the flat Safety & Platform Fee charged to active
  * members (subscription trial|active), dynamic from admin_config
- * (buyer_fee_active_member_cents). Used by the subscription marketing/plan screens.
- * Fallback 149 matches the seed default in 20260810000009_tiered_buyer_fee_engine.sql
- * (BP-13 — the canonical source is admin_config).
+ * (buyer_fee_active_member_cents). The server remains authoritative for the actual
+ * charge (`fn_get_buyer_fee_for_checkout`); this reader feeds the plan/marketing copy.
+ *
+ * FIX-Task-47 item 4 (2026-09-16): returns `null` when the live value cannot be
+ * read. It used to return a hardcoded `149` (backed by another 149 in
+ * `getDefaultConfig()`), so a failed config fetch silently rendered a
+ * plausible-but-wrong $1.49 on every subscription surface. Callers MUST render an
+ * explicit unavailable state via `utils/memberFeeCopy.ts` — never a number.
  */
-export async function getActiveMemberFeeCents(forceRefresh = false): Promise<number> {
+export async function getActiveMemberFeeCents(forceRefresh = false): Promise<number | null> {
   try {
     const config = await getAdminConfig(forceRefresh);
     const raw = Number(config.buyer_fee_active_member_cents);
     if (Number.isFinite(raw) && raw >= 0) {
       return Math.round(raw);
     }
+
+    console.warn(
+      '[adminConfig] buyer_fee_active_member_cents is unavailable — no fallback is applied (FIX-Task-47 item 4).'
+    );
   } catch (err) {
     console.warn('[adminConfig] getActiveMemberFeeCents error:', (err as Error).message);
   }
-  return 149;
+  return null;
 }
 
 export async function getSPExpirationDays(forceRefresh = false): Promise<number> {

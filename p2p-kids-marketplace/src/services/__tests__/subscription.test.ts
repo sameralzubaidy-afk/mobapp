@@ -14,6 +14,7 @@
 import { supabase } from '../../config/supabase';
 import {
   getSubscriptionSummary,
+  getSubscriptionPeriodEnd,
   canAcceptSwapPoints,
   getSubscriptionStatusString,
   isTrialEligible,
@@ -936,5 +937,116 @@ describe('Subscription Service - TASK SUB-002', () => {
       expect(call.body).toBeUndefined();
       expect(pm?.id).toBe('pm_default_4242');
     });
+  });
+});
+
+/**
+ * FIX-Task-47 item 1 (2026-09-16).
+ *
+ * Regression guard for the wrong billing date on Manage Kids Club+. The screen
+ * rendered `subscription_expires_at || trial_ends_at`, omitting `next_billing_date`
+ * entirely — and because staging leaves `subscription_expires_at` unpopulated for
+ * active members, it showed a stale trial-end date as "Next Billing Date" while
+ * the same user's My Subscription screen showed the correct one.
+ *
+ * `getSubscriptionPeriodEnd` is now the single source of truth for BOTH screens, so
+ * these cases pin the precedence order itself.
+ */
+describe('getSubscriptionPeriodEnd — FIX-Task-47 item 1', () => {
+  it('prefers next_billing_date (the case that was broken)', () => {
+    expect(
+      getSubscriptionPeriodEnd({
+        next_billing_date: '2026-09-27T00:00:00Z',
+        subscription_expires_at: '2026-07-27T00:00:00Z',
+        trial_ends_at: '2026-07-27T00:00:00Z',
+      })
+    ).toBe('2026-09-27T00:00:00Z');
+  });
+
+  it('falls back to subscription_expires_at when next_billing_date is absent', () => {
+    expect(
+      getSubscriptionPeriodEnd({
+        next_billing_date: null,
+        subscription_expires_at: '2026-09-27T00:00:00Z',
+        trial_ends_at: '2026-07-27T00:00:00Z',
+      })
+    ).toBe('2026-09-27T00:00:00Z');
+  });
+
+  it('falls back to trial_ends_at when both billing fields are absent', () => {
+    expect(
+      getSubscriptionPeriodEnd({
+        next_billing_date: null,
+        subscription_expires_at: null,
+        trial_ends_at: '2026-07-27T00:00:00Z',
+      })
+    ).toBe('2026-07-27T00:00:00Z');
+  });
+
+  it('returns null when every date is absent or the subscription is null', () => {
+    expect(
+      getSubscriptionPeriodEnd({
+        next_billing_date: null,
+        subscription_expires_at: null,
+        trial_ends_at: null,
+      })
+    ).toBeNull();
+    expect(getSubscriptionPeriodEnd(null)).toBeNull();
+    expect(getSubscriptionPeriodEnd(undefined)).toBeNull();
+  });
+
+  it('treats an empty-string field as absent rather than returning it', () => {
+    expect(
+      getSubscriptionPeriodEnd({
+        next_billing_date: '',
+        subscription_expires_at: '2026-09-27T00:00:00Z',
+        trial_ends_at: null,
+      })
+    ).toBe('2026-09-27T00:00:00Z');
+  });
+});
+
+/**
+ * FIX-Task-47 item 2 (2026-09-16) — the subscription read is now deduped in-flight.
+ *
+ * MySubscriptionScreen and UpgradePlanScreen each run `useSubscription()` (one read
+ * apiece) and ManageKidsClubScreen reads directly, so moving between subscription
+ * screens re-issued the identical `get_subscription_status` + `get_user_transaction_fee`
+ * pair and doubled the load chain on a surface already measured at 20–50s to paint.
+ */
+describe('getSubscriptionSummary — FIX-Task-47 item 2 (in-flight dedup)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetSimulatedSubscriptionReadFailure.mockResolvedValue('none');
+  });
+
+  it('shares ONE read between concurrent calls for the same user', async () => {
+    mockRpc.mockResolvedValue({ data: [{ status: 'active' }], error: null } as never);
+
+    const [a, b] = await Promise.all([
+      getSubscriptionSummary('user-1'),
+      getSubscriptionSummary('user-1'),
+    ]);
+
+    expect(a).toEqual(b);
+    // Before the fix this was 2 (one status RPC per caller).
+    const statusCalls = mockRpc.mock.calls.filter((call) => call[0] === 'get_subscription_status');
+    expect(statusCalls).toHaveLength(1);
+  });
+
+  it('never lets one user adopt another user\'s in-flight result', async () => {
+    mockRpc.mockResolvedValue({ data: [{ status: 'active' }], error: null } as never);
+
+    await Promise.all([
+      getSubscriptionSummary('user-1'),
+      getSubscriptionSummary('user-2'),
+    ]);
+
+    const statusCalls = mockRpc.mock.calls.filter((call) => call[0] === 'get_subscription_status');
+    expect(statusCalls).toHaveLength(2);
+    expect(statusCalls.map((call) => (call[1] as { p_user_id: string }).p_user_id).sort()).toEqual([
+      'user-1',
+      'user-2',
+    ]);
   });
 });

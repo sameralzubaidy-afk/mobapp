@@ -7,7 +7,8 @@
 // - For 'trial' users without SP activity: Move to 'free'
 //
 // Per V2 rules:
-// - SP wallet is frozen only when entering grace_period
+// - SP wallet moves to 'grace_period' (still SPENDABLE, no new earnings) — it is
+//   frozen only when the grace window ENDS (grace-period-cron)
 // - User keeps Kids Club+ benefits until current period ends (for active)
 // - cancel_reason is captured for analytics
 

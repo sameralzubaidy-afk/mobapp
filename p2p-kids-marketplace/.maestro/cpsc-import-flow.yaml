@@ -36,12 +36,10 @@ appId: com.kidsmarketplace.app  # Update with your actual app ID
 # Verify at least one import log entry exists
 - assertVisible:
     text: ".*Import.*"
-    regex: true
 
 # Check for status indicators
 - assertVisible:
     text: "success|partial|failed"
-    regex: true
 
 # STATE 2: View Recall List
 - tapOn:
@@ -54,11 +52,9 @@ appId: com.kidsmarketplace.app  # Update with your actual app ID
 # Verify recalls are displayed with required fields
 - assertVisible:
     text: "Product.*"
-    regex: true
 
 - assertVisible:
     text: "Recall Date.*"
-    regex: true
 
 # STATE 3: Search Recalls
 - tapOn:
@@ -69,7 +65,6 @@ appId: com.kidsmarketplace.app  # Update with your actual app ID
 # Verify search results appear
 - assertVisible:
     text: ".*results.*"
-    regex: true
 
 # STATE 4: View Recall Details
 - tapOn:
@@ -121,12 +116,10 @@ appId: com.kidsmarketplace.app  # Update with your actual app ID
 # Verify recall count
 - assertVisible:
     text: "Total Recalls: .*"
-    regex: true
 
 # Verify last import date
 - assertVisible:
     text: "Last Import: .*"
-    regex: true
 
 # FINAL ASSERTION: Verify system is operational
 - assertVisible:

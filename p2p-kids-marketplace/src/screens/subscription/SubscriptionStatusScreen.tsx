@@ -241,8 +241,12 @@ export default function SubscriptionStatusScreen() {
             <Row label="Started" value={formatDate(info.grace_started_at)} />
             <Row label="Ends" value={formatDate(info.grace_ends_at)} />
             <Row label="Remaining" value={getDaysRemaining(info.grace_ends_at)} highlight />
+            {/* FIX-Task-50 item 1 (class sweep, 2026-09-17): R6 model — grace keeps SP
+                spendable and stops only new earnings; the wallet freezes when the
+                grace window ends. */}
             <Text style={styles.warningText}>
-              SP wallet is frozen. User must re-subscribe to restore access.
+              SP stays spendable during grace (no new earnings); the wallet freezes when the grace
+              window ends.
             </Text>
           </View>
         )}

@@ -33,7 +33,13 @@ export default function GracePeriodBanner({
     } else if (isUrgent) {
       return `Only ${daysRemaining} days left! Re-subscribe to keep your Swap Points.`;
     } else {
-      return `You have ${daysRemaining} days to re-subscribe before your Swap Points are deleted.`;
+      // FIX-Task-50 item 1 (class sweep, 2026-09-17): this card is the FIRST grace
+      // surface a parent sees (Home → Action Items) and it claimed the points are
+      // DELETED at the end of grace. They are not: `grace-period-cron` FREEZES the
+      // wallet (`rpc_set_sp_wallet_state('frozen')`, R6 2026-08-09 — "FROZEN (NOT
+      // deleted)") and a resubscribe restores the balance, as the wallet's own
+      // frozen banner promises. Wording matches the cron's own reminder copy.
+      return `You have ${daysRemaining} days to re-subscribe, or your Swap Points will be frozen until you do.`;
     }
   };
 

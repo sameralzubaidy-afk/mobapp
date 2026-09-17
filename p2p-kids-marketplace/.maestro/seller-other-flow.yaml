@@ -20,29 +20,29 @@ appId: com.p2pkidsmarketplace.app
 
 # Navigate to Create Listing screen
 - tapOn:
-    testID: "tab-create"
+    id: "tab-create"
 - assertVisible: "Create Listing"
 
 # === STEP 1: Add photos (minimal - just 1 photo for faster flow) ===
 - tapOn:
-    testID: "add-photos-button"
+    id: "add-photos-button"
 
 # Manual photo selection in real test
 # Maestro limitation: cannot automate photo picker
 # Verify photo upload manager visible
 - assertVisible:
-    testID: "photo-upload-manager"
+    id: "photo-upload-manager"
 
 - waitForAnimationToEnd
 
 # Proceed to details (skip AI analysis for this test)
 - tapOn:
-    testID: "next-button"
+    id: "next-button"
 
 # === STEP 2: Select "Other" category ===
 - assertVisible: "Category *"
 - tapOn:
-    testID: "category-select-button"
+    id: "category-select-button"
 
 # Category modal opens
 - assertVisible: "Select Category"
@@ -54,29 +54,29 @@ appId: com.p2pkidsmarketplace.app
 # === STEP 3: Custom category name input appears ===
 - assertVisible: "Suggest a category"
 - assertVisible:
-    testID: "custom-category-input"
+    id: "custom-category-input"
 
 # Enter custom name
 - tapOn:
-    testID: "custom-category-input"
+    id: "custom-category-input"
 - inputText: "Art Supplies Test"
 
 # === STEP 4: Fill required fields ===
 - tapOn:
-    testID: "title-input"
+    id: "title-input"
 - inputText: "Test Item for Suggestion"
 
 - tapOn:
-    testID: "price-input"
+    id: "price-input"
 - inputText: "20"
 
 - tapOn:
-    testID: "condition-select"
+    id: "condition-select"
 - tapOn: "Used - Like New"
 
 # === STEP 5: Publish listing ===
 - tapOn:
-    testID: "publish-button"
+    id: "publish-button"
 
 # Wait for success
 - waitForAnimationToEnd
@@ -90,7 +90,7 @@ appId: com.p2pkidsmarketplace.app
 
 # Navigate away to complete flow
 - tapOn:
-    testID: "done-button"
+    id: "done-button"
 
 # === END TEST ===
 # Note: Admin verification of suggestion must be done via admin portal E2E or manual test

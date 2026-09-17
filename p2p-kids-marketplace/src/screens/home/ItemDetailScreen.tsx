@@ -36,6 +36,7 @@ import { MORE_FROM_SELLER_BROWSE_CTA } from '@/constants/uiCopy';
 import { captureException } from '@/services/errorReporter';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
+import { isMemberFeeAvailable } from '@/utils/memberFeeCopy';
 import {
   getActiveOfferForItem,
   hasActiveTradeBetween,
@@ -75,6 +76,8 @@ import { idBadgeService } from '@/services/idBadge';
 import ScreenLayout from '@/components/ScreenLayout';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
+// FIX-Task-49 item 2: canonical design tokens for the Price Breakdown card.
+import { colors } from '@/theme/colors';
 
 type ItemDetailScreenRouteProp = RouteProp<RootStackParamList, 'ListingDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -136,7 +139,8 @@ export default function ItemDetailScreen() {
   // R1 — Tiered Buyer-Fee Engine: server-resolved buyer fee + active-member flat
   // fee (both dynamic from admin_config).
   const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
-  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState(149);
+  // FIX-Task-47 item 4: `null` = the live value could not be read (no 149 fallback).
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number | null>(null);
   // Trial is admin-config-gated: the upgrade modal only promises a free trial
   // when admin_config.trial_enabled=true (QA Task 20 F-3).
   const [trialEnabled, setTrialEnabled] = useState<boolean>(false);
@@ -375,10 +379,17 @@ export default function ItemDetailScreen() {
       // "save on fees" note and as a display fallback.
       try {
         const config = await getAdminConfig();
-        setActiveMemberFlatCents(Number(config.buyer_fee_active_member_cents ?? 149));
+        // FIX-Task-47 item 4: reuses the shared "do we actually have a value?"
+        // rule — no `?? 149`; an unreadable fee stays unavailable so the savings
+        // note cannot advertise a number the server never agreed to.
+        setActiveMemberFlatCents(
+          isMemberFeeAvailable(config.buyer_fee_active_member_cents)
+            ? Math.round(config.buyer_fee_active_member_cents)
+            : null
+        );
         setTrialEnabled(config.trial_enabled === true);
       } catch {
-        setActiveMemberFlatCents(149);
+        setActiveMemberFlatCents(null);
         setTrialEnabled(false);
       }
 
@@ -611,7 +622,13 @@ export default function ItemDetailScreen() {
   const platformFee = platformFeeCents / 100;
   const taxDollars = (tax.taxAmountCents || 0) / 100;
   const totalPrice = listing.price + platformFee + taxDollars;
-  const savingsDollars = Math.max(0, (platformFeeCents - activeMemberFlatCents) / 100);
+  // FIX-Task-47 item 4: the member fee can be unavailable (null). Without this
+  // guard `platformFeeCents - null` coerces the null to 0 and would report the
+  // WHOLE platform fee as a "saving".
+  const savingsDollars =
+    activeMemberFlatCents !== null && platformFeeCents > activeMemberFlatCents
+      ? (platformFeeCents - activeMemberFlatCents) / 100
+      : 0;
   const moneyReady = buyerFeeInfo !== null && !tax.loading;
 
   // Determine seller name display (TASK-ITEM-DETAILS-001)
@@ -939,7 +956,7 @@ export default function ItemDetailScreen() {
                     <Text style={styles.sellerName}>{sellerDisplayName}</Text>
                   ) : (
                     <View style={styles.sellerNameMaskedRow}>
-                      <Lock size={18} color="#9CA3AF" weight="regular" />
+                      <Lock size={18} color="#999999" weight="regular" />
                       <Text style={[styles.sellerName, styles.sellerNameMasked]}>
                         {sellerDisplayName}
                       </Text>
@@ -1126,7 +1143,7 @@ export default function ItemDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Use sp locked chip"
             >
-              <Lock size={14} color="#6B7280" weight="bold" />
+              <Lock size={14} color="#6B6B6B" weight="bold" />
               <Text style={styles.useSpLockedText}>Use SP 🔒</Text>
             </Pressable>
           )}
@@ -1327,6 +1344,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  // #c62828 here is a DOCUMENTED, INTENTIONAL exception to the app error token
+  // (#E85D75) — NOT an oversight. On this screen's #f9f9f9 background #c62828
+  // measures 5.34:1 (WCAG AA pass, normal text) while the brand error token measures
+  // only 3.19:1. See docx/design-system-passitup.md §6 "Documented Token Exceptions"
+  // before changing it (FIX-Task-49 item 1).
   errorTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -1525,18 +1547,23 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '600',
   },
+  // FIX-Task-48 item 1 (BP-82 class sweep, 2026-09-16): this block carried Tailwind
+  // slate/gray literals. Migrated to the canonical Pass It Up neutral tier
+  // (docx/design-system-passitup.md §1 / src/theme/colors.ts): neutral 50 #F7F7F7
+  // (section background), neutral 200 #E0E0E0 (subtle border), neutral 900 #1A1A1A
+  // (primary text).
   specsCard: {
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F7F7',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E0E0E0',
     padding: 12,
     marginBottom: 4,
   },
   specsTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 10,
   },
   specRow: {
@@ -1551,12 +1578,12 @@ const styles = StyleSheet.create({
   },
   specLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#6B6B6B',
     flex: 1,
   },
   specValue: {
     fontSize: 13,
-    color: '#111827',
+    color: '#1A1A1A',
     fontWeight: '600',
     flex: 1,
     textAlign: 'right',
@@ -1568,14 +1595,14 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   colorPill: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#F0F0F0',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   colorPillText: {
     fontSize: 12,
-    color: '#374151',
+    color: '#1A1A1A',
     fontWeight: '600',
   },
   descriptionContainer: {
@@ -1623,9 +1650,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
+  // FIX-Task-49 item 2: the Price Breakdown card previously held one-off Tailwind
+  // amber hexes because the design system defined only LIGHT warning steps and had no
+  // dark-text-on-amber token. Its surface uses the canonical SP-gold tint
+  // (sp[100]/sp[500]); its content uses the new dark warning tokens
+  // (warning[800] titles, warning[900] body, warning[400] divider).
+  // RENDERED VALUES ARE UNCHANGED — only the references are (same hex, one source of
+  // truth: src/theme/colors.ts).
   feeCard: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#f59e0b',
+    backgroundColor: colors.sp[100],
+    borderColor: colors.sp[500],
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
@@ -1633,7 +1667,7 @@ const styles = StyleSheet.create({
   feeCardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#92400e',
+    color: colors.warning[800],
     marginBottom: 12,
   },
   feeRow: {
@@ -1644,11 +1678,11 @@ const styles = StyleSheet.create({
   },
   feeLabel: {
     fontSize: 13,
-    color: '#78350f',
+    color: colors.warning[900],
   },
   feeValue: {
     fontSize: 14,
-    color: '#78350f',
+    color: colors.warning[900],
     fontWeight: '600',
   },
   feeValueSubscriber: {
@@ -1656,28 +1690,28 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#fbbf24',
+    backgroundColor: colors.warning[400],
     marginVertical: 8,
   },
   feeTotalLabel: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#78350f',
+    color: colors.warning[900],
   },
   feeTotalValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#92400e',
+    color: colors.warning[800],
   },
   savingsNote: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#fbbf24',
+    borderTopColor: colors.warning[400],
   },
   savingsNoteText: {
     fontSize: 12,
-    color: '#78350f',
+    color: colors.warning[900],
     fontStyle: 'italic',
   },
   sectionTitle: {
@@ -1714,7 +1748,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E0E0E0',
     borderRadius: 12,
     padding: 12,
     backgroundColor: '#FFFFFF',
@@ -1757,7 +1791,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   sellerNameMasked: {
-    color: '#9CA3AF',
+    color: '#999999',
     fontStyle: 'italic',
     marginBottom: 0,
   },
@@ -1818,7 +1852,7 @@ const styles = StyleSheet.create({
   // FIX-Task-26 item 4 (QA Phase 0 F11): degraded Seller Info state.
   sellerErrorHint: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginTop: 2,
   },
   sellerRetryButton: {
@@ -1856,7 +1890,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#CCCCCC',
   },
   profileButtonText: {
     fontSize: 14,
@@ -1865,7 +1899,7 @@ const styles = StyleSheet.create({
   },
   sellerInfoNote: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginTop: 10,
     lineHeight: 18,
   },
@@ -1897,13 +1931,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F0F0F0',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#CCCCCC',
   },
   useSpLockedText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     fontWeight: '500',
   },
   bottomActionRow: {
@@ -1945,7 +1979,7 @@ const styles = StyleSheet.create({
   // marginTop connects it to the CTA above (14px), marginBottom to the divider/buttons (18px)
   bundleMicrocopy: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 16,
     marginTop: 14,
