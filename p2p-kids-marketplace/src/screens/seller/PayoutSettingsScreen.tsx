@@ -52,6 +52,7 @@ import {
   formatPayoutStatus,
   formatCentsToDollars,
   calculatePayoutFee,
+  getPayoutFeeFormula,
 } from '../../services/sellerBalance';
 import type { SellerBalance, SellerPayout, BalanceDisplay } from '../../services/sellerBalance';
 import { getAdminPayoutConfig } from '../../services/payoutRouter';
@@ -96,6 +97,21 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
  * `loadAttemptRef`) and the screen self-heals.
  */
 const LOAD_DEADLINE_MS = 20000;
+
+/**
+ * FIX-Task-52 items 4 + 8 (2026-09-17): after a SUCCESSFUL withdrawal the
+ * `seller_payouts` row is created as `processing` and the DT-124 dispatch
+ * trigger flips it to `completed` a few seconds later. The seller never leaves
+ * this screen, so neither the reload-on-return (DT-124 Item 2) nor the focus
+ * effect fires again — the only way to see the real status was a manual
+ * pull-to-refresh (QA SUB Android Round 7 F7: the row read "Processing" while
+ * both the DB and Stripe already said `completed`).
+ *
+ * Poll ONLY the payout rows, briefly, after a successful withdrawal. Bounded so
+ * a payout that legitimately stays `processing` cannot poll forever.
+ */
+const PAYOUT_SETTLE_POLL_MS = 3000;
+const PAYOUT_SETTLE_MAX_ATTEMPTS = 5;
 
 // =============================================================================
 // Provider Helpers
@@ -566,6 +582,64 @@ export default function PayoutSettingsScreen() {
     loadPayoutMethods();
   };
 
+  // FIX-Task-52 items 4 + 8 (2026-09-17): see PAYOUT_SETTLE_* above.
+  const [settlingPayoutStatus, setSettlingPayoutStatus] = useState(false);
+  const payoutSettlePollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Never leave a settle timer running past unmount.
+  useEffect(
+    () => () => {
+      if (payoutSettlePollRef.current) clearTimeout(payoutSettlePollRef.current);
+    },
+    []
+  );
+
+  /** Re-read ONLY the payout history rows + the blocked-payout count. */
+  const refreshPayoutRows = useCallback(async () => {
+    const rows = await getRecentPayouts(payoutLimit + 1);
+    setHasMorePayouts(rows.length > payoutLimit);
+    const page = rows.slice(0, payoutLimit);
+    setRecentPayouts(page);
+    try {
+      setActionRequiredPayoutCount(await getActionRequiredPayoutCount());
+    } catch (countError) {
+      console.warn('Action-required payout count failed:', countError);
+    }
+    return page;
+  }, [payoutLimit]);
+
+  /**
+   * Poll the payout rows until none is still `processing` (or the bound is hit),
+   * so the just-requested withdrawal's real status appears without the seller
+   * having to pull-to-refresh. Stops immediately if the screen lost focus.
+   */
+  const startPayoutSettlePoll = useCallback(() => {
+    if (payoutSettlePollRef.current) clearTimeout(payoutSettlePollRef.current);
+    setSettlingPayoutStatus(true);
+    let attempt = 0;
+    const tick = async () => {
+      attempt += 1;
+      payoutSettlePollRef.current = null;
+      if (!isFocusedRef.current) {
+        // The seller moved on — the focus effect will reload on return.
+        setSettlingPayoutStatus(false);
+        return;
+      }
+      try {
+        const page = await refreshPayoutRows();
+        const stillSettling = page.some((payout) => payout.status === 'processing');
+        if (!stillSettling || attempt >= PAYOUT_SETTLE_MAX_ATTEMPTS) {
+          setSettlingPayoutStatus(false);
+          return;
+        }
+      } catch (pollError) {
+        console.warn('Payout status settle poll failed:', pollError);
+      }
+      payoutSettlePollRef.current = setTimeout(tick, PAYOUT_SETTLE_POLL_MS);
+    };
+    payoutSettlePollRef.current = setTimeout(tick, PAYOUT_SETTLE_POLL_MS);
+  }, [refreshPayoutRows]);
+
   const handleWithdrawClick = () => {
     if (!balance || balance.available_balance_cents <= 0) {
       Alert.alert('No Balance', 'You have no available balance to withdraw');
@@ -605,6 +679,9 @@ export default function PayoutSettingsScreen() {
           [{ text: 'OK', onPress: () => setShowWithdrawModal(false) }]
         );
         loadPayoutMethods(); // Refresh data
+        // FIX-Task-52 items 4 + 8: the provider status settles a few seconds
+        // later; keep watching so the row does not sit on "Processing".
+        startPayoutSettlePoll();
       } else {
         // DT-119 (item 4): the RPC returns a terse machine error when the
         // primary payout method is unverified (action_required). Surface a
@@ -988,6 +1065,12 @@ export default function PayoutSettingsScreen() {
             charges no withdrawal fee.
           </Text>
         )}
+        {settlingPayoutStatus && (
+          <Text style={styles.payoutSettlingNote} testID="payout-status-settling-note">
+            Updating status — your payout provider can take a few seconds to confirm. Refreshing
+            automatically.
+          </Text>
+        )}
         {/* FIX-Task-37 item 9 (2026-09-16): one aggregate line for the blocked rows.
             Each "requires_action" payout needs a payout method before it can move, so
             without this the seller sees N identical rows and no indication they share
@@ -1312,7 +1395,14 @@ function NoMethodModal({ onClose, onAddMethod }: NoMethodModalProps) {
           <Plus size={18} color="#FFFFFF" />
           <Text style={styles.noMethodAddBtnText}>Add Payout Method</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.noMethodCancelBtn} onPress={onClose}>
+        <TouchableOpacity
+          style={styles.noMethodCancelBtn}
+          onPress={onClose}
+          testID="no-method-cancel-btn"
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+        >
           <Text style={styles.noMethodCancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
@@ -1345,6 +1435,10 @@ function WithdrawModal({
 
   const fee = calculatePayoutFee(primaryMethod.method_type, balance.available_balance_cents);
   const netAmount = balance.available_balance_cents - fee;
+  // FIX-Task-52 item 9 (2026-09-17): show the FORMULA inline so the seller can
+  // predict the fee, not just read the resulting number. Sourced from
+  // `getPayoutFeeFormula` so it can never drift from the arithmetic above.
+  const feeFormula = getPayoutFeeFormula(primaryMethod.method_type);
 
   return (
     <View style={styles.modalOverlay}>
@@ -1358,7 +1452,9 @@ function WithdrawModal({
           </View>
           <View style={styles.withdrawRow}>
             <Text style={styles.withdrawLabel}>
-              {`Payout processing fee (${getPayoutProviderName(primaryMethod.method_type)}):`}
+              {`Payout processing fee (${getPayoutProviderName(primaryMethod.method_type)}${
+                feeFormula ? ` — ${feeFormula}` : ''
+              }):`}
             </Text>
             <Text style={styles.withdrawValue}>-{formatCentsToDollars(fee)}</Text>
           </View>
@@ -1507,12 +1603,31 @@ function AddPayoutMethodModal({
             // resumes in one tap instead of this full Add-Method flow).
             const { url } = await createStripeAccountLinkUrl(methodId);
 
-            // DT-121 (item 4): returning sellers resuming a partially-complete
-            // hosted onboarding may need to re-verify their phone — surface a
-            // hint on the redirect alert. First-time adders keep the original copy.
-            const successMessage = resumingOnboarding
-              ? 'You will now be redirected to continue your Stripe onboarding.\n\nNote: You may need to re-verify your phone number before continuing.'
-              : 'Stripe account created! You will now be redirected to complete your onboarding.';
+            // FIX-Task-52 item 1 (2026-09-17): this alert used to read
+            // "Stripe account created!" whenever `resumingOnboarding` was false —
+            // but the EF is idempotent, so a seller whose Connect account already
+            // existed got that copy even though NOTHING was created (QA F1: the
+            // provider still showed exactly one account and no new row). The EF
+            // now returns an explicit `created` flag plus the reused account's
+            // onboarding state, so each outcome gets truthful copy.
+            //   1. resuming a partially-complete hosted onboarding (DT-121 item 4)
+            //   2. reused an existing Connect account (created === false)
+            //   3. actually created a new account
+            // The reused case is split on `onboardingComplete` so the copy never
+            // over-claims "verified" for an account that has not finished
+            // onboarding — the same defect class being fixed here.
+            let successMessage: string;
+            if (resumingOnboarding) {
+              successMessage =
+                'You will now be redirected to continue your Stripe onboarding.\n\nNote: You may need to re-verify your phone number before continuing.';
+            } else if (result.created === false) {
+              successMessage = result.onboardingComplete
+                ? 'This payout account is already connected and verified. You will now be redirected to Stripe.'
+                : 'This payout account is already connected. You will now be redirected to continue your onboarding.';
+            } else {
+              successMessage =
+                'Stripe account created! You will now be redirected to complete your onboarding.';
+            }
 
             Alert.alert('Success', successMessage, [
                 {
@@ -2427,6 +2542,14 @@ const styles = StyleSheet.create({
     marginTop: 0,
     marginBottom: 12,
   },
+  // FIX-Task-52 items 4 + 8 (2026-09-17): explains why a just-requested payout
+  // row may still read "Processing" while the status settles automatically.
+  payoutSettlingNote: {
+    fontSize: 11,
+    color: '#6B6B6B',
+    marginTop: 0,
+    marginBottom: 12,
+  },
   // DT-119 (item 2): CTA on requires_action payout rows → opens the Add Payout
   // Method flow on the parent screen.
   historyActionButton: {
@@ -2680,6 +2803,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   withdrawLabel: {
+    // FIX-Task-52 item 9 follow-up (2026-09-17): the fee row's label now carries
+    // the fee FORMULA — "Payout processing fee (Stripe — $0.25 + 0.25%):" — which
+    // is long enough that an unconstrained row pushed its VALUE past the card's
+    // right edge on-device (measured: "-$0.38" rendered clipped against the
+    // border, and the label ran into the value). Give the label the flexible
+    // column so it WRAPS to a second line instead, and stop the value shrinking.
+    flex: 1,
     fontSize: 14,
     color: '#666',
   },
@@ -2687,6 +2817,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#000',
+    // Never let the amount be squeezed or pushed off the card; the 12pt gap keeps
+    // it clear of a wrapped label.
+    flexShrink: 0,
+    marginLeft: 12,
   },
   withdrawFeeNote: {
     fontSize: 11,

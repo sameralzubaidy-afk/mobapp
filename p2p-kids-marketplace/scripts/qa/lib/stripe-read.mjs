@@ -252,7 +252,17 @@ export function explainStripeError(method, path, status, body, account) {
     return `Stripe ${method} ${path} -> 401 ${code}\n  ${msg}\n  NOTE: key missing/invalid/revoked.`;
   }
   if (status === 404) {
-    return `Stripe ${method} ${path} -> 404 ${code || 'resource_missing'}\n  ${msg}\n  NOTE: the stored id does not exist in THIS Stripe account (test vs live, or deleted).`;
+    // FIX-Task-52 item 2 (2026-09-17): a 404 on an ACCOUNT-SCOPED read is a
+    // classic false-divergence trap. Platform-level objects (notably a transfer
+    // created with `destination: acct_...`) are NOT visible through
+    // `Stripe-Account`, so the account-scoped read 404s on an object that exists.
+    const accountHint = account
+      ? `\n  NOTE: this read was scoped with Stripe-Account=${account}. If the object is\n` +
+        '        PLATFORM-level (e.g. a transfer the platform created with\n' +
+        "        `destination: acct_...`), it is invisible under that header — RETRY WITHOUT\n" +
+        '        --account before treating this as a real DB<->Stripe divergence.'
+      : '';
+    return `Stripe ${method} ${path} -> 404 ${code || 'resource_missing'}\n  ${msg}\n  NOTE: the stored id does not exist in THIS Stripe account (test vs live, or deleted).${accountHint}`;
   }
   return `Stripe ${method} ${path} -> ${status} ${JSON.stringify(body).slice(0, 400)}`;
 }

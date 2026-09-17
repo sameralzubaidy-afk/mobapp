@@ -2,9 +2,9 @@
 // MODULE-15.1 FLOW-10/11: SP Transaction History — UI Redesign (Visual Only)
 // Transaction history with tabs, type-based icons, and color-coded amounts
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Storefront,
   ArrowsLeftRight,
@@ -28,11 +28,7 @@ export default function SpTransactionHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadTransactions();
-  }, []);
-
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     try {
       const {
         data: { user },
@@ -52,7 +48,21 @@ export default function SpTransactionHistoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  // FIX-Task-52 item 10 (2026-09-17): the ledger can change while this screen is
+  // mounted-but-unfocused — cancelling an offer refunds SP, a sale settles. A
+  // mount-only load left the list stale in exactly that case, so the user had to
+  // pull down manually to see the refund (QA SUB Android Round 7, J04: the top
+  // row was stale until a pull-to-refresh revealed it). Loading on FOCUS instead
+  // of on mount covers both, with no duplicate request on first entry.
+  // `loadTransactions` only flips `loading` for the first paint, so a refocus
+  // refreshes silently rather than flashing the spinner.
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [loadTransactions])
+  );
 
   const handleRefresh = () => {
     setRefreshing(true);

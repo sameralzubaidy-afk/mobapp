@@ -41,8 +41,17 @@
  *     payment_method_id }`; multiple items -> `{ items: [...], payment_method_id }`.
  *     `cash_amount_cents = round(price * 100)`; `--fee-mode donate` uses 0.
  *   - `--body '<json>'` overrides the ENTIRE body for any other EF or an exact
- *     scenario. When `--body` is used, `--pm` is NOT auto-injected.
- *
+ *     scenario. When `--body` is used, `--pm` is NOT auto-injected. *
+ * ⚠️ FIX-Task-52 item 3 (2026-09-17) — THE FLAGS' SCOPE, stated plainly:
+ *   `--items`, `--pm` and `--fee-mode` build the body ONLY when `--body` is
+ *   ABSENT. `--body` REPLACES the whole request, so passing both is now a loud
+ *   warning instead of a silent no-op (QA lost 3 calls to the ambiguity:
+ *   `MISSING_ITEM_ID` -> `INVALID_AMOUNT` -> `NO_PAYMENT_METHOD`).
+ *   `create-trade-offer`'s own contract, for when you DO use `--body`, is:
+ *     { "item_id": "<uuid>", "cash_amount_cents": <int>, "payment_method_id": "pm_..." }
+ *   (a bundle offer uses `items: [{ item_id, cash_amount_cents }, ...]`).
+ *   The tool validates this contract before calling and exits with the shape it
+ *   wanted, rather than letting the EF reject a body the tool should not have sent. *
  * Env: SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY from
  *      p2p-kids-marketplace/.env (or .env.staging).
  */
@@ -96,6 +105,39 @@ if (ITEMS.length === 0 && !BODY_OVERRIDE) {
   process.exit(2);
 }
 
+// FIX-Task-52 item 3 (2026-09-17): make each flag's scope unambiguous. These
+// flags build the request body and therefore have NO effect once `--body`
+// replaces it. Previously that was silent, so a run passing both looked like the
+// flags had been accepted (the log even printed `items: 0`).
+if (BODY_OVERRIDE) {
+  const ignored = [
+    ITEMS.length > 0 ? '--items' : null,
+    PM_OVERRIDE ? '--pm' : null,
+    process.argv.includes('--fee-mode') ? '--fee-mode' : null,
+  ].filter(Boolean);
+  if (ignored.length > 0) {
+    console.warn(
+      `⚠️  IGNORED: ${ignored.join(', ')} — \`--body\` replaces the ENTIRE request body, so these ` +
+        'flags have no effect. Remove either the flags or --body.'
+    );
+  }
+}
+
+/**
+ * FIX-Task-52 item 3: the body contract per EF, where it is known. Used to fail
+ * LOUDLY, with the shape the EF actually wants, instead of letting the EF reject
+ * a body the tool should never have sent.
+ */
+const BODY_CONTRACTS = {
+  'create-trade-offer': {
+    always: ['payment_method_id'],
+    oneOf: [['item_id', 'cash_amount_cents'], ['items']],
+  },
+};
+
+/** Present = supplied and not empty. */
+const isPresent = (v) => v !== undefined && v !== null && v !== '';
+
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -123,6 +165,12 @@ const PERSONAS = {
   // driven end-to-end. Password is re-asserted by `npm run seed:staging`
   // (FIX-Task-30 item 1), so this persona self-heals.
   'test-admin': { id: 'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', email: 'test-admin@kidsmarketplace.test', password: 'TestAdmin123!' },
+  // FIX-Task-52 item 1 (2026-09-17): the DEDICATED disposable payout persona
+  // (`qa:payout-fixture`). Registered so payout-domain EFs can be driven with its
+  // real JWT — notably `create-stripe-connect-account`, whose reuse branch is what
+  // produced G01's misleading "Stripe account created!" copy. Mirror of
+  // scripts/qa/payout-fixture.mjs + scripts/seed-staging-data.ts.
+  'qa-payout-seller': { id: 'a1234567-0000-0000-0000-0000000000f2', email: 'qa-payout-seller@kidsmarketplace.test', password: 'TestPayout123!' },
 };
 
 function log(...a) {
@@ -267,6 +315,22 @@ async function main() {
       const it = itemDetails[id];
       log(`📋 item ${id}: ${it ? `${it.title}  price=${it.price}  status=${it.status}  seller=${String(it.seller_id).slice(0, 8)}` : 'NOT FOUND'}`);
     }
+
+    // FIX-Task-52 item 3 (2026-09-17): a not-found id used to fall through to
+    // `cash_amount_cents: 0` and come back from the EF as a confusing
+    // `INVALID_AMOUNT` — a tool bug wearing the costume of a backend rejection.
+    // Fail here instead, where the real reason is known. Skipped when `--body`
+    // supplies the body (then --items is already reported as ignored above).
+    if (!BODY_OVERRIDE) {
+      const missingItems = ITEMS.filter((id) => !itemDetails[id]);
+      if (missingItems.length > 0) {
+        console.error(
+          `❌ --items: ${missingItems.length} id(s) are not items in this database: ${missingItems.join(', ')}\n` +
+            '   (A not-found item previously produced cash_amount_cents=0 and a misleading INVALID_AMOUNT.)'
+        );
+        process.exit(2);
+      }
+    }
   }
 
   // 2. Build the request body.
@@ -296,6 +360,28 @@ async function main() {
         items: ITEMS.map((id) => ({ item_id: id, cash_amount_cents: cashFor(id) })),
         payment_method_id: pm,
       };
+    }
+  }
+
+  // FIX-Task-52 item 3 (2026-09-17): validate the known body contract BEFORE
+  // invoking the EF, so a wrong-shaped body is reported by the tool that built it
+  // (with the shape it wanted) rather than as a terse EF rejection.
+  const contract = BODY_CONTRACTS[EF_SLUG];
+  if (contract) {
+    const missing = contract.always.filter((key) => !isPresent(body[key]));
+    const groupOk = contract.oneOf.some((group) => group.every((key) => isPresent(body[key])));
+    if (missing.length > 0 || !groupOk) {
+      console.error(
+        `❌ ${EF_SLUG}: the request body is missing required keys — the EF\n` +
+          '   would reject this with a terse, misleading error.\n' +
+          `   Always required : ${contract.always.join(', ')}\n` +
+          `   Plus one of     : ${contract.oneOf.map((g) => g.join(' + ')).join('   |   ')}\n` +
+          `   Body received   : ${JSON.stringify(body)}\n` +
+          '   NOTE: --items/--pm only populate the body when --body is ABSENT.\n' +
+          '         e.g. --items <uuid> --pm pm_...  (no --body)\n' +
+          '         or   --body \'{"item_id":"<uuid>","cash_amount_cents":2500,"payment_method_id":"pm_..."}\''
+      );
+      process.exit(2);
     }
   }
 

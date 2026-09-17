@@ -339,6 +339,31 @@ export function calculatePayoutFee(methodType: string, amountCents: number): num
   }
 }
 
+/**
+ * FIX-Task-52 item 9 (2026-09-17): the human-readable fee FORMULA for a method
+ * type, so the Withdraw modal can state it inline instead of burying it in a
+ * trailing note — a seller should be able to predict the fee.
+ *
+ * Deliberately lives HERE, immediately under `calculatePayoutFee`, so the
+ * displayed formula and the arithmetic can never drift apart (BP-13: a
+ * user-facing value must reference its canonical source, never a second copy).
+ * Returns null for an unknown method type so the caller omits the formula
+ * rather than inventing one.
+ */
+export function getPayoutFeeFormula(methodType: string): string | null {
+  switch (methodType) {
+    case 'stripe_connect':
+      return '$0.25 + 0.25%';
+    case 'paypal':
+    case 'venmo':
+      return '2%, capped at $20.00';
+    case 'bank_ach':
+      return '$0.25 flat';
+    default:
+      return null;
+  }
+}
+
 // =============================================================================
 // Payout History
 // =============================================================================

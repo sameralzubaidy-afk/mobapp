@@ -42,7 +42,10 @@ npm run qa:payout-fixture -- stage-trade --amount 2000
 
 # 5. REAL withdrawal (H03 positive) — drives production request_seller_payout as the persona
 #    (persona JWT). Creates a real seller_payouts row (processing, trade_id NULL) + deducts
-#    available. NO real outgoing transfer is minted (that is the safety QA needs).
+#    available. ⚠️ IT DOES MINT A REAL OUTGOING TRANSFER: the DEV-TASK-124 AFTER-INSERT
+#    trigger posts the row to `dispatch-manual-payouts`, which calls stripe.transfers.create()
+#    and lands the row `completed`. It is a Stripe TEST-MODE transfer (livemode:false,
+#    reversible) — NOT a DB-only record. Transfers accumulate; plan rehearsal runs accordingly.
 npm run qa:payout-fixture -- withdraw --full          # withdraw the whole available balance
 
 # 6. Read-only status.
@@ -52,6 +55,40 @@ npm run qa:payout-fixture -- status
 npm run qa:payout-fixture -- reset
 npm run qa:payout-fixture -- reset --full
 ```
+
+## SUB-TC-G01 — Stripe Connect onboarding (first-time add, and the reused-account case)
+
+G01 needs the **Add Payout Method → Stripe Connect** entry to launch hosted onboarding. The
+persona and the method-state fixtures already exist — this is a **recipe**, not a missing fixture:
+
+```bash
+# First-time add (no method at all) → the empty-state CTA is "+ Add Bank Account"
+npm run qa:payout-fixture -- ensure
+npm run qa:payout-fixture -- methods --scenario none
+```
+
+Then, on the device:
+`Payout Settings` → PAYOUT METHOD → **"+ Add Bank Account"** (`add-bank-row`) →
+**Add Payout Method** modal → **Stripe Connect** → **[Add Method]**.
+
+- `methods --scenario none` is what makes this a genuinely **first-time** add: the
+  `create-stripe-connect-account` EF mints a new account only when the persona has no
+  `stripe_account_id`, so this path returns `created: true` and the alert reads
+  *"Stripe account created! …"* (FIX-Task-52 item 1).
+- Running the **same flow twice** exercises the idempotent **reuse** branch (`created: false`) and
+  the *"This payout account is already connected …"* copy — the case that previously showed
+  *"Stripe account created!"* while creating nothing (QA SUB Android Round 7, F1).
+- ⚠️ `methods --scenario single-verified` / `single-unverified` use **fake fixture account ids**
+  (`acct_dt118_fixture*`). Those rows exist for UI/guard cases only — they are **not** real Connect
+  accounts, so do not expect hosted onboarding or real transfers from them
+  (`qa:stripe-inspect` deliberately refuses to send those ids to Stripe).
+- The hosted Stripe Express flow is a browser flow: drive it with the canonical values and ordering
+  in this guide's **"Hosted-flow runbook — canonical values & recipes (SUB-TC-G01 / D05)"** section
+  (test SSN `0000` — NOT the `8888` prefill; re-touch the phone field; commit only at
+  *"Agree and submit"*; read `requirements.currently_due` first when the page says "Incomplete").
+- **Still open (owner action, not a code fixture):** a method-less persona row that carries a
+  **real** Connect account stuck in an *incomplete* onboarding state is not provisionable without
+  driving the hosted flow once. The recipe above reaches that state; it does not pre-seed it.
 
 ## Reconcile test-seller's balance (DT-118 Item 2 companion)
 

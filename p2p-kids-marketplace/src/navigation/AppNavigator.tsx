@@ -105,6 +105,12 @@ import QaClearOverlaysDeepLinkHandler from '@/components/QaClearOverlaysDeepLink
 // checkout item via p2pkidsmarketplace://qa-set-sp?listing=<id>&amount=<N> (1
 // call, no type-and-clear). Inert in production builds (see component's gate).
 import QaSetSpDeepLinkHandler from '@/components/QaSetSpDeepLinkHandler';
+// FIX-Task-52 item 7d (2026-09-17): QA-only qa-subscription-status handler —
+// opens the Subscription Status diagnostics screen via
+// p2pkidsmarketplace://qa-subscription-status. That screen has NO in-app
+// navigation entry (reachable only via a push payload), which is why
+// SUB-TC-E04 has been fixture-gated since 2026-09-02. Inert in production.
+import QaSubscriptionStatusDeepLinkHandler from '@/components/QaSubscriptionStatusDeepLinkHandler';
 // Dev Task 84 item 2: QA-only qa-refresh handler — force-refetches the currently
 // open screen via p2pkidsmarketplace://qa-refresh (1 call, no nav-away-and-back
 // remount). Inert in production builds (see component's security gate).
@@ -1128,6 +1134,11 @@ export default function AppNavigator() {
             anywhere). Sets an SP value on a cart-checkout item via
             p2pkidsmarketplace://qa-set-sp?listing=<id>&amount=<N>. Inert in production. */}
         <QaSetSpDeepLinkHandler />
+        {/* FIX-Task-52 item 7d: QA-only qa-subscription-status handler (no auth
+            dependency — the target screen reads the session itself). Opens the
+            Subscription Status diagnostics screen, which has no in-app entry, via
+            p2pkidsmarketplace://qa-subscription-status. Inert in production builds. */}
+        <QaSubscriptionStatusDeepLinkHandler />
         {/* Dev Task 84 item 2: QA-only qa-refresh handler (no auth dependency — safe
             anywhere). Force-refetches the currently-open screen via
             p2pkidsmarketplace://qa-refresh. Inert in production builds. */}

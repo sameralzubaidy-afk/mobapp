@@ -27,11 +27,22 @@
  *   npm run qa:stripe-inspect -- invoice in_123
  *   npm run qa:stripe-inspect -- payout po_123 [--account acct_123]
  *   npm run qa:stripe-inspect -- payouts [--account acct_123] [--status paid]
- *   npm run qa:stripe-inspect -- transfer tr_123 [--account acct_123]
+ *   npm run qa:stripe-inspect -- transfer tr_123 [--as-connected]
  *   npm run qa:stripe-inspect -- events --pi pi_123 [--type a,b] [--limit 50]
  *   npm run qa:stripe-inspect -- disputes [--charge ch_123]
  *
- *   flags: --json   --limit N   --account acct_...   --break-glass-secret-key
+ *   flags: --json   --limit N   --account acct_...   --as-connected   --break-glass-secret-key
+ *
+ * TRANSFERS vs PAYOUTS (FIX-Task-52 item 2, 2026-09-17 — read this before
+ * scoping either one):
+ *   - A `payout` / `payouts` read IS connected-account scoped — payouts are
+ *     objects ON the seller's Connect account. Pass `--account acct_...`.
+ *   - A `transfer` created BY THE PLATFORM with `destination: acct_...` is a
+ *     PLATFORM-level object. Sending `Stripe-Account` makes Stripe look for a
+ *     transfer OWNED BY that connected account, which 404s for every
+ *     platform-initiated transfer — a 404 that reads exactly like a real
+ *     DB<->Stripe divergence. So `transfer` deliberately IGNORES `--account`
+ *     by default (it says so) and only scopes when `--as-connected` is passed.
  *
  * Every result carries `key_scope` so recorded evidence self-declares whether it
  * came from the restricted read-only key or the labelled break-glass secret key.
@@ -62,6 +73,8 @@ const hasFlag = (name) => argv.includes(`--${name}`);
 const AS_JSON = hasFlag('json');
 const LIMIT = Number(flagValue('limit') || 100);
 const ACCOUNT = flagValue('account');
+// FIX-Task-52 item 2: opt-in only, for a transfer the CONNECTED account owns.
+const AS_CONNECTED = hasFlag('as-connected');
 const TRADE = flagValue('trade');
 const CHARGE = flagValue('charge');
 const PI = flagValue('pi');
@@ -378,7 +391,25 @@ const COMMANDS = {
 
   async transfer(ctx) {
     if (!ID) throw new Error('Provide a transfer id (tr_...).');
-    emit(`transfer ${ID}${ACCOUNT ? ` [${ACCOUNT}]` : ''}`, await stripeGet(ctx, `/transfers/${ID}`, { account: ACCOUNT || undefined }), ctx.scope);
+    // FIX-Task-52 item 2 (2026-09-17): a platform -> connected-account transfer
+    // (`transfers.create({ destination: 'acct_...' })`) is a PLATFORM-level
+    // object. Sending `Stripe-Account` makes Stripe look for a transfer OWNED BY
+    // the connected account, so it 404s for every platform-initiated transfer.
+    // That 404 reads exactly like a DB<->Stripe divergence and nearly produced a
+    // false finding this round. Ignore `--account` unless --as-connected is set.
+    const scoped = AS_CONNECTED ? ACCOUNT : undefined;
+    if (ACCOUNT && !AS_CONNECTED) {
+      console.log(
+        `  NOTE: ignoring --account ${ACCOUNT} for this transfer read — a platform→connected\n` +
+          '        transfer is a PLATFORM-level object. Re-run with --as-connected ONLY if the\n' +
+          '        connected account created the transfer itself.'
+      );
+    }
+    emit(
+      `transfer ${ID}${scoped ? ` [${scoped}]` : ' [platform]'}`,
+      await stripeGet(ctx, `/transfers/${ID}`, { account: scoped }),
+      ctx.scope
+    );
   },
 
   async events(ctx) {
@@ -426,9 +457,15 @@ const COMMANDS = {
     if (piId) {
       try {
         provider = await providerPaymentFacts(ctx, piId);
-        // Transfers live on the seller's connected account.
-        if (connectAccountId && payouts.some((p) => p.provider_reference_id?.startsWith('tr_'))) {
-          provider.transfer = await stripeGet(ctx, `/transfers/${payouts.find((p) => p.provider_reference_id?.startsWith('tr_')).provider_reference_id}`, { account: connectAccountId });
+        // FIX-Task-52 item 2 (2026-09-17): the transfer object is PLATFORM-level
+        // even though its money lands on the seller's connected account — reading
+        // it WITH the `Stripe-Account` header 404s. Read it unscoped.
+        if (payouts.some((p) => p.provider_reference_id?.startsWith('tr_'))) {
+          provider.transfer = await stripeGet(
+            ctx,
+            `/transfers/${payouts.find((p) => p.provider_reference_id?.startsWith('tr_')).provider_reference_id}`
+          );
+          provider.transfer_scope = connectAccountId ? 'platform (destination ' + connectAccountId + ')' : 'platform';
         }
       } catch (e) {
         providerError = e.message;

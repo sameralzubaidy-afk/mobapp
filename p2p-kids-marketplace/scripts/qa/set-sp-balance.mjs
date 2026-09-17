@@ -12,7 +12,8 @@
  *   1. Upserts the persona's `sp_wallets` row: sets `available_balance` to the
  *      requested amount, and zeroes `reserved_sp` / `pending_balance` so the
  *      wallet reads a clean "N available" (deterministic for SP-cap/balance tests).
- *      The wallet `state` is set to 'active'.
+ *      The wallet `state` is PRESERVED unless `--state` says otherwise (see the
+ *      behaviour-change note below).
  *   2. Inserts a traceable `sp_ledger` entry (`earn_admin_grant`) recording the
  *      fixture top-up (balance_before → balance_after, admin_note).
  *   3. Read-backs the wallet + latest ledger row so the change is DB-verified.
@@ -22,6 +23,17 @@
  *   npm run qa:set-sp-balance -- --email test-buyer@kidsmarketplace.test --amount 30
  *   npm run qa:set-sp-balance -- --user-id <uuid> --amount 8
  *   npm run qa:set-sp-balance -- --persona test-buyer --amount 500 --dry-run   # preview only
+ *   npm run qa:set-sp-balance -- --persona test-grace --amount 20 --state preserve
+ *   npm run qa:set-sp-balance -- --persona test-buyer --amount 20 --state grace_period
+ *
+ * ⚠️ BEHAVIOUR CHANGE — FIX-Task-52 item 7c (2026-09-17): `state` is no longer
+ *    forced to 'active'. It is PRESERVED by default (a brand-new wallet is still
+ *    created 'active'). This tool used to force 'active' unconditionally, which
+ *    made the grace-period SP-spend case untestable: granting SP to
+ *    `test-grace` destroyed the `grace_period` precondition, and no sanctioned
+ *    helper could restore it (QA SUB Android Round 7, finding E).
+ *    Pass `--state active` to reproduce the previous behaviour, or `--state
+ *    <active|frozen|suspended|grace_period|inactive>` to set one explicitly.
  *
  * Env: reads SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from p2p-kids-marketplace/.env
  *      (or .env.staging), same convention as the other QA/seed scripts
@@ -54,6 +66,11 @@ const PERSONA = argVal('--persona');
 const EMAIL = argVal('--email');
 const USER_ID = argVal('--user-id');
 const AMOUNT_RAW = argVal('--amount');
+// FIX-Task-52 item 7c: 'preserve' (default) leaves the wallet state untouched.
+const STATE_RAW = argVal('--state');
+
+/** Wallet states the DB accepts, plus the sentinel that means "do not change it". */
+const WALLET_STATES = ['active', 'frozen', 'suspended', 'grace_period', 'inactive'];
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -78,6 +95,12 @@ const QA_PERSONAS = {
   'test-buyer-2': { id: 'a1234567-0000-0000-0000-000000000003', email: 'test-buyer-2@kidsmarketplace.test' },
   'test-buyer-3': { id: 'a1234567-0000-0000-0000-000000000004', email: 'test-buyer-3@kidsmarketplace.test' },
   'test-seller': { id: 'a1234567-0000-0000-0000-000000000002', email: 'test-seller@kidsmarketplace.test' },
+  // FIX-Task-52 item 7c (2026-09-17): the GRACE-period persona. Without it here,
+  // the one persona whose whole purpose is the `grace_period` wallet state could
+  // not be targeted by name — which is how the grace-SP-spend gap stayed open
+  // (it also forced callers onto --email/--user-id). Id mirrors ef-repro.mjs and
+  // scripts/seed-staging-data.ts.
+  'test-grace': { id: 'a1234567-0000-0000-0000-000000000011', email: 'test-grace@kidsmarketplace.test' },
 };
 
 function log(...a) {
@@ -122,10 +145,27 @@ async function main() {
     process.exit(2);
   }
 
+  // FIX-Task-52 item 7c: resolve the requested wallet state. `null` = preserve.
+  let stateToSet = null;
+  if (STATE_RAW !== null) {
+    const normalized = String(STATE_RAW).trim().toLowerCase();
+    if (normalized === 'preserve') {
+      stateToSet = null;
+    } else if (WALLET_STATES.includes(normalized)) {
+      stateToSet = normalized;
+    } else {
+      console.error(
+        `❌ --state must be one of: preserve, ${WALLET_STATES.join(', ')} (got '${STATE_RAW}')`
+      );
+      process.exit(2);
+    }
+  }
+
   const userId = await resolveUserId();
   log(`Target: ${SUPABASE_URL}`);
   log(`User id: ${userId}${PERSONA ? ` (persona '${PERSONA}')` : ''}`);
   log(`Desired available SP balance: ${amount}`);
+  log(`Wallet state: ${stateToSet ?? 'PRESERVED (pass --state <value> to change it)'}`);
   if (DRY_RUN) log('DRY-RUN — no mutations will be made.');
 
   // ── 1. Read the current wallet (DRY-RUN SAFE) ──────────────────────────────
@@ -162,7 +202,10 @@ async function main() {
         available_balance: amount,
         pending_balance: 0,
         reserved_sp: 0,
-        state: 'active',
+        // FIX-Task-52 item 7c: only touch `state` when explicitly asked to — see
+        // the header note. Preserving it is what keeps a `grace_period`
+        // precondition intact across an SP top-up.
+        ...(stateToSet ? { state: stateToSet } : {}),
       })
       .eq('id', walletId)
       .select('id, available_balance, pending_balance, reserved_sp, state')
@@ -176,7 +219,9 @@ async function main() {
         available_balance: amount,
         pending_balance: 0,
         reserved_sp: 0,
-        state: 'active',
+        // FIX-Task-52 item 7c: a brand-new wallet still defaults to 'active' —
+        // there is no prior state to preserve on an insert.
+        state: stateToSet ?? 'active',
         lifetime_earned: amount, // fresh wallet — track the fixture grant as earned
       })
       .select('id, available_balance, pending_balance, reserved_sp, state')

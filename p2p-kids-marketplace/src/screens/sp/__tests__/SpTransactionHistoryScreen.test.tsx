@@ -8,7 +8,22 @@ import { useNavigation } from '@react-navigation/native';
 import * as walletService from '@/services/sp/wallet';
 
 // Mock dependencies
-jest.mock('@react-navigation/native');
+// FIX-Task-52 item 10 (2026-09-17): the screen now loads via `useFocusEffect`
+// (refresh-on-focus) INSTEAD OF a mount-only `useEffect`, so this mock must
+// actually INVOKE the focus callback. A bare auto-mock returns undefined and
+// never calls it, which leaves the screen stuck on "Loading transactions..." and
+// fails every assertion — the mount-vs-focus behaviour is precisely what needs
+// exercising here. Mirrors PayoutSettingsScreen.test.tsx's established pattern.
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: jest.fn(),
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const ReactLib = require('react');
+    ReactLib.useEffect(() => {
+      const cleanup = cb();
+      return typeof cleanup === 'function' ? cleanup : undefined;
+    }, [cb]);
+  },
+}));
 jest.mock('@/services/sp/wallet');
 jest.mock('@/config/supabase', () => ({
   supabase: {

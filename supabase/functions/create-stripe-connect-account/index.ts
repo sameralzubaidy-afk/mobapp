@@ -17,6 +17,17 @@ interface CreateStripeConnectAccountResponse {
   success: boolean;
   methodId?: string;
   stripeAccountId?: string;
+  /** FIX-Task-52 item 1 (2026-09-17): true when this call actually minted a
+   *  NEW Stripe Connect account; false when it idempotently reused an existing
+   *  one (the seller already had a `stripe_account_id`). The client needs this
+   *  to avoid telling a returning seller "Stripe account created!" when
+   *  nothing was created. */
+  created?: boolean;
+  /** FIX-Task-52 item 1: the reused account's hosted-onboarding state, so the
+   *  client can distinguish "already connected and verified" from "already
+   *  connected but onboarding still incomplete". Only meaningful when
+   *  `created === false`. */
+  onboardingComplete?: boolean;
   error?: string;
 }
 
@@ -176,11 +187,16 @@ serve(async (req: Request): Promise<Response> => {
 
     if (existingMethod && existingMethod.stripe_account_id) {
       console.log('[create-stripe-connect-account] DB: Found existing method:', existingMethod.id, 'stripe_account_id:', existingMethod.stripe_account_id);
-      // Return existing account
+      // FIX-Task-52 item 1: return the REUSE outcome explicitly. `created: false`
+      // means no Stripe account was minted on this call — nothing was created.
+      const onboardingComplete = existingMethod.stripe_onboarding_complete === true;
+      console.log('[create-stripe-connect-account] DB: Reusing account; onboarding_complete:', onboardingComplete);
       const response: CreateStripeConnectAccountResponse = {
         success: true,
         methodId: existingMethod.id,
-        stripeAccountId: existingMethod.stripe_account_id
+        stripeAccountId: existingMethod.stripe_account_id,
+        created: false,
+        onboardingComplete
       };
       return new Response(JSON.stringify(response), {
         status: 200,
@@ -264,7 +280,9 @@ serve(async (req: Request): Promise<Response> => {
       const response: CreateStripeConnectAccountResponse = {
         success: true,
         methodId: updatedMethod.id,
-        stripeAccountId: account.id
+        stripeAccountId: account.id,
+        created: true,
+        onboardingComplete: false
       };
       return new Response(JSON.stringify(response), {
         status: 200,
@@ -311,7 +329,9 @@ serve(async (req: Request): Promise<Response> => {
       const response: CreateStripeConnectAccountResponse = {
         success: true,
         methodId: newMethod.id,
-        stripeAccountId: account.id
+        stripeAccountId: account.id,
+        created: true,
+        onboardingComplete: false
       };
       return new Response(JSON.stringify(response), {
         status: 200,

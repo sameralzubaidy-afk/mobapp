@@ -91,7 +91,7 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 | **E — Billing History & Status** | SUB-TC-E01 | Billing History list — records, status badges, amounts |
 | | SUB-TC-E02 | Billing History empty state |
 | | SUB-TC-E03 | Failed charge shows error message |
-| | SUB-TC-E04 | ⏸ FIXTURE-GATED (push-payload) — Subscription Status screen diagnostics |
+| | SUB-TC-E04 | Subscription Status screen diagnostics (dev deep link `qa-subscription-status`) |
 | **F — Payout Settings (live surface) 🔄** | SUB-TC-F01 | Payout Settings hero — Available / Pending / Lifetime Earned (live) |
 | | SUB-TC-F02 | Payout method section (add vs existing) — live |
 | | SUB-TC-F03 | Payout history list (completed / pending) — live |
@@ -762,18 +762,26 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 
 ---
 
-### SUB-TC-E04 · Subscription Status screen — Stripe IDs + period + retries — ⏸ FIXTURE-GATED (push-payload)
+### SUB-TC-E04 · Subscription Status screen — Stripe IDs + period + retries
 
-> ⏸ **FIXTURE-GATED (2026-09-02):** The **Subscription Status** screen (`SubscriptionStatusScreen`) is only reachable via a push-payload deep link — there is no in-app navigation entry. Executing this case requires a QA-driven push payload / fixture to land on the screen. Case body retained as written below; do not attempt via normal app navigation.
+> ✅ **UNBLOCKED 2026-09-17 (FIX-Task-52 item 7d).** This case was ⏸ FIXTURE-GATED from 2026-09-02 because the **Subscription Status** screen (`SubscriptionStatusScreen`) has **no in-app navigation entry** — the only route in was tapping a push notification whose payload mapped `/subscription/status`, which itself needed a notification-insert fixture plus a device push tap. A dev/staging-only deep link now opens the screen directly:
+>
+> ```
+> iOS     : xcrun simctl openurl booted "p2pkidsmarketplace://qa-subscription-status"
+> Android : adb shell am start -W -a android.intent.action.VIEW \
+>             -d "p2pkidsmarketplace://qa-subscription-status" com.sameralzubaidi.p2pmarketplace
+> ```
+>
+> No parameters are needed — the screen reads the signed-in user's own subscription row, so log in as the persona under test first (e.g. `qa-login-as?persona=test-buyer`). The deep link is registered only in dev/staging builds (inert in production) and the screen is read-only, so it adds no mutation surface.
 
-**Ref:** FLOW-12 · SubscriptionStatusScreen (push-payload only)
-**Actors:** test-admin / QA (requires push-payload fixture)
+**Ref:** FLOW-12 · SubscriptionStatusScreen (dev deep link `qa-subscription-status`)
+**Actors:** test-buyer (subscriber) / test-grace (grace-period state)
 **Surfaces:** mobile
 
 **Objective:** Verify the diagnostic status screen surfaces billing internals.
 
 **Steps:**
-1. Drive a push payload / deep link to the **Subscription Status** screen for a subscriber (fixture-gated entry).
+1. Log in as the persona under test, then fire the `qa-subscription-status` deep link (recipe above) to open the **Subscription Status** screen.
 
 **Expected Result:**
 - Shows a status badge, Stripe customer & subscription IDs, billing period start/end + days remaining, next billing date, auto-renew flag, payment-failure retry count (max 3 before grace), grace-period info (if any) with the SP-freeze warning, trial end date, and last-updated timestamp.
@@ -941,11 +949,19 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Objective:** Verify the Stripe Connect onboarding entry.
 
 **Steps:**
-1. On **Payout Settings**, tap **[Add Payout Method]** → choose **Stripe Connect**.
+1. On **Payout Settings**, tap the PAYOUT METHOD call-to-action — **`+ Add Bank Account`** (`add-bank-row`, when no method exists) or **`+ Add Another Method`** (`add-another-method-row`, when one does) — then in the **Add Payout Method** modal choose **Stripe Connect** and tap **Add Method**.
 
 **Expected Result:**
 - The Stripe onboarding flow launches; until onboarding completes, the method shows an incomplete/onboarding status and is not usable for withdrawal.
 - After onboarding completes, the method shows verified / payouts-enabled.
+- The success alert names what actually happened (FIX-Task-52 item 1, 2026-09-17 — the alert used to say "Stripe account created!" even when the flow idempotently reused an existing account):
+  - a **newly created** Connect account → "Stripe account created! You will now be redirected to complete your onboarding."
+  - an **existing, already-verified** account reused → "This payout account is already connected and verified. You will now be redirected to Stripe."
+  - an **existing account whose onboarding is still incomplete** → "This payout account is already connected. You will now be redirected to continue your onboarding."
+
+> ⚠️ **Doc-drift corrected 2026-09-17 (QA SUB Android Round 7, F2).** This case previously said to tap **[Add Payout Method]**. That string is the **modal title** and the **NoMethodModal button** — it is NOT the entry-point CTA on Payout Settings. The live CTAs are **`+ Add Bank Account`** / **`+ Add Another Method`** (see the steps above).
+>
+> **Open product question (not a guide issue):** the empty-state CTA reads **"Add Bank Account"**, but the Add Payout Method modal offers **no bank/ACH option at all** — the only configured provider is **Stripe Connect** (which is why SUB-TC-G03 is 🚫 N/A). A seller looking for a bank transfer is sent to a modal that cannot do it. Suggested copy: **"+ Add Payout Method"** (or name the actual provider). Owner decision required before changing shipped copy; recorded here so the guide is accurate in the meantime.
 
 ---
 
@@ -1574,6 +1590,17 @@ behaviour and states the SP isn't spendable yet. `testID="sp-wallet-pending-rele
 - No second payout row is created for the same provider event (idempotent reconciliation).
 - **Classification note (QA Task 20):** L05 belongs to the **payout domain** (unchanged from prior classification) — its source is `stripe-webhook`/payout EFs, not the subscription webhook.
 
+> 🔧 **How to drive this (FIX-Task-52 item 7b, 2026-09-17).** Step 2 previously had no sanctioned mechanism — the only observed `processing` → `completed` transitions came from the DEV-TASK-124 dispatch **trigger**, never a real provider webhook, so this case could only ever be half-verified. Use the new signed replay helper:
+>
+> ```
+> npm run qa:stripe-webhook-replay -- --type payout.paid   --payout <po_...>
+> npm run qa:stripe-webhook-replay -- --type payout.failed --payout <po_...> --failure-message "account closed"
+> ```
+>
+> `--payout` must be the row's real `seller_payouts.provider_reference_id`. It needs **`STRIPE_WEBHOOK_SECRET`** (the endpoint's signing secret) — an owner action; without it the tool exits 2 with the remediation and changes nothing. `--dry-run` prints the payload + signature and posts nothing.
+>
+> ⚠️ **This recipe immediately found a P1 (2026-09-17):** the live `stripe-webhook` endpoint answered **400 "SubtleCryptoProvider cannot be used in a synchronous context"** to *every* delivery, because it used the synchronous `constructEvent(...)`. Fixed in source (`constructEventAsync`) — see the FIX-Task-52 handoff. **Re-run this case after that fix is deployed.**
+
 ---
 
 ## Group M — Payment Methods (Card on File)
@@ -2009,7 +2036,7 @@ Pull-to-refresh is **not** a sync. After a hosted Express completion returns to 
 | Billing history list + badges | SUB-TC-E01 |
 | Billing history empty | SUB-TC-E02 |
 | Failed charge error message | SUB-TC-E03 |
-| ⏸ Subscription Status diagnostics (push-payload fixture-gated) | SUB-TC-E04 |
+| ✅ Subscription Status diagnostics (dev deep link `qa-subscription-status` — unblocked 2026-09-17) | SUB-TC-E04 |
 | Payout Settings hero Available/Pending/Lifetime (FLOW-22, live) | SUB-TC-F01 |
 | Payout method section add/existing (live) | SUB-TC-F02 |
 | Payout history list (live) | SUB-TC-F03 |

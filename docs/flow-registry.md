@@ -404,7 +404,7 @@ Review Offer's 20s offer-load timeout → retry card).
 - `ManageKidsClub` — `screens/subscription/ManageKidsClubScreen.tsx` — full-screen subscription manager (deep link `manage-kids-club`; tab bar hidden here).
 - `CancelSubscription` — `screens/subscription/CancelSubscriptionScreen.tsx` — cancel confirmation + consequences.
 - `SubscriptionExpired` — `screens/subscription/SubscriptionExpiredScreen.tsx` — expired state with the real "plan ended on" date + rejoin CTA.
-- `SubscriptionStatus` — `screens/subscription/SubscriptionStatusScreen.tsx` — status surface reachable via the `/subscription/status` push payload (deep-link/push-only).
+- `SubscriptionStatus` — `screens/subscription/SubscriptionStatusScreen.tsx` — status surface reachable via the `/subscription/status` push payload, and (dev/staging builds only) the QA deep link `qa-subscription-status` for direct entry.
 - `UpgradePlan` — `screens/subscription/UpgradePlanScreen.tsx` — tier upgrade entry.
 - `SubscriptionPayment` — `screens/subscription/SubscriptionPaymentScreen.tsx` — registered but no live caller [deprecated].
 - `SubscriptionSuccess` — `screens/subscription/SubscriptionSuccessScreen.tsx` — registered but no live caller [deprecated].
@@ -663,8 +663,8 @@ Review Offer's 20s offer-load timeout → retry card).
 1. A seller sets up a payout method (Stripe Connect / bank / PayPal / Venmo) from **PayoutSettings** (deep link `payout-settings`, also the cold-return target after hosted Stripe onboarding).
 2. **Stripe Connect** sellers complete hosted onboarding via `create-stripe-account-link` (Continue Onboarding card shows while `stripe_account_id && !onboarding_complete`); status syncs via `sync-stripe-connect-status`.
 3. The hero shows Available/Pending/Lifetime (gross) with a fee-disclosure note; on each completed trade a `seller_payouts` row is queued (pending) by the completion path (FLOW-08) with release timing.
-4. **Withdraw**: the seller requests a withdrawal for available funds (`request_seller_payout` path); the Withdraw modal shows the payout provider fee; an unverified method is blocked with friendly copy (see FLOW-23).
-5. **Processing**: due payouts are released by the cron/EF (`release-due-payouts` → `initiate-payout`/`process-paypal-payout`), transfers are recorded (`payout_status=paid`, `stripe_transfer_id`), and history rows update with provider fee/net.
+4. **Withdraw**: the seller requests a withdrawal for available funds (`request_seller_payout` path); the Withdraw modal names the provider and states the fee **formula** inline (`getPayoutFeeFormula` — e.g. "Stripe — $0.25 + 0.25%") beside the computed net; an unverified method is blocked with friendly copy (see FLOW-23). After a successful request the history row **settles automatically** — a bounded poll re-reads the payout rows so the provider status (`processing` → `completed`) appears without a manual pull-to-refresh.
+5. **Processing**: due payouts are released by the cron/EF (`release-due-payouts` → `initiate-payout`/`process-paypal-payout`), transfers are recorded (`payout_status=paid`, `stripe_transfer_id`), and history rows update with provider fee/net. The **provider webhook** (`stripe-webhook`) also reconciles `payout.*` status onto `seller_payouts` — it verifies signatures with `await stripe.webhooks.constructEventAsync(...)` (the synchronous form throws on the Deno/WebCrypto runtime and rejects every delivery).
 6. History supports load-more pagination; `requires_action` rows offer "Set Up Payout Method" to resume.
 
 **Mobile screens.**
@@ -673,7 +673,7 @@ Review Offer's 20s offer-load timeout → retry card).
 - `SellerEarnings` — removed: route, screen and unit test deleted (no live caller; superseded by PayoutSettings).
 - `PayoutDashboard` — removed: unrouted screen and unit test deleted (superseded by PayoutSettings).
 
-**Functions/features.** Edge Functions: `create-stripe-connect-account`, `create-stripe-account-link`, `sync-stripe-connect-status`, `payout-settings-redirect`, `initiate-payout`, `process-paypal-payout`, `release-due-payouts` (cron), `dispatch-manual-payouts`; RPCs: `create_seller_payout_on_trade_completion`, `recompute_seller_balance` (service_role), `request_seller_payout`, `set_primary_payout_method`; DB: `seller_payout_methods`, `seller_payouts`, `seller_balance`, `trades.payout_*`; client: `services/payoutMethods.ts`, `payoutService.ts`, `payoutRouter.ts`, `sellerBalance.ts`; QA: `qa:payout-fixture` persona + runbook.
+**Functions/features.** Edge Functions: `create-stripe-connect-account`, `create-stripe-account-link`, `sync-stripe-connect-status`, `payout-settings-redirect`, `initiate-payout`, `process-paypal-payout`, `release-due-payouts` (cron), `dispatch-manual-payouts`; RPCs: `create_seller_payout_on_trade_completion`, `recompute_seller_balance` (service_role), `request_seller_payout`, `set_primary_payout_method`; DB: `seller_payout_methods`, `seller_payouts`, `seller_balance`, `trades.payout_*`; client: `services/payoutMethods.ts`, `payoutService.ts`, `payoutRouter.ts`, `sellerBalance.ts`; QA: `qa:payout-fixture` persona + runbook, `qa:stripe-inspect` (provider reads), `qa:stripe-webhook-replay` (signed provider-event delivery for the L03/L05 legs).
 
 **Admin pages.**
 - `/payouts` — payout records/operations (see FLOW-25).

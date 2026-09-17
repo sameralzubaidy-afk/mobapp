@@ -70,7 +70,22 @@ serve(async (req) => {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    // FIX-Task-52 item 7b follow-up (2026-09-17) — P1: this MUST be the ASYNC
+    // variant. On the Deno/esm.sh Stripe v14 runtime the default crypto provider
+    // is `SubtleCryptoProvider` (WebCrypto), which cannot be used from a
+    // SYNCHRONOUS context: the sync `constructEvent(...)` threw
+    //   "SubtleCryptoProvider cannot be used in a synchronous context.
+    //    Use `await constructEventAsync(...)` instead of `constructEvent(...)`"
+    // on EVERY delivery, so this endpoint answered 400 to all Stripe events and
+    // NONE of its handlers ever ran (tax `charge.captured` safety net, refunds,
+    // payment failures, `account.updated`, `payout.*`, disputes).
+    //
+    // Found live on 2026-09-17 by the new `qa:stripe-webhook-replay` helper
+    // (FIX-Task-52 item 7b) — the very first real POST to this endpoint, and
+    // evidence that the case had never actually exercised this path before.
+    // The sibling `stripe-webhook-subscriptions` function already used the async
+    // form, which is why only THIS endpoint was broken.
+    event = await stripe.webhooks.constructEventAsync(body, sig, endpointSecret);
   } catch (err: any) {
     console.error(`[stripe-webhook] Error verifying webhook signature: ${err.message}`);
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
