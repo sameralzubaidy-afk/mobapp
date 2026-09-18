@@ -404,7 +404,7 @@ RESULT: no unexplained out-of-band changes          EXIT=0
 | 2 | Staging snapshot fresh | `capturedAt 2026-09-18T21:52:11.517Z`, `projectRef drntwgporzabmxdqykrp`, `fpVersion 2`, `freshnessDays 7`, **age 0.018 d**, and capture **newer** than `lastApprovedStagingDDLAt` (21:52:11Z > 21:31:00Z) — 11 kind digests | ✅ |
 | 3 | `npm run migration-gate` (static) | `VERDICT: PASS — static checks green` (544 files) | ✅ |
 | 4 | `npm run migration-gate:full` | `VERDICT: PASS — static + full green (11 kind digests compared, no new drift)`, **exit 0** — scratch rebuild probe 544/544 | ✅ |
-| 5 | Required checks live **and blocking** | live read: `contexts = ["Static migration checks", "Full migration gate (scratch rebuild + fidelity)"]`, `strict=false`, `reviews=null`, `restrictions=null`, `enforce_admins=false`. Blocking behaviour proven red→green in §4 (`359635c1` → `failure` + `mergeState=BLOCKED`; after the revert `ef9e7153` / `f62b6756` / `d0a6f237` → both `success`) | ✅ |
+| 5 | Required checks live **and blocking** | live read: `contexts = ["Static migration checks", "Full migration gate (scratch rebuild + fidelity)"]`, `strict=false`, `reviews=null`, `restrictions=null`, `enforce_admins=false`. Blocking behaviour proven red→green in §4 (`359635c1` → `failure` + `mergeState=BLOCKED`; after the revert `ef9e7153` / `f62b6756` / `d0a6f237` → both `success`) — **and re-observed live on the freeze commit in §11: `BLOCKED` → 6 × `success` → `CLEAN`** | ✅ |
 | 6 | `APPLIED_UNCOMMITTED = 0` | `0` — no uncommitted `.sql` in `supabase/migrations` | ✅ |
 
 ### DECLARATION
@@ -430,4 +430,36 @@ inventing files would fabricate history); no change to the two required checks.
 (all 45 rows → disposition, 0 unmatched) · `ledger-reconciliation.json` (the **pre-fix** finding,
 kept unchanged for the record) · `supabase/migrations/tools/staging-fp/staging-ledger.json` (the
 284-row dump).
+
+---
+
+## 11. Post-push CI — all six checks green on the freeze commit
+
+The freeze commit `5359c277` was pushed, and the required checks were watched to completion (this
+replaces the "queued" caveat recorded at first hand-off).
+
+| Check | Result | Elapsed |
+|---|---|---|
+| **Static migration checks** (required) | `completed/success` | 1m32s |
+| **Full migration gate (scratch rebuild + fidelity)** (required) | `completed/success` | 4m16s |
+| Lint · TypeScript · Tests · E2E - Cache Integration Tests | `completed/success` | 4m36s · 3m45s · 5m11s · 3m22s |
+
+```
+gh api repos/sameralzubaidy-afk/mobapp/commits/5359c277/check-runs
+  → 6 check runs: completed/success, 0 failing, 0 pending
+gh pr view 24 → mergeable=MERGEABLE  mergeStateStatus=CLEAN
+```
+
+**This closes condition 5 with a live observation rather than only the historical pair.** The same
+commit was observed in all three states in sequence: **`BLOCKED`** while the required checks were
+still queued/in progress → **six `success`** → **`CLEAN`**. A required check that is merely
+*configured* looks identical to one that works; being able to watch the transition is the difference.
+
+**Not merged.** PR #24 is left open for the owner — `MERGEABLE/CLEAN` is the state handed over, not
+an action taken.
+
+> A documentation-only commit (this §11) follows `5359c277` and re-triggers the same six checks.
+> It changes no tool, migration, or exception — the evidence above is for the commit that carries
+> the freeze.
+
 
