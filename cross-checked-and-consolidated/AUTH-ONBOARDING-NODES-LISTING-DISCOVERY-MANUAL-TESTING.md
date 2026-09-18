@@ -2,7 +2,7 @@
 
 **Source of truth:** `Prompts/Done/MODULE-02-AUTHENTICATION.md` · `Prompts/MODULE-03-AUTH-V2.md` · `Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md` · `Prompts/MODULE-03-NODE-MANAGEMENT.md` · `Prompts/V3/MODULE-04-ITEM-LISTING-V3.md` · `Prompts/Done/MODULE-05-DISCOVERY-V2.md` · `docs/flow-registry.md`
 **Flows covered:** FLOW-01 (Signup/Login/Logout/Session Restore) · FLOW-02 (Profiles & Onboarding) · FLOW-03 (Node/ZIP Gating + Waitlist) · FLOW-04 (Listings — Create/Bulk/Pending) · FLOW-04C (Category SP Calculations & Bonus Badges) · FLOW-05 (Media Upload / Storage) · FLOW-06 (Discovery — Feed/Search/Filters/Favorites) · FLOW-30 (Global App Shell — Header, Floating Nav & Home Composer)
-**Last updated:** 2026-08-16
+**Last updated:** 2026-09-18 (FIX-Task-61 item 3: J02 corrected — **Continue Without AI** is available IMMEDIATELY inside the analyzing overlay; the ~7 s mark is when the overlay auto-releases, not when the option appears) · 2026-08-16
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -1072,7 +1072,8 @@ flagged as deprecation-review candidates (see `docs/DECISIONS.md`).
 **Expected Result:**
 - **Apply All** fills only empty fields (title, category, condition, brand, color, age group, gender).
 - Per-field **Use** applies a single suggestion.
-- After ~7 seconds a **Continue Without AI** option lets the seller proceed manually; a failure shows a **Try Again** option (the app's actual button label).
+- A **Continue Without AI** option is available **immediately** inside the "Analyzing Your Photos..." overlay, so the seller can proceed manually at once; the overlay **auto-releases after ~7 seconds** (`AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000`) — the 7-second mark is when the overlay releases itself, not when the option appears (amended 2026-09-18 — FIX-Task-61 item 3; the previous wording had this backwards).
+- On failure the card shows a **Try Again** option (the app's actual button label).
 
 ### AUTH-TC-J03 · Required field validation
 

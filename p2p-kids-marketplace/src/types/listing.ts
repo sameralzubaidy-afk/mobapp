@@ -238,6 +238,23 @@ export interface PhotoAsset {
 }
 
 /**
+ * Per-slot upload outcome for a picked photo.
+ *
+ * `failed` is what drives the visible "Couldn't upload" badge and the Publish
+ * block (FIX-Task-61 items 1 + 4): a slot in this state has NO remote URL, so
+ * publishing it would attach an image that does not exist server-side. `unknown`
+ * is deliberately not a state — a missing entry is treated as not-uploaded.
+ */
+export type PhotoUploadStatus = 'uploading' | 'uploaded' | 'failed';
+
+/** A photo slot's upload state plus the user-facing reason when it failed. */
+export interface PhotoUploadState {
+  status: PhotoUploadStatus;
+  /** Canonical rejection reason (e.g. "Image must be smaller than 10MB"). */
+  error?: string;
+}
+
+/**
  * Photo group for bulk listing
  * MODULE-04 V3: Groups photos into individual items
  */

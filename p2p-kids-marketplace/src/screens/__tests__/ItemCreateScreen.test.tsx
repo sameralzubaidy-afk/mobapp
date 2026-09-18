@@ -27,7 +27,7 @@ import { getCategories, flagForCategoryReview } from '../../services/categorySer
 import { getSuggestedPrice } from '../../services/pricingService';
 import { getSubscriptionSummary } from '../../services/subscription';
 import { isPhoneRequired } from '../../services/phoneService';
-import { createListing } from '../../services/listing';
+import { createListing, uploadListingImages } from '../../services/listing';
 import { getAdminConfig } from '../../services/adminConfig';
 
 // Mock all dependencies
@@ -93,6 +93,9 @@ const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction
 >;
 const mockIsPhoneRequired = isPhoneRequired as jest.MockedFunction<typeof isPhoneRequired>;
 const mockCreateListing = createListing as jest.MockedFunction<typeof createListing>;
+const mockUploadListingImages = uploadListingImages as jest.MockedFunction<
+  typeof uploadListingImages
+>;
 const mockGetAdminConfig = getAdminConfig as jest.MockedFunction<typeof getAdminConfig>;
 const mockImagePicker = ImagePicker.launchImageLibraryAsync as jest.MockedFunction<
   typeof ImagePicker.launchImageLibraryAsync
@@ -1030,6 +1033,175 @@ describe('ItemCreateScreen', () => {
       });
       fireEvent.press(getByTestId('apply-all-button'));
       expect(getByDisplayValue('AI Title')).toBeTruthy();
+    });
+  });
+
+  // ── FIX-Task-61: a rejected photo must be visible, explained, and unpublishable.
+  //    These tests cover the draft path (items 1 + 4), the publish hand-off
+  //    (item 2 wiring) and the AI error card's Details disclosure (item 5).
+  describe('Photo rejection, publish gate & AI Details (FIX-Task-61)', () => {
+    let alertSpy: jest.SpiedFunction<typeof Alert.alert>;
+
+    beforeEach(() => {
+      // Per-test spy (restored afterwards) — this file already installs one inside
+      // another describe, and a second un-restored spy would shadow it for every
+      // earlier test in the file.
+      alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      alertSpy.mockRestore();
+    });
+
+    const pickPhoto = async ($getByTestId: (id: string | RegExp) => any, uri: string) => {
+      mockImagePicker.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri, width: 800, height: 800, fileSize: 1000, mimeType: 'image/jpeg' }],
+      } as any);
+
+      await act(async () => {
+        fireEvent.press($getByTestId('add-photos-button'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await waitFor(() => expect(mockImagePicker).toHaveBeenCalled());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+
+    const fillValidForm = ($getByTestId: (id: string | RegExp) => any) => {
+      fireEvent.press($getByTestId('dev-set-category'));
+      fireEvent.changeText($getByTestId('title-input'), 'FIX-61 item');
+      fireEvent.press($getByTestId('condition-good'));
+      fireEvent.changeText($getByTestId('manual-price-input'), '12.50');
+    };
+
+    const pressPublish = async ($getByTestId: (id: string | RegExp) => any) => {
+      await act(async () => {
+        fireEvent.press($getByTestId('publish-button'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+
+    it('surfaces the rejection copy and badges the rejected slot when the batch fails', async () => {
+      mockUploadPhotoBatch.mockResolvedValue({
+        urls: [],
+        errors: [{ index: 0, error: 'Only JPEG, PNG, WebP, and HEIC images are supported' }],
+      });
+
+      const { getByTestId, getByText } = renderScreen();
+
+      await pickPhoto(getByTestId, 'content://media/picker/bad.gif');
+
+      // Item 1: the seller is told, per photo, with the reason.
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Uploads failed',
+          expect.stringContaining('Only JPEG, PNG, WebP, and HEIC images are supported')
+        );
+      });
+
+      // Item 4: the slot itself is marked, and the notice persists after the alert.
+      expect(getByTestId(/photo-slot-failed-/)).toBeTruthy();
+      expect(getByTestId('photo-upload-error-card')).toBeTruthy();
+      expect(getByText(/Remove or replace it, then try again\./)).toBeTruthy();
+    });
+
+    it('blocks Publish while a slot is rejected and never creates the listing', async () => {
+      mockUploadPhotoBatch.mockResolvedValue({
+        urls: [],
+        errors: [{ index: 0, error: 'Image must be smaller than 10MB' }],
+      });
+      mockIsPhoneRequired.mockResolvedValue(false);
+      mockGetAdminConfig.mockResolvedValue({ min_listing_price: 0 } as any);
+
+      const { getByTestId } = renderScreen();
+      await pickPhoto(getByTestId, 'file:///tmp/huge.png');
+      await waitFor(() => expect(getByTestId(/photo-slot-failed-/)).toBeTruthy());
+
+      fillValidForm(getByTestId);
+      alertSpy.mockClear();
+      await pressPublish(getByTestId);
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        "Photo couldn't upload",
+        expect.stringContaining('Image must be smaller than 10MB')
+      );
+      expect(mockCreateListing).not.toHaveBeenCalled();
+      expect(mockUploadListingImages).not.toHaveBeenCalled();
+    });
+
+    it('publishes once the rejected slot is removed, passing photo metadata to the publish path', async () => {
+      mockUploadPhotoBatch
+        .mockResolvedValueOnce({ urls: ['https://cdn.example.com/good.jpg'], errors: [] })
+        .mockResolvedValueOnce({
+          urls: [],
+          errors: [{ index: 0, error: 'Image must be smaller than 10MB' }],
+        });
+      mockIsPhoneRequired.mockResolvedValue(false);
+      mockGetAdminConfig.mockResolvedValue({ min_listing_price: 0 } as any);
+      mockCreateListing.mockResolvedValue({ id: 'item-61' } as any);
+
+      const { getByTestId, getAllByTestId, queryByTestId } = renderScreen();
+
+      await pickPhoto(getByTestId, 'file:///tmp/good.jpg');
+      await pickPhoto(getByTestId, 'file:///tmp/huge.png');
+      await waitFor(() => expect(getByTestId(/photo-slot-failed-/)).toBeTruthy());
+
+      fillValidForm(getByTestId);
+
+      // Still blocked while the rejected slot is on screen.
+      await pressPublish(getByTestId);
+      expect(mockCreateListing).not.toHaveBeenCalled();
+
+      // Removing the rejected slot is the seller's escape hatch.
+      const removeButtons = getAllByTestId(/remove-photo-/);
+      fireEvent.press(removeButtons[1]);
+      expect(queryByTestId('photo-upload-error-card')).toBeNull();
+
+      await pressPublish(getByTestId);
+
+      await waitFor(() => expect(mockCreateListing).toHaveBeenCalled());
+      expect(mockUploadListingImages).toHaveBeenCalled();
+
+      // Item 2 wiring: the publish path receives the PhotoAsset objects, so its own
+      // validation can use the picker metadata instead of guessing from the URI.
+      const publishArgs = mockUploadListingImages.mock.calls[0];
+      expect(publishArgs[0]).toBe('item-61');
+      expect(publishArgs[2]).toEqual(
+        expect.arrayContaining([expect.objectContaining({ uri: 'file:///tmp/good.jpg' })])
+      );
+    });
+
+    it('keeps the AI failure reason behind a collapsed Details disclosure', async () => {
+      mockUseAIAnalysis.mockReturnValue({
+        status: 'error',
+        result: null,
+        error:
+          'Analysis failed: 401 {"error":{"code":"UNAUTHORIZED","message":"Invalid or expired bearer token"}}',
+        retry: jest.fn(),
+        reset: jest.fn(),
+      } as any);
+
+      const { getByTestId, queryByTestId } = renderScreen();
+      fireEvent.press(getByTestId('dev-add-test-photo'));
+
+      await waitFor(() => expect(getByTestId('ai-error-details-toggle')).toBeTruthy());
+
+      // Collapsed by default — the parent sees only the friendly copy.
+      expect(queryByTestId('ai-error-details-text')).toBeNull();
+      expect(getByTestId('ai-error-message')).toBeTruthy();
+
+      fireEvent.press(getByTestId('ai-error-details-toggle'));
+
+      const details = getByTestId('ai-error-details-text');
+      const detailText = String(details.props.children);
+
+      // Support gets a cause plus a searchable reference…
+      expect(detailText).toContain('401/403');
+      // …and the raw provider payload stays out of the UI.
+      expect(detailText).not.toMatch(/[{}]/);
+      expect(detailText).not.toContain('UNAUTHORIZED');
     });
   });
 });

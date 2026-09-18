@@ -89,7 +89,11 @@ describeSupabase('verify_user_phone RPC', () => {
     await service.from('phone_verification_codes').delete().eq('phone', phone);
     await service.from('phone_verification_codes').delete().eq('user_id', testUserId);
 
-    const { data: noData, error: noError } = await supabase.rpc('verify_user_phone', {
+    // FIX-Task-59 (2026-09-18): this RPC is now service_role-gated for an arbitrary
+    // `p_user_id`, so the privileged client is the correct harness for its business
+    // behaviour. Calling it with the anon app client would only exercise the
+    // authorization gate (which the negative test below covers deliberately).
+    const { data: noData, error: noError } = await service.rpc('verify_user_phone', {
       p_user_id: testUserId,
       p_phone: phone,
     } as any);
@@ -105,7 +109,7 @@ describeSupabase('verify_user_phone RPC', () => {
   test('marks profile verified when a verified code exists', async () => {
     await seedVerificationRow();
 
-    const { data, error } = await supabase.rpc('verify_user_phone', {
+    const { data, error } = await service.rpc('verify_user_phone', {
       p_user_id: testUserId,
       p_phone: phone,
     } as any);
@@ -124,5 +128,43 @@ describeSupabase('verify_user_phone RPC', () => {
     expect(Boolean((profile as any)?.phone_verified || (profile as any)?.phone_verified_at)).toBe(
       true
     );
+  });
+
+  // FIX-Task-59 (2026-09-18): before this test the suite proved the OPPOSITE of the
+  // security requirement — it called the RPC from the anon app client with an
+  // arbitrary `testUserId` and asserted success, i.e. it asserted the vulnerability.
+  // It now asserts the corrected rule: a caller who is not the target account can
+  // never mark that account verified, and the row is genuinely untouched.
+  test('rejects a caller who is not the target account (FIX-Task-59)', async () => {
+    expect(service).not.toBeNull();
+    const svc = service as NonNullable<typeof service>;
+
+    // Reset to a known-unverified baseline so "unchanged" is meaningful.
+    await svc
+      .from('profiles')
+      .update({ phone_verified_at: null, phone_verified: false })
+      .eq('user_id', testUserId);
+
+    // The app's anon-key client, with no session for `testUserId` (and normally no
+    // session at all). Either the grant denies it outright (anon) or the identity
+    // gate raises 42501 — never a successful verification.
+    const { data, error } = await supabase.rpc('verify_user_phone', {
+      p_user_id: testUserId,
+      p_phone: phone,
+    } as any);
+
+    const result = Array.isArray(data) ? data[0] : data;
+    expect((result as any)?.success).not.toBe(true);
+    if (error) {
+      expect(String(error.message ?? '')).toMatch(/permission denied|own phone/i);
+    }
+
+    const { data: profile } = await svc
+      .from('profiles')
+      .select('phone_verified, phone_verified_at')
+      .eq('user_id', testUserId)
+      .single();
+    expect((profile as any)?.phone_verified_at).toBeNull();
+    expect((profile as any)?.phone_verified).toBe(false);
   });
 });

@@ -8,6 +8,7 @@ import * as photoService from '../../services/photoService';
 import { PhotoAsset } from '../../types/listing';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../config/supabase';
+import { getLocalImageSizeBytes } from '../../utils/localImageFileSize';
 
 // Mock expo-image-manipulator
 jest.mock('expo-image-manipulator', () => ({
@@ -34,9 +35,22 @@ jest.mock('../../config/supabase', () => ({
   },
 }));
 
+// The on-disk size probe is a native call — stub it so the fail-open regression
+// tests are deterministic on any platform/CI machine.
+jest.mock('../../utils/localImageFileSize', () => ({
+  getLocalImageSizeBytes: jest.fn(),
+}));
+
+const mockGetLocalImageSizeBytes = getLocalImageSizeBytes as jest.MockedFunction<
+  typeof getLocalImageSizeBytes
+>;
+
 describe('photoService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default: size cannot be determined from disk. Tests that need a measured
+    // size override this explicitly.
+    mockGetLocalImageSizeBytes.mockResolvedValue(null);
     (global as any).fetch = jest.fn().mockResolvedValue({
       blob: jest.fn().mockResolvedValue('blob-data'),
     });
@@ -44,6 +58,138 @@ describe('photoService', () => {
 
   afterEach(() => {
     (global as any).fetch = undefined;
+  });
+
+  // ── FIX-Task-61 items 1–2: `validatePhoto` used to skip BOTH the size and the
+  //    MIME check whenever the picker omitted `fileSize`/`mimeType`, so a
+  //    metadata-free asset was unconditionally accepted (fail OPEN). These tests
+  //    pin the closed behaviour.
+  describe('validatePhoto — fail-open closure', () => {
+    it('rejects an oversize photo when the picker omits fileSize', async () => {
+      mockGetLocalImageSizeBytes.mockResolvedValue(37.5 * 1024 * 1024);
+
+      const asset: PhotoAsset = {
+        id: '1',
+        uri: 'file:///tmp/huge.png',
+        width: 2500,
+        height: 2500,
+        // fileSize deliberately absent — the exact shape that used to slip through
+        mimeType: 'image/png',
+      };
+
+      const result = await photoService.validatePhoto(asset);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('10MB');
+    });
+
+    it('rejects an unsupported type when the picker omits mimeType (derived from the URI)', async () => {
+      const asset: PhotoAsset = {
+        id: '1',
+        uri: 'file:///tmp/animation.gif',
+        width: 800,
+        height: 800,
+        fileSize: 5000,
+        // mimeType deliberately absent
+      };
+
+      const result = await photoService.validatePhoto(asset);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('JPEG, PNG, WebP, and HEIC');
+    });
+
+    it('prefers the picker metadata over the on-disk probe', async () => {
+      mockGetLocalImageSizeBytes.mockResolvedValue(37.5 * 1024 * 1024);
+
+      const asset: PhotoAsset = {
+        id: '1',
+        uri: 'file:///tmp/small.jpg',
+        width: 800,
+        height: 800,
+        fileSize: 1024,
+        mimeType: 'image/jpeg',
+      };
+
+      const result = await photoService.validatePhoto(asset);
+
+      expect(result.valid).toBe(true);
+      expect(mockGetLocalImageSizeBytes).not.toHaveBeenCalled();
+    });
+
+    it('allows a photo whose size cannot be determined (documented residual — the bucket is the backstop)', async () => {
+      mockGetLocalImageSizeBytes.mockResolvedValue(null);
+
+      const asset: PhotoAsset = {
+        id: '1',
+        uri: 'file:///tmp/unknown.jpg',
+        width: 800,
+        height: 800,
+        mimeType: 'image/jpeg',
+      };
+
+      const result = await photoService.validatePhoto(asset);
+
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  // ── FIX-Task-61 item 1: the errors[] array the UI now renders. Previously it
+  //    only ever reached telemetry, so these assertions are what the screen-level
+  //    rejection copy is built from.
+  describe('uploadPhotoBatch — rejection reporting', () => {
+    it('reports a GIF as an error carrying its index instead of uploading it', async () => {
+      const mockUpload = jest.fn();
+      (supabase.storage.from as jest.Mock).mockReturnValue({
+        upload: mockUpload,
+        getPublicUrl: jest.fn(),
+      });
+
+      const photos: PhotoAsset[] = [
+        {
+          id: 'gif',
+          uri: 'file:///tmp/animation.gif',
+          width: 720,
+          height: 720,
+          fileSize: 5000,
+          mimeType: 'image/gif',
+        },
+      ];
+
+      const result = await photoService.uploadPhotoBatch(photos, 'seller-1');
+
+      expect(result.urls).toHaveLength(0);
+      expect(result.errors).toEqual([
+        { index: 0, error: 'Only JPEG, PNG, WebP, and HEIC images are supported' },
+      ]);
+      expect(mockUpload).not.toHaveBeenCalled();
+    });
+
+    it('reports an oversize photo as an error', async () => {
+      const mockUpload = jest.fn();
+      (supabase.storage.from as jest.Mock).mockReturnValue({
+        upload: mockUpload,
+        getPublicUrl: jest.fn(),
+      });
+
+      const photos: PhotoAsset[] = [
+        {
+          id: 'huge',
+          uri: 'file:///tmp/huge.png',
+          width: 2500,
+          height: 2500,
+          fileSize: 37.5 * 1024 * 1024,
+          mimeType: 'image/png',
+        },
+      ];
+
+      const result = await photoService.uploadPhotoBatch(photos, 'seller-1');
+
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].index).toBe(0);
+      expect(result.errors[0].error).toContain('10MB');
+      expect(mockUpload).not.toHaveBeenCalled();
+    });
   });
 
   describe('validatePhoto', () => {

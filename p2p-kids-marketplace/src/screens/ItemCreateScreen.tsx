@@ -33,7 +33,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../hooks/useAuth';
 import { useItemDraft } from '../hooks/useItemDraft';
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
-import { getUserFriendlyAiError } from '../utils/aiErrorFormat';
+import { getUserFriendlyAiError, getAiErrorDetail } from '../utils/aiErrorFormat';
+import {
+  buildRejectedPhotoMessage,
+  summarizeRejectedPhotos,
+} from '../utils/uploadFailureFormat';
 import { createListing, uploadListingImages } from '../services/listing';
 import { getAdminConfig } from '../services/adminConfig';
 import { getSubscriptionSummary } from '../services/subscription';
@@ -44,7 +48,13 @@ import {
   flagForCategoryReview,
   createCategorySuggestionFromItem,
 } from '../services/categoryService';
-import { PhotoAsset, Condition, DraftData, AIAnalysisResult } from '../types/listing';
+import {
+  PhotoAsset,
+  Condition,
+  DraftData,
+  AIAnalysisResult,
+  PhotoUploadState,
+} from '../types/listing';
 
 // Import V3 components
 import { PhotoUploadManager } from '../components/listing/PhotoUploadManager';
@@ -159,6 +169,15 @@ export default function ItemCreateScreen() {
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
   const [restoredPhotoUrls, setRestoredPhotoUrls] = useState<string[]>([]);
+  // FIX-Task-61 items 1 + 4: per-slot upload outcome, keyed by photo id. This is the
+  // SINGLE authoritative source for "does this strip slot actually exist
+  // server-side?" — it drives the per-slot badge, the inline notice, and the
+  // Publish gate. A photo with no entry is treated as NOT uploaded, so a photo that
+  // reached the strip through any route can never be published as a missing image
+  // (the publish path re-validates independently as a second line of defence).
+  const [photoUploadStates, setPhotoUploadStates] = useState<
+    Record<string, PhotoUploadState>
+  >({});
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
@@ -187,6 +206,8 @@ export default function ItemCreateScreen() {
   const [showConditionGuide, setShowConditionGuide] = useState(false);
   const [selectedConditionGuide, setSelectedConditionGuide] = useState<Condition | null>(null);
   const [showAICard, setShowAICard] = useState(false);
+  // FIX-Task-61 item 5: the AI card's support-facing "Details" disclosure.
+  const [showAiErrorDetails, setShowAiErrorDetails] = useState(false);
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
   const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
   const [pendingPhotoSource, setPendingPhotoSource] = useState<PhotoSourceOption | null>(null);
@@ -337,6 +358,16 @@ export default function ItemCreateScreen() {
     photoUrlByPhotoIdRef.current = new Map(
       restoredPhotoUrls.map((url, index) => [`restored-photo-${index}`, url])
     );
+    // Resumed drafts reference URLs that already exist in Storage, so every restored
+    // slot is `uploaded` — without this the FIX-Task-61 publish gate would block
+    // every draft resume.
+    setPhotoUploadStates((prev) => {
+      const next: Record<string, PhotoUploadState> = { ...prev };
+      restoredPhotoUrls.forEach((url, index) => {
+        next[`restored-photo-${index}`] = { status: 'uploaded' };
+      });
+      return next;
+    });
 
     const savedCategoryId =
       typeof draftData.category_id === 'string' && draftData.category_id.trim().length > 0
@@ -589,30 +620,56 @@ export default function ItemCreateScreen() {
 
   const uploadPhotos = useCallback(
     async (photosToUpload: PhotoAsset[]) => {
+      // Mark every attempt in flight first, so a slot can never look `uploaded`
+      // (or sit in an unknown state) while its upload is still running.
+      setPhotoUploadStates((prev) => {
+        const next: Record<string, PhotoUploadState> = { ...prev };
+        photosToUpload.forEach((photo) => {
+          next[photo.id] = { status: 'uploading' };
+        });
+        return next;
+      });
+
       try {
         const result = await uploadPhotoBatch(photosToUpload, sellerId);
 
+        // Derive each photo's outcome ONCE and use it for both the id->URL map and
+        // the per-slot state, so the strip and the published set can never disagree
+        // (BP-92 — one source of truth for a displayed state). The map is still the
+        // draft's photo_urls source, derived from the CURRENT on-screen order
+        // (reorder safe) rather than upload-completion order.
+        const failedIndices = new Set(result.errors.map((e) => e.index));
+        const errorByIndex = new Map(result.errors.map((e) => [e.index, e.error]));
+        const nextMap = new Map(photoUrlByPhotoIdRef.current);
+        const nextStates: Record<string, PhotoUploadState> = {};
+
+        let urlCursor = 0;
+        photosToUpload.forEach((photo, i) => {
+          if (failedIndices.has(i)) {
+            nextStates[photo.id] = {
+              status: 'failed',
+              error: errorByIndex.get(i) || 'Upload failed',
+            };
+            return;
+          }
+          const url = result.urls[urlCursor];
+          urlCursor += 1;
+          if (url) {
+            nextMap.set(photo.id, url);
+            nextStates[photo.id] = { status: 'uploaded' };
+          } else {
+            // Neither a URL nor a reported error — treat as failed rather than
+            // leaving the slot in a state a Publish could slip through.
+            nextStates[photo.id] = { status: 'failed', error: 'Upload failed' };
+          }
+        });
+
+        photoUrlByPhotoIdRef.current = nextMap;
+        setPhotoUrlMapVersion((v) => v + 1);
+        setPhotoUploadStates((prev) => ({ ...prev, ...nextStates }));
+
         if (result.urls.length > 0) {
           setUploadedPhotoUrls((prev) => [...prev, ...result.urls]);
-
-          // Record each successful upload against its photo id so the draft's
-          // photo_urls can be derived from the CURRENT on-screen order (reorder
-          // safe) instead of upload-completion order.
-          const failedIndices = new Set(result.errors.map((e) => e.index));
-          let urlCursor = 0;
-          const nextMap = new Map(photoUrlByPhotoIdRef.current);
-          photosToUpload.forEach((photo, i) => {
-            if (failedIndices.has(i)) {
-              return;
-            }
-            const url = result.urls[urlCursor];
-            if (url) {
-              nextMap.set(photo.id, url);
-            }
-            urlCursor += 1;
-          });
-          photoUrlByPhotoIdRef.current = nextMap;
-          setPhotoUrlMapVersion((v) => v + 1);
         }
 
         if (result.errors.length > 0) {
@@ -620,8 +677,29 @@ export default function ItemCreateScreen() {
             tags: { screen: 'ItemCreateScreen', action: 'photo_upload_errors' },
             extra: { errors: result.errors },
           });
+
+          // FIX-Task-61 item 1: this branch previously reported to telemetry ONLY, so
+          // an oversize or unsupported photo was added to the strip with zero
+          // feedback. Copy/format is shared with the Bulk screen.
+          Alert.alert(
+            result.errors.length === photosToUpload.length
+              ? 'Uploads failed'
+              : 'Some uploads failed',
+            buildRejectedPhotoMessage(result.errors, photosToUpload)
+          );
         }
       } catch (err: any) {
+        // A thrown batch (vs. a partial failure) leaves every attempted slot
+        // unverified — mark them failed so Publish cannot attach a missing image.
+        setPhotoUploadStates((prev) => {
+          const next: Record<string, PhotoUploadState> = { ...prev };
+          photosToUpload.forEach((photo) => {
+            if (next[photo.id]?.status !== 'uploaded') {
+              next[photo.id] = { status: 'failed', error: 'Upload failed' };
+            }
+          });
+          return next;
+        });
         captureException(err, {
           tags: { screen: 'ItemCreateScreen', action: 'upload_photos' },
           extra: { message: err?.message },
@@ -713,10 +791,17 @@ export default function ItemCreateScreen() {
       console.warn('[ItemCreateScreen] Dev test photo: bundled asset unresolved');
       return;
     }
+    const photoId = `dev-photo-${Date.now()}`;
     setPhotos((prev) => [
       ...prev,
-      { id: `dev-photo-${Date.now()}`, uri, width: 1024, height: 1024, mimeType: 'image/png' },
+      { id: photoId, uri, width: 1024, height: 1024, mimeType: 'image/png' },
     ]);
+    // FIX-Task-61: this fixture fabricates a slot whose real upload never runs, so
+    // record it as `uploaded` in the upload-state map (and ONLY there — deliberately
+    // NOT in uploadedPhotoUrls, which would wake the AI-analysis / draft-auto-save
+    // paths this fixture exists to avoid). Without this the new Publish gate would
+    // block every QA flow that drives publish via the dev fixtures.
+    setPhotoUploadStates((prev) => ({ ...prev, [photoId]: { status: 'uploaded' } }));
     dispatch({ type: 'PHOTOS_ADDED' });
   }, []);
 
@@ -744,6 +829,7 @@ export default function ItemCreateScreen() {
       { id: photoId, uri, width: 1024, height: 1024, mimeType: 'image/png' },
     ]);
     setUploadedPhotoUrls((prev) => [...prev, mockUrl]);
+    setPhotoUploadStates((prev) => ({ ...prev, [photoId]: { status: 'uploaded' } }));
 
     // Record the URL against the photo id so the draft's photo_urls derive from
     // the CURRENT on-screen order (reorder/remove safe), exactly like uploadPhotos.
@@ -829,6 +915,11 @@ export default function ItemCreateScreen() {
     // Drop the URL mapping too — the draft's photo_urls derive from the on-screen
     // photos + this map, so a removed photo never lingers in a saved draft.
     photoUrlByPhotoIdRef.current.delete(photoId);
+    setPhotoUploadStates((prev) => {
+      const next: Record<string, PhotoUploadState> = { ...prev };
+      delete next[photoId];
+      return next;
+    });
     setPhotos(photos.filter((p) => p.id !== photoId));
   };
 
@@ -855,6 +946,14 @@ export default function ItemCreateScreen() {
 
     photoUrlByPhotoIdRef.current.delete(photoId);
     setPhotos((prev) => prev.map((p) => (p.id === photoId ? replacement : p)));
+    // FIX-Task-61: the old slot's state goes away with it, and the replacement starts
+    // as `uploading` so it can never be published until its own upload lands.
+    setPhotoUploadStates((prev) => {
+      const next: Record<string, PhotoUploadState> = { ...prev };
+      delete next[photoId];
+      next[replacement.id] = { status: 'uploading' };
+      return next;
+    });
 
     try {
       const result = await uploadPhotoBatch([replacement], sellerId);
@@ -863,10 +962,28 @@ export default function ItemCreateScreen() {
         nextMap.set(replacement.id, result.urls[0]);
         photoUrlByPhotoIdRef.current = nextMap;
         setPhotoUrlMapVersion((v) => v + 1);
+        setPhotoUploadStates((prev) => ({
+          ...prev,
+          [replacement.id]: { status: 'uploaded' },
+        }));
       } else if (result.errors.length > 0) {
-        Alert.alert('Error', result.errors[0].error || 'Failed to upload replacement photo');
+        setPhotoUploadStates((prev) => ({
+          ...prev,
+          [replacement.id]: {
+            status: 'failed',
+            error: result.errors[0].error || 'Upload failed',
+          },
+        }));
+        Alert.alert(
+          "Photo couldn't upload",
+          buildRejectedPhotoMessage(result.errors, [replacement])
+        );
       }
     } catch (err: any) {
+      setPhotoUploadStates((prev) => ({
+        ...prev,
+        [replacement.id]: { status: 'failed', error: 'Upload failed' },
+      }));
       captureException(err, {
         tags: { screen: 'ItemCreateScreen', action: 'replace_photo' },
         extra: { message: err?.message },
@@ -991,6 +1108,7 @@ export default function ItemCreateScreen() {
   const handleContinueWithoutAI = () => {
     clearAIBlockingTimeout();
     setAllowManualWhileAnalyzing(true);
+    setShowAiErrorDetails(false);
     resetAI();
   };
 
@@ -1035,6 +1153,31 @@ export default function ItemCreateScreen() {
 
     if (!canPublish()) {
       Alert.alert('Missing Fields', 'Please fill all required fields');
+      return;
+    }
+
+    // FIX-Task-61 items 1 + 4: a strip slot that never produced a remote URL must
+    // never be published — the seller would end up with a listing showing a photo
+    // that does not exist server-side. The slot stays visible with a "Couldn't
+    // upload" badge and Publish is refused with the reason. Checked AFTER the phone
+    // gate (which re-invokes handlePublish) and BEFORE the generic canPublish()
+    // message, which would be misleading here.
+    // Deliberately NOT folded into canPublish(): that binds disabled={!canPublish()}
+    // on the Publish button, which would make this explanation unreachable — the same
+    // dead-code trap the phone gate above was hoisted to fix.
+    if (rejectedUploadErrors.length > 0) {
+      Alert.alert(
+        rejectedUploadErrors.length === 1 ? "Photo couldn't upload" : "Photos couldn't upload",
+        buildRejectedPhotoMessage(rejectedUploadErrors, photos)
+      );
+      return;
+    }
+
+    if (photos.some((photo) => photoUploadStates[photo.id]?.status !== 'uploaded')) {
+      Alert.alert(
+        'Photos still uploading',
+        'Please wait a moment for your photos to finish uploading, then try again.'
+      );
       return;
     }
 
@@ -1084,9 +1227,11 @@ export default function ItemCreateScreen() {
       });
 
       // Step 2: Attach listing images to item_images so admin review can render photos.
-      const localImageUris = photos.map((photo) => photo.uri);
-      if (localImageUris.length > 0) {
-        await uploadListingImages(item.id, sellerId, localImageUris);
+      // FIX-Task-61 item 2: pass the full PhotoAsset objects, not just URIs — the
+      // publish path re-validates the size/MIME contract and the picker metadata makes
+      // that check independent of what can be derived from the URI.
+      if (photos.length > 0) {
+        await uploadListingImages(item.id, sellerId, photos);
       }
 
       // If "Other" category, flag for review
@@ -1133,6 +1278,26 @@ export default function ItemCreateScreen() {
   const isAnalyzing = aiStatus === 'analyzing';
   const isAnalyzingBlocking = isAnalyzing && !allowManualWhileAnalyzing;
 
+  // FIX-Task-61 items 1 + 4: derive the rejected set from the single upload-state map
+  // in one pass over the ON-SCREEN order, so the labels and reasons always match the
+  // strip the seller is looking at (BP-92).
+  const rejectedUploadErrors = photos.reduce<{ index: number; error: string }[]>(
+    (acc, photo, index) => {
+      const upload = photoUploadStates[photo.id];
+      if (upload?.status === 'failed') {
+        acc.push({ index, error: upload.error || 'Upload failed' });
+      }
+      return acc;
+    },
+    []
+  );
+  const rejectedUploadSummary =
+    rejectedUploadErrors.length > 0 ? summarizeRejectedPhotos(rejectedUploadErrors, photos) : null;
+
+  // FIX-Task-61 item 5: support-facing failure detail for the AI card, derived from
+  // the SAME raw error the friendly copy comes from so the two cannot disagree.
+  const aiErrorDetail = aiStatus === 'error' ? getAiErrorDetail(aiError) : null;
+
   // Price Adjustment: dismiss modal → scroll to price field → focus
   const handlePriceAdjustmentUpdate = useCallback(() => {
     setShowPriceAdjustmentModal(false);
@@ -1167,11 +1332,34 @@ export default function ItemCreateScreen() {
         {/* Photo Upload */}
         <PhotoUploadManager
           photos={photos}
+          uploadStates={photoUploadStates}
           onAddPhotos={handleAddPhotos}
           onRemovePhoto={handleRemovePhoto}
           onReorder={handleReorderPhotos}
           onReplacePhoto={handleReplacePhoto}
         />
+
+        {/* FIX-Task-61 items 1 + 4: persistent counterpart to the one-off rejection
+            Alert. The per-slot badges show WHERE, this card explains WHY and what to
+            do, and the publish gate keeps the listing from shipping without a photo. */}
+        {rejectedUploadSummary && (
+          <View style={styles.photoUploadErrorCard} testID="photo-upload-error-card">
+            <Text style={styles.photoUploadErrorTitle}>{rejectedUploadSummary.heading}</Text>
+            {rejectedUploadSummary.details.map((detail) => (
+              <Text key={detail} style={styles.photoUploadErrorDetail}>
+                {detail}
+              </Text>
+            ))}
+            {rejectedUploadSummary.overflowLine && (
+              <Text style={styles.photoUploadErrorDetail}>
+                {rejectedUploadSummary.overflowLine}
+              </Text>
+            )}
+            <Text style={styles.photoUploadErrorInstruction}>
+              {rejectedUploadSummary.instruction}
+            </Text>
+          </View>
+        )}
 
         {/* DEV-ONLY: bypass the native photo picker so QA automation can reach
             the below-fold form fields. The form renders only after at least one
@@ -1315,14 +1503,42 @@ export default function ItemCreateScreen() {
           />
         )}
 
-        {/* AI Analysis Error — user-friendly message, raw error logged to console */}
+        {/* AI Analysis Error — friendly copy for the parent, with an opt-in Details
+            disclosure that surfaces the underlying cause for support triage. */}
         {aiStatus === 'error' && photos.length > 0 && (
           <View style={styles.aiErrorCard}>
             <Text style={styles.aiErrorTitle}>Photo analysis issue</Text>
-            <Text style={styles.aiErrorMessage}>{getUserFriendlyAiError(aiError)}</Text>
+            <Text style={styles.aiErrorMessage} testID="ai-error-message">
+              {getUserFriendlyAiError(aiError)}
+            </Text>
+            {aiErrorDetail && (
+              <>
+                <TouchableOpacity
+                  style={styles.aiErrorDetailsToggle}
+                  onPress={() => setShowAiErrorDetails((prev) => !prev)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showAiErrorDetails }}
+                  accessibilityLabel="Show why the photo analysis failed"
+                  testID="ai-error-details-toggle"
+                  accessible
+                >
+                  <Text style={styles.aiErrorDetailsToggleText}>
+                    {showAiErrorDetails ? 'Hide details' : 'Details'}
+                  </Text>
+                </TouchableOpacity>
+                {showAiErrorDetails && (
+                  <Text style={styles.aiErrorDetailsText} testID="ai-error-details-text">
+                    {aiErrorDetail}
+                  </Text>
+                )}
+              </>
+            )}
             <TouchableOpacity
               style={styles.aiRetryButton}
-              onPress={retryAI}
+              onPress={() => {
+                setShowAiErrorDetails(false);
+                retryAI();
+              }}
               accessibilityRole="button"
               testID="ai-retry-button"
               accessible
@@ -1892,6 +2108,33 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  // FIX-Task-61 items 1 + 4: mirrors the aiErrorCard family so ItemCreate's error
+  // surfaces stay visually consistent with each other.
+  photoUploadErrorCard: {
+    backgroundColor: '#FFF4F4',
+    borderColor: '#FFD4D4',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  photoUploadErrorTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#C62828',
+    marginBottom: 4,
+  },
+  photoUploadErrorDetail: {
+    fontSize: 13,
+    color: '#7A1A1A',
+    marginBottom: 2,
+  },
+  photoUploadErrorInstruction: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7A1A1A',
+    marginTop: 6,
+  },
   aiErrorCard: {
     backgroundColor: '#FFF4F4',
     borderColor: '#FFD4D4',
@@ -1909,6 +2152,25 @@ const styles = StyleSheet.create({
   aiErrorMessage: {
     fontSize: 13,
     color: '#7A1A1A',
+    marginBottom: 10,
+  },
+  // FIX-Task-61 item 5: low-emphasis disclosure, deliberately quieter than the
+  // friendly copy above it so parents read the explanation first.
+  aiErrorDetailsToggle: {
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  aiErrorDetailsToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7A1A1A',
+    textDecorationLine: 'underline',
+  },
+  aiErrorDetailsText: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#7A1A1A',
+    opacity: 0.85,
     marginBottom: 10,
   },
   aiRetryButton: {

@@ -12,7 +12,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, FlatList, StyleSheet } from 'react-native';
 import { Camera } from 'phosphor-react-native';
-import { PhotoAsset } from '../../types/listing';
+import { PhotoAsset, PhotoUploadState } from '../../types/listing';
+
+/**
+ * Badge copy for a slot whose upload failed (FIX-Task-61 item 4). Held as a
+ * constant so the screen, the tests and any future instrumentation assert the
+ * same literal instead of each spelling it their own way.
+ */
+export const PHOTO_UPLOAD_FAILED_LABEL = "Couldn't upload";
 
 export interface PhotoUploadManagerProps {
   photos: PhotoAsset[];
@@ -25,6 +32,16 @@ export interface PhotoUploadManagerProps {
    * the replace control renders only when a handler is provided.
    */
   onReplacePhoto?: (photoId: string) => void;
+  /**
+   * Per-slot upload outcome, keyed by photo id. A slot whose upload failed is dimmed
+   * and badged "Couldn't upload" so a seller can never publish — or believe they have
+   * published — a listing whose visible strip contains a photo that does not exist
+   * server-side (FIX-Task-61 item 4).
+   *
+   * A photo with no entry is treated as merely un-started, not failed — the caller
+   * owns the decision about what an unknown state may be published.
+   */
+  uploadStates?: Record<string, PhotoUploadState>;
   maxPhotos?: number;
   testID?: string;
 }
@@ -35,6 +52,7 @@ export function PhotoUploadManager({
   onRemovePhoto,
   onReorder,
   onReplacePhoto,
+  uploadStates = {},
   maxPhotos = 10,
   testID = 'photo-upload-manager',
 }: PhotoUploadManagerProps) {
@@ -106,10 +124,46 @@ export function PhotoUploadManager({
     }
 
     const isCover = item.photoIndex === 0;
+    const uploadState = uploadStates[item.photo.id];
+    const uploadFailed = uploadState?.status === 'failed';
+    const uploadInFlight = uploadState?.status === 'uploading';
 
     return (
       <View style={styles.photoItem} testID={`photo-slot-filled-${item.photoIndex}`}>
-        <Image source={{ uri: item.photo.uri }} style={styles.photo} />
+        <Image
+          source={{ uri: item.photo.uri }}
+          style={[styles.photo, uploadFailed ? styles.photoDimmed : null]}
+        />
+        {uploadFailed && (
+          <View style={styles.uploadStatusBand} pointerEvents="none">
+            <View
+              style={styles.uploadFailedBadge}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel={`Couldn't upload: ${uploadState?.error || 'upload failed'}`}
+              testID={`photo-slot-failed-${item.photo.id}`}
+            >
+              <Text style={styles.uploadFailedText} numberOfLines={2}>
+                {PHOTO_UPLOAD_FAILED_LABEL}
+              </Text>
+            </View>
+          </View>
+        )}
+        {uploadInFlight && (
+          <View style={styles.uploadStatusBand} pointerEvents="none">
+            <View
+              style={styles.uploadingBadge}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel="Uploading photo"
+              testID={`photo-slot-uploading-${item.photo.id}`}
+            >
+              <Text style={styles.uploadingText} numberOfLines={1}>
+                Uploading…
+              </Text>
+            </View>
+          </View>
+        )}
         {isCover && (
           <View style={styles.coverBadge}>
             <Text style={styles.coverText}>Cover</Text>
@@ -262,6 +316,44 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  photoDimmed: {
+    opacity: 0.45,
+  },
+  // FIX-Task-61 item 4: per-slot upload signalling. Sits below the Cover badge and
+  // the remove button (both at top: 4) and above the reorder/replace chips (bottom: 4)
+  // so it never collides with an existing control.
+  uploadStatusBand: {
+    position: 'absolute',
+    top: 28,
+    left: 4,
+    right: 4,
+    alignItems: 'center',
+  },
+  uploadFailedBadge: {
+    // #C62828 matches the ItemCreate error-card family on this screen; darker than the
+    // #E85D75 error token so white 9px text keeps AA contrast on the badge.
+    backgroundColor: 'rgba(198, 40, 40, 0.92)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  uploadFailedText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  uploadingBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  uploadingText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   coverBadge: {
     position: 'absolute',

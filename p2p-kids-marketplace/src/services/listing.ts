@@ -16,7 +16,10 @@ import {
   UpdateListingInput,
   ListingFilters,
   ListingSummary,
+  PhotoAsset,
 } from '../types/listing';
+import { MAX_PHOTOS_PER_LISTING, mimeTypeFromUri, validatePhotoMetadata } from '../constants/photoRules';
+import { getLocalImageSizeBytes } from '../utils/localImageFileSize';
 import { trackEvent } from './analytics';
 import { getAdminConfig } from './adminConfig';
 import { uploadImage, deleteImage } from './supabase/storage';
@@ -127,6 +130,46 @@ const isLocalImageUri = (uri: string): boolean => {
     uri.startsWith('assets-library://') ||
     uri.startsWith('data:image/')
   );
+};
+
+/**
+ * FIX-Task-61 item 2: enforce the SAME size/MIME contract on the publish path
+ * that `photoService.validatePhoto` enforces on the draft path.
+ *
+ * Previously this path validated nothing but the image COUNT, so an oversize or
+ * wrong-type photo that reached the strip through any route (a resumed draft, a
+ * future caller, a picker that omitted metadata) would be uploaded and only
+ * rejected by the Storage bucket — surfacing as a raw provider error at the very
+ * end of publishing (AUTH Android R3, FINDING F1 second limb).
+ *
+ * Runs BEFORE any upload/DB write so a rejected photo cannot leave a
+ * half-uploaded listing behind. Asset metadata wins when the caller has it;
+ * otherwise MIME comes from the URI extension and size from the filesystem.
+ * An unresolvable value is not checkable here — the Storage bucket, which
+ * enforces both limits server-side, remains the backstop.
+ */
+const assertLocalImagesSatisfyContract = async (
+  entries: { uri: string; asset?: PhotoAsset }[]
+): Promise<void> => {
+  for (let i = 0; i < entries.length; i++) {
+    const { uri, asset } = entries[i];
+
+    // Resumed drafts reference already-uploaded public URLs — nothing to validate.
+    if (!isLocalImageUri(uri)) {
+      continue;
+    }
+
+    const mimeType = asset?.mimeType ?? mimeTypeFromUri(uri);
+    const fileSize =
+      typeof asset?.fileSize === 'number' && asset.fileSize > 0
+        ? asset.fileSize
+        : await getLocalImageSizeBytes(uri);
+
+    const validation = validatePhotoMetadata({ mimeType, fileSize });
+    if (!validation.valid) {
+      throw new Error(`Photo ${i + 1} can't be uploaded: ${validation.error}`);
+    }
+  }
 };
 
 const extractStorageObjectPath = (publicUrl: string): string | null => {
@@ -364,33 +407,44 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
  *
  * @param listing_id - The listing ID to attach images to
  * @param seller_id - The seller user ID (for storage path)
- * @param imageUris - Array of local image URIs to upload
+ * @param imageUris - Local image URIs to upload. Pass `PhotoAsset` objects (or a
+ *   mix) when the caller has picker metadata — it is validated first and is more
+ *   reliable than deriving size/MIME from the URI (FIX-Task-61 item 2).
  * @returns Array of uploaded image URLs with display_order
  * @throws Error if upload fails
  */
 export async function uploadListingImages(
   listing_id: string,
   seller_id: string,
-  imageUris: string[]
+  imageUris: (string | PhotoAsset)[]
 ): Promise<{ url: string; display_order: number }[]> {
   if (imageUris.length === 0) {
     return [];
   }
 
-  if (imageUris.length > 10) {
-    throw new Error('Maximum 10 images allowed per listing');
+  if (imageUris.length > MAX_PHOTOS_PER_LISTING) {
+    throw new Error(`Maximum ${MAX_PHOTOS_PER_LISTING} images allowed per listing`);
   }
+
+  // Callers may pass bare URIs (legacy signature) or PhotoAsset objects. Normalise
+  // once so the rest of the function has one shape to deal with.
+  const entries: { uri: string; asset?: PhotoAsset }[] = imageUris.map((entry) =>
+    typeof entry === 'string' ? { uri: entry } : { uri: entry.uri, asset: entry }
+  );
+
+  // Must run before the upload loop below, which inserts item_images rows as it goes.
+  await assertLocalImagesSatisfyContract(entries);
 
   const uploadedImages: { url: string; display_order: number }[] = [];
 
   try {
     console.log(
-      `[listing] 📤 Starting upload of ${imageUris.length} images for listing ${listing_id}`
+      `[listing] 📤 Starting upload of ${entries.length} images for listing ${listing_id}`
     );
 
     // Upload each image to storage
-    for (let i = 0; i < imageUris.length; i++) {
-      const imageUri = imageUris[i];
+    for (let i = 0; i < entries.length; i++) {
+      const imageUri = entries[i].uri;
 
       // Resumed drafts can already contain uploaded public URLs. Reuse them directly
       // instead of re-uploading as local files.
@@ -420,7 +474,7 @@ export async function uploadListingImages(
           display_order: i,
         });
 
-        console.log(`[listing] ✅ Reused existing remote image ${i + 1}/${imageUris.length}`);
+        console.log(`[listing] ✅ Reused existing remote image ${i + 1}/${entries.length}`);
         continue;
       }
 
@@ -429,7 +483,7 @@ export async function uploadListingImages(
         seller_id,
         imageUri,
         i,
-        imageUris.length
+        entries.length
       );
 
       // Insert into item_images table
@@ -512,8 +566,8 @@ export async function syncListingImages(
   seller_id: string,
   images: ListingImageDraft[]
 ): Promise<void> {
-  if (images.length > 10) {
-    throw new Error('Maximum 10 images allowed per listing');
+  if (images.length > MAX_PHOTOS_PER_LISTING) {
+    throw new Error(`Maximum ${MAX_PHOTOS_PER_LISTING} images allowed per listing`);
   }
 
   const { data: existingRows, error: existingError } = await supabase

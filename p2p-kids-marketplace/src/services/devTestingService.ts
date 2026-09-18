@@ -97,6 +97,18 @@ export async function bypassOTPVerification(
   try {
     console.warn('🧪 [DEV] Bypassing OTP verification for:', { userId, phone });
 
+    // FIX-Task-59 (2026-09-18) — KNOWN LIMITATION, do not treat as working:
+    // `verify_user_phone` now requires the caller to BE the target account, or to hold
+    // service_role. This helper cannot satisfy either requirement when it is handed a
+    // DIFFERENT user's id (the `createDummyUser` flow above), because the app bundle
+    // never receives `SUPABASE_SERVICE_ROLE_KEY` — Expo only inlines `EXPO_PUBLIC_*`
+    // variables, so `getServiceRoleClient()` returns null here and the app client's
+    // JWT belongs to whoever is signed in. The call below therefore returns
+    // `success: false` with a permission message for that flow, which its caller logs
+    // as a warning and continues past.
+    // Proper fix (needs an owner decision — see the FIX-Task-59 report): verify the
+    // new user server-side (Edge Function on service role), or have this flow sign in
+    // as the user it just created.
     // Insert a verified code record
     const { error: insertError } = await supabase.from('phone_verification_codes').insert({
       user_id: userId,

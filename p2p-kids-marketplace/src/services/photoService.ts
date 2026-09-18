@@ -16,42 +16,26 @@ import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../config/supabase';
 import { PhotoAsset, PhotoGroup } from '../types/listing';
+import { MAX_FILE_SIZE_MB, mimeTypeFromUri, validatePhotoMetadata } from '../constants/photoRules';
+import type { PhotoValidation } from '../constants/photoRules';
+import { getLocalImageSizeBytes } from '../utils/localImageFileSize';
 
 // Storage path pattern for draft-stage uploads: drafts/{seller_id}/{timestamp}/
 const STORAGE_BUCKET = 'item-images';
 
-// Validation limits
-// Single source of truth for the client-side file-size cap. ImagePickerGrid
-// (EditListingScreen) imports this so ItemCreate / Bulk Listing / EditListing
-// all enforce the same limit and can never drift apart.
-export const MAX_FILE_SIZE_MB = 10;
-const MIN_DIMENSION = 400;
+// Re-exported for backward compatibility: ImagePickerGrid (EditListingScreen)
+// imports MAX_FILE_SIZE_MB from this module. The size/MIME/dimension contract
+// itself now lives in `constants/photoRules.ts` so the draft path (here) and the
+// publish path (`services/listing.ts`) can never enforce different rules.
+export { MAX_FILE_SIZE_MB };
+export type { PhotoValidation };
+
 const MAX_PHOTOS_TOTAL = 30;
 const MAX_PHOTOS_PER_GROUP = 10;
 const MAX_GROUPS = 15;
 
 // Compression settings
 const COMPRESSION_QUALITY = 0.8;
-
-// Supported MIME types
-const SUPPORTED_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'public.heic',
-  'public.heif',
-];
-
-/**
- * Validation result for photo assets
- */
-export interface PhotoValidation {
-  valid: boolean;
-  error?: string;
-}
 
 /**
  * Batch upload result
@@ -63,40 +47,30 @@ export interface PhotoUploadResult {
 
 /**
  * Validate photo asset against requirements
- * Checks format, file size, and minimum dimensions
+ * Checks format, file size, and minimum dimensions.
+ *
+ * The picker omits `fileSize`/`mimeType` on some paths (notably Android), so both
+ * are RESOLVED here before delegating to the shared contract — the previous
+ * implementation failed OPEN because every size/MIME check sat inside
+ * `if (asset.fileSize)` / `if (asset.mimeType)`, which unconditionally accepted a
+ * metadata-free asset (FIX-Task-61 items 1–2).
  *
  * @param asset - Photo asset to validate
  * @returns Validation result with error message if invalid
  */
 export async function validatePhoto(asset: PhotoAsset): Promise<PhotoValidation> {
-  // Check MIME type
-  if (asset.mimeType && !SUPPORTED_TYPES.includes(asset.mimeType.toLowerCase())) {
-    return {
-      valid: false,
-      error: 'Only JPEG, PNG, WebP, and HEIC images are supported',
-    };
-  }
+  const mimeType = asset.mimeType ?? mimeTypeFromUri(asset.uri);
+  const fileSize =
+    typeof asset.fileSize === 'number' && asset.fileSize > 0
+      ? asset.fileSize
+      : await getLocalImageSizeBytes(asset.uri);
 
-  // Check file size (if available)
-  if (asset.fileSize) {
-    const sizeMB = asset.fileSize / (1024 * 1024);
-    if (sizeMB > MAX_FILE_SIZE_MB) {
-      return {
-        valid: false,
-        error: `Image must be smaller than ${MAX_FILE_SIZE_MB}MB`,
-      };
-    }
-  }
-
-  // Check dimensions
-  if (asset.width < MIN_DIMENSION || asset.height < MIN_DIMENSION) {
-    return {
-      valid: false,
-      error: `Image must be at least ${MIN_DIMENSION}×${MIN_DIMENSION} pixels`,
-    };
-  }
-
-  return { valid: true };
+  return validatePhotoMetadata({
+    mimeType,
+    fileSize,
+    width: asset.width,
+    height: asset.height,
+  });
 }
 
 /**

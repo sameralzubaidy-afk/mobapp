@@ -41,6 +41,7 @@ import {
 } from '../services/draftService';
 import { getSubscriptionSummary } from '../services/subscription';
 import { captureException } from '@/services/errorReporter';
+import { buildUploadFailureMessage } from '../utils/uploadFailureFormat';
 import { getCategories } from '../services/categoryService';
 import { getConfigValue } from '../services/adminConfig';
 import { computePhotoHash, findDuplicateIndices } from '../utils/photoHash';
@@ -146,28 +147,6 @@ function isLikelyLocalPhotoUri(uri: string): boolean {
     uri.startsWith('asset-library://') ||
     uri.startsWith('assets-library://')
   );
-}
-
-function photoLabelFromUri(uri: string, index: number): string {
-  const tail = uri.split('/').pop();
-  if (tail && tail.trim().length > 0) return tail;
-  return `Photo ${index + 1}`;
-}
-
-function buildUploadFailureMessage(
-  errors: { index: number; error: string }[],
-  picked: PhotoAsset[]
-): string {
-  const header =
-    errors.length === 1
-      ? '1 photo failed to upload and was skipped.'
-      : `${errors.length} photos failed to upload and were skipped.`;
-  const details = errors.slice(0, 3).map((entry) => {
-    const label = photoLabelFromUri(picked[entry.index]?.uri || '', entry.index);
-    return `- ${label}: ${entry.error}`;
-  });
-  const remainder = errors.length > 3 ? `\n- +${errors.length - 3} more failure(s)` : '';
-  return `${header}\n${details.join('\n')}${remainder}\nUse "+ Add more photos" to retry.`;
 }
 
 export default function BulkListingCreateScreen() {

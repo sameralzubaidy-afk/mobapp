@@ -13,8 +13,11 @@
 
 import React from 'react';
 import { render, fireEvent, within } from '@testing-library/react-native';
-import { PhotoUploadManager } from '../../listing/PhotoUploadManager';
-import { PhotoAsset } from '../../../types/listing';
+import {
+  PhotoUploadManager,
+  PHOTO_UPLOAD_FAILED_LABEL,
+} from '../../listing/PhotoUploadManager';
+import { PhotoAsset, PhotoUploadState } from '../../../types/listing';
 
 const mockPhotos: PhotoAsset[] = [
   { id: '1', uri: 'https://example.com/photo1.jpg', fileName: 'photo1.jpg', fileSize: 1024 },
@@ -407,6 +410,74 @@ describe('PhotoUploadManager', () => {
       );
 
       expect(queryByTestId('replace-photo-1')).toBeNull();
+    });
+  });
+
+  // ── FIX-Task-61 item 4: a slot whose upload failed must be visibly marked, so a
+  //    seller cannot publish (or believe they published) a listing whose strip shows
+  //    a photo that does not exist server-side.
+  describe('Upload status badges', () => {
+    const renderWithStates = (uploadStates: Record<string, PhotoUploadState>) =>
+      render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          uploadStates={uploadStates}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+    it('badges a failed slot and exposes the rejection reason to assistive tech', () => {
+      const { getByTestId, getByText } = renderWithStates({
+        '2': { status: 'failed', error: 'Image must be smaller than 10MB' },
+      });
+
+      const badge = getByTestId('photo-slot-failed-2');
+      expect(badge).toBeTruthy();
+      expect(getByText(PHOTO_UPLOAD_FAILED_LABEL)).toBeTruthy();
+      expect(badge.props.accessibilityLabel).toBe(
+        'Couldn\'t upload: Image must be smaller than 10MB'
+      );
+    });
+
+    it('falls back to a generic reason when the failure carries no message', () => {
+      const { getByTestId } = renderWithStates({ '1': { status: 'failed' } });
+
+      expect(getByTestId('photo-slot-failed-1').props.accessibilityLabel).toBe(
+        "Couldn't upload: upload failed"
+      );
+    });
+
+    it('marks an in-flight slot as uploading', () => {
+      const { getByTestId, getByText } = renderWithStates({ '1': { status: 'uploading' } });
+
+      expect(getByTestId('photo-slot-uploading-1')).toBeTruthy();
+      expect(getByText('Uploading…')).toBeTruthy();
+    });
+
+    it('renders no badge for an uploaded slot', () => {
+      const { queryByTestId } = renderWithStates({ '1': { status: 'uploaded' } });
+
+      expect(queryByTestId('photo-slot-failed-1')).toBeNull();
+      expect(queryByTestId('photo-slot-uploading-1')).toBeNull();
+    });
+
+    it('renders no badge for a slot with no entry, and degrades cleanly when the prop is absent', () => {
+      const withStates = renderWithStates({});
+      expect(withStates.queryByTestId('photo-slot-failed-1')).toBeNull();
+
+      // Backwards compatibility: existing callers that never pass uploadStates.
+      const withoutProp = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+      expect(withoutProp.queryByTestId('photo-slot-failed-1')).toBeNull();
+      expect(withoutProp.queryByTestId('photo-slot-uploading-1')).toBeNull();
     });
   });
 });
