@@ -589,3 +589,69 @@ task, split by table ownership (see `e2e-test-results/fix-task-43-2026-09-16/fid
   Plan any local privilege bootstrap (e.g. `scripts/migrations/local-stack-privileges.sh`) around that.
 
 
+
+---
+
+## ✅ FIX-Task-60 (2026-09-18) — the fidelity gap cut from 233 to 135; five silent-defect classes fixed
+
+Full write-up: `e2e-test-results/fix-task-60-2026-09-18/report.md` (mechanism) +
+`fidelity-exceptions.md` (a stated reason for **every** remaining finding).
+
+### Result
+
+```
+node scripts/migrations/replay-probe.mjs
+  migrations : 536 files              pass 1: applied 536, deferred 0
+  applied    : 536/536                unresolved : 0
+```
+
+| Rule | FIX-57 (531 files) | **FIX-60 (536 files)** |
+|---|---|---|
+| 1 · SUBSET | 119 | **49** |
+| 2 · EXPLAINED (provenance) | 65 | 62 |
+| 2 · NO CREATOR | 0 ✅ | **0** ✅ |
+| 3 · CONFLICT | 114 | **86** |
+
+**98 findings closed, 0 new findings introduced** — verified by diffing the finding key sets before/after
+(`comm -13` on the sorted keys must be empty; it is). The remaining 135 are *classified*, not merely
+counted: 102 benign-by-design, 5 deliberate chain decisions, 16 staging-side security findings,
+12 cruft/redundant. **Do not "fix" the residual to zero** — several of those objects were removed by
+later hardening migrations on purpose (see §B of `fidelity-exceptions.md`).
+
+### The defect classes this round found
+
+1. **Renumbered-legacy inversions (the FIX-57 class) are 252 wide, not 1.** A new `--clobber-scan`
+   mode in `scripts/migrations/fidelity-delta.mjs` proves them from `/tmp/renumber-map.json`: an object
+   whose *originally-earlier* definer now sorts *later*. Four were doing real damage — most notably
+   `get_user_sp_wallet_summary` silently losing `reserved_points` (the app maps that to `0`, so
+   **reserved SP displayed as zero**) and `items_status_check` losing `needs_edits` (the whole
+   request-edits moderation flow).
+2. **`trade_events` was created with column names no shipped writer uses** (`event_name`/`user_id` vs
+   the `event_type`/`actor_id` that 15+ Edge Functions, the admin route and the mobile e2e suite write).
+   Every write would fail *silently* (all call sites swallow the error), so the trade-event audit trail
+   would just stay empty on any rebuilt database.
+3. **A false `IF EXISTS (… 'nodes')` guard** in the first file of the chain silently skipped
+   `resolve_active_node_for_signup` (called by the app to resolve a signup ZIP) plus 4 `zip_waitlist`
+   indexes and 3 policies.
+4. **RLS was OFF on `nodes` and `debug_logs`** in the replay while staging has it on.
+5. **A `SELECT *` view (`user_subscriptions`) froze its column list at creation**, losing 2 columns.
+6. **A class the fidelity gate CANNOT see:** 21 client-facing RPCs had **no `authenticated` EXECUTE
+   grant** in a rebuilt database (`search_listings`, `get_user_sp_wallet_summary`,
+   `record_policy_acceptance`, notification reads/preferences, …). They relied on Postgres' default
+   `PUBLIC` grant, which `dt61_guard_revoke_fn_public` strips on every create — and every replay file
+   runs after that guard. The fingerprints do not capture `proacl`, so no gate run would ever have
+   reported this. Fixed by explicit grants; the DT-59 money lock-downs were verified untouched.
+
+### Two operational facts worth remembering
+
+* **`pass 1: … deferred 0` is not decoration.** Mid-task, putting an explicit column list in the
+  `user_subscriptions` view's own creator made that file fail on pass 1 (`applied 534, deferred 2`)
+  because its columns are added by later migrations. The fix was to re-create the view at the END of
+  the chain. Any change that makes an early file depend on later state shows up here first.
+* **`ALTER TABLE … ADD COLUMN` fails outright on a view** (`user_subscriptions` is a view, not a table).
+  The replay probe is what caught it — read the failing file's error before assuming a logic bug.
+
+### `db reset` — unchanged
+
+Still blocked by the CLI-execution-context defect (FIX-Task-43/57 analysis, options A–D). This task
+did not change that; `replay-probe.mjs` remains the Tier-2 evidence.

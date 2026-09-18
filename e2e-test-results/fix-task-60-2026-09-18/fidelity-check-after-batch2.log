@@ -1,0 +1,185 @@
+Schema fidelity check
+=====================
+migrations dir : supabase/migrations
+extension-owned objects excluded by name: 596
+named exclusions: _orphan_image_snapshot_20260829
+local fingerprints: regenerating from the rebuilt database...
+  local fingerprint 1: 1492 lines -> /tmp/local-fp1.txt
+  local fingerprint 2: 1142 lines -> /tmp/local-fp2.txt
+  local fingerprint 3: 1740 lines -> /tmp/local-fp3.txt
+objects: staging=3471  local=3484  (staging excluded ext=0/named=5; local excluded ext=800/named=0)
+creator index: 1238 object names across 536 migration files
+staging ledger: 253 suffix-normalized names
+
+1) SUBSET        - staging objects MISSING from the replay : 49
+     MISSING  CONSTRAINT|email_logs|email_logs_status_check
+     MISSING  FUNCTION|bytea_to_text|data bytea
+     MISSING  FUNCTION|http_delete|uri character varying, content character varying, content_type character varying
+     MISSING  FUNCTION|http_delete|uri character varying
+     MISSING  FUNCTION|http_get|uri character varying, data jsonb
+     MISSING  FUNCTION|http_get|uri character varying
+     MISSING  FUNCTION|http_header|field character varying, value character varying
+     MISSING  FUNCTION|http_head|uri character varying
+     MISSING  FUNCTION|http_list_curlopt|
+     MISSING  FUNCTION|http_patch|uri character varying, content character varying, content_type character varying
+     MISSING  FUNCTION|http_post|uri character varying, content character varying, content_type character varying
+     MISSING  FUNCTION|http_post|uri character varying, data jsonb
+     MISSING  FUNCTION|http_put|uri character varying, content character varying, content_type character varying
+     MISSING  FUNCTION|http_reset_curlopt|
+     MISSING  FUNCTION|http_set_curlopt|curlopt character varying, value character varying
+     MISSING  FUNCTION|http|request http_request
+     MISSING  FUNCTION|is_in_quiet_hours|p_user_id uuid
+     MISSING  FUNCTION|text_to_bytea|data text
+     MISSING  FUNCTION|urlencode|data jsonb
+     MISSING  FUNCTION|urlencode|string bytea
+     MISSING  FUNCTION|urlencode|string character varying
+     MISSING  POLICY|admin_config|admin_config_authenticated_read
+     MISSING  POLICY|ai_moderation_logs|ai_logs_system_create
+     MISSING  POLICY|email_logs|email_logs_select_own
+     MISSING  POLICY|email_logs|email_logs_service_role
+     MISSING  POLICY|items|Items visibility based on status
+     MISSING  POLICY|items|items_anon_select
+     MISSING  POLICY|items|items_insert_own_seller
+     MISSING  POLICY|items|items_update_own_seller
+     MISSING  POLICY|profiles|Service role can update profiles
+     MISSING  POLICY|profiles|profiles_anon_insert
+     MISSING  POLICY|profiles|profiles_anon_select
+     MISSING  POLICY|profiles|profiles_anon_update
+     MISSING  POLICY|referrals|referrals_anon_insert
+     MISSING  POLICY|referrals|referrals_anon_select
+     MISSING  POLICY|referrals|referrals_anon_update
+     MISSING  POLICY|referrals|referrals_insert
+     MISSING  POLICY|referrals|referrals_select_own
+     MISSING  POLICY|seller_payout_methods|Service role bypass - seller_payout_methods
+     MISSING  POLICY|seller_payouts|Service role bypass - seller_payouts
+     ... 9 more (see /tmp/fidelity-report-ft60-after4.json)
+2) EXPLAINED     - replay-only objects WITH provenance     : 62  {"COLUMN":10,"CONSTRAINT":11,"INDEX":1,"TRIGGER":2,"FUNCTION":14,"POLICY":24}
+                 - replay-only objects with NO CREATOR     : 0
+3) CONFLICT      - same object, different definition       : 86
+     CONFLICT INDEX|items|idx_items_node_id
+        staging: INDEX|public|items|idx_items_node_id|CREATE INDEX idx_items_node_id ON public.items USING btree (node_id) WHERE (node_id IS NOT NULL)
+        local  : INDEX|public|items|idx_items_node_id|CREATE INDEX idx_items_node_id ON public.items USING btree (node_id)
+     CONFLICT INDEX|trades|idx_trades_completed_at
+        staging: INDEX|public|trades|idx_trades_completed_at|CREATE INDEX idx_trades_completed_at ON public.trades USING btree (completed_at)
+        local  : INDEX|public|trades|idx_trades_completed_at|CREATE INDEX idx_trades_completed_at ON public.trades USING btree (completed_at) WHERE (status = 'completed'::text)
+     CONFLICT ENUM|admin_config_category|referral
+        staging: ENUM|public|admin_config_category|referral|11
+        local  : ENUM|public|admin_config_category|referral|13
+     CONFLICT ENUM|admin_config_category|tax
+        staging: ENUM|public|admin_config_category|tax|13
+        local  : ENUM|public|admin_config_category|tax|12
+     CONFLICT ENUM|admin_config_category|trade
+        staging: ENUM|public|admin_config_category|trade|12
+        local  : ENUM|public|admin_config_category|trade|11
+     CONFLICT FUNCTION|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid
+        staging: FUNCTION|public|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|-
+        local  : FUNCTION|public|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|search_path=public, pg_temp
+     CONFLICT FUNCTION|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb
+        staging: FUNCTION|public|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb|void|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb|void|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text
+        staging: FUNCTION|public|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|admin_force_delete_listing|p_listing_id uuid, p_reason text
+        staging: FUNCTION|public|admin_force_delete_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, auth
+        local  : FUNCTION|public|admin_force_delete_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public
+     CONFLICT FUNCTION|admin_get_user_analytics|p_admin_id uuid
+        staging: FUNCTION|public|admin_get_user_analytics|p_admin_id uuid|jsonb|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|admin_get_user_analytics|p_admin_id uuid|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|admin_get_user_detail|p_admin_id uuid, p_user_id uuid
+        staging: FUNCTION|public|admin_get_user_detail|p_admin_id uuid, p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|admin_get_user_detail|p_admin_id uuid, p_user_id uuid|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|admin_list_users|p_admin_id uuid, p_search text, p_account_status text, p_subscription_status text, p_node_id text, p_page integer, p_page_size integer
+        staging: FUNCTION|public|admin_list_users|p_admin_id uuid, p_search text, p_account_status text, p_subscription_status text, p_node_id text, p_page integer, p_page_size integer|jsonb|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|admin_list_users|p_admin_id uuid, p_search text, p_account_status text, p_subscription_status text, p_node_id text, p_page integer, p_page_size integer|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|admin_pause_listing|p_listing_id uuid, p_reason text
+        staging: FUNCTION|public|admin_pause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, auth
+        local  : FUNCTION|public|admin_pause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public
+     CONFLICT FUNCTION|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text
+        staging: FUNCTION|public|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|admin_unpause_listing|p_listing_id uuid, p_reason text
+        staging: FUNCTION|public|admin_unpause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, auth
+        local  : FUNCTION|public|admin_unpause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public
+     CONFLICT FUNCTION|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text
+        staging: FUNCTION|public|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer
+        staging: FUNCTION|public|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer|void|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer|void|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer
+        staging: FUNCTION|public|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer|jsonb|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer
+        staging: FUNCTION|public|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer|integer|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer|integer|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|check_badge_milestones|p_user_id uuid
+        staging: FUNCTION|public|check_badge_milestones|p_user_id uuid|void|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|check_badge_milestones|p_user_id uuid|void|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|check_push_rate_limit|p_user_id uuid
+        staging: FUNCTION|public|check_push_rate_limit|p_user_id uuid|boolean|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|check_push_rate_limit|p_user_id uuid|boolean|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|check_referral_code_exists|p_code text
+        staging: FUNCTION|public|check_referral_code_exists|p_code text|boolean|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|check_referral_code_exists|p_code text|boolean|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|check_sp_badges|
+        staging: FUNCTION|public|check_sp_badges||trigger|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|check_sp_badges||trigger|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|cleanup_expired_deduplications|
+        staging: FUNCTION|public|cleanup_expired_deduplications||integer|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|cleanup_expired_deduplications||integer|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb
+        staging: FUNCTION|public|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb|uuid|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb|uuid|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb
+        staging: FUNCTION|public|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb|uuid|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb|uuid|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb
+        staging: FUNCTION|public|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb|void|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb|void|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|create_referral_code|p_user_id uuid
+        staging: FUNCTION|public|create_referral_code|p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public,row_security=off
+        local  : FUNCTION|public|create_referral_code|p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp
+     CONFLICT FUNCTION|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean
+        staging: FUNCTION|public|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean|uuid|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean|uuid|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid
+        staging: FUNCTION|public|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|-
+        local  : FUNCTION|public|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|search_path=public, pg_temp
+     CONFLICT FUNCTION|dispatch_sp_notification_push|
+        staging: FUNCTION|public|dispatch_sp_notification_push||trigger|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|dispatch_sp_notification_push||trigger|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|extend_trial_period|p_user_id uuid, p_referral_user_id uuid
+        staging: FUNCTION|public|extend_trial_period|p_user_id uuid, p_referral_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|extend_trial_period|p_user_id uuid, p_referral_user_id uuid|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|fn_items_enforce_pending_for_starter_pack|
+        staging: FUNCTION|public|fn_items_enforce_pending_for_starter_pack||trigger|SECURITY_DEFINER|search_path=public
+        local  : FUNCTION|public|fn_items_enforce_pending_for_starter_pack||trigger|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|fn_on_listing_pending_notification|
+        staging: FUNCTION|public|fn_on_listing_pending_notification||trigger|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|fn_on_listing_pending_notification||trigger|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|fn_validate_trade_timing_config|
+        staging: FUNCTION|public|fn_validate_trade_timing_config||trigger|INVOKER|search_path=public
+        local  : FUNCTION|public|fn_validate_trade_timing_config||trigger|INVOKER|-
+     CONFLICT FUNCTION|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone
+        staging: FUNCTION|public|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone|jsonb|SECURITY_DEFINER|search_path=public, pg_temp
+        local  : FUNCTION|public|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone|jsonb|SECURITY_DEFINER|-
+     CONFLICT FUNCTION|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean
+        staging: FUNCTION|public|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean|TABLE(id uuid, notification_type text, entity_id uuid, title text, message text, is_read boolean, created_at timestamp with 
+        local  : FUNCTION|public|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean|TABLE(id uuid, notification_type text, entity_id uuid, title text, message text, is_read boolean, created_at timestamp with 
+     CONFLICT FUNCTION|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone
+        staging: FUNCTION|public|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone|TABLE(total_sent bigint, total_delivered bigint, total_opened bigint, total_clicked bigint, total_bounce
+        local  : FUNCTION|public|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone|TABLE(total_sent bigint, total_delivered bigint, total_opened bigint, total_clicked bigint, total_bounce
+     CONFLICT FUNCTION|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text
+        staging: FUNCTION|public|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text|TABLE(category text, email bigint, in_app bigint, push bigint, total bigint)|SE
+        local  : FUNCTION|public|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text|TABLE(category text, email bigint, in_app bigint, push bigint, total bigint)|SE
+     CONFLICT FUNCTION|get_notification_preferences|p_user_id uuid
+        staging: FUNCTION|public|get_notification_preferences|p_user_id uuid|TABLE(category notification_category, push_enabled boolean, in_app_enabled boolean, email_enabled boolean, quiet_hours_enabled boolean, quiet_hours_start time w
+        local  : FUNCTION|public|get_notification_preferences|p_user_id uuid|TABLE(category notification_category, push_enabled boolean, in_app_enabled boolean, email_enabled boolean, quiet_hours_enabled boolean, quiet_hours_start time w
+
+ledger corroboration: 0/62 replay-only objects have a creator file that IS in
+staging's ledger (i.e. staging records that migration yet lacks the object). Ledger name-matching is
+suffix-normalized because the ledger's own names are inconsistently prefixed - treat this as supporting
+evidence, not proof. The binding rule is provenance (rule 2).
+
+RESULT: FAIL - 135 hard finding(s). Full report -> /tmp/fidelity-report-ft60-after4.json

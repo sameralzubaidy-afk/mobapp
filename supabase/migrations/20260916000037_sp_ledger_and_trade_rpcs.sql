@@ -53,8 +53,14 @@ CREATE TABLE IF NOT EXISTS sp_ledger (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   
   -- Transaction details
+  -- FIX-Task-60: `earn_bonus` added. The live staging constraint admits it and the
+  -- rebuilt constraint did not, so a from-scratch database would REJECT a
+  -- transaction type the live system accepts (the D-17 lineage wrote a separate
+  -- `earn_bonus` ledger row; see 20260916000027_VERIFY_20260606_D17_FIX.sql, which
+  -- asserts ONE combined `earn_reward` row and therefore still expects the older
+  -- `earn_bonus` spelling to be a legal historical value).
   transaction_type TEXT NOT NULL CHECK (transaction_type IN (
-    'earn_starter_pack', 'earn_reward', 'earn_referral', 'earn_challenge',
+    'earn_starter_pack', 'earn_reward', 'earn_bonus', 'earn_referral', 'earn_challenge',
     'earn_refund', 'earn_admin_grant', 'earn_promotion',
     'spend_purchase', 'spend_fee', 'spend_boost',
     'expire', 'freeze', 'unfreeze', 'admin_deduct'
@@ -86,6 +92,19 @@ CREATE TABLE IF NOT EXISTS sp_ledger (
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- FIX-Task-60: converge the CHECK constraint on databases where the table already
+-- existed (`CREATE TABLE IF NOT EXISTS` above is a no-op there, so the widened list
+-- would never be applied). Re-asserting it explicitly also makes the constraint name
+-- deterministic instead of relying on Postgres' auto-naming.
+ALTER TABLE public.sp_ledger DROP CONSTRAINT IF EXISTS sp_ledger_transaction_type_check;
+ALTER TABLE public.sp_ledger ADD CONSTRAINT sp_ledger_transaction_type_check
+  CHECK (transaction_type IN (
+    'earn_starter_pack', 'earn_reward', 'earn_bonus', 'earn_referral', 'earn_challenge',
+    'earn_refund', 'earn_admin_grant', 'earn_promotion',
+    'spend_purchase', 'spend_fee', 'spend_boost',
+    'expire', 'freeze', 'unfreeze', 'admin_deduct'
+  ));
 
 CREATE INDEX IF NOT EXISTS idx_sp_ledger_user_id ON sp_ledger(user_id);
 CREATE INDEX IF NOT EXISTS idx_sp_ledger_wallet_id ON sp_ledger(wallet_id);

@@ -23,13 +23,25 @@ ADD COLUMN IF NOT EXISTS appeal_count INTEGER DEFAULT 0;
 -- STEP 2: UPDATE STATUS CHECK CONSTRAINT TO INCLUDE NEW STATUSES
 -- =============================================================================
 
--- Drop existing constraint
+-- FIX-Task-60: 'needs_edits' MUST stay in this list.
+-- -----------------------------------------------------------------------------
+-- `20260330000001_safety_008_request_edits_status.sql` added `needs_edits` to
+-- items_status_check (the "Request Edits" moderation path). This file was
+-- originally `301_items_flagged_rejected_statuses.sql`, so the FIX-Task-40 phase-3
+-- renumber moved it LATER than safety_008 — and because it drops and recreates the
+-- constraint with a narrower list, it silently removed `needs_edits` from the
+-- rebuilt schema. `needs_edits` is live product behaviour: it is written by
+-- `services/listing.ts`, `MyListingsScreen`, `ListingSafetyReviewScreen`,
+-- `EditListingScreen`, the admin portal's item status route and
+-- `lib/itemModerationStatus.ts`. A rebuilt DB would therefore REJECT the status,
+-- breaking the request-edits flow.
+-- The list below is the union, and matches the live staging constraint exactly.
 ALTER TABLE items DROP CONSTRAINT IF EXISTS items_status_check;
 
--- Recreate with new statuses
+-- Recreate with new statuses (union — must not narrow what safety_008 established)
 ALTER TABLE items 
 ADD CONSTRAINT items_status_check 
-CHECK (status IN ('draft', 'available', 'pending', 'sold', 'deleted', 'paused', 'flagged', 'rejected'));
+CHECK (status IN ('draft', 'available', 'pending', 'sold', 'deleted', 'paused', 'flagged', 'rejected', 'needs_edits'));
 
 -- =============================================================================
 -- STEP 3: CREATE INDEXES FOR NEW COLUMNS

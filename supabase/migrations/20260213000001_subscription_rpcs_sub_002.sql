@@ -7,6 +7,16 @@
 -- ============================================================================
 -- FUNCTION 1: get_subscription_status (enhanced from existing stub)
 -- ============================================================================
+-- FIX-Task-60: `payment_failed_at` ADDED to the result.
+-- ----------------------------------------------------------------------------
+-- The live staging function returns 20 columns including `payment_failed_at`;
+-- this definition returned 19. The column exists on the `subscriptions` table
+-- (added by a later migration) and the client reads it from the TABLE today, so
+-- the RPC was a stale subset: any consumer that starts reading the field from
+-- this RPC would silently get `undefined` on a rebuilt database.
+-- NOTE (BP-12): the RETURN TABLE row type changes, so the function is DROPped
+-- first — `CREATE OR REPLACE` refuses a different row type (42P13).
+DROP FUNCTION IF EXISTS public.get_subscription_status(UUID);
 
 CREATE OR REPLACE FUNCTION public.get_subscription_status(p_user_id UUID)
 RETURNS TABLE (
@@ -27,6 +37,7 @@ RETURNS TABLE (
   paused_until TIMESTAMPTZ,
   auto_renew_enabled BOOLEAN,
   payment_retry_count INTEGER,
+  payment_failed_at TIMESTAMPTZ,
   stripe_customer_id TEXT,
   stripe_subscription_id TEXT,
   stripe_payment_method_id TEXT
@@ -55,6 +66,7 @@ BEGIN
     s.paused_until,
     COALESCE(s.auto_renew_enabled, TRUE) AS auto_renew_enabled,
     COALESCE(s.payment_retry_count, 0) AS payment_retry_count,
+    s.payment_failed_at,
     s.stripe_customer_id,
     s.stripe_subscription_id,
     s.stripe_payment_method_id

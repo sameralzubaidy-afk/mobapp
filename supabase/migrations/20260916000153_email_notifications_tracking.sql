@@ -15,7 +15,13 @@
 
 CREATE TABLE IF NOT EXISTS email_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- FIX-Task-60: ON DELETE SET NULL, not CASCADE.
+  -- The live staging constraint is `FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  -- ON DELETE SET NULL`; this migration created it as CASCADE. CASCADE means
+  -- deleting a user silently DESTROYS their email delivery history, which is the
+  -- opposite of what a delivery/audit log is for (deliverability diagnostics and
+  -- the unsubscribe trail). `user_id` is nullable on both sides, so SET NULL is safe.
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   recipient_email TEXT NOT NULL,
   template_type TEXT NOT NULL,
   sendgrid_message_id TEXT,
@@ -33,6 +39,14 @@ CREATE TABLE IF NOT EXISTS email_logs (
   updated_at TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT email_status_check CHECK (status IN ('pending', 'sent', 'delivered', 'opened', 'clicked', 'bounced', 'failed', 'unsubscribed'))
 );
+
+-- FIX-Task-60: converge the user_id FK on databases where the table already existed
+-- (`CREATE TABLE IF NOT EXISTS` above is a no-op there, so the CASCADE -> SET NULL
+-- change would never be applied). Re-asserting it explicitly is also what makes the
+-- constraint name deterministic instead of relying on Postgres' auto-naming.
+ALTER TABLE public.email_logs DROP CONSTRAINT IF EXISTS email_logs_user_id_fkey;
+ALTER TABLE public.email_logs ADD CONSTRAINT email_logs_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 -- Reconcile legacy/partial schemas where email_logs exists without newer columns.
 DO $$

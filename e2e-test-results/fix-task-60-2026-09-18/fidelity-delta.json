@@ -1,0 +1,2219 @@
+{
+  "generatedAt": "2026-09-18T15:23:58.521Z",
+  "report": "/tmp/fidelity-report-ft60-after4.json",
+  "counts": {
+    "staging": 3471,
+    "local": 3484,
+    "subsetMisses": 49,
+    "explained": 62,
+    "unexplained": 0,
+    "conflicts": 86
+  },
+  "findings": [
+    {
+      "rule": "SUBSET",
+      "kind": "CONSTRAINT",
+      "key": "CONSTRAINT|email_logs|email_logs_status_check",
+      "owner": "email_logs",
+      "detail": {
+        "kind": "CONSTRAINT",
+        "schema": "public",
+        "table": "email_logs",
+        "conname": "email_logs_status_check",
+        "contype": "c",
+        "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'bounced'::text, 'failed'::text, 'skipped'::text])))"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|bytea_to_text|data bytea",
+      "owner": "bytea_to_text",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "bytea_to_text",
+        "identity_args": "data bytea",
+        "result": "text",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_delete|uri character varying, content character varying, content_type character varying",
+      "owner": "http_delete",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_delete",
+        "identity_args": "uri character varying, content character varying, content_type character varying",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_delete|uri character varying",
+      "owner": "http_delete",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_delete",
+        "identity_args": "uri character varying",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_get|uri character varying, data jsonb",
+      "owner": "http_get",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_get",
+        "identity_args": "uri character varying, data jsonb",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_get|uri character varying",
+      "owner": "http_get",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_get",
+        "identity_args": "uri character varying",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_header|field character varying, value character varying",
+      "owner": "http_header",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_header",
+        "identity_args": "field character varying, value character varying",
+        "result": "http_header",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_head|uri character varying",
+      "owner": "http_head",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_head",
+        "identity_args": "uri character varying",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_list_curlopt|",
+      "owner": "http_list_curlopt",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_list_curlopt",
+        "identity_args": "",
+        "result": "TABLE(curlopt text, value text)",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_patch|uri character varying, content character varying, content_type character varying",
+      "owner": "http_patch",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_patch",
+        "identity_args": "uri character varying, content character varying, content_type character varying",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_post|uri character varying, content character varying, content_type character varying",
+      "owner": "http_post",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_post",
+        "identity_args": "uri character varying, content character varying, content_type character varying",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_post|uri character varying, data jsonb",
+      "owner": "http_post",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_post",
+        "identity_args": "uri character varying, data jsonb",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_put|uri character varying, content character varying, content_type character varying",
+      "owner": "http_put",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_put",
+        "identity_args": "uri character varying, content character varying, content_type character varying",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_reset_curlopt|",
+      "owner": "http_reset_curlopt",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_reset_curlopt",
+        "identity_args": "",
+        "result": "boolean",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http_set_curlopt|curlopt character varying, value character varying",
+      "owner": "http_set_curlopt",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http_set_curlopt",
+        "identity_args": "curlopt character varying, value character varying",
+        "result": "boolean",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|http|request http_request",
+      "owner": "http",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "http",
+        "identity_args": "request http_request",
+        "result": "http_response",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|is_in_quiet_hours|p_user_id uuid",
+      "owner": "is_in_quiet_hours",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "is_in_quiet_hours",
+        "identity_args": "p_user_id uuid",
+        "result": "boolean",
+        "security": "SECURITY_DEFINER",
+        "proconfig": "search_path=public, pg_temp"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|text_to_bytea|data text",
+      "owner": "text_to_bytea",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "text_to_bytea",
+        "identity_args": "data text",
+        "result": "bytea",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|urlencode|data jsonb",
+      "owner": "urlencode",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "urlencode",
+        "identity_args": "data jsonb",
+        "result": "text",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|urlencode|string bytea",
+      "owner": "urlencode",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "urlencode",
+        "identity_args": "string bytea",
+        "result": "text",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|urlencode|string character varying",
+      "owner": "urlencode",
+      "detail": {
+        "kind": "FUNCTION",
+        "schema": "public",
+        "name": "urlencode",
+        "identity_args": "string character varying",
+        "result": "text",
+        "security": "INVOKER",
+        "proconfig": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|admin_config|admin_config_authenticated_read",
+      "owner": "admin_config",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "admin_config",
+        "policyname": "admin_config_authenticated_read",
+        "cmd": "SELECT",
+        "roles": "authenticated",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|ai_moderation_logs|ai_logs_system_create",
+      "owner": "ai_moderation_logs",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "ai_moderation_logs",
+        "policyname": "ai_logs_system_create",
+        "cmd": "INSERT",
+        "roles": "public",
+        "qual": "-",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|email_logs|email_logs_select_own",
+      "owner": "email_logs",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "email_logs",
+        "policyname": "email_logs_select_own",
+        "cmd": "SELECT",
+        "roles": "authenticated",
+        "qual": "(user_id = auth.uid())",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|email_logs|email_logs_service_role",
+      "owner": "email_logs",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "email_logs",
+        "policyname": "email_logs_service_role",
+        "cmd": "ALL",
+        "roles": "service_role",
+        "qual": "true",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|items|Items visibility based on status",
+      "owner": "items",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "items",
+        "policyname": "Items visibility based on status",
+        "cmd": "SELECT",
+        "roles": "public",
+        "qual": " CASE WHEN (status = 'available'::text) THEN true WHEN (status = ANY (ARRAY['flagged'::text, 'rejected'::text])) THEN ((auth.uid() = seller_id) OR (EXISTS ( SELECT 1 FROM profiles WHERE ((profiles.user_id = auth.uid()) AND (profiles.role = 'admin'::text))))) ELSE ((auth.uid() = seller_id) OR (EXISTS ( SELECT 1 FROM trades t WHERE ((t.listing_id = items.id) AND ((t.buyer_id = auth.uid()) OR (t.seller_id = auth.uid())))))) END",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|items|items_anon_select",
+      "owner": "items",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "items",
+        "policyname": "items_anon_select",
+        "cmd": "SELECT",
+        "roles": "anon",
+        "qual": "(status = 'available'::text)",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|items|items_insert_own_seller",
+      "owner": "items",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "items",
+        "policyname": "items_insert_own_seller",
+        "cmd": "INSERT",
+        "roles": "authenticated",
+        "qual": "-",
+        "with_check": "(seller_id = auth.uid())"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|items|items_update_own_seller",
+      "owner": "items",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "items",
+        "policyname": "items_update_own_seller",
+        "cmd": "UPDATE",
+        "roles": "authenticated",
+        "qual": "(seller_id = auth.uid())",
+        "with_check": "(seller_id = auth.uid())"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|profiles|Service role can update profiles",
+      "owner": "profiles",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "profiles",
+        "policyname": "Service role can update profiles",
+        "cmd": "UPDATE",
+        "roles": "public",
+        "qual": "(auth.role() = 'service_role'::text)",
+        "with_check": "(auth.role() = 'service_role'::text)"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|profiles|profiles_anon_insert",
+      "owner": "profiles",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "profiles",
+        "policyname": "profiles_anon_insert",
+        "cmd": "INSERT",
+        "roles": "anon",
+        "qual": "-",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|profiles|profiles_anon_select",
+      "owner": "profiles",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "profiles",
+        "policyname": "profiles_anon_select",
+        "cmd": "SELECT",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|profiles|profiles_anon_update",
+      "owner": "profiles",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "profiles",
+        "policyname": "profiles_anon_update",
+        "cmd": "UPDATE",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|referrals|referrals_anon_insert",
+      "owner": "referrals",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "referrals",
+        "policyname": "referrals_anon_insert",
+        "cmd": "INSERT",
+        "roles": "anon",
+        "qual": "-",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|referrals|referrals_anon_select",
+      "owner": "referrals",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "referrals",
+        "policyname": "referrals_anon_select",
+        "cmd": "SELECT",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|referrals|referrals_anon_update",
+      "owner": "referrals",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "referrals",
+        "policyname": "referrals_anon_update",
+        "cmd": "UPDATE",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|referrals|referrals_insert",
+      "owner": "referrals",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "referrals",
+        "policyname": "referrals_insert",
+        "cmd": "INSERT",
+        "roles": "public",
+        "qual": "-",
+        "with_check": "(referrer_id = auth.uid())"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|referrals|referrals_select_own",
+      "owner": "referrals",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "referrals",
+        "policyname": "referrals_select_own",
+        "cmd": "SELECT",
+        "roles": "public",
+        "qual": "((referrer_id = auth.uid()) OR (referee_id = auth.uid()))",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|seller_payout_methods|Service role bypass - seller_payout_methods",
+      "owner": "seller_payout_methods",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "seller_payout_methods",
+        "policyname": "Service role bypass - seller_payout_methods",
+        "cmd": "ALL",
+        "roles": "service_role",
+        "qual": "true",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|seller_payouts|Service role bypass - seller_payouts",
+      "owner": "seller_payouts",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "seller_payouts",
+        "policyname": "Service role bypass - seller_payouts",
+        "cmd": "ALL",
+        "roles": "service_role",
+        "qual": "true",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|subscription_tiers|subscription_tiers_public",
+      "owner": "subscription_tiers",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "subscription_tiers",
+        "policyname": "subscription_tiers_public",
+        "cmd": "SELECT",
+        "roles": "public",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|subscriptions|subscriptions_anon_insert",
+      "owner": "subscriptions",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "subscriptions",
+        "policyname": "subscriptions_anon_insert",
+        "cmd": "INSERT",
+        "roles": "anon",
+        "qual": "-",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|subscriptions|subscriptions_anon_select",
+      "owner": "subscriptions",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "subscriptions",
+        "policyname": "subscriptions_anon_select",
+        "cmd": "SELECT",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|subscriptions|subscriptions_anon_update",
+      "owner": "subscriptions",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "subscriptions",
+        "policyname": "subscriptions_anon_update",
+        "cmd": "UPDATE",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|trades|trades_insert_own",
+      "owner": "trades",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "trades",
+        "policyname": "trades_insert_own",
+        "cmd": "INSERT",
+        "roles": "authenticated",
+        "qual": "-",
+        "with_check": "(buyer_id = auth.uid())"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|trades|trades_update_own",
+      "owner": "trades",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "trades",
+        "policyname": "trades_update_own",
+        "cmd": "UPDATE",
+        "roles": "authenticated",
+        "qual": "((buyer_id = auth.uid()) OR (seller_id = auth.uid()))",
+        "with_check": "((buyer_id = auth.uid()) OR (seller_id = auth.uid()))"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": true
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|user_notifications|user_notifications_anon_insert",
+      "owner": "user_notifications",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "user_notifications",
+        "policyname": "user_notifications_anon_insert",
+        "cmd": "INSERT",
+        "roles": "anon",
+        "qual": "-",
+        "with_check": "true"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|user_notifications|user_notifications_anon_select",
+      "owner": "user_notifications",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "user_notifications",
+        "policyname": "user_notifications_anon_select",
+        "cmd": "SELECT",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "SUBSET",
+      "kind": "POLICY",
+      "key": "POLICY|user_notifications|user_notifications_anon_update",
+      "owner": "user_notifications",
+      "detail": {
+        "kind": "POLICY",
+        "schema": "public",
+        "table": "user_notifications",
+        "policyname": "user_notifications_anon_update",
+        "cmd": "UPDATE",
+        "roles": "anon",
+        "qual": "true",
+        "with_check": "-"
+      },
+      "delta": null,
+      "impact": "missing-in-replay",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "INDEX",
+      "key": "INDEX|items|idx_items_node_id",
+      "owner": "items",
+      "delta": [
+        {
+          "field": "definition",
+          "staging": "CREATE INDEX idx_items_node_id ON public.items USING btree (node_id) WHERE (node_id IS NOT NULL)",
+          "local": "CREATE INDEX idx_items_node_id ON public.items USING btree (node_id)"
+        }
+      ],
+      "impact": "index-definition",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "INDEX",
+      "key": "INDEX|trades|idx_trades_completed_at",
+      "owner": "trades",
+      "delta": [
+        {
+          "field": "definition",
+          "staging": "CREATE INDEX idx_trades_completed_at ON public.trades USING btree (completed_at)",
+          "local": "CREATE INDEX idx_trades_completed_at ON public.trades USING btree (completed_at) WHERE (status = 'completed'::text)"
+        }
+      ],
+      "impact": "index-definition",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "ENUM",
+      "key": "ENUM|admin_config_category|referral",
+      "owner": "admin_config_category",
+      "delta": [
+        {
+          "field": "sortorder",
+          "staging": "11",
+          "local": "13"
+        }
+      ],
+      "impact": "ordinal-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "ENUM",
+      "key": "ENUM|admin_config_category|tax",
+      "owner": "admin_config_category",
+      "delta": [
+        {
+          "field": "sortorder",
+          "staging": "13",
+          "local": "12"
+        }
+      ],
+      "impact": "ordinal-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "ENUM",
+      "key": "ENUM|admin_config_category|trade",
+      "owner": "admin_config_category",
+      "delta": [
+        {
+          "field": "sortorder",
+          "staging": "12",
+          "local": "11"
+        }
+      ],
+      "impact": "ordinal-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid",
+      "owner": "acknowledge_trade_disclaimer",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "-",
+          "local": "search_path=public, pg_temp"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb",
+      "owner": "add_to_retry_queue",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text",
+      "owner": "admin_delete_user",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_force_delete_listing|p_listing_id uuid, p_reason text",
+      "owner": "admin_force_delete_listing",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, auth",
+          "local": "search_path=public"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_get_user_analytics|p_admin_id uuid",
+      "owner": "admin_get_user_analytics",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_get_user_detail|p_admin_id uuid, p_user_id uuid",
+      "owner": "admin_get_user_detail",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_list_users|p_admin_id uuid, p_search text, p_account_status text, p_subscription_status text, p_node_id text, p_page integer, p_page_size integer",
+      "owner": "admin_list_users",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_pause_listing|p_listing_id uuid, p_reason text",
+      "owner": "admin_pause_listing",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, auth",
+          "local": "search_path=public"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text",
+      "owner": "admin_suspend_user",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_unpause_listing|p_listing_id uuid, p_reason text",
+      "owner": "admin_unpause_listing",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, auth",
+          "local": "search_path=public"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text",
+      "owner": "admin_unsuspend_user",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer",
+      "owner": "award_badge_if_eligible",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer",
+      "owner": "award_challenge_sp",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer",
+      "owner": "calculate_payout_fee_cents",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|check_badge_milestones|p_user_id uuid",
+      "owner": "check_badge_milestones",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|check_push_rate_limit|p_user_id uuid",
+      "owner": "check_push_rate_limit",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|check_referral_code_exists|p_code text",
+      "owner": "check_referral_code_exists",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|check_sp_badges|",
+      "owner": "check_sp_badges",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|cleanup_expired_deduplications|",
+      "owner": "cleanup_expired_deduplications",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb",
+      "owner": "create_badge_notification",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb",
+      "owner": "create_email_log",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb",
+      "owner": "create_notification",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|create_referral_code|p_user_id uuid",
+      "owner": "create_referral_code",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public,row_security=off",
+          "local": "search_path=public, pg_temp"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean",
+      "owner": "create_sp_notification",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid",
+      "owner": "create_trade_with_disclaimer_v2",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "-",
+          "local": "search_path=public, pg_temp"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|dispatch_sp_notification_push|",
+      "owner": "dispatch_sp_notification_push",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|extend_trial_period|p_user_id uuid, p_referral_user_id uuid",
+      "owner": "extend_trial_period",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|fn_items_enforce_pending_for_starter_pack|",
+      "owner": "fn_items_enforce_pending_for_starter_pack",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|fn_on_listing_pending_notification|",
+      "owner": "fn_on_listing_pending_notification",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|fn_validate_trade_timing_config|",
+      "owner": "fn_validate_trade_timing_config",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone",
+      "owner": "get_ab_test_performance",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean",
+      "owner": "get_admin_notifications",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone",
+      "owner": "get_email_delivery_stats",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text",
+      "owner": "get_notification_channel_metrics",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_notification_preferences|p_user_id uuid",
+      "owner": "get_notification_preferences",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_seller_node_id|p_seller_id uuid",
+      "owner": "get_seller_node_id",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_sp_config|p_key text",
+      "owner": "get_sp_config",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_unread_messages_for_email|p_limit integer",
+      "owner": "get_unread_messages_for_email",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_unread_notification_count|p_user_id uuid",
+      "owner": "get_unread_notification_count",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|get_user_expiration_warnings|p_user_id uuid",
+      "owner": "get_user_expiration_warnings",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|invoke_trial_conversion_edge_function|",
+      "owner": "invoke_trial_conversion_edge_function",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "-",
+          "local": "search_path=public, pg_temp"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|is_duplicate_notification|p_user_id uuid, p_notification_type text, p_fingerprint text",
+      "owner": "is_duplicate_notification",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|is_earning_subscriber|p_user_id uuid",
+      "owner": "is_earning_subscriber",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "-",
+          "local": "search_path=public, pg_temp"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|is_eligible_for_starter_pack|p_seller_id uuid",
+      "owner": "is_eligible_for_starter_pack",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|is_in_quiet_hours|p_user_id uuid, p_current_time time without time zone",
+      "owner": "is_in_quiet_hours",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|issue_starter_pack|p_user_id uuid, p_listing_id uuid",
+      "owner": "issue_starter_pack",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|log_push_delivery|p_user_id uuid, p_notification_id uuid, p_push_token_id uuid, p_expo_receipt_id text, p_receipt_status text, p_receipt_message text, p_receipt_details jsonb, p_retry_count integer",
+      "owner": "log_push_delivery",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_all_notifications_read|p_user_id uuid",
+      "owner": "mark_all_notifications_read",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_expired_messages|",
+      "owner": "mark_expired_messages",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_message_email_sent|p_message_id uuid",
+      "owner": "mark_message_email_sent",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_notification_as_read|p_notification_id uuid",
+      "owner": "mark_notification_as_read",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_notification_read|p_notification_id uuid, p_user_id uuid",
+      "owner": "mark_notification_read",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_starter_pack_claimed|p_listing_id uuid",
+      "owner": "mark_starter_pack_claimed",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_trade_messages_delivered|p_trade_id uuid, p_user_id uuid",
+      "owner": "mark_trade_messages_delivered",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|mark_trade_messages_read|p_trade_id uuid, p_user_id uuid",
+      "owner": "mark_trade_messages_read",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|notify_new_message|",
+      "owner": "notify_new_message",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|notify_seller_item_status_change|",
+      "owner": "notify_seller_item_status_change",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public",
+          "local": "search_path=public, pg_temp"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|populate_trade_node_id|",
+      "owner": "populate_trade_node_id",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|process_sp_expiration|",
+      "owner": "process_sp_expiration",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|process_unsubscribe|p_token text",
+      "owner": "process_unsubscribe",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|recompute_seller_balance|p_user_id uuid",
+      "owner": "recompute_seller_balance",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|record_notification_dedup|p_user_id uuid, p_notification_type text, p_fingerprint text",
+      "owner": "record_notification_dedup",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|refund_sp_for_cancelled_trade|p_user_id uuid, p_trade_id uuid, p_sp_amount integer",
+      "owner": "refund_sp_for_cancelled_trade",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|remove_from_retry_queue|p_notification_id uuid",
+      "owner": "remove_from_retry_queue",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|rpc_cart_add_item|p_listing_id uuid",
+      "owner": "rpc_cart_add_item",
+      "delta": [
+        {
+          "field": "security",
+          "staging": "INVOKER",
+          "local": "SECURITY_DEFINER"
+        }
+      ],
+      "impact": "security-mode",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|search_listings_by_category_and_query|p_category_id uuid, p_query text, p_sp_eligible_only boolean, p_limit integer, p_offset integer",
+      "owner": "search_listings_by_category_and_query",
+      "delta": [
+        {
+          "field": "result",
+          "staging": "TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone, relevance real)",
+          "local": "TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone, relevance real, seller_name text, seller_avatar_url text, seller_verification_status text)"
+        }
+      ],
+      "impact": "return-type",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|search_listings_by_category|p_category_id uuid, p_sp_eligible_only boolean, p_limit integer, p_offset integer",
+      "owner": "search_listings_by_category",
+      "delta": [
+        {
+          "field": "result",
+          "staging": "TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone)",
+          "local": "TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone, seller_name text, seller_avatar_url text, seller_verification_status text)"
+        }
+      ],
+      "impact": "return-type",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|send_sp_expiration_warnings|",
+      "owner": "send_sp_expiration_warnings",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|sync_sp_config_on_admin_update|",
+      "owner": "sync_sp_config_on_admin_update",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|track_email_event|p_sendgrid_message_id text, p_event_type text, p_bounce_reason text",
+      "owner": "track_email_event",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|track_notification_event|p_notification_id uuid, p_event_type text, p_event_data jsonb",
+      "owner": "track_notification_event",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|update_email_log_status|p_log_id uuid, p_sendgrid_message_id text, p_status text, p_error_message text",
+      "owner": "update_email_log_status",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|update_message_delivery_status|p_message_id uuid, p_status text",
+      "owner": "update_message_delivery_status",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|update_notification_preference|p_user_id uuid, p_category notification_category, p_push_enabled boolean, p_in_app_enabled boolean, p_email_enabled boolean, p_quiet_hours_enabled boolean, p_quiet_hours_start time without time zone, p_quiet_hours_end time without time zone",
+      "owner": "update_notification_preference",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|update_sp_config|p_key text, p_value jsonb, p_admin_id uuid",
+      "owner": "update_sp_config",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|upsert_admin_config|p_key text, p_value text",
+      "owner": "upsert_admin_config",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "search_path=public, pg_temp",
+          "local": "-"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "FUNCTION",
+      "key": "FUNCTION|verify_user_phone|p_user_id uuid, p_phone text",
+      "owner": "verify_user_phone",
+      "delta": [
+        {
+          "field": "proconfig",
+          "staging": "-",
+          "local": "search_path=public"
+        }
+      ],
+      "impact": "search_path-only",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "POLICY",
+      "key": "POLICY|badges|Admins can update badges",
+      "owner": "badges",
+      "delta": [
+        {
+          "field": "qual",
+          "staging": "true",
+          "local": "user_has_role(auth.uid(), 'admin'::text)"
+        },
+        {
+          "field": "with_check",
+          "staging": "-",
+          "local": "user_has_role(auth.uid(), 'admin'::text)"
+        }
+      ],
+      "impact": "policy-predicate",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "POLICY",
+      "key": "POLICY|profiles|Users can insert their own profile",
+      "owner": "profiles",
+      "delta": [
+        {
+          "field": "with_check",
+          "staging": "((user_id IN ( SELECT users.id FROM auth.users)) OR (auth.uid() IS NULL))",
+          "local": "((auth.uid() IS NULL) OR (auth.uid() = user_id))"
+        }
+      ],
+      "impact": "policy-predicate",
+      "money": false
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "POLICY",
+      "key": "POLICY|trades|trades_select_participant_same_node",
+      "owner": "trades",
+      "delta": [
+        {
+          "field": "qual",
+          "staging": "(((buyer_id = auth.uid()) OR (seller_id = auth.uid())) AND ((node_id IS NULL) OR (node_id = get_user_node_id(auth.uid())) OR (buyer_id = auth.uid()) OR (seller_id = auth.uid())))",
+          "local": "(((buyer_id = auth.uid()) OR (seller_id = auth.uid())) AND ((node_id IS NULL) OR (node_id = get_user_node_id(auth.uid()))))"
+        }
+      ],
+      "impact": "policy-predicate",
+      "money": true
+    },
+    {
+      "rule": "CONFLICT",
+      "kind": "POLICY",
+      "key": "POLICY|user_badges|Service role can read all user badges",
+      "owner": "user_badges",
+      "delta": [
+        {
+          "field": "roles",
+          "staging": "public",
+          "local": "authenticated"
+        }
+      ],
+      "impact": "policy-predicate",
+      "money": false
+    }
+  ],
+  "clobbers": []
+}

@@ -154,7 +154,11 @@ CREATE TRIGGER profiles_updated_at_trigger
 
 CREATE TABLE IF NOT EXISTS nodes (
   -- FIX-Task-40: uuid, matching the live schema (was TEXT).
-  id UUID PRIMARY KEY,
+  -- FIX-Task-60: DEFAULT gen_random_uuid() also matches the live schema — staging
+  -- generates the id, so an INSERT that omits it must not fail. (Converged for
+  -- databases where the table already exists by
+  -- 20260918000004_fix_task_60_nodes_debug_logs_rls_and_shape.sql.)
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'waitlist', 'inactive')),
   launch_date DATE,

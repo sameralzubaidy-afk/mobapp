@@ -126,6 +126,14 @@ CREATE POLICY "subscriptions_service_role" ON public.subscriptions
   USING (true);
 
 -- Create a view alias to match MODULE-11 naming conventions
+--
+-- NOTE (FIX-Task-60): this stays `SELECT *` ON PURPOSE. A `SELECT *` view freezes
+-- its column list at creation time and this file runs before later migrations add
+-- columns to `subscriptions`, so the view is deliberately RE-CREATED with an
+-- explicit 34-column list at the END of the chain
+-- (20260918000006_fix_task_60_structural_backfill.sql §5). Writing the explicit
+-- list HERE would make this file fail on a single-pass replay, because columns such
+-- as `referral_extensions_used` do not exist yet at this point in the chain.
 CREATE OR REPLACE VIEW public.user_subscriptions AS
 SELECT * FROM public.subscriptions;
 

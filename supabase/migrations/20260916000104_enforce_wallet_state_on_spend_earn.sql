@@ -218,13 +218,35 @@ $$;
 -- =============================================================================
 -- BLOCK 4: Update get_user_sp_wallet_summary to return wallet state
 -- =============================================================================
+-- FIX-Task-60 — `reserved_points` RESTORED.
+-- -----------------------------------------------------------------------------
+-- This file originally carried a 5-column RETURN TABLE (no `reserved_points`) and
+-- was written BEFORE `20260704000001_add_reserved_sp_to_wallet_summary.sql`. The
+-- FIX-Task-40 phase-3 renumber moved this file later in the chain (its original
+-- prefix was `20260323000001_enforce_wallet_state_on_spend_earn`), so its older
+-- 5-column definition overrode the newer 6-column one. Effect on a rebuilt DB:
+-- the RPC returned no `reserved_points`, and the mobile app maps that to 0
+-- (`reserved_points: (walletSummary.reserved_points as number) || 0` in
+-- `services/auth.ts` / `contexts/AuthContext.tsx`), so reserved SP would display
+-- as zero — a silently wrong money figure. Staging still has the 6-column shape.
+--
+-- The definition below is the UNION of the two: this file's `wallet_state` read
+-- PLUS the `reserved_points` column from 20260704000001 (which reads
+-- `sp_wallets.reserved_sp`).
+--
+-- NOTE (BP-12): the RETURN TABLE signature changes, so the function must be DROPped
+-- rather than replaced. NOTE (BP-79): the DROP discards the EXECUTE grants, and
+-- `dt61_guard_revoke_fn_public` strips PUBLIC/anon/authenticated on the re-create,
+-- so the grants are re-asserted at the end of this block.
+DROP FUNCTION IF EXISTS public.get_user_sp_wallet_summary(UUID);
 
-CREATE OR REPLACE FUNCTION get_user_sp_wallet_summary(p_user_id UUID)
+CREATE FUNCTION public.get_user_sp_wallet_summary(p_user_id UUID)
 RETURNS TABLE (
   available_points INTEGER,
   pending_points INTEGER,
   lifetime_earned INTEGER,
   lifetime_spent INTEGER,
+  reserved_points INTEGER,
   wallet_state TEXT
 )
 LANGUAGE plpgsql
@@ -239,32 +261,42 @@ DECLARE
   v_pending INTEGER := 0;
   v_earned INTEGER := 0;
   v_spent INTEGER := 0;
+  v_reserved INTEGER := 0;
 BEGIN
   -- 1. Get the wallet for this user
-  SELECT id, state INTO v_wallet_id, v_wallet_state 
-  FROM sp_wallets 
-  WHERE user_id = p_user_id;
-  
+  SELECT w.id, w.state INTO v_wallet_id, v_wallet_state
+  FROM public.sp_wallets w
+  WHERE w.user_id = p_user_id;
+
   -- If no wallet exists, return all zeros with 'inactive' status
   IF v_wallet_id IS NULL THEN
-    RETURN QUERY SELECT 0::INTEGER, 0::INTEGER, 0::INTEGER, 0::INTEGER, 'inactive'::TEXT;
+    RETURN QUERY SELECT 0::INTEGER, 0::INTEGER, 0::INTEGER, 0::INTEGER, 0::INTEGER, 'inactive'::TEXT;
     RETURN;
   END IF;
 
-  -- 2. Use wallet table balances directly
-  SELECT 
-    w.available_balance, 
-    w.pending_balance, 
-    w.lifetime_earned, 
-    w.lifetime_spent
-  INTO v_available, v_pending, v_earned, v_spent
-  FROM sp_wallets w
+  -- 2. Use wallet table balances directly (including reserved_sp)
+  SELECT
+    w.available_balance,
+    w.pending_balance,
+    w.lifetime_earned,
+    w.lifetime_spent,
+    w.reserved_sp
+  INTO v_available, v_pending, v_earned, v_spent, v_reserved
+  FROM public.sp_wallets w
   WHERE w.id = v_wallet_id;
 
   -- 3. Return values with wallet state
-  RETURN QUERY SELECT v_available, v_pending, v_earned, v_spent, v_wallet_state;
+  RETURN QUERY SELECT v_available, v_pending, v_earned, v_spent, v_reserved, v_wallet_state;
 END;
 $$;
+
+-- BP-79: re-assert the EXECUTE grants the DROP above discarded.
+-- `authenticated` is required — the mobile app calls this RPC with the user's JWT
+-- (services/sp.ts, services/sp/wallet.ts, services/auth.ts, services/trade.ts,
+-- contexts/AuthContext.tsx). It was missing on the rebuilt schema.
+GRANT EXECUTE ON FUNCTION public.get_user_sp_wallet_summary(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_sp_wallet_summary(UUID) TO service_role;
+
 
 -- =============================================================================
 -- Verification queries (run after applying this migration):
