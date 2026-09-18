@@ -1,0 +1,48 @@
+Staging ledger audit
+====================
+ledger  : supabase/migrations/tools/staging-fp/staging-ledger.json — 284 rows
+repo    : 544 migration files
+matched by: normalised name, plus an exact `version` = filename-prefix fallback (the ledger version column holds apply times on this project)
+
+  FILE_ONLY              305   (normal before deployment)
+  APPLIED_ONLY           0   UNEXPLAINED — THE BLOCKING NUMBER: no committed file AND no recorded exception
+  explained by exception 34   recorded + time-bounded in tools/ledger-exceptions.json (visible, not ignored)
+  APPLIED_UNCOMMITTED    0
+  informational          11   version-anchored: the file EXISTS at that version; only the ledger ROW's name is wrong — not drift
+
+  ℹ explained by tools/ledger-exceptions.json (visible + time-bounded, not ignored):
+      20251217000001  placeholder
+      20260606234915  fix_cancel_trade_v2_rpc
+      20260606234953  harden_credit_sp_for_cancelled_trade
+      20260607001455  fix_auto_complete_respects_dispute_status
+      20260607135411  fix_sp_ledger_missing_on_trade_complete_v2
+      20260607140103  revert_split_restore_combined_sp
+      20260607141340  fix_category_sp_multiplier_lookup
+      20260607142009  fix_platform_bonus_formula_based_on_sp
+      20260701200402  create_fn_cleanup_test_buyer_trades
+      20260803183246  fix_handle_new_user_subscription_notification_prefs
+      20260803192949  add_sp_config_reader_helpers_no_fallback
+      20260803192959  award_referral_sp_fail_loud
+      20260803193041  award_listing_referral_sp_fail_loud
+      20260803193050  apply_referral_code_fail_loud
+      20260803193058  referral_config_read_rpcs_raise_on_missing
+      20260803193108  referral_trigger_functions_log_on_missing_config
+      20260809161311  r2_cleanup_retire_legacy_auto_complete
+      20260809161543  admin_trades_view_pipeline_columns
+      20260828145355  enable_rls_group1_zero_risk_tables
+      20260828145452  enable_rls_group2_admin_audit_log
+
+  ℹ version-anchored — NON-BLOCKING. The file exists; the ledger row names it wrongly:
+      20251215100000  ledger name "placeholder" → file 20251215100000_auth_v2_schema.sql
+      20251215100001  ledger name "placeholder" → file 20251215100001_auth_v2_rpc_functions.sql
+      20251216100002  ledger name "placeholder" → file 20251216100002_admin_config_trial_settings.sql
+      20251217000002  ledger name "placeholder" → file 20251217000002_create_items_table_node_filtering.sql
+      20251217000003  ledger name "placeholder" → file 20251217000003_user_preferences_and_distance_NODE007.sql
+      20260325000010  ledger name "placeholder" → file 20260325000010_fix_admin_list_users_node_id_type.sql
+      20260325000011  ledger name "placeholder" → file 20260325000011_fix_admin_user_detail_tier_lookup.sql
+      20260325000012  ledger name "placeholder" → file 20260325000012_fix_admin_list_users_st_join.sql
+      20260325000013  ledger name "placeholder" → file 20260325000013_fix_admin_rpcs_transactions_to_trades.sql
+      20260325000014  ledger name "placeholder" → file 20260325000014_fix_admin_rpcs_complete_schema_alignment.sql
+      20260325000015  ledger name "placeholder" → file 20260325000015_fix_admin_rpcs_final_complete.sql
+
+RESULT: no unexplained out-of-band changes

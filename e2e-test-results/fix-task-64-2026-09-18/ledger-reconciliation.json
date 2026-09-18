@@ -1,0 +1,266 @@
+{
+  "at": "2026-09-18T22:09:16.940Z",
+  "ledgerSource": "supabase/migrations/tools/staging-fp/staging-ledger.json",
+  "ledgerRows": 284,
+  "repoFiles": 544,
+  "auditReported": {
+    "APPLIED_ONLY": 45,
+    "APPLIED_UNCOMMITTED": 0,
+    "FILE_ONLY": 305
+  },
+  "matcherCaveat": "ledger-audit.mjs matches by NORMALISED NAME only. 11 rows carry the literal name \"placeholder\" while their `version` is a real repo filename prefix (10 present today, 1 deleted-and-replaced) — those are matcher artifacts, not drift.",
+  "corrected": {
+    "APPLIED_ONLY_versionAware": 33,
+    "unexplained": 32
+  },
+  "buckets": {
+    "versionPrefixMatch": {
+      "count": 12,
+      "verdict": "NOT DRIFT — file exists at that version",
+      "rows": [
+        {
+          "version": "20251215100000",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20251215100000_auth_v2_schema.sql"
+        },
+        {
+          "version": "20251215100001",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20251215100001_auth_v2_rpc_functions.sql"
+        },
+        {
+          "version": "20251216100002",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20251216100002_admin_config_trial_settings.sql"
+        },
+        {
+          "version": "20251217000001",
+          "name": "placeholder",
+          "evidence": "20251217000001_seed_initial_nodes.sql (deleted in 5acfc7f4; replaced by 20260916000083_seed_initial_nodes.sql)"
+        },
+        {
+          "version": "20251217000002",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20251217000002_create_items_table_node_filtering.sql"
+        },
+        {
+          "version": "20251217000003",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20251217000003_user_preferences_and_distance_NODE007.sql"
+        },
+        {
+          "version": "20260325000010",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20260325000010_fix_admin_list_users_node_id_type.sql"
+        },
+        {
+          "version": "20260325000011",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20260325000011_fix_admin_user_detail_tier_lookup.sql"
+        },
+        {
+          "version": "20260325000012",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20260325000012_fix_admin_list_users_st_join.sql"
+        },
+        {
+          "version": "20260325000013",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20260325000013_fix_admin_rpcs_transactions_to_trades.sql"
+        },
+        {
+          "version": "20260325000014",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20260325000014_fix_admin_rpcs_complete_schema_alignment.sql"
+        },
+        {
+          "version": "20260325000015",
+          "name": "placeholder",
+          "evidence": "version equals the prefix of 20260325000015_fix_admin_rpcs_final_complete.sql"
+        }
+      ]
+    },
+    "explainedByException": {
+      "count": 1,
+      "verdict": "recorded, time-bounded in tools/ledger-exceptions.json",
+      "rows": [
+        {
+          "version": "20260918202715",
+          "name": "fix_task_62_admin_read_lockdown_adapted"
+        }
+      ]
+    },
+    "supersededInSession": {
+      "count": 1,
+      "verdict": "NOT DRIFT — effect lives in a committed file",
+      "rows": [
+        {
+          "version": "20260918154537",
+          "name": "fix_task_59_corrective_public_revoke_siblings",
+          "evidence": "FIX-59 first in-session attempt; corrected REVOKE ... FROM PUBLIC, anon is present in committed 20260918000008_fix_task_59_verify_user_phone_identity_lockdown.sql (lines 192-195)"
+        }
+      ]
+    },
+    "preExistingClass": {
+      "count": 31,
+      "verdict": "DOCUMENTED PRE-EXISTING (supabase/migrations/README.md, FIX-Task-40 phase 3, 2026-09-16: 32 rows with no local file) — not recorded in ledger-exceptions.json",
+      "rows": [
+        {
+          "version": "20260606234915",
+          "name": "fix_cancel_trade_v2_rpc",
+          "appliedAt": "2026-06-06T23:49:15Z"
+        },
+        {
+          "version": "20260606234953",
+          "name": "harden_credit_sp_for_cancelled_trade",
+          "appliedAt": "2026-06-06T23:49:53Z"
+        },
+        {
+          "version": "20260607001455",
+          "name": "fix_auto_complete_respects_dispute_status",
+          "appliedAt": "2026-06-07T00:14:55Z"
+        },
+        {
+          "version": "20260607135411",
+          "name": "fix_sp_ledger_missing_on_trade_complete_v2",
+          "appliedAt": "2026-06-07T13:54:11Z"
+        },
+        {
+          "version": "20260607140103",
+          "name": "revert_split_restore_combined_sp",
+          "appliedAt": "2026-06-07T14:01:03Z"
+        },
+        {
+          "version": "20260607141340",
+          "name": "fix_category_sp_multiplier_lookup",
+          "appliedAt": "2026-06-07T14:13:40Z"
+        },
+        {
+          "version": "20260607142009",
+          "name": "fix_platform_bonus_formula_based_on_sp",
+          "appliedAt": "2026-06-07T14:20:09Z"
+        },
+        {
+          "version": "20260701200402",
+          "name": "create_fn_cleanup_test_buyer_trades",
+          "appliedAt": "2026-07-01T20:04:02Z"
+        },
+        {
+          "version": "20260803183246",
+          "name": "fix_handle_new_user_subscription_notification_prefs",
+          "appliedAt": "2026-08-03T18:32:46Z"
+        },
+        {
+          "version": "20260803192949",
+          "name": "add_sp_config_reader_helpers_no_fallback",
+          "appliedAt": "2026-08-03T19:29:49Z"
+        },
+        {
+          "version": "20260803192959",
+          "name": "award_referral_sp_fail_loud",
+          "appliedAt": "2026-08-03T19:29:59Z"
+        },
+        {
+          "version": "20260803193041",
+          "name": "award_listing_referral_sp_fail_loud",
+          "appliedAt": "2026-08-03T19:30:41Z"
+        },
+        {
+          "version": "20260803193050",
+          "name": "apply_referral_code_fail_loud",
+          "appliedAt": "2026-08-03T19:30:50Z"
+        },
+        {
+          "version": "20260803193058",
+          "name": "referral_config_read_rpcs_raise_on_missing",
+          "appliedAt": "2026-08-03T19:30:58Z"
+        },
+        {
+          "version": "20260803193108",
+          "name": "referral_trigger_functions_log_on_missing_config",
+          "appliedAt": "2026-08-03T19:31:08Z"
+        },
+        {
+          "version": "20260809161311",
+          "name": "r2_cleanup_retire_legacy_auto_complete",
+          "appliedAt": "2026-08-09T16:13:11Z"
+        },
+        {
+          "version": "20260809161543",
+          "name": "admin_trades_view_pipeline_columns",
+          "appliedAt": "2026-08-09T16:15:43Z"
+        },
+        {
+          "version": "20260828145355",
+          "name": "enable_rls_group1_zero_risk_tables",
+          "appliedAt": "2026-08-28T14:53:55Z"
+        },
+        {
+          "version": "20260828145452",
+          "name": "enable_rls_group2_admin_audit_log",
+          "appliedAt": "2026-08-28T14:54:52Z"
+        },
+        {
+          "version": "20260828150728",
+          "name": "enable_rls_group4_role_based_access_control",
+          "appliedAt": "2026-08-28T15:07:28Z"
+        },
+        {
+          "version": "20260828150742",
+          "name": "enable_rls_group3_admin_audit_logs_plural",
+          "appliedAt": "2026-08-28T15:07:42Z"
+        },
+        {
+          "version": "20260904214647",
+          "name": "category_sp_analytics_rpc_fix",
+          "appliedAt": "2026-09-04T21:46:47Z"
+        },
+        {
+          "version": "20260912111237",
+          "name": "fix_task_20_tax_rule_overlap_price_bands_and_message",
+          "appliedAt": "2026-09-12T11:12:37Z"
+        },
+        {
+          "version": "20260912111247",
+          "name": "fix_task_20_tax_rule_precedence_deterministic",
+          "appliedAt": "2026-09-12T11:12:47Z"
+        },
+        {
+          "version": "20260912111253",
+          "name": "fix_task_20_tax_clothing_ct_bands",
+          "appliedAt": "2026-09-12T11:12:53Z"
+        },
+        {
+          "version": "20260912111321",
+          "name": "fix_task_20_tax_status_zero_amount_backfill",
+          "appliedAt": "2026-09-12T11:13:21Z"
+        },
+        {
+          "version": "20260912111324",
+          "name": "fix_task_20_review_report_counter_trigger_security",
+          "appliedAt": "2026-09-12T11:13:24Z"
+        },
+        {
+          "version": "20260912111328",
+          "name": "fix_task_20_review_report_counters_backfill",
+          "appliedAt": "2026-09-12T11:13:28Z"
+        },
+        {
+          "version": "20260912111342",
+          "name": "fix_task_20_tax_summary_gross_collected_reconcile",
+          "appliedAt": "2026-09-12T11:13:42Z"
+        },
+        {
+          "version": "20260912112241",
+          "name": "fix_task_20_restore_tax_summary_function_grants",
+          "appliedAt": "2026-09-12T11:22:41Z"
+        },
+        {
+          "version": "20260914144138",
+          "name": "fix_task_32_competing_offer_notification_copy_seller_conditional",
+          "appliedAt": "2026-09-14T14:41:38Z"
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,7 @@
 {
   "_comment": "FIX-Task-63 — LEGACY OUT-OF-BAND EXCEPTION RECORD. These are staging schema changes that were applied with NO committed migration file behind them (MCP `apply_migration` calls, dashboard SQL, or an in-session adaptation that was never written back). The goal is NOT to rewrite history — it is to make every exception VISIBLE and TIME-BOUNDED, so a future one cannot hide inside a pile of unexplained ledger rows. `scripts/migrations/ledger-audit.mjs` prints these instead of reporting the rows as unmanaged, and flags any entry past its `expiresAt`.",
+  "_matchKeys": "A row is explained if ANY of these matches: `ledgerName` / `ledgerNames[]` against the row's normalised `name`, or `ledgerVersion` against the row's `version`. Other keys are descriptive only — in particular `observedRowName` is NOT a match key, so an entry can record that a row's name is junk without whitelisting every row that shares that junk name.",
+  "_classRule": "`ledgerNames` enumerates a MEASURED class instead of matching a pattern, so the entry expires with its evidence and a NEW row in that bucket still surfaces as unexplained APPLIED_ONLY drift. Every entry carries `doesNotCover` where the boundary is not obvious.",
   "exceptions": [
     {
       "ledgerName": "fix_task_61_item_images_bucket_mime_alignment",
@@ -31,6 +33,73 @@
       "approvedAt": "2026-09-18",
       "reconciliationTask": "FIX-Task-63 Phase 3 — per-signature existence guards, then apply",
       "expiresAt": "2026-10-18"
+    },
+    {
+      "id": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "ledgerNames": [
+        "fix_cancel_trade_v2_rpc",
+        "harden_credit_sp_for_cancelled_trade",
+        "fix_auto_complete_respects_dispute_status",
+        "fix_sp_ledger_missing_on_trade_complete_v2",
+        "revert_split_restore_combined_sp",
+        "fix_category_sp_multiplier_lookup",
+        "fix_platform_bonus_formula_based_on_sp",
+        "create_fn_cleanup_test_buyer_trades",
+        "fix_handle_new_user_subscription_notification_prefs",
+        "add_sp_config_reader_helpers_no_fallback",
+        "award_referral_sp_fail_loud",
+        "award_listing_referral_sp_fail_loud",
+        "apply_referral_code_fail_loud",
+        "referral_config_read_rpcs_raise_on_missing",
+        "referral_trigger_functions_log_on_missing_config",
+        "r2_cleanup_retire_legacy_auto_complete",
+        "admin_trades_view_pipeline_columns",
+        "enable_rls_group1_zero_risk_tables",
+        "enable_rls_group2_admin_audit_log",
+        "enable_rls_group4_role_based_access_control",
+        "enable_rls_group3_admin_audit_logs_plural",
+        "category_sp_analytics_rpc_fix",
+        "fix_task_20_tax_rule_overlap_price_bands_and_message",
+        "fix_task_20_tax_rule_precedence_deterministic",
+        "fix_task_20_tax_clothing_ct_bands",
+        "fix_task_20_tax_status_zero_amount_backfill",
+        "fix_task_20_review_report_counter_trigger_security",
+        "fix_task_20_review_report_counters_backfill",
+        "fix_task_20_tax_summary_gross_collected_reconcile",
+        "fix_task_20_restore_tax_summary_function_grants",
+        "fix_task_32_competing_offer_notification_copy_seller_conditional"
+      ],
+      "reason": "31 ledger rows whose apply times run 2025-12-15 → 2026-09-14 and whose names exist as NO local file. This is NOT new drift: it is the same pre-existing population already measured on staging two days earlier, and its size has not moved except by one added file. It surfaced as 'unexplained' only because it was never written into this file. Names are ENUMERATED rather than pattern-matched, so the entry cannot absorb a future row.",
+      "independentReference": "supabase/migrations/README.md — FIX-Task-40 phase 3, measured 2026-09-16: \"Staging's `schema_migrations` holds 266 rows whose `version` values are APPLY timestamps … 253 unique names, 32 with no local file at all, and 304 local files with no ledger row. A file-level attribution is therefore not derivable, so the binding test is that a creator exists in the chain.\" Re-measured 2026-09-18 (FIX-Task-64): 31 rows / 305 FILE_ONLY — the 32 → 31 and 304 → 305 deltas are the same single file added since; nothing about this class changed in character.",
+      "approvedBy": "samer",
+      "approvedAt": "2026-09-18",
+      "reconciliationTask": "FIX-Task-64 — record only. No re-apply and no backfill.",
+      "reconciliation": "not derivable at file level (established by the FIX-Task-40 measurement); recorded as one measured, named, expiring class instead of re-investigated per row",
+      "doesNotCover": "ONLY the 31 enumerated names, and only as they stand on 2026-09-18. Any ledger row that lands in this bucket AFTER that date does not match this entry and is still reported as unexplained APPLIED_ONLY drift — that is deliberate, and it is the point of enumerating names instead of matching a pattern.",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "id": "seed-initial-nodes-renumbered-fix-task-42",
+      "kind": "renamed-migration-row",
+      "ledgerVersion": "20251217000001",
+      "observedRowName": "placeholder",
+      "reason": "Row identity is its VERSION, not its name. The stored name is the literal string `placeholder`, which several other rows also carry — keying this entry by name would whitelist all of them, including future ones. The file existed as supabase/migrations/20251217000001_seed_initial_nodes.sql (added 3087bf8e) and was RENAMED with zero content change in 5acfc7f4 (FIX-Task-42) to 20260916000083_seed_initial_nodes.sql, which is present and committed today. The ledger row is the historical apply of a file that still exists under a different number, so it is not drift.",
+      "approvedBy": "samer",
+      "approvedAt": "2026-09-18",
+      "reconciliationTask": "FIX-Task-64 — record only (no re-apply; the seeded nodes are governed by the chain's own seed migration)",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "id": "fix-task-59-superseded-in-session-attempt",
+      "kind": "applied-in-session-superseded-no-file",
+      "ledgerName": "fix_task_59_corrective_public_revoke_siblings",
+      "reason": "FIX-Task-59's FIRST in-session attempt, which its own report records as having silently done nothing: its `REVOKE … FROM anon` was a no-op because the grant came through PUBLIC. No file of this name was ever added on any ref (git log --all --diff-filter=A → zero hits), so the row is genuinely unbacked by a file — but its EFFECT is committed: the corrected `REVOKE … FROM PUBLIC, anon` lives in supabase/migrations/20260918000008_fix_task_59_verify_user_phone_identity_lockdown.sql (lines 218-220, committed in 91475b38).",
+      "independentReference": "e2e-test-results/fix-task-59-2026-09-18/report.md (records the attempt that silently did nothing) + the committed 20260918000008_fix_task_59_verify_user_phone_identity_lockdown.sql lines 218-220.",
+      "approvedBy": "samer",
+      "approvedAt": "2026-09-18",
+      "reconciliationTask": "FIX-Task-64 — record only (no re-apply; re-applying the corrected form is a no-op by design)",
+      "expiresAt": "2026-12-17"
     }
   ]
 }
