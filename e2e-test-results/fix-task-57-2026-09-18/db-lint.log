@@ -1,0 +1,1142 @@
+Connecting to local database...
+WARNING (01006): no privileges could be revoked for "plpgsql_check_function_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_check_function"
+WARNING (01006): no privileges could be revoked for "plpgsql_check_function_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_check_function"
+WARNING (01006): no privileges could be revoked for "__plpgsql_show_dependency_tb"
+WARNING (01006): no privileges could be revoked for "__plpgsql_show_dependency_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_show_dependency_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_show_dependency_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_function_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_function_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_function_statements_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_function_statements_tb"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_install_fake_queryid_hook"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_remove_fake_queryid_hook"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_reset_all"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_reset"
+WARNING (01006): no privileges could be revoked for "plpgsql_coverage_statements"
+WARNING (01006): no privileges could be revoked for "plpgsql_coverage_statements"
+WARNING (01006): no privileges could be revoked for "plpgsql_coverage_branches"
+WARNING (01006): no privileges could be revoked for "plpgsql_coverage_branches"
+WARNING (01006): no privileges could be revoked for "plpgsql_check_pragma"
+WARNING (01006): no privileges could be revoked for "plpgsql_profiler_functions_all"
+WARNING (01006): no privileges could be revoked for "plpgsql_check_profiler"
+WARNING (01006): no privileges could be revoked for "plpgsql_check_tracer"
+Linting schema: extensions
+Linting schema: public
+[
+  {
+    "function": "public.st_findextent",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "cannot determinate a result of dynamic SQL",
+        "statement": {
+          "lineNumber": "8",
+          "text": "FOR over EXECUTE statement"
+        },
+        "hint": "Don't use dynamic SQL and record type together, when you would check function.",
+        "detail": "There is a risk of related false alarms.",
+        "sqlState": "00000"
+      },
+      {
+        "level": "error",
+        "message": "record \"myrec\" is not assigned yet",
+        "statement": {
+          "lineNumber": "9",
+          "text": "RETURN"
+        },
+        "detail": "The tuple structure of a not-yet-assigned record is indeterminate.",
+        "context": "SQL expression \"myrec.extent\"",
+        "sqlState": "55000"
+      }
+    ]
+  },
+  {
+    "function": "public.st_findextent",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "cannot determinate a result of dynamic SQL",
+        "statement": {
+          "lineNumber": "8",
+          "text": "FOR over EXECUTE statement"
+        },
+        "hint": "Don't use dynamic SQL and record type together, when you would check function.",
+        "detail": "There is a risk of related false alarms.",
+        "sqlState": "00000"
+      },
+      {
+        "level": "error",
+        "message": "record \"myrec\" is not assigned yet",
+        "statement": {
+          "lineNumber": "9",
+          "text": "RETURN"
+        },
+        "detail": "The tuple structure of a not-yet-assigned record is indeterminate.",
+        "context": "SQL expression \"myrec.extent\"",
+        "sqlState": "55000"
+      }
+    ]
+  },
+  {
+    "function": "public.populate_geometry_columns",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "unused variable \"gc\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gsrid\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gndims\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gtype\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"query\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gc_is_valid\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"stale\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.populate_geometry_columns",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "cannot determinate a result of dynamic SQL",
+        "statement": {
+          "lineNumber": "47",
+          "text": "EXECUTE"
+        },
+        "hint": "Don't use dynamic SQL and record type together, when you would check function.",
+        "detail": "There is a risk of related false alarms.",
+        "sqlState": "00000"
+      },
+      {
+        "level": "error",
+        "message": "record \"gc\" is not assigned yet",
+        "statement": {
+          "lineNumber": "55",
+          "text": "assignment"
+        },
+        "detail": "The tuple structure of a not-yet-assigned record is indeterminate.",
+        "context": "PL/pgSQL assignment \"gsrid := gc.srid\"",
+        "sqlState": "55000"
+      }
+    ]
+  },
+  {
+    "function": "public.addgeometrycolumn",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "28",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "34",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "39",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "51",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "70",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "88",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"rec\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"sr\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalog_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.dropgeometrycolumn",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "34",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"myrec\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalog_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.dropgeometrytable",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalog_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.updategeometrysrid",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "36",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "43",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalogn_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.postgis_full_version",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function public.postgis_gdal_version() does not exist",
+        "statement": {
+          "lineNumber": "35",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "8",
+          "text": "SELECT public.postgis_gdal_version()"
+        },
+        "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
+        "sqlState": "42883"
+      }
+    ]
+  },
+  {
+    "function": "public.lockrow",
+    "issues": [
+      {
+        "level": "error",
+        "message": "relation \"authorization_table\" does not exist",
+        "statement": {
+          "lineNumber": "18",
+          "text": "EXECUTE"
+        },
+        "query": {
+          "position": "13",
+          "text": "DELETE FROM authorization_table WHERE expires \u003c now()"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "public.addauth",
+    "issues": [
+      {
+        "level": "error",
+        "message": "relation \"temp_lock_have_table\" does not exist",
+        "statement": {
+          "lineNumber": "24",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "13",
+          "text": "INSERT INTO temp_lock_have_table VALUES (getTransactionID(), lockid)"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "public.enablelongtransactions",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"rec\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.longtransactionsenabled",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "7",
+          "text": "RETURN"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"boolean\" type",
+        "sqlState": "42804"
+      },
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "9",
+          "text": "RETURN"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"boolean\" type",
+        "sqlState": "42804"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"rec\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.st_letters",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "98",
+          "text": "statement block"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"json\" type",
+        "context": "during statement block local variable \"font_default\" initialization on line 18",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.increment_verification_attempts",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"code\" does not exist",
+        "statement": {
+          "lineNumber": "5",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "99",
+          "text": "UPDATE phone_verification_codes\n  SET attempts = attempts + 1\n  WHERE user_id = p_user_id\n    AND code = p_code\n    AND verified = false\n  RETURNING attempts"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.process_referral_bonus",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column reference \"referrer_user_id\" is ambiguous",
+        "statement": {
+          "lineNumber": "22",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "58",
+          "text": "SELECT *                          FROM referrals\n  WHERE referrer_user_id = v_referrer_user_id\n    AND referred_user_id = p_referred_user_id"
+        },
+        "detail": "It could refer to either a PL/pgSQL variable or a table column.",
+        "sqlState": "42702"
+      }
+    ]
+  },
+  {
+    "function": "public.log_debug",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"user_id\" of relation \"debug_logs\" does not exist",
+        "statement": {
+          "lineNumber": "3",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "46",
+          "text": "INSERT INTO public.debug_logs (process_name, user_id, message, payload, error_message)\n  VALUES (p_process_name, p_user_id, p_message, p_payload, p_error_message)"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_record_faq_vote",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"yes_count\" does not exist",
+        "statement": {
+          "lineNumber": "34",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "41",
+          "text": "UPDATE public.faq_items SET yes_count = yes_count + 1 WHERE id = p_faq_item_id"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_reset_faq_votes",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"yes_count\" of relation \"faq_items\" does not exist",
+        "statement": {
+          "lineNumber": "4",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "29",
+          "text": "UPDATE public.faq_items SET yes_count = 0, no_count = 0 WHERE id = p_faq_item_id"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.fn_cleanup_test_buyer_trades",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "6",
+          "text": "statement block"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"uuid[]\" type",
+        "context": "during statement block local variable \"v_listing_ids\" initialization on line 4",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.verify_phone_code",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column phone_verification_codes.code does not exist",
+        "statement": {
+          "lineNumber": "7",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "117",
+          "text": "SELECT *                 FROM phone_verification_codes\n  WHERE phone_verification_codes.user_id = p_user_id\n    AND phone_verification_codes.code = p_code\n    AND phone_verification_codes.verified = false\n    AND phone_verification_codes.expires_at \u003e NOW()\n  ORDER BY phone_verification_codes.created_at DESC\n  LIMIT 1"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.update_subscription_status",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "unused variable \"v_updated_row\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.record_payment_attempt",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"p_charge_id\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.reorder_categories",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"updated_at\" of relation \"categories\" does not exist",
+        "statement": {
+          "lineNumber": "44",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "92",
+          "text": "UPDATE public.categories\n    SET display_order = v_order_record.new_display_order,\n        updated_at = NOW()  -- Assuming updated_at column exists\n    WHERE id = v_order_record.category_id"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.edu_is_admin",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function public.is_admin() is not unique",
+        "statement": {
+          "lineNumber": "25",
+          "text": "EXECUTE"
+        },
+        "query": {
+          "position": "8",
+          "text": "SELECT public.is_admin()"
+        },
+        "hint": "Could not choose a best candidate function. You might need to add explicit type casts.",
+        "sqlState": "42725"
+      }
+    ]
+  },
+  {
+    "function": "public.fn_handle_seller_cancellation",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"p_trade_id\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.fn_expire_saved_carts",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"deleted_at\" does not exist",
+        "statement": {
+          "lineNumber": "23",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "94",
+          "text": "UPDATE public.cart_items\n     SET deleted_at = NOW()\n   WHERE cart_status = 'saved'\n     AND deleted_at IS NULL\n     AND updated_at \u003c v_cutoff_ts"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.get_nodes_within_radius",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function extensions.st_makepoint(numeric, numeric) does not exist",
+        "statement": {
+          "lineNumber": "7",
+          "text": "RETURN QUERY"
+        },
+        "query": {
+          "position": "129",
+          "text": "SELECT\n    n.id::UUID,\n    n.name::TEXT,\n    n.city::TEXT,\n    n.state::TEXT,\n    (\n      extensions.ST_DistanceSphere(\n        extensions.ST_MakePoint(n.longitude, n.latitude),\n        extensions.ST_MakePoint(center_lng, center_lat)\n      ) / 1609.34\n    )::DOUBLE PRECISION AS distance_miles\n  FROM public.nodes n\n  WHERE n.is_active = TRUE\n    AND (\n      extensions.ST_DistanceSphere(\n        extensions.ST_MakePoint(n.longitude, n.latitude),\n        extensions.ST_MakePoint(center_lng, center_lat)\n      ) / 1609.34\n    ) \u003c= v_radius_miles\n  ORDER BY distance_miles ASC"
+        },
+        "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
+        "sqlState": "42883"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_fire_process_extension_timeouts",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "26",
+          "text": "SQL statement"
+        },
+        "hint": "There are no possible explicit coercion between those types, possibly bug!",
+        "detail": "cast \"bigint\" value to \"jsonb\" type",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_fire_edge_function",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "32",
+          "text": "SQL statement"
+        },
+        "hint": "There are no possible explicit coercion between those types, possibly bug!",
+        "detail": "cast \"bigint\" value to \"jsonb\" type",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.fn_escalate_expired_cancel_requests",
+    "issues": [
+      {
+        "level": "error",
+        "message": "relation \"tmp_escalated_cancel_requests\" does not exist",
+        "statement": {
+          "lineNumber": "36",
+          "text": "FOR over SELECT rows"
+        },
+        "query": {
+          "position": "148",
+          "text": "SELECT DISTINCT ON (x.cancel_requested_by, COALESCE(x.bundle_id, x.id))\n           x.id, x.bundle_id, x.cancel_requested_by, x.listing_id\n    FROM tmp_escalated_cancel_requests x\n    ORDER BY x.cancel_requested_by, COALESCE(x.bundle_id, x.id)"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "public._is_admin_core",
+    "issues": [
+      {
+        "level": "error",
+        "message": "relation \"public.user_roles\" does not exist",
+        "statement": {
+          "lineNumber": "30",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "37",
+          "text": "SELECT EXISTS (\n      SELECT 1 FROM public.user_roles ur\n      WHERE ur.user_id = p_uid AND ur.role = 'admin'\n    )"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "public.manual_award_badge",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"v_existing_badge\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.complete_trade_v2",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"v_sp_amount\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_process_auto_complete",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"v_payout_result\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.search_listings",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column reference \"status\" is ambiguous",
+        "statement": {
+          "lineNumber": "12",
+          "text": "RETURN QUERY"
+        },
+        "query": {
+          "position": "704",
+          "text": "SELECT\n    i.id,\n    i.title,\n    i.description,\n    i.price,\n    i.accepts_swap_points,\n    i.status,\n    i.seller_id,\n    i.category_id,\n    i.condition,\n    i.created_at,\n    i.updated_at,\n    -- Relevance scoring: title matches weighted higher than description\n    CAST(\n      CASE \n        WHEN i.title ILIKE '%' || v_search_query || '%' THEN 2.0\n        WHEN i.description ILIKE '%' || v_search_query || '%' THEN 1.0\n        ELSE 0.5\n      END\n    AS REAL) AS relevance,\n    p.name as seller_name,\n    p.avatar_url as seller_avatar_url,\n    COALESCE(v.status, 'none') as seller_verification_status\n  FROM items i\n  LEFT JOIN profiles p ON i.seller_id = p.user_id\n  LEFT JOIN (\n    SELECT user_id, status, \n           ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) as rn\n    FROM id_badge_verification_requests\n  ) v ON i.seller_id = v.user_id AND v.rn = 1\n  WHERE\n    -- Only search active listings\n    i.status = 'available'\n    AND (\n      i.title ILIKE '%' || v_search_query || '%'\n      OR i.description ILIKE '%' || v_search_query || '%'\n    )\n    -- Optional filter: only SP-eligible items\n    AND (NOT p_sp_eligible_only OR i.accepts_swap_points = TRUE)\n  ORDER BY \n    relevance DESC,\n    i.created_at DESC\n  LIMIT p_limit"
+        },
+        "detail": "It could refer to either a PL/pgSQL variable or a table column.",
+        "sqlState": "42702"
+      }
+    ]
+  },
+  {
+    "function": "public.search_listings_by_category",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column reference \"status\" is ambiguous",
+        "statement": {
+          "lineNumber": "3",
+          "text": "RETURN QUERY"
+        },
+        "query": {
+          "position": "419",
+          "text": "SELECT\n    i.id,\n    i.title,\n    i.description,\n    i.price,\n    i.accepts_swap_points,\n    i.status,\n    i.seller_id,\n    i.category_id,\n    i.condition,\n    i.created_at,\n    i.updated_at,\n    p.name as seller_name,\n    p.avatar_url as seller_avatar_url,\n    COALESCE(v.status, 'none') as seller_verification_status\n  FROM items i\n  LEFT JOIN profiles p ON i.seller_id = p.user_id\n  LEFT JOIN (\n    SELECT user_id, status, \n           ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) as rn\n    FROM id_badge_verification_requests\n  ) v ON i.seller_id = v.user_id AND v.rn = 1\n  WHERE\n    -- Only search active listings\n    i.status = 'available'\n    AND i.category_id = p_category_id\n    -- Optional filter: only SP-eligible items\n    AND (NOT p_sp_eligible_only OR i.accepts_swap_points = TRUE)\n  ORDER BY \n    i.created_at DESC\n  LIMIT p_limit\n  OFFSET p_offset"
+        },
+        "detail": "It could refer to either a PL/pgSQL variable or a table column.",
+        "sqlState": "42702"
+      }
+    ]
+  },
+  {
+    "function": "public.search_listings_by_category_and_query",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column reference \"status\" is ambiguous",
+        "statement": {
+          "lineNumber": "7",
+          "text": "RETURN QUERY"
+        },
+        "query": {
+          "position": "673",
+          "text": "SELECT\n    i.id,\n    i.title,\n    i.description,\n    i.price,\n    i.accepts_swap_points,\n    i.status,\n    i.seller_id,\n    i.category_id,\n    i.condition,\n    i.created_at,\n    i.updated_at,\n    CAST(\n      CASE \n        WHEN v_search_query = '' THEN 1.0\n        WHEN i.title ILIKE '%' || v_search_query || '%' THEN 2.0\n        WHEN i.description ILIKE '%' || v_search_query || '%' THEN 1.0\n        ELSE 0.5\n      END\n    AS REAL) AS relevance,\n    p.name as seller_name,\n    p.avatar_url as seller_avatar_url,\n    COALESCE(v.status, 'none') as seller_verification_status\n  FROM items i\n  LEFT JOIN profiles p ON i.seller_id = p.user_id\n  LEFT JOIN (\n    SELECT user_id, status, \n           ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) as rn\n    FROM id_badge_verification_requests\n  ) v ON i.seller_id = v.user_id AND v.rn = 1\n  WHERE\n    i.status = 'available'\n    AND i.category_id = p_category_id\n    AND (\n      v_search_query = ''\n      OR i.title ILIKE '%' || v_search_query || '%'\n      OR i.description ILIKE '%' || v_search_query || '%'\n    )\n    AND (NOT p_sp_eligible_only OR i.accepts_swap_points = TRUE)\n  ORDER BY \n    relevance DESC,\n    i.created_at DESC\n  LIMIT p_limit\n  OFFSET p_offset"
+        },
+        "detail": "It could refer to either a PL/pgSQL variable or a table column.",
+        "sqlState": "42702"
+      }
+    ]
+  },
+  {
+    "function": "public.check_phone_verification_status",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"code\" does not exist",
+        "statement": {
+          "lineNumber": "3",
+          "text": "RETURN QUERY"
+        },
+        "query": {
+          "position": "292",
+          "text": "SELECT \n    p.user_id,\n    p.name,\n    au.email,\n    au.phone,\n    p.phone_verified,\n    p.phone_verified_at,\n    pvc.code AS last_verification_code,\n    pvc.created_at AS last_verification_sent_at\n  FROM profiles p\n  JOIN auth.users au ON au.id = p.user_id\n  LEFT JOIN LATERAL (\n    SELECT code, created_at\n    FROM phone_verification_codes\n    WHERE user_id = p.user_id\n    ORDER BY created_at DESC\n    LIMIT 1\n  ) pvc ON true\n  WHERE p.user_id = p_user_id"
+        },
+        "hint": "Perhaps you meant to reference the column \"p.role\" or the column \"au.role\".",
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.get_badge_config_history",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function is_admin() is not unique",
+        "statement": {
+          "lineNumber": "4",
+          "text": "IF"
+        },
+        "query": {
+          "position": "5",
+          "text": "NOT is_admin()"
+        },
+        "hint": "Could not choose a best candidate function. You might need to add explicit type casts.",
+        "sqlState": "42725"
+      }
+    ]
+  },
+  {
+    "function": "public.get_badge_audit_logs",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function is_admin() is not unique",
+        "statement": {
+          "lineNumber": "4",
+          "text": "IF"
+        },
+        "query": {
+          "position": "5",
+          "text": "NOT is_admin()"
+        },
+        "hint": "Could not choose a best candidate function. You might need to add explicit type casts.",
+        "sqlState": "42725"
+      }
+    ]
+  },
+  {
+    "function": "public.admin_trigger_retroactive_awards",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function is_admin() is not unique",
+        "statement": {
+          "lineNumber": "10",
+          "text": "IF"
+        },
+        "query": {
+          "position": "5",
+          "text": "NOT is_admin()"
+        },
+        "hint": "Could not choose a best candidate function. You might need to add explicit type casts.",
+        "sqlState": "42725"
+      }
+    ]
+  },
+  {
+    "function": "public.scheduled_award_tenure_badges",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"v_days_subscribed\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.get_sp_wallet_balance",
+    "issues": [
+      {
+        "level": "error",
+        "message": "relation \"public.sp_transactions\" does not exist",
+        "statement": {
+          "lineNumber": "12",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "399",
+          "text": "SELECT \n    COALESCE(SUM(amount) FILTER (WHERE type = 'earn'), 0),\n    COALESCE(SUM(amount) FILTER (WHERE type = 'spend'), 0),\n    COALESCE(SUM(amount) FILTER (WHERE type = 'hold'), 0),\n    COALESCE(SUM(amount) FILTER (WHERE type = 'hold_release'), 0),\n    COALESCE(SUM(amount) FILTER (WHERE type = 'hold_consumed'), 0)\n                                                                         FROM public.sp_transactions\n  WHERE user_id = p_user_id"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "public.invoke_check_offer_timeouts",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "unused variable \"v_request_id\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.invoke_trial_conversion_edge_function",
+    "issues": [
+      {
+        "level": "error",
+        "message": "type \"http_request\" does not exist",
+        "statement": {
+          "lineNumber": "29",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "300",
+          "text": "SELECT jsonb_build_object('status', status, 'content', content::jsonb)                   FROM http((\n    'POST', v_url,\n    ARRAY[\n      http_header('Content-Type', 'application/json'),\n      http_header('Authorization', 'Bearer ' || v_service_role_key)\n    ],\n    'application/json',\n    '{}'\n  )::http_request)"
+        },
+        "sqlState": "42704"
+      }
+    ]
+  },
+  {
+    "function": "public.create_trade_with_disclaimer_v2",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column i.price_cents does not exist",
+        "statement": {
+          "lineNumber": "26",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "21",
+          "text": "SELECT i.seller_id, i.price_cents\n                                         FROM items i\n  WHERE i.id = p_item_id\n    AND i.status = 'active'"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.admin_unpause_listing",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"last_edited_at\" of relation \"items\" does not exist",
+        "statement": {
+          "lineNumber": "28",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "54",
+          "text": "UPDATE items\n    SET \n      status = 'active',\n      last_edited_at = NOW()\n    WHERE id = p_listing_id"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.get_unread_messages_for_email",
+    "issues": [
+      {
+        "level": "error",
+        "message": "structure of query does not match function result type",
+        "statement": {
+          "lineNumber": "26",
+          "text": "RETURN QUERY"
+        },
+        "detail": "Returned type character varying(255) does not match expected type text in column 8.",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.admin_get_user_analytics",
+    "issues": [
+      {
+        "level": "error",
+        "message": "missing FROM-clause entry for table \"s\"",
+        "statement": {
+          "lineNumber": "13",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "1121",
+          "text": "SELECT jsonb_build_object(\n    'total_users', (\n      SELECT COUNT(*) FROM profiles WHERE deleted_at IS NULL\n    ),\n    'active_users', (\n      SELECT COUNT(*) FROM profiles WHERE deleted_at IS NULL AND account_status = 'active'\n    ),\n    'suspended_users', (\n      SELECT COUNT(*) FROM profiles WHERE deleted_at IS NULL AND account_status = 'suspended'\n    ),\n    'deleted_users', (\n      SELECT COUNT(*) FROM profiles WHERE deleted_at IS NOT NULL\n    ),\n    'new_this_month', (\n      SELECT COUNT(*) FROM profiles\n      WHERE created_at \u003e= date_trunc('month', now())\n        AND deleted_at IS NULL\n    ),\n    'dau', (\n      SELECT COUNT(DISTINCT au.id)\n      FROM auth.users au\n      JOIN profiles p ON p.user_id = au.id\n      WHERE au.last_sign_in_at \u003e= now() - interval '1 day'\n        AND p.deleted_at IS NULL\n    ),\n    'mau', (\n      SELECT COUNT(DISTINCT au.id)\n      FROM auth.users au\n      JOIN profiles p ON p.user_id = au.id\n      WHERE au.last_sign_in_at \u003e= now() - interval '30 days'\n        AND p.deleted_at IS NULL\n    ),\n    'subscription_breakdown', (\n      SELECT jsonb_object_agg(\n        COALESCE(s.status, 'none'),\n        cnt\n      )\n      FROM (\n        SELECT COALESCE(s.status, 'none') AS status, COUNT(*) AS cnt\n        FROM profiles p\n        LEFT JOIN subscriptions s ON s.user_id = p.user_id\n          AND s.id = (\n            SELECT id FROM subscriptions s2\n            WHERE s2.user_id = p.user_id\n            ORDER BY s2.created_at DESC\n            LIMIT 1\n          )\n        WHERE p.deleted_at IS NULL\n        GROUP BY COALESCE(s.status, 'none')\n      ) sub\n    )\n  )"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_trigger_process_extension_timeouts",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "18",
+          "text": "SQL statement"
+        },
+        "hint": "There are no possible explicit coercion between those types, possibly bug!",
+        "detail": "cast \"bigint\" value to \"jsonb\" type",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_process_auto_complete",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"v_payout_result\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.complete_trade_v2",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"v_sp_amount\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.cancel_trade_v2",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "65",
+          "text": "SQL statement"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"uuid\" type",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.admin_force_cancel_trade_db",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "32",
+          "text": "SQL statement"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"uuid\" type",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "public.award_listing_referral_sp",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"p_referral_id\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.downgrade_trial_to_grace",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column ac.config_value does not exist",
+        "statement": {
+          "lineNumber": "42",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "8",
+          "text": "SELECT ac.config_value\n                            FROM public.admin_config ac\n    WHERE ac.config_key = 'grace_period_days'\n      AND ac.is_active = TRUE\n    LIMIT 1"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_record_stripe_refund",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "unused variable \"v_existing_refund_id\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"p_initiating_actor\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.rpc_record_payment_refund",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "unused variable \"v_tax_remaining\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"v_trade_exists\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.create_email_log",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"email_type\" of relation \"email_logs\" does not exist",
+        "statement": {
+          "lineNumber": "15",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "70",
+          "text": "INSERT INTO email_logs (\n      user_id,\n      recipient_email,\n      email_type,\n      template_type,\n      metadata,\n      template_data,\n      status\n    )\n    VALUES (\n      p_user_id,\n      p_recipient_email,\n      p_template_type,\n      p_template_type,\n      COALESCE(p_template_data, '{}'::jsonb),\n      COALESCE(p_template_data, '{}'::jsonb),\n      'pending'\n    )\n    RETURNING id"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.create_sp_notification",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"v_subscription\"",
+        "sqlState": "00000"
+      }
+    ]
+  }
+]
+A new version of Supabase CLI is available: v2.117.0 (currently installed v2.65.5)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

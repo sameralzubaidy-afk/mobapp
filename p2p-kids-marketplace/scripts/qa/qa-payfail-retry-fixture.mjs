@@ -357,7 +357,10 @@ async function ensurePersona() {
       id: userId,
       name: NAME,
       phone: PHONE,
+      // FIX-Task-58: `phone_verified_at` is the single source of truth both phone
+      // gates read; the boolean is only a derived mirror.
       phone_verified: true,
+      phone_verified_at: nowIso,
       profile_completed: true,
       onboarding_completed: true,
       onboarding_completed_at: nowIso,

@@ -1,0 +1,9 @@
+migrations : 531 files in supabase/migrations
+resetting   : pristine base...
+pass 1: applied 530, deferred 1
+pass 2: applied 0, deferred 1
+
+applied    : 530/531
+unresolved : 1
+order      -> /var/folders/_1/cd6ggdgx22110pjg2ld28lb40000gp/T/mig-probe-order.txt
+failures   -> /var/folders/_1/cd6ggdgx22110pjg2ld28lb40000gp/T/mig-probe-failures.json

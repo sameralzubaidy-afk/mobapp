@@ -363,11 +363,20 @@ export default function EditProfileScreen({ navigation, route }: any) {
     // The legacy `phone_verification_codes.verified` column no longer exists (removed
     // by the AUTH-V3 migration 20260420000014), so querying it used to error silently
     // and always open the OTP modal even for an already-active phone (ACC-TC-B09).
-    // Verified-phone state now lives in auth.users.phone (set by auth-update-phone
-    // after OTP) and profiles.phone + profiles.phone_verified.
+    //
+    // FIX-Task-58: verified-phone state is read from `profiles.phone_verified_at` —
+    // the SINGLE SOURCE OF TRUTH that both phone gates also read
+    // (`isPhoneRequired()` client-side, `public.is_phone_verified()` server-side).
+    // This branch previously read `profiles.phone_verified`, the legacy boolean,
+    // which drifts: a provisioning path (seed / QA fixture) could set the boolean
+    // while leaving the timestamp NULL, and this branch would then tell the user
+    // their phone was "already verified" while the listing gate still refused it.
+    // `auth.users.phone` stays as a second entry because it is the number the
+    // phone-CHANGE flow has already installed on the account — but it is read as a
+    // MATCH TARGET, never as a verification signal.
     const accountVerifiedPhones = [
       normalizePhone((currentUser as any)?.phone || ''),
-      ...(currentProfile?.phone_verified
+      ...((currentProfile as any)?.phone_verified_at
         ? [normalizePhone((currentProfile as any)?.phone || '')]
         : []),
     ].filter((normalized) => normalized.length > 0);

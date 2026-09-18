@@ -453,6 +453,18 @@ confirmed until the bootstrap step above has been applied to a live local stack.
 leg — DB lint, all smoke scripts, real invocation of every changed branch — is unaffected and still
 required.
 
+> 🔴 **CORRECTED 2026-09-18 (FIX-Task-57) — the bootstrap step above does NOT unblock the reset.**
+> Two measurements falsify this section's conclusion (see the FIX-Task-57 section at the end of this
+> file for the full evidence): **(1)** `supabase db reset` deletes and re-creates the local DB
+> **volume**, so a post-hoc `local-stack-privileges.sh` grant is reverted before migrations run —
+> verified by the volume's `CreatedAt` and the container `Id` changing across the reset, with the
+> full stack healthy. **(2)** The membership is not the discriminator anyway: with `postgres`
+> provably *not* a member of `supabase_storage_admin`, a plain `psql` session as `postgres` **can**
+> create the policy, and the exact failing statement sequence succeeds in a transaction. The failure
+> is therefore in the **CLI's execution context**, not in the DB privileges or the migration content
+> — and the mechanism inside the CLI is still **unexplained**. Read the FIX-Task-57 section before
+> acting on anything in this one.
+
 ### Which files were repaired to get from 14 → 0
 
 Return-type `DROP FUNCTION` prologues (`…admin_trade_tools`, `…dev_task_57_rpc_identity_lockdown`);
@@ -473,5 +485,107 @@ fingerprint cannot see (it records identity, not the body).
 > catch that hoist's regression — pass 1 stayed flat at 389 while `unresolved` went 1 → 3. What
 > caught it was **pass 2 dropping 135 → 133**. Compare the WHOLE per-pass ladder after every
 > change, not just pass 1.
+
+---
+
+## ✅ FIX-Task-57 (2026-09-18) — chain is replayable again (531/531, one pass); `db reset` blocked elsewhere
+
+Report + evidence: `e2e-test-results/fix-task-57-2026-09-18/`. **Read this before the FIX-Task-43
+section above — it corrects that section's conclusion.**
+
+### Result
+
+```
+node scripts/migrations/replay-probe.mjs
+  migrations : 531 files in supabase/migrations
+  pass 1: applied 531, deferred 0
+  applied    : 531/531
+  unresolved : 0
+```
+
+**Single pass, zero deferral** — the property `supabase db reset` needs. The baseline was proven
+pristine first (reset with the migrations dir moved aside → **0 tables in `public`**).
+
+### Defect 5 (new) — a renumbered legacy file re-declares a function's ROW TYPE after R6
+
+`20260917000001_fix_task_51_grace_status_allowlist.sql` was the **only** unresolved file
+(`530/531`, `ERROR: cannot change return type of existing function | DETAIL: Row type defined by OUT
+parameters is different`). Cause: `public.get_subscription_summary(uuid)` has two return shapes in
+the chain — the R6 five-column row type (with `can_earn_sp`) and the pre-R6 four-column one. The
+renumbered legacy file `20260916000064_fix_trade_sp_credit_integrity.sql` (its own header still
+reads `090_fix_trade_sp_credit_integrity.sql`) sorts **after** R6 and re-installs the **4-column**
+shape, so FIX-Task-51's later `CREATE OR REPLACE` with 5 columns is refused. FIX-Task-51's comment
+*"Signature is UNCHANGED (BP-12: no DROP needed)"* was true against **live staging** but false on a
+**fresh replay** — the surface that had never been exercised. Staging's captured fingerprint
+confirms the live signature is the 5-column one, so the rebuild had been silently keeping the pre-R6
+shape.
+
+**Fixed** with a `DROP FUNCTION IF EXISTS public.get_subscription_summary(uuid);` prologue in the
+FIX-Task-51 file (it already re-asserts the EXECUTE grants in BLOCK 1d, which the DROP discards —
+BP-79), plus correction of the two now-false claims in its header comments. The two sibling
+functions were checked and need no `DROP` (`can_user_spend_sp` is `boolean` throughout;
+`fn_get_sp_entitlement` has one shape in both definitions).
+
+> ⚠️ **This is why a verified chain is not a proven one.** FIX-Task-51's file was added one day after
+the chain was last proven replayable, and it re-broke the replay. **Re-run `replay-probe.mjs` after
+every migration you add** — it is a 5-minute check and the only thing that catches this class.
+
+### `db reset` — still NOT green, and for a different reason than FIX-Task-43 recorded
+
+`npx supabase db reset --yes` still exits 1, dying at `20241214000005_create_user_avatars_bucket.sql`:
+
+```
+ERROR: must be owner of table objects (SQLSTATE 42501)
+CREATE POLICY "Users can upload their own avatars" ON storage.objects ...
+```
+
+Measured findings (full evidence in the report):
+
+1. **Not a content defect.** The identical statement sequence — same role, same DB state —
+   succeeds via `psql` inside `BEGIN/COMMIT`, and the probe applies all 531 files. The storage
+   statements are byte-unchanged and were **not** fail-softened.
+2. **`db reset` deletes and re-creates the DB volume**, so no post-hoc role grant can survive it.
+   Volume `CreatedAt` `13:35:39Z → 13:37:50Z` and container `Id` `651722ba… → d45932498…` across a
+   reset, **with the whole stack healthy**. (`supabase stop` + `start` *does* preserve the volume.)
+3. **The `supabase_storage_admin` membership is not the discriminator.** With
+   `pg_has_role(postgres,'supabase_storage_admin','MEMBER'|'USAGE'|'SET') = false`, `psql` as
+   `postgres` still creates the policy; the CLI's session does not, at the same state.
+4. **One observation is left UNEXPLAINED, deliberately:** instrumenting the CLI's own session shows
+   `create_policy=OK` at file 1 and `create_policy=FAILED sqlstate=42501` at file ~30 — **same run,
+   same session, same role**. Ruled out by direct test: `search_path` (a psql session with the CLI's
+   identical `search_path="$user", public, extensions` succeeds), the transaction context, `SET ROLE`
+   (no such statement exists in the chain), and container state (measured with the `storage`
+   container stopped). Mechanism unidentified — recorded as an open question, not dressed up as a
+   root cause.
+
+**Owner decision needed** (carried since FIX-Task-35; do not silently defer again). Options, cheapest
+first: **(A)** accept `replay-probe.mjs` as the local Tier-2 wipe-and-replay evidence (the dispatch
+allows "`db reset` *or equivalent wipe-and-replay*") and document `db reset` as CLI-blocked; **(B)**
+try a newer CLI (2.117.0 is available; this workspace runs 2.65.5); **(C)** diagnose the CLI's
+migrator execution context as its own ticket; **(D)** fail-soft the storage policies — **rejected**,
+it weakens bucket security and is unnecessary.
+
+### Fidelity diff — unchanged residuals, and `NO CREATOR = 0` again
+
+| Rule | FIX-40 phase 3 (528 files) | FIX-Task-57 (531 files) |
+|---|---|---|
+| 1 · SUBSET — staging objects missing from the replay | 119 | **119** |
+| 2 · EXPLAINED — replay-only objects with provenance | 60 | **65** |
+| 2 · replay-only objects with **NO CREATOR** | 0 | **0** ✅ |
+| 3 · CONFLICT — same object, different definition | 114 | **114** |
+
+**The 119/114 residuals are the pre-existing, documented staging-vs-head gap — not a regression.**
+They are identical to phase 3, so nothing in this task changed them, and a **strict byte-equal
+"zero drift" match to staging is not achievable** (staging was built partly out of band and is not
+at the repo head). The honest gate is the three agreed rules; the residual needs its own scoped
+task, split by table ownership (see `e2e-test-results/fix-task-43-2026-09-16/fidelity-triage.md`).
+
+### Two operational facts worth remembering
+
+* **The CLI only picks up files matching `<digits>_<name>.sql`.** A file named
+  `20241214000004z_…​.sql` was **silently skipped** — never listed as `Applying migration …`.
+  If a file appears not to run, check its name before its contents.
+* **`supabase db reset` wipes cluster-level role state; `supabase stop` + `supabase start` does not.**
+  Plan any local privilege bootstrap (e.g. `scripts/migrations/local-stack-privileges.sh`) around that.
 
 

@@ -152,7 +152,10 @@ async function findOrCreatePersona() {
       user_id: userId,
       name: PERSONA.name,
       phone: '5550101014',
+      // FIX-Task-58: `phone_verified_at` is the single source of truth both phone
+      // gates read; the boolean is only a derived mirror.
       phone_verified: true,
+      phone_verified_at: new Date().toISOString(),
       profile_completed: true,
       onboarding_completed: true,
       onboarding_completed_at: new Date().toISOString(),

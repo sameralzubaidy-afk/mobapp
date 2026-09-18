@@ -540,13 +540,24 @@ async function signupTestUser(
 
   // Create/update profile
   const seedNodeId = await resolveSeedNodeId();
+  const seedNow = new Date().toISOString();
   const { error: profileError } = await adminSupabase.from('profiles').upsert(
     {
       user_id: userId,
       id: userId,
       name: userData.name,
       phone: userData.phone,
+      // FIX-Task-58: `phone_verified_at` is the SINGLE SOURCE OF TRUTH for "phone
+      // verified" — both the client gate (`isPhoneRequired`) and the server gate
+      // (`public.is_phone_verified`) read it. Writing only the boolean here (as this
+      // upsert used to) left every freshly-provisioned persona claiming "verified"
+      // in a field no gate reads, while the one they DO read stayed NULL. The
+      // boolean is now a derived mirror (DB trigger trg_profiles_sync_phone_verified);
+      // it is still written here so a seed against a DB that has not yet had that
+      // migration applied is also internally consistent.
       phone_verified: true,
+      phone_verified_at: seedNow,
+      phone_verification_method: 'sms',
       profile_completed: true,
       onboarding_completed: true,
       onboarding_completed_at: new Date().toISOString(),
@@ -2394,6 +2405,133 @@ async function seedReferralCodes(buyerId: string, sellerId: string): Promise<voi
 // MAIN
 // ============================================================================
 
+// ============================================================================
+// FIX-Task-58 — PHONE-VERIFICATION BASELINE + RECONCILIATION
+// ============================================================================
+// `profiles.phone_verified_at` is the SINGLE SOURCE OF TRUTH for "this account's
+// phone is verified". Both gates read it — the client `isPhoneRequired()` and the
+// server `public.is_phone_verified()` (items-INSERT trigger). `profiles.phone_verified`
+// is a DERIVED MIRROR maintained by the DB trigger `trg_profiles_sync_phone_verified`
+// (migration 20260918000002_fix_task_58_phone_verified_source_of_truth.sql).
+//
+// WHY THIS RUNS ON EVERY SEED, NOT JUST ON FIRST CREATION:
+//   1. `signupTestUser()` EARLY-RETURNS for a persona that already exists, so its
+//      profile upsert — the only place that carries the phone fields — never re-runs.
+//      Left alone, a standing persona's phone state is frozen at whatever the last
+//      run left behind.
+//   2. `test-free` is the deliberately UNVERIFIED persona that AUTH-TC-J10 and
+//      AUTH-TC-E05 depend on: the entire point of those cases is that the listing
+//      gate FIRES. A J10 run legitimately verifies it (that IS the test), so without
+//      this reset the case stops being re-runnable without manual DB surgery.
+//      This is exactly what the AUTH Android Round 2 report (2026-09-18, F1/F2) found.
+//
+// The reconciliation step at the end is the "a fresh seed can never leave the
+// inconsistent combination again" gate: it fails the seed LOUDLY if the mirror and
+// the source of truth disagree for any standing persona.
+const PHONE_UNVERIFIED_PERSONA = TEST_USERS.freeUser;
+
+// Every other standing persona is intended to be phone-verified so the listing /
+// purchase gate never fires unexpectedly mid-case. `noProfileUser` (B09) is
+// deliberately EXCLUDED — it has no `profiles` row at all by design.
+const PHONE_VERIFIED_PERSONAS = Object.entries(TEST_USERS)
+  .filter(([key]) => key !== 'freeUser' && key !== 'noProfileUser')
+  .map(([key, user]) => ({ key, id: (user as { id: string }).id }));
+
+async function seedPhoneVerificationBaseline(): Promise<void> {
+  console.log('\n' + '═'.repeat(50));
+  console.log('📞 PHONE-VERIFICATION BASELINE (FIX-Task-58)');
+  console.log('═'.repeat(50));
+
+  const seedNow = new Date().toISOString();
+
+  // ── 1. Reset the deliberately-unverified persona to its documented baseline ──
+  // `phone_verification_method` is cleared as well: leaving it 'sms' while the
+  // timestamp is NULL is the same class of self-contradiction this task removed.
+  const { error: unverifiedError, count: unverifiedCount } = await adminSupabase
+    .from('profiles')
+    .update(
+      { phone_verified: false, phone_verified_at: null, phone_verification_method: null },
+      { count: 'exact' }
+    )
+    .eq('user_id', PHONE_UNVERIFIED_PERSONA.id);
+
+  if (unverifiedError) {
+    console.warn(`   ⚠️ test-free phone reset failed: ${unverifiedError.message}`);
+  } else if (!unverifiedCount) {
+    console.warn(
+      `   ⚠️ ${PHONE_UNVERIFIED_PERSONA.email} has no profiles row yet — run with --extended to provision it. AUTH-TC-J10 / E05 need this persona UNVERIFIED (the listing gate must fire).`
+    );
+  } else {
+    console.log(
+      `   ✓ UNVERIFIED baseline restored (phone_verified_at IS NULL): ${PHONE_UNVERIFIED_PERSONA.email}`
+    );
+  }
+
+  // ── 2. Self-heal every other standing persona to VERIFIED ──
+  // Only rows whose timestamp is still NULL are touched, so a genuine verification
+  // time recorded by an app run is preserved rather than moved forward.
+  const { error: verifyError, count: healedCount } = await adminSupabase
+    .from('profiles')
+    .update(
+      { phone_verified: true, phone_verified_at: seedNow, phone_verification_method: 'sms' },
+      { count: 'exact' }
+    )
+    .in(
+      'user_id',
+      PHONE_VERIFIED_PERSONAS.map((persona) => persona.id)
+    )
+    .is('phone_verified_at', null);
+
+  if (verifyError) {
+    console.warn(`   ⚠️ phone-verified baseline heal failed: ${verifyError.message}`);
+  } else {
+    console.log(
+      `   ✓ VERIFIED baseline ensured for ${PHONE_VERIFIED_PERSONAS.length} personas (${healedCount ?? 0} healed from an unverified state)`
+    );
+  }
+
+  // ── 3. Reconciliation — the mirror must agree with the source of truth ──
+  const allPersonaIds = [PHONE_UNVERIFIED_PERSONA.id, ...PHONE_VERIFIED_PERSONAS.map((p) => p.id)];
+
+  const { data: phoneRows, error: reconcileError } = await adminSupabase
+    .from('profiles')
+    .select('user_id, phone_verified, phone_verified_at')
+    .in('user_id', allPersonaIds);
+
+  if (reconcileError) {
+    console.warn(`   ⚠️ reconciliation read failed: ${reconcileError.message}`);
+    return;
+  }
+
+  const inconsistent = (phoneRows ?? []).filter(
+    (row: { phone_verified: boolean | null; phone_verified_at: string | null }) =>
+      Boolean(row.phone_verified) !== Boolean(row.phone_verified_at)
+  );
+
+  if (inconsistent.length > 0) {
+    console.error(
+      '\n   ❌ PHONE-VERIFICATION RECONCILIATION FAILED — profiles.phone_verified (the derived mirror) disagrees with profiles.phone_verified_at (the single source of truth):'
+    );
+    for (const row of inconsistent as Array<{
+      user_id: string;
+      phone_verified: boolean | null;
+      phone_verified_at: string | null;
+    }>) {
+      console.error(
+        `      ${row.user_id}  phone_verified=${String(row.phone_verified)}  phone_verified_at=${String(row.phone_verified_at)}`
+      );
+    }
+    console.error(
+      '      A fresh seed must never leave this combination. Fix the writer (see FIX-Task-58) before continuing.\n'
+    );
+    process.exit(1);
+  }
+
+  console.log(
+    `   ✓ Reconciliation OK — ${phoneRows?.length ?? 0} standing personas agree (phone_verified mirrors phone_verified_at)`
+  );
+}
+
 async function main(): Promise<void> {
   console.log('🌱 SEED STAGING DATA (ENHANCED)');
   console.log('================================');
@@ -2529,6 +2667,11 @@ async function main(): Promise<void> {
       console.log('✅ EXTENDED SEEDING COMPLETE');
       console.log('═'.repeat(50));
     }
+
+    // 9. FIX-Task-58: phone-verification baseline + reconciliation. Runs LAST so it
+    //    covers personas created in either mode (test-free itself is only created
+    //    by --extended), and so its reconciliation gate sees the final state.
+    await seedPhoneVerificationBaseline();
 
     // Print summary
     console.log('\n' + '='.repeat(60));

@@ -205,7 +205,11 @@ async function cmdEnsure() {
       id: userId,
       name: NAME,
       phone: '5551234998',
+      // FIX-Task-58: `phone_verified_at` is the single source of truth both phone
+      // gates read (isPhoneRequired / public.is_phone_verified); the boolean is only
+      // a derived mirror.
       phone_verified: true,
+      phone_verified_at: nowIso,
       profile_completed: true,
       onboarding_completed: true,
       onboarding_completed_at: nowIso,

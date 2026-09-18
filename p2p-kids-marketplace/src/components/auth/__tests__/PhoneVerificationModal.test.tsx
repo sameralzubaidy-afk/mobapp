@@ -176,6 +176,70 @@ describe('PhoneVerificationModal', () => {
     });
   });
 
+  // FIX-Task-58 regression: the DEV autofill button both sets `code` AND calls
+  // `handleVerifyCode()` directly, so the auto-verify effect re-fires for the same
+  // code. Before the single-verify guard this produced TWO `verifyPhoneCode` calls
+  // → two `onSuccess()` → two published listings (QA Task 43h F1, live on device).
+  //
+  // NOTE ON TEST SHAPE (deliberate): the two triggers must overlap, so `verifyPhoneCode`
+  // is held PENDING via a deferred promise. With the immediate `mockResolvedValue`
+  // used elsewhere in this file the first verify has already settled by the time the
+  // effect runs, the second trigger is never issued, and an assertion on the call
+  // count passes even with the guard REMOVED — i.e. it would be a vacuous test.
+  // Holding the promise open makes the in-flight window deterministic; the guard was
+  // verified to be the difference between 1 and 2 calls by temporarily disabling it.
+  it('DEV autofill verifies exactly once — the auto-verify effect re-fire is absorbed', async () => {
+    const onSuccess = jest.fn();
+    const onClose = jest.fn();
+
+    let releaseVerify: (() => void) | undefined;
+    mockPhoneService.verifyPhoneCode.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseVerify = () => resolve();
+        }) as never
+    );
+
+    const { getByTestId } = render(
+      <PhoneVerificationModal visible={true} onClose={onClose} onSuccess={onSuccess} />
+    );
+
+    fireEvent.changeText(getByTestId(PHONE_INPUT_ID), '5551234567');
+    await waitFor(() => {
+      expect(getByTestId(PHONE_INPUT_ID).props.value).toBe('+15551234567');
+      expect(getByTestId(SEND_CODE_ID).props.accessibilityState?.disabled).toBe(false);
+    });
+
+    await act(async () => {
+      fireEvent(getByTestId(SEND_CODE_ID), 'onPress');
+    });
+    await waitFor(() => {
+      expect(getByTestId(OTP_ID)).toBeTruthy();
+    });
+
+    // Tap: the autofill button starts verify #1 and leaves it IN FLIGHT.
+    await act(async () => {
+      fireEvent(getByTestId(`${TEST_ID}-dev-autofill`), 'onPress');
+    });
+
+    // The autofill button's `setCode` has now committed, so the auto-verify effect
+    // has run for the same 6-digit code. Exactly ONE call must have reached the
+    // service — the effect re-fire is the duplicate that published two listings.
+    expect(mockPhoneService.verifyPhoneCode).toHaveBeenCalledTimes(1);
+    expect(mockPhoneService.verifyPhoneCode).toHaveBeenCalledWith('+15551234567', '123456');
+
+    // Release the in-flight verify: the flow completes exactly once.
+    await act(async () => {
+      releaseVerify?.();
+    });
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(mockPhoneService.verifyPhoneCode).toHaveBeenCalledTimes(1);
+  });
+
   it('shows invalid-code error when verification fails', async () => {
     mockPhoneService.verifyPhoneCode.mockRejectedValueOnce(new Error('Invalid verification code'));
 

@@ -144,7 +144,11 @@ async function step2CompleteProfile(): Promise<void> {
       id: FIXTURE_ID,
       name: FIXTURE_NAME,
       phone: FIXTURE_PHONE,
+      // FIX-Task-58: the phone gates read `phone_verified_at` (the single source of
+      // truth), not this boolean — writing the boolean alone left the persona
+      // claiming "verified" in a field no gate reads.
       phone_verified: true,
+      phone_verified_at: new Date().toISOString(),
       profile_completed: true,
       onboarding_completed: true,
       onboarding_completed_at: new Date().toISOString(),

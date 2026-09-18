@@ -1,5 +1,8 @@
 -- Migration: FIX-Task-51 — SP-spend allow-lists must accept BOTH grace spellings
--- Mode: Idempotent rerunnable migration (CREATE OR REPLACE FUNCTION only; no data writes)
+-- Mode: Idempotent rerunnable migration (function-body install only; no data writes).
+--   FIX-Task-57 (2026-09-18): `get_subscription_summary` needs a DROP FUNCTION IF EXISTS
+--   prologue first (BP-12) because a renumbered legacy file installs a narrower row type on
+--   a fresh replay — see BLOCK 1c. The other two functions are CREATE OR REPLACE only.
 -- Dependencies: public.subscriptions, public.sp_wallets
 --
 -- WHY (measured, 2026-09-17 — FIX-Task-51, staging drntwgporzabmxdqykrp):
@@ -62,7 +65,8 @@
 -- =============================================================================
 -- BLOCK 1 — Functions (attributes preserved verbatim from the live definitions:
 --           SECURITY DEFINER + SET search_path = public; fn_get_sp_entitlement is
---           also STABLE. CREATE OR REPLACE preserves the existing ACLs.)
+--           also STABLE. CREATE OR REPLACE preserves the existing ACLs; the one
+--           DROP FUNCTION (BLOCK 1c) discards them, so BLOCK 1d re-asserts all three.)
 -- =============================================================================
 
 -- R6 + legacy-spelling tolerance. can_user_spend_sp is an ORPHAN today (no live
@@ -151,9 +155,38 @@ $function$;
 --   ('trial','active','paused','cancelled','canceled','grace_period') — i.e. a
 --   `'grace'`-spelled row was refused by the client AND by the EF, while a
 --   correctly-spelled grace user was allowed (no asymmetry for the 446 real rows,
---   but the same vocabulary hole). Signature is UNCHANGED (BP-12: no DROP needed,
---   which also preserves the ACLs).
+--   but the same vocabulary hole).
+--
+-- ⚠️ FIX-Task-57 (2026-09-18) — A DROP **IS** REQUIRED HERE (BP-12), and the
+--   earlier claim that "signature is UNCHANGED, no DROP needed" was TRUE AGAINST
+--   LIVE STAGING BUT FALSE ON A FRESH REPLAY. Measured by
+--   `node scripts/migrations/replay-probe.mjs`: this file was the ONLY unresolved
+--   file of 531 (`ERROR: cannot change return type of existing function |
+--   DETAIL: Row type defined by OUT parameters is different`).
+--
+--   WHY: `20260916000064_fix_trade_sp_credit_integrity.sql` is a RENUMBERED LEGACY
+--   file (its own header still reads `090_fix_trade_sp_credit_integrity.sql`) and it
+--   is numbered AFTER the R6 file `20260810000010_r11_r6_sp_caps_and_entitlement.sql`.
+--   It re-declares this function with the PRE-R6 FOUR-column row type
+--   (status, can_spend_sp, trial_end_date, current_period_end) — no `can_earn_sp`.
+--   Live staging carries the R6 FIVE-column row type (verified against the captured
+--   `staging-fp3.txt` fingerprint: `TABLE(status text, can_spend_sp boolean,
+--   can_earn_sp boolean, trial_end_date timestamp with time zone, current_period_end
+--   timestamp with time zone)`), so the live signature has always matched THIS file.
+--   The 4-column row type exists ONLY in the replay — i.e. the same "renumbered
+--   legacy file lands after R6" class the header already describes for
+--   `can_user_spend_sp` in `20260916000104_…`, except this instance is worse: it
+--   does not merely install an older BODY, it makes the newer definition fail to
+--   apply at all, so a from-scratch rebuild silently kept the PRE-R6 4-column shape.
+--
+--   The DROP is safe: the callers of this function are plpgsql bodies
+--   (`20240101000003_update_trade_rpcs_v2.sql`, `20240101000004_…`,
+--   `20260103000000_…`, `20260203000000_…`) plus the mobile client via PostgREST —
+--   none is a view or rule, so nothing is dropped by dependency. The GRANTs it
+--   discards are re-asserted in BLOCK 1d below.
 -- =============================================================================
+DROP FUNCTION IF EXISTS public.get_subscription_summary(uuid);
+
 CREATE OR REPLACE FUNCTION public.get_subscription_summary(p_user_id uuid)
  RETURNS TABLE(status text, can_spend_sp boolean, can_earn_sp boolean, trial_end_date timestamp with time zone, current_period_end timestamp with time zone)
  LANGUAGE plpgsql

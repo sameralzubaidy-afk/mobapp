@@ -79,6 +79,15 @@ export default function PhoneVerificationModal({
 
   const phoneInputRef = useRef<TextInput>(null);
   const didAttemptPrefillRef = useRef(false);
+  // FIX-Task-58: exactly ONE verification per completed code. The DEV-only autofill
+  // button both sets `code` and calls `handleVerifyCode()` directly, which re-fires
+  // the auto-verify effect below — two `verifyPhoneCode` calls, two `onSuccess()`
+  // calls, and therefore two published listings (the AUTH-TC-J10 duplicate-item
+  // artifact QA first reported as F1 in Task 43h). `handleVerifyCode` is invoked
+  // synchronously from the press handler before React re-renders, so the auto-verify
+  // effect's call is always the one that returns early. Reset on failure so the user
+  // can still retry via the Verify button.
+  const verifyInFlightRef = useRef(false);
   // Mirrors `phone` so the async prefill can check whether the user has typed
   // something since the fetch started (setPhone accepts a string, not an
   // updater, so we cannot use a functional setState guard).
@@ -145,13 +154,21 @@ export default function PhoneVerificationModal({
   };
 
   const handleVerifyCode = async (codeToVerify?: string) => {
-    // Pass the freshly-typed code through so verification doesn't race React's
-    // state flush (auto-verify previously read a stale state.code and failed).
-    const success = await verifyCode(codeToVerify);
-    if (success) {
-      onSuccess();
-      reset();
-      onClose();
+    if (verifyInFlightRef.current) {
+      return;
+    }
+    verifyInFlightRef.current = true;
+    try {
+      // Pass the freshly-typed code through so verification doesn't race React's
+      // state flush (auto-verify previously read a stale state.code and failed).
+      const success = await verifyCode(codeToVerify);
+      if (success) {
+        onSuccess();
+        reset();
+        onClose();
+      }
+    } finally {
+      verifyInFlightRef.current = false;
     }
   };
 
@@ -211,7 +228,18 @@ export default function PhoneVerificationModal({
             )}
           </View>
 
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            // FIX-Task-58: React Native's default here is 'never', which makes the
+            // FIRST tap anywhere in the step dismiss the keyboard and never reach the
+            // control underneath. `OTPInput` auto-focuses, so the keypad is always up
+            // on the code step and every control below it cost two taps. QA hit this
+            // as "the Dev: Autofill button silently no-ops on the first tap" (AUTH
+            // Android Round 2 F3); it equally wastes a real user's first tap on
+            // Verify / Resend Code / Change Phone Number. 'handled' lets a tap reach
+            // the child AND dismiss the keyboard for controls that want focus.
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Step 1: Phone Input */}
             {step === 'phone' && (
               <View style={styles.step}>
