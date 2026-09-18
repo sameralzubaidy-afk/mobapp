@@ -21,8 +21,14 @@ Target files:
 - `.github/instructions/mobile-client.instructions.md`
 - `.github/instructions/navigation.instructions.md`
 - `.github/instructions/QA-Test-Agent.instructions.md`
+- `.github/instructions/admin-portal.instructions.md`
+- `.github/copilot-instructions.md`
 
 ---
+
+## Step 0 — Run the checker first
+
+Run `npm run agent-rules:check` from the repo root and paste the summary. It already covers size budgets, dead paths, duplicate BP definitions and `§5.x` citations, so use its output as the starting list for Steps 1-3 instead of re-deriving it by grep. Anything it reports as FAIL is fixed before you continue.
 
 ## Step 1 — Superseded-but-not-deleted text
 
@@ -45,10 +51,8 @@ Target files:
    grep -rohE "(/memories/[A-Za-z0-9._/-]+|\.github/[A-Za-z0-9._/-]+|[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+\.(md|sql|ts|tsx|json|mjs|sh|yml))" .github/agents/ .github/instructions/ | sort -u
    ```
 2. Check each one with `test -e` / `ls`.
-3. **`/memories/...` is NOT the repo's `memories/` folder.** It resolves to the VS Code memory store at
-   `~/Library/Application Support/Code/User/workspaceStorage/<hash>/GitHub.copilot-chat/memory-tool/memories/`.
-   Check `/memories/repo/<file>` there. **Never** "fix" a `/memories/repo/...` reference by copying files into the repo's `memories/` folder — that folder is an unrelated, drifted mirror.
-4. **`/memories/session/...` paths are always broken from a later session** — session memory is per-conversation (each session gets its own UUID directory). A durable rules file must never cite one. If you find one whose content still exists in an old session directory, promote it to `/memories/repo/<same-name>.md` and repoint the citation to repo scope.
+3. **Durable memory notes live in the repo at `docs/agent-memory/`** (moved there 2026-09-18; they are version-controlled and must contain no credentials). A citation of the old `/memories/repo/<file>` form is a defect: repoint it to `docs/agent-memory/<file>`. If the note is still only in the VS Code memory store (`~/Library/Application Support/Code/User/workspaceStorage/<hash>/GitHub.copilot-chat/memory-tool/memories/`), copy it into `docs/agent-memory/` first, scrub any credential, then repoint.
+4. **`/memories/session/...` paths are always broken from a later session** — session memory is per-conversation. A durable rules file must never cite one. If the content still exists in an old session directory, promote it to `docs/agent-memory/<same-name>.md` (scrubbed) and repoint the citation.
 5. Report every missing path in a table: `referenced path → exists? (Y/N) → where it now lives / what it should point at`. Fix only the ones with an unambiguous correct target; list the rest as "needs real content from Samer" — **never invent the missing content**.
 
 ## Step 3 — Numbering sanity (BP-N and R-N)
@@ -87,9 +91,22 @@ Rule numbers are only half the picture: the QA playbook is cited by **section** 
 3. **Propose** the merge: surviving id, absorbed id, what is unique in the absorbed version, and where the unique clause would live.
 4. Never merge or delete a rule silently. Duplicated QA operational facts (Android IME behaviour, simulator quirks, AX-tree quirks) are hard-won from real sessions — a merge that drops one leaves the next round to rediscover it. **List, then wait.**
 
+## Step 4b — Budget and trim proposals
+
+1. From the Step 0 checker output, list every file above its `targetBytes` in `scripts/agent-rules/budgets.json`.
+2. For each, propose the cheapest trims first (list, then wait; never delete silently):
+   - dated changelog/incident narrative inside a rule or `.agent.md` -> move to `docs/agent-memory/rule-changelog.md` or a topic note, leave a one-line pointer;
+   - two rules that prevent the same failure -> merge;
+   - a rule that cites no incident and is not cited by any QA report or handoff in the last 60 days -> retire with a tombstone;
+   - reference material (module map, troubleshooting, examples) inside an always-loaded file -> move to `docs/agent-reference/`.
+3. After confirmed trims, run `node scripts/agent-rules/check.mjs --ratchet` to lower the baselines to the new sizes.
+4. Review `docs/agent-memory/rule-candidates.md`: drop rows older than 90 days with count 1; promote nothing here (promotion happens in the intake prompt).
+
 ## Step 5 — Report
 
 End with a single report containing:
+
+- **Sizes**: before/after per file vs target, and the `agent-rules:check` summary line.
 
 - **Merges applied** (confirmed this session): old id → surviving id, one line each.
 - **Merges proposed, not applied**: the list, awaiting sign-off.
