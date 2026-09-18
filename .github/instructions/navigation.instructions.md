@@ -64,7 +64,7 @@ If a navigation fix fails once:
 
 ## BP-43: Learned Navigation & Params Rules
 
-**This file is the canonical home of BP-43** — the main agent file's BP Rule Index carries only the one-line summary and a pointer here.
+**This file is the canonical home of BP-43** — `docs/agent-ref/bp-index.md` carries only the one-line summary and a pointer here.
 
 - BP-43-1: Route Params Verification — when implementing a screen that reads route params for conditional rendering, always verify that ALL callers actually pass those params, not just the type definition. Missing params cause silent fallbacks to defaults.
 - BP-43-2: Validate Navigator Imports — when editing navigation flows, always verify WHICH screen file the navigator actually imports by checking `AppNavigator.tsx`; don't assume the file name matches the route name. Editing a dead/unused file has no effect.

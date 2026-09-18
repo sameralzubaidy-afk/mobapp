@@ -5,7 +5,7 @@ applyTo: "p2p-kids-admin/src/**"
 
 # Admin Portal Hardening Protocol
 
-Full bug-prevention rule text below: BP-49, BP-89. See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Full bug-prevention rule text below: BP-49, BP-89. See the Bug Prevention Rule Index in `docs/agent-ref/bp-index.md` for the one-line summary of all rules.
 
 > **Scope note:** the admin portal lives in the `p2p-kids-admin` **git submodule** (`sameralzubaidy-afk/mobappadmin`). Rules that live in that submodule's own repo do not move here — this file covers admin-portal code as seen from this workspace. Admin-adjacent rules that are really Postgres rules stay in `supabase-sql.instructions.md` (e.g. BP-45 searchable admin surfaces need text-cast views; BP-48 admin config writes go through the shared RPC).
 

@@ -18,7 +18,7 @@ if (!['BP', 'R', 'S'].includes(kind)) {
 
 const walk = (dir) => fs.existsSync(path.join(ROOT, dir))
   ? fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith('.md') ? [`${dir}/${e.name}`] : []) : [];
-const files = [...walk('.github'), ...walk('docs/agent-memory')];
+const files = [...walk('.github'), ...walk('docs/agent-memory'), ...walk('docs/agent-ref')];
 
 const patterns = {
   BP: /\bBP-(\d+)\b/g,

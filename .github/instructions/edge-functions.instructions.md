@@ -5,7 +5,7 @@ applyTo: "supabase/functions/**"
 
 # Edge Function Hardening Protocol
 
-Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-20, BP-25, BP-26, BP-27, BP-28, BP-32, BP-40, BP-41, BP-83 (Stripe test-clock renewal verification), plus the Backward Compatibility section. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-39 `FunctionsHttpError.context` lives in `mobile-client.instructions.md`.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all BP rules.
+Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-20, BP-25, BP-26, BP-27, BP-28, BP-32, BP-40, BP-41, BP-83 (Stripe test-clock renewal verification), plus the Backward Compatibility section. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-39 `FunctionsHttpError.context` lives in `mobile-client.instructions.md`.) See the Bug Prevention Rule Index in `docs/agent-ref/bp-index.md` for the one-line summary of all BP rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 

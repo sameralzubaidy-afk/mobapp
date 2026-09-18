@@ -5,7 +5,7 @@ applyTo: "supabase/migrations/**/*.sql"
 
 # Supabase SQL / Migration Hardening Protocol
 
-Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-13, BP-14, BP-16, BP-21, BP-22, BP-30, BP-31, BP-37, BP-38, BP-44, BP-45, BP-46, BP-47, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78, BP-79, BP-80, BP-81, BP-84, BP-90, BP-96. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`; BP-20 notification-trigger check and BP-32 notification verification gate live there too.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all rules.
+Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, BP-10, BP-11, BP-12, BP-13, BP-14, BP-16, BP-21, BP-22, BP-30, BP-31, BP-37, BP-38, BP-44, BP-45, BP-46, BP-47, BP-48, BP-73, BP-74, BP-75, BP-76, BP-78, BP-79, BP-80, BP-81, BP-84, BP-90, BP-96. (BP-19 cron `verify_jwt` lives in `edge-functions.instructions.md`; BP-20 notification-trigger check and BP-32 notification verification gate live there too.) See the Bug Prevention Rule Index in `docs/agent-ref/bp-index.md` for the one-line summary of all rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
