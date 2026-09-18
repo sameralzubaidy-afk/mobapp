@@ -12,13 +12,11 @@ applyTo: "p2p-kids-marketplace/src/navigation/**"
 
 ## NAV-0: Navigation Contract (single source of truth)
 
-For the MOBILE app only, the repo MUST have:
-- `p2p-kids-marketplace/src/navigation/routes.ts`
-- `p2p-kids-marketplace/src/navigation/types.ts`
+For the MOBILE app only, route names and typed params live in `p2p-kids-marketplace/src/navigation/types.ts` (no `routes.ts`).
 
 For the ADMIN app (Next.js), routing is filesystem-based under `p2p-kids-admin/src/app/*`.
 
-Rule: Mobile screens MUST import route constants + typed params; never hardcode `"Welcome"`/`"Home"` strings. Admin routes must be added via files under `src/app/` (no manual string route map).
+Rule: Mobile screens MUST use the typed route names + params from `types.ts`; never hardcode `"Welcome"`/`"Home"` strings. Admin routes must be added via files under `src/app/` (no manual string route map).
 
 ## NAV-1: Route Ownership Rule (prevents RESET not handled)
 

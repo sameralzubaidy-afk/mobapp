@@ -51,6 +51,21 @@ verify_jwt = false
 [functions.release-due-payouts]
 verify_jwt = false
 
+# initiate-payout is invoked server-to-server ONLY: by the release-due-payouts EF
+# (service-role bearer), by the `fn_queue_payout_on_complete` DB trigger
+# (net.http_post with the admin_config-stored service key), and by the admin
+# retry route (service-role bearer). It performs NO in-function caller
+# authentication — it authorizes by looking up the trade + ownership-verifying the
+# destination Connect account — so `verify_jwt` is not a meaningful barrier here
+# (the anon key is a public JWT and would pass it anyway).
+# MUST stay false: the DB trigger posts the admin_config-stored key, which can
+# drift from the platform-injected env (BP-87). Flipping this to true would 401 the
+# trigger's call and strand every automatic payout — the exact failure
+# FIX-Task-62 exists to fix. Entry added by FIX-Task-62 (2026-09-18) so a future CLI
+# deploy is deterministic instead of silently taking the CLI default (true).
+[functions.initiate-payout]
+verify_jwt = false
+
 # dispatch-manual-payouts is invoked server-to-server: by the AFTER-INSERT DB
 # trigger fn_queue_manual_payout_dispatch and by the hourly 'dispatch-manual-payouts'
 # pg_cron job (both net.http_post with the service-role key). The handler itself

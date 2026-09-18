@@ -227,9 +227,16 @@ BEGIN
         AND p.deleted_at IS NULL
     ),
     'subscription_breakdown', (
+      -- FIX-Task-62: `COALESCE(s.status, 'none')` referenced the alias `s` from the
+      -- INNER subquery, which is not in scope in this outer aggregate — the whole
+      -- function raised `missing FROM-clause entry for table "s"` at run time. That
+      -- regression was introduced HERE (20260916000077 superseded the correct form in
+      -- 20260328000024_fix_admin_get_user_analytics_alias_scope.sql:71, which reads
+      -- `jsonb_object_agg(sub.status, sub.cnt)`). The schema-fidelity gate cannot see
+      -- body drift, so nothing caught it. Form below mirrors the earlier fix.
       SELECT jsonb_object_agg(
-        COALESCE(s.status, 'none'),
-        cnt
+        sub.status,
+        sub.cnt
       )
       FROM (
         SELECT COALESCE(s.status, 'none') AS status, COUNT(*) AS cnt

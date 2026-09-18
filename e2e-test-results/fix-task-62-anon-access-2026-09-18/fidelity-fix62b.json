@@ -1,0 +1,1112 @@
+{
+  "generatedAt": "2026-09-18T19:47:18.593Z",
+  "counts": {
+    "staging": 3471,
+    "local": 3485,
+    "subsetMisses": 52,
+    "explained": 66,
+    "unexplained": 0,
+    "conflicts": 84
+  },
+  "namedExclusions": [
+    "_orphan_image_snapshot_20260829"
+  ],
+  "extensionOwnedExcluded": 596,
+  "subsetMisses": [
+    {
+      "key": "CONSTRAINT|email_logs|email_logs_status_check",
+      "line": "CONSTRAINT|public|email_logs|email_logs_status_check|c|CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'bounced'::text, 'failed'::text, 'skipped'::text])))"
+    },
+    {
+      "key": "FUNCTION|bytea_to_text|data bytea",
+      "line": "FUNCTION|public|bytea_to_text|data bytea|text|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_delete|uri character varying, content character varying, content_type character varying",
+      "line": "FUNCTION|public|http_delete|uri character varying, content character varying, content_type character varying|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_delete|uri character varying",
+      "line": "FUNCTION|public|http_delete|uri character varying|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_get|uri character varying, data jsonb",
+      "line": "FUNCTION|public|http_get|uri character varying, data jsonb|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_get|uri character varying",
+      "line": "FUNCTION|public|http_get|uri character varying|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_header|field character varying, value character varying",
+      "line": "FUNCTION|public|http_header|field character varying, value character varying|http_header|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_head|uri character varying",
+      "line": "FUNCTION|public|http_head|uri character varying|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_list_curlopt|",
+      "line": "FUNCTION|public|http_list_curlopt||TABLE(curlopt text, value text)|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_patch|uri character varying, content character varying, content_type character varying",
+      "line": "FUNCTION|public|http_patch|uri character varying, content character varying, content_type character varying|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_post|uri character varying, content character varying, content_type character varying",
+      "line": "FUNCTION|public|http_post|uri character varying, content character varying, content_type character varying|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_post|uri character varying, data jsonb",
+      "line": "FUNCTION|public|http_post|uri character varying, data jsonb|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_put|uri character varying, content character varying, content_type character varying",
+      "line": "FUNCTION|public|http_put|uri character varying, content character varying, content_type character varying|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_reset_curlopt|",
+      "line": "FUNCTION|public|http_reset_curlopt||boolean|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http_set_curlopt|curlopt character varying, value character varying",
+      "line": "FUNCTION|public|http_set_curlopt|curlopt character varying, value character varying|boolean|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|http|request http_request",
+      "line": "FUNCTION|public|http|request http_request|http_response|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|is_in_quiet_hours|p_user_id uuid",
+      "line": "FUNCTION|public|is_in_quiet_hours|p_user_id uuid|boolean|SECURITY_DEFINER|search_path=public, pg_temp"
+    },
+    {
+      "key": "FUNCTION|text_to_bytea|data text",
+      "line": "FUNCTION|public|text_to_bytea|data text|bytea|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|urlencode|data jsonb",
+      "line": "FUNCTION|public|urlencode|data jsonb|text|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|urlencode|string bytea",
+      "line": "FUNCTION|public|urlencode|string bytea|text|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|urlencode|string character varying",
+      "line": "FUNCTION|public|urlencode|string character varying|text|INVOKER|-"
+    },
+    {
+      "key": "POLICY|admin_config|admin_config_authenticated_read",
+      "line": "POLICY|public|admin_config|admin_config_authenticated_read|SELECT|authenticated|true|-"
+    },
+    {
+      "key": "POLICY|ai_moderation_logs|ai_logs_system_create",
+      "line": "POLICY|public|ai_moderation_logs|ai_logs_system_create|INSERT|public|-|true"
+    },
+    {
+      "key": "POLICY|email_logs|email_logs_select_own",
+      "line": "POLICY|public|email_logs|email_logs_select_own|SELECT|authenticated|(user_id = auth.uid())|-"
+    },
+    {
+      "key": "POLICY|email_logs|email_logs_service_role",
+      "line": "POLICY|public|email_logs|email_logs_service_role|ALL|service_role|true|true"
+    },
+    {
+      "key": "POLICY|items|Items visibility based on status",
+      "line": "POLICY|public|items|Items visibility based on status|SELECT|public| CASE WHEN (status = 'available'::text) THEN true WHEN (status = ANY (ARRAY['flagged'::text, 'rejected'::text])) THEN ((auth.uid() = seller_id) OR (EXISTS ( SELECT 1 FROM profiles WHERE ((profiles.user_id = auth.uid()) AND (profiles.role = 'admin'::text))))) ELSE ((auth.uid() = seller_id) OR (EXISTS ( SELECT 1 FROM trades t WHERE ((t.listing_id = items.id) AND ((t.buyer_id = auth.uid()) OR (t.seller_id = auth.uid())))))) END|-"
+    },
+    {
+      "key": "POLICY|items|items_anon_select",
+      "line": "POLICY|public|items|items_anon_select|SELECT|anon|(status = 'available'::text)|-"
+    },
+    {
+      "key": "POLICY|items|items_insert_own_seller",
+      "line": "POLICY|public|items|items_insert_own_seller|INSERT|authenticated|-|(seller_id = auth.uid())"
+    },
+    {
+      "key": "POLICY|items|items_update_own_seller",
+      "line": "POLICY|public|items|items_update_own_seller|UPDATE|authenticated|(seller_id = auth.uid())|(seller_id = auth.uid())"
+    },
+    {
+      "key": "POLICY|profiles|Allow phone verification updates",
+      "line": "POLICY|public|profiles|Allow phone verification updates|UPDATE|public|((auth.uid() = user_id) OR ((auth.role() = 'anon'::text) AND (user_id IS NOT NULL)))|((auth.uid() = user_id) OR ((auth.role() = 'anon'::text) AND (user_id IS NOT NULL)))"
+    },
+    {
+      "key": "POLICY|profiles|Public profiles are viewable",
+      "line": "POLICY|public|profiles|Public profiles are viewable|SELECT|public|true|-"
+    },
+    {
+      "key": "POLICY|profiles|Service role can read all profiles",
+      "line": "POLICY|public|profiles|Service role can read all profiles|SELECT|public|true|-"
+    },
+    {
+      "key": "POLICY|profiles|Service role can update profiles",
+      "line": "POLICY|public|profiles|Service role can update profiles|UPDATE|public|(auth.role() = 'service_role'::text)|(auth.role() = 'service_role'::text)"
+    },
+    {
+      "key": "POLICY|profiles|profiles_anon_insert",
+      "line": "POLICY|public|profiles|profiles_anon_insert|INSERT|anon|-|true"
+    },
+    {
+      "key": "POLICY|profiles|profiles_anon_select",
+      "line": "POLICY|public|profiles|profiles_anon_select|SELECT|anon|true|-"
+    },
+    {
+      "key": "POLICY|profiles|profiles_anon_update",
+      "line": "POLICY|public|profiles|profiles_anon_update|UPDATE|anon|true|-"
+    },
+    {
+      "key": "POLICY|referrals|referrals_anon_insert",
+      "line": "POLICY|public|referrals|referrals_anon_insert|INSERT|anon|-|true"
+    },
+    {
+      "key": "POLICY|referrals|referrals_anon_select",
+      "line": "POLICY|public|referrals|referrals_anon_select|SELECT|anon|true|-"
+    },
+    {
+      "key": "POLICY|referrals|referrals_anon_update",
+      "line": "POLICY|public|referrals|referrals_anon_update|UPDATE|anon|true|-"
+    },
+    {
+      "key": "POLICY|referrals|referrals_insert",
+      "line": "POLICY|public|referrals|referrals_insert|INSERT|public|-|(referrer_id = auth.uid())"
+    },
+    {
+      "key": "POLICY|referrals|referrals_select_own",
+      "line": "POLICY|public|referrals|referrals_select_own|SELECT|public|((referrer_id = auth.uid()) OR (referee_id = auth.uid()))|-"
+    },
+    {
+      "key": "POLICY|seller_payout_methods|Service role bypass - seller_payout_methods",
+      "line": "POLICY|public|seller_payout_methods|Service role bypass - seller_payout_methods|ALL|service_role|true|true"
+    },
+    {
+      "key": "POLICY|seller_payouts|Service role bypass - seller_payouts",
+      "line": "POLICY|public|seller_payouts|Service role bypass - seller_payouts|ALL|service_role|true|true"
+    },
+    {
+      "key": "POLICY|subscription_tiers|subscription_tiers_public",
+      "line": "POLICY|public|subscription_tiers|subscription_tiers_public|SELECT|public|true|-"
+    },
+    {
+      "key": "POLICY|subscriptions|subscriptions_anon_insert",
+      "line": "POLICY|public|subscriptions|subscriptions_anon_insert|INSERT|anon|-|true"
+    },
+    {
+      "key": "POLICY|subscriptions|subscriptions_anon_select",
+      "line": "POLICY|public|subscriptions|subscriptions_anon_select|SELECT|anon|true|-"
+    },
+    {
+      "key": "POLICY|subscriptions|subscriptions_anon_update",
+      "line": "POLICY|public|subscriptions|subscriptions_anon_update|UPDATE|anon|true|-"
+    },
+    {
+      "key": "POLICY|trades|trades_insert_own",
+      "line": "POLICY|public|trades|trades_insert_own|INSERT|authenticated|-|(buyer_id = auth.uid())"
+    },
+    {
+      "key": "POLICY|trades|trades_update_own",
+      "line": "POLICY|public|trades|trades_update_own|UPDATE|authenticated|((buyer_id = auth.uid()) OR (seller_id = auth.uid()))|((buyer_id = auth.uid()) OR (seller_id = auth.uid()))"
+    },
+    {
+      "key": "POLICY|user_notifications|user_notifications_anon_insert",
+      "line": "POLICY|public|user_notifications|user_notifications_anon_insert|INSERT|anon|-|true"
+    },
+    {
+      "key": "POLICY|user_notifications|user_notifications_anon_select",
+      "line": "POLICY|public|user_notifications|user_notifications_anon_select|SELECT|anon|true|-"
+    },
+    {
+      "key": "POLICY|user_notifications|user_notifications_anon_update",
+      "line": "POLICY|public|user_notifications|user_notifications_anon_update|UPDATE|anon|true|-"
+    }
+  ],
+  "unexplained": [],
+  "conflicts": [
+    {
+      "key": "INDEX|items|idx_items_node_id",
+      "staging": "INDEX|public|items|idx_items_node_id|CREATE INDEX idx_items_node_id ON public.items USING btree (node_id) WHERE (node_id IS NOT NULL)",
+      "local": "INDEX|public|items|idx_items_node_id|CREATE INDEX idx_items_node_id ON public.items USING btree (node_id)"
+    },
+    {
+      "key": "INDEX|trades|idx_trades_completed_at",
+      "staging": "INDEX|public|trades|idx_trades_completed_at|CREATE INDEX idx_trades_completed_at ON public.trades USING btree (completed_at)",
+      "local": "INDEX|public|trades|idx_trades_completed_at|CREATE INDEX idx_trades_completed_at ON public.trades USING btree (completed_at) WHERE (status = 'completed'::text)"
+    },
+    {
+      "key": "ENUM|admin_config_category|referral",
+      "staging": "ENUM|public|admin_config_category|referral|11",
+      "local": "ENUM|public|admin_config_category|referral|13"
+    },
+    {
+      "key": "ENUM|admin_config_category|tax",
+      "staging": "ENUM|public|admin_config_category|tax|13",
+      "local": "ENUM|public|admin_config_category|tax|12"
+    },
+    {
+      "key": "ENUM|admin_config_category|trade",
+      "staging": "ENUM|public|admin_config_category|trade|12",
+      "local": "ENUM|public|admin_config_category|trade|11"
+    },
+    {
+      "key": "FUNCTION|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid",
+      "staging": "FUNCTION|public|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|-",
+      "local": "FUNCTION|public|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|search_path=public, pg_temp"
+    },
+    {
+      "key": "FUNCTION|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb",
+      "staging": "FUNCTION|public|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb|void|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text",
+      "staging": "FUNCTION|public|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public",
+      "local": "FUNCTION|public|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|admin_force_delete_listing|p_listing_id uuid, p_reason text",
+      "staging": "FUNCTION|public|admin_force_delete_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, auth",
+      "local": "FUNCTION|public|admin_force_delete_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public"
+    },
+    {
+      "key": "FUNCTION|admin_pause_listing|p_listing_id uuid, p_reason text",
+      "staging": "FUNCTION|public|admin_pause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, auth",
+      "local": "FUNCTION|public|admin_pause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public"
+    },
+    {
+      "key": "FUNCTION|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text",
+      "staging": "FUNCTION|public|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|admin_unpause_listing|p_listing_id uuid, p_reason text",
+      "staging": "FUNCTION|public|admin_unpause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, auth",
+      "local": "FUNCTION|public|admin_unpause_listing|p_listing_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public"
+    },
+    {
+      "key": "FUNCTION|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text",
+      "staging": "FUNCTION|public|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer",
+      "staging": "FUNCTION|public|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer|void|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer",
+      "staging": "FUNCTION|public|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer",
+      "staging": "FUNCTION|public|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer|integer|SECURITY_DEFINER|search_path=public",
+      "local": "FUNCTION|public|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer|integer|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|check_badge_milestones|p_user_id uuid",
+      "staging": "FUNCTION|public|check_badge_milestones|p_user_id uuid|void|SECURITY_DEFINER|search_path=public",
+      "local": "FUNCTION|public|check_badge_milestones|p_user_id uuid|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|check_push_rate_limit|p_user_id uuid",
+      "staging": "FUNCTION|public|check_push_rate_limit|p_user_id uuid|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|check_push_rate_limit|p_user_id uuid|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|check_referral_code_exists|p_code text",
+      "staging": "FUNCTION|public|check_referral_code_exists|p_code text|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|check_referral_code_exists|p_code text|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|check_sp_badges|",
+      "staging": "FUNCTION|public|check_sp_badges||trigger|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|check_sp_badges||trigger|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|cleanup_expired_deduplications|",
+      "staging": "FUNCTION|public|cleanup_expired_deduplications||integer|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|cleanup_expired_deduplications||integer|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb",
+      "staging": "FUNCTION|public|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb|uuid|SECURITY_DEFINER|search_path=public",
+      "local": "FUNCTION|public|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb|uuid|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb",
+      "staging": "FUNCTION|public|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb|uuid|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb|uuid|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb",
+      "staging": "FUNCTION|public|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb|void|SECURITY_DEFINER|search_path=public",
+      "local": "FUNCTION|public|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|create_referral_code|p_user_id uuid",
+      "staging": "FUNCTION|public|create_referral_code|p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public,row_security=off",
+      "local": "FUNCTION|public|create_referral_code|p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp"
+    },
+    {
+      "key": "FUNCTION|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean",
+      "staging": "FUNCTION|public|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean|uuid|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean|uuid|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid",
+      "staging": "FUNCTION|public|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|-",
+      "local": "FUNCTION|public|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid|json|SECURITY_DEFINER|search_path=public, pg_temp"
+    },
+    {
+      "key": "FUNCTION|debug_auth_context|",
+      "staging": "FUNCTION|public|debug_auth_context||jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|debug_auth_context||jsonb|SECURITY_DEFINER|search_path=public"
+    },
+    {
+      "key": "FUNCTION|dispatch_sp_notification_push|",
+      "staging": "FUNCTION|public|dispatch_sp_notification_push||trigger|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|dispatch_sp_notification_push||trigger|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|extend_trial_period|p_user_id uuid, p_referral_user_id uuid",
+      "staging": "FUNCTION|public|extend_trial_period|p_user_id uuid, p_referral_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|extend_trial_period|p_user_id uuid, p_referral_user_id uuid|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|fn_items_enforce_pending_for_starter_pack|",
+      "staging": "FUNCTION|public|fn_items_enforce_pending_for_starter_pack||trigger|SECURITY_DEFINER|search_path=public",
+      "local": "FUNCTION|public|fn_items_enforce_pending_for_starter_pack||trigger|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|fn_on_listing_pending_notification|",
+      "staging": "FUNCTION|public|fn_on_listing_pending_notification||trigger|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|fn_on_listing_pending_notification||trigger|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|fn_validate_trade_timing_config|",
+      "staging": "FUNCTION|public|fn_validate_trade_timing_config||trigger|INVOKER|search_path=public",
+      "local": "FUNCTION|public|fn_validate_trade_timing_config||trigger|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone",
+      "staging": "FUNCTION|public|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean",
+      "staging": "FUNCTION|public|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean|TABLE(id uuid, notification_type text, entity_id uuid, title text, message text, is_read boolean, created_at timestamp with time zone)|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean|TABLE(id uuid, notification_type text, entity_id uuid, title text, message text, is_read boolean, created_at timestamp with time zone)|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone",
+      "staging": "FUNCTION|public|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone|TABLE(total_sent bigint, total_delivered bigint, total_opened bigint, total_clicked bigint, total_bounced bigint, total_failed bigint, delivery_rate numeric, open_rate numeric, click_rate numeric, bounce_rate numeric)|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone|TABLE(total_sent bigint, total_delivered bigint, total_opened bigint, total_clicked bigint, total_bounced bigint, total_failed bigint, delivery_rate numeric, open_rate numeric, click_rate numeric, bounce_rate numeric)|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text",
+      "staging": "FUNCTION|public|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text|TABLE(category text, email bigint, in_app bigint, push bigint, total bigint)|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text|TABLE(category text, email bigint, in_app bigint, push bigint, total bigint)|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_notification_preferences|p_user_id uuid",
+      "staging": "FUNCTION|public|get_notification_preferences|p_user_id uuid|TABLE(category notification_category, push_enabled boolean, in_app_enabled boolean, email_enabled boolean, quiet_hours_enabled boolean, quiet_hours_start time without time zone, quiet_hours_end time without time zone)|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_notification_preferences|p_user_id uuid|TABLE(category notification_category, push_enabled boolean, in_app_enabled boolean, email_enabled boolean, quiet_hours_enabled boolean, quiet_hours_start time without time zone, quiet_hours_end time without time zone)|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_seller_node_id|p_seller_id uuid",
+      "staging": "FUNCTION|public|get_seller_node_id|p_seller_id uuid|uuid|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_seller_node_id|p_seller_id uuid|uuid|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_sp_config|p_key text",
+      "staging": "FUNCTION|public|get_sp_config|p_key text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_sp_config|p_key text|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_unread_messages_for_email|p_limit integer",
+      "staging": "FUNCTION|public|get_unread_messages_for_email|p_limit integer|TABLE(message_id uuid, trade_id uuid, sender_id uuid, recipient_id uuid, content text, created_at timestamp with time zone, sender_name text, recipient_email text)|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_unread_messages_for_email|p_limit integer|TABLE(message_id uuid, trade_id uuid, sender_id uuid, recipient_id uuid, content text, created_at timestamp with time zone, sender_name text, recipient_email text)|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_unread_notification_count|p_user_id uuid",
+      "staging": "FUNCTION|public|get_unread_notification_count|p_user_id uuid|integer|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_unread_notification_count|p_user_id uuid|integer|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|get_user_expiration_warnings|p_user_id uuid",
+      "staging": "FUNCTION|public|get_user_expiration_warnings|p_user_id uuid|TABLE(warning_id uuid, sp_amount integer, expires_at timestamp with time zone, days_until_expiry integer, warning_type text)|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|get_user_expiration_warnings|p_user_id uuid|TABLE(warning_id uuid, sp_amount integer, expires_at timestamp with time zone, days_until_expiry integer, warning_type text)|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|invoke_trial_conversion_edge_function|",
+      "staging": "FUNCTION|public|invoke_trial_conversion_edge_function||jsonb|SECURITY_DEFINER|-",
+      "local": "FUNCTION|public|invoke_trial_conversion_edge_function||jsonb|SECURITY_DEFINER|search_path=public, pg_temp"
+    },
+    {
+      "key": "FUNCTION|is_duplicate_notification|p_user_id uuid, p_notification_type text, p_fingerprint text",
+      "staging": "FUNCTION|public|is_duplicate_notification|p_user_id uuid, p_notification_type text, p_fingerprint text|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|is_duplicate_notification|p_user_id uuid, p_notification_type text, p_fingerprint text|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|is_earning_subscriber|p_user_id uuid",
+      "staging": "FUNCTION|public|is_earning_subscriber|p_user_id uuid|boolean|SECURITY_DEFINER|-",
+      "local": "FUNCTION|public|is_earning_subscriber|p_user_id uuid|boolean|SECURITY_DEFINER|search_path=public, pg_temp"
+    },
+    {
+      "key": "FUNCTION|is_eligible_for_starter_pack|p_seller_id uuid",
+      "staging": "FUNCTION|public|is_eligible_for_starter_pack|p_seller_id uuid|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|is_eligible_for_starter_pack|p_seller_id uuid|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|is_in_quiet_hours|p_user_id uuid, p_current_time time without time zone",
+      "staging": "FUNCTION|public|is_in_quiet_hours|p_user_id uuid, p_current_time time without time zone|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|is_in_quiet_hours|p_user_id uuid, p_current_time time without time zone|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|issue_starter_pack|p_user_id uuid, p_listing_id uuid",
+      "staging": "FUNCTION|public|issue_starter_pack|p_user_id uuid, p_listing_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|issue_starter_pack|p_user_id uuid, p_listing_id uuid|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|log_push_delivery|p_user_id uuid, p_notification_id uuid, p_push_token_id uuid, p_expo_receipt_id text, p_receipt_status text, p_receipt_message text, p_receipt_details jsonb, p_retry_count integer",
+      "staging": "FUNCTION|public|log_push_delivery|p_user_id uuid, p_notification_id uuid, p_push_token_id uuid, p_expo_receipt_id text, p_receipt_status text, p_receipt_message text, p_receipt_details jsonb, p_retry_count integer|uuid|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|log_push_delivery|p_user_id uuid, p_notification_id uuid, p_push_token_id uuid, p_expo_receipt_id text, p_receipt_status text, p_receipt_message text, p_receipt_details jsonb, p_retry_count integer|uuid|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_all_notifications_read|p_user_id uuid",
+      "staging": "FUNCTION|public|mark_all_notifications_read|p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_all_notifications_read|p_user_id uuid|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_expired_messages|",
+      "staging": "FUNCTION|public|mark_expired_messages||integer|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_expired_messages||integer|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_message_email_sent|p_message_id uuid",
+      "staging": "FUNCTION|public|mark_message_email_sent|p_message_id uuid|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_message_email_sent|p_message_id uuid|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_notification_as_read|p_notification_id uuid",
+      "staging": "FUNCTION|public|mark_notification_as_read|p_notification_id uuid|void|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_notification_as_read|p_notification_id uuid|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_notification_read|p_notification_id uuid, p_user_id uuid",
+      "staging": "FUNCTION|public|mark_notification_read|p_notification_id uuid, p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_notification_read|p_notification_id uuid, p_user_id uuid|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_starter_pack_claimed|p_listing_id uuid",
+      "staging": "FUNCTION|public|mark_starter_pack_claimed|p_listing_id uuid|void|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_starter_pack_claimed|p_listing_id uuid|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_trade_messages_delivered|p_trade_id uuid, p_user_id uuid",
+      "staging": "FUNCTION|public|mark_trade_messages_delivered|p_trade_id uuid, p_user_id uuid|integer|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_trade_messages_delivered|p_trade_id uuid, p_user_id uuid|integer|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|mark_trade_messages_read|p_trade_id uuid, p_user_id uuid",
+      "staging": "FUNCTION|public|mark_trade_messages_read|p_trade_id uuid, p_user_id uuid|integer|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|mark_trade_messages_read|p_trade_id uuid, p_user_id uuid|integer|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|notify_new_message|",
+      "staging": "FUNCTION|public|notify_new_message||trigger|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|notify_new_message||trigger|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|notify_seller_item_status_change|",
+      "staging": "FUNCTION|public|notify_seller_item_status_change||trigger|SECURITY_DEFINER|search_path=public",
+      "local": "FUNCTION|public|notify_seller_item_status_change||trigger|SECURITY_DEFINER|search_path=public, pg_temp"
+    },
+    {
+      "key": "FUNCTION|populate_trade_node_id|",
+      "staging": "FUNCTION|public|populate_trade_node_id||trigger|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|populate_trade_node_id||trigger|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|process_sp_expiration|",
+      "staging": "FUNCTION|public|process_sp_expiration||jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|process_sp_expiration||jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|process_unsubscribe|p_token text",
+      "staging": "FUNCTION|public|process_unsubscribe|p_token text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|process_unsubscribe|p_token text|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|recompute_seller_balance|p_user_id uuid",
+      "staging": "FUNCTION|public|recompute_seller_balance|p_user_id uuid|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|recompute_seller_balance|p_user_id uuid|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|record_notification_dedup|p_user_id uuid, p_notification_type text, p_fingerprint text",
+      "staging": "FUNCTION|public|record_notification_dedup|p_user_id uuid, p_notification_type text, p_fingerprint text|void|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|record_notification_dedup|p_user_id uuid, p_notification_type text, p_fingerprint text|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|refund_sp_for_cancelled_trade|p_user_id uuid, p_trade_id uuid, p_sp_amount integer",
+      "staging": "FUNCTION|public|refund_sp_for_cancelled_trade|p_user_id uuid, p_trade_id uuid, p_sp_amount integer|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|refund_sp_for_cancelled_trade|p_user_id uuid, p_trade_id uuid, p_sp_amount integer|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|remove_from_retry_queue|p_notification_id uuid",
+      "staging": "FUNCTION|public|remove_from_retry_queue|p_notification_id uuid|void|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|remove_from_retry_queue|p_notification_id uuid|void|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|rpc_cart_add_item|p_listing_id uuid",
+      "staging": "FUNCTION|public|rpc_cart_add_item|p_listing_id uuid|jsonb|INVOKER|search_path=public",
+      "local": "FUNCTION|public|rpc_cart_add_item|p_listing_id uuid|jsonb|SECURITY_DEFINER|search_path=public"
+    },
+    {
+      "key": "FUNCTION|search_listings_by_category_and_query|p_category_id uuid, p_query text, p_sp_eligible_only boolean, p_limit integer, p_offset integer",
+      "staging": "FUNCTION|public|search_listings_by_category_and_query|p_category_id uuid, p_query text, p_sp_eligible_only boolean, p_limit integer, p_offset integer|TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone, relevance real)|INVOKER|-",
+      "local": "FUNCTION|public|search_listings_by_category_and_query|p_category_id uuid, p_query text, p_sp_eligible_only boolean, p_limit integer, p_offset integer|TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone, relevance real, seller_name text, seller_avatar_url text, seller_verification_status text)|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|search_listings_by_category|p_category_id uuid, p_sp_eligible_only boolean, p_limit integer, p_offset integer",
+      "staging": "FUNCTION|public|search_listings_by_category|p_category_id uuid, p_sp_eligible_only boolean, p_limit integer, p_offset integer|TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone)|INVOKER|-",
+      "local": "FUNCTION|public|search_listings_by_category|p_category_id uuid, p_sp_eligible_only boolean, p_limit integer, p_offset integer|TABLE(id uuid, title text, description text, price numeric, accepts_swap_points boolean, status text, seller_id uuid, category_id uuid, condition text, created_at timestamp with time zone, updated_at timestamp with time zone, seller_name text, seller_avatar_url text, seller_verification_status text)|INVOKER|-"
+    },
+    {
+      "key": "FUNCTION|send_sp_expiration_warnings|",
+      "staging": "FUNCTION|public|send_sp_expiration_warnings||jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|send_sp_expiration_warnings||jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|sync_sp_config_on_admin_update|",
+      "staging": "FUNCTION|public|sync_sp_config_on_admin_update||trigger|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|sync_sp_config_on_admin_update||trigger|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|track_email_event|p_sendgrid_message_id text, p_event_type text, p_bounce_reason text",
+      "staging": "FUNCTION|public|track_email_event|p_sendgrid_message_id text, p_event_type text, p_bounce_reason text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|track_email_event|p_sendgrid_message_id text, p_event_type text, p_bounce_reason text|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|track_notification_event|p_notification_id uuid, p_event_type text, p_event_data jsonb",
+      "staging": "FUNCTION|public|track_notification_event|p_notification_id uuid, p_event_type text, p_event_data jsonb|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|track_notification_event|p_notification_id uuid, p_event_type text, p_event_data jsonb|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|update_email_log_status|p_log_id uuid, p_sendgrid_message_id text, p_status text, p_error_message text",
+      "staging": "FUNCTION|public|update_email_log_status|p_log_id uuid, p_sendgrid_message_id text, p_status text, p_error_message text|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|update_email_log_status|p_log_id uuid, p_sendgrid_message_id text, p_status text, p_error_message text|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|update_message_delivery_status|p_message_id uuid, p_status text",
+      "staging": "FUNCTION|public|update_message_delivery_status|p_message_id uuid, p_status text|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|update_message_delivery_status|p_message_id uuid, p_status text|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|update_notification_preference|p_user_id uuid, p_category notification_category, p_push_enabled boolean, p_in_app_enabled boolean, p_email_enabled boolean, p_quiet_hours_enabled boolean, p_quiet_hours_start time without time zone, p_quiet_hours_end time without time zone",
+      "staging": "FUNCTION|public|update_notification_preference|p_user_id uuid, p_category notification_category, p_push_enabled boolean, p_in_app_enabled boolean, p_email_enabled boolean, p_quiet_hours_enabled boolean, p_quiet_hours_start time without time zone, p_quiet_hours_end time without time zone|jsonb|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|update_notification_preference|p_user_id uuid, p_category notification_category, p_push_enabled boolean, p_in_app_enabled boolean, p_email_enabled boolean, p_quiet_hours_enabled boolean, p_quiet_hours_start time without time zone, p_quiet_hours_end time without time zone|jsonb|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|update_sp_config|p_key text, p_value jsonb, p_admin_id uuid",
+      "staging": "FUNCTION|public|update_sp_config|p_key text, p_value jsonb, p_admin_id uuid|boolean|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|update_sp_config|p_key text, p_value jsonb, p_admin_id uuid|boolean|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|upsert_admin_config|p_key text, p_value text",
+      "staging": "FUNCTION|public|upsert_admin_config|p_key text, p_value text|TABLE(key text, value text, updated boolean)|SECURITY_DEFINER|search_path=public, pg_temp",
+      "local": "FUNCTION|public|upsert_admin_config|p_key text, p_value text|TABLE(key text, value text, updated boolean)|SECURITY_DEFINER|-"
+    },
+    {
+      "key": "FUNCTION|verify_user_phone|p_user_id uuid, p_phone text",
+      "staging": "FUNCTION|public|verify_user_phone|p_user_id uuid, p_phone text|jsonb|SECURITY_DEFINER|-",
+      "local": "FUNCTION|public|verify_user_phone|p_user_id uuid, p_phone text|jsonb|SECURITY_DEFINER|search_path=public"
+    },
+    {
+      "key": "POLICY|badges|Admins can update badges",
+      "staging": "POLICY|public|badges|Admins can update badges|UPDATE|authenticated|true|-",
+      "local": "POLICY|public|badges|Admins can update badges|UPDATE|authenticated|user_has_role(auth.uid(), 'admin'::text)|user_has_role(auth.uid(), 'admin'::text)"
+    },
+    {
+      "key": "POLICY|profiles|Users can insert their own profile",
+      "staging": "POLICY|public|profiles|Users can insert their own profile|INSERT|public|-|((user_id IN ( SELECT users.id FROM auth.users)) OR (auth.uid() IS NULL))",
+      "local": "POLICY|public|profiles|Users can insert their own profile|INSERT|authenticated|-|(auth.uid() = user_id)"
+    },
+    {
+      "key": "POLICY|trades|trades_select_participant_same_node",
+      "staging": "POLICY|public|trades|trades_select_participant_same_node|SELECT|authenticated|(((buyer_id = auth.uid()) OR (seller_id = auth.uid())) AND ((node_id IS NULL) OR (node_id = get_user_node_id(auth.uid())) OR (buyer_id = auth.uid()) OR (seller_id = auth.uid())))|-",
+      "local": "POLICY|public|trades|trades_select_participant_same_node|SELECT|authenticated|(((buyer_id = auth.uid()) OR (seller_id = auth.uid())) AND ((node_id IS NULL) OR (node_id = get_user_node_id(auth.uid()))))|-"
+    },
+    {
+      "key": "POLICY|user_badges|Service role can read all user badges",
+      "staging": "POLICY|public|user_badges|Service role can read all user badges|SELECT|public|true|-",
+      "local": "POLICY|public|user_badges|Service role can read all user badges|SELECT|authenticated|true|-"
+    }
+  ],
+  "explained": [
+    {
+      "key": "COLUMN|admin_config|offer_timeout_hours",
+      "name": "admin_config",
+      "creator": "20241215100005_create_admin_config.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|dispute_costs|evidence_status",
+      "name": "dispute_costs",
+      "creator": "20260916000117_r4_dispute_cost_accounting.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|dispute_costs|evidence_staged_at",
+      "name": "dispute_costs",
+      "creator": "20260916000117_r4_dispute_cost_accounting.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|dispute_costs|evidence_file_id",
+      "name": "dispute_costs",
+      "creator": "20260916000117_r4_dispute_cost_accounting.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|dispute_costs|evidence_error",
+      "name": "dispute_costs",
+      "creator": "20260916000117_r4_dispute_cost_accounting.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|dispute_costs|evidence_json",
+      "name": "dispute_costs",
+      "creator": "20260916000117_r4_dispute_cost_accounting.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|nodes|launch_date",
+      "name": "nodes",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|nodes|member_count",
+      "name": "nodes",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|trades|authorization_id",
+      "name": "trades",
+      "creator": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "COLUMN|trades|authorization_amount",
+      "name": "trades",
+      "creator": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|admin_config|check_offer_timeout_hours",
+      "name": "admin_config",
+      "creator": "20241215100005_create_admin_config.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|ai_moderation_logs|ai_moderation_logs_item_id_fkey",
+      "name": "ai_moderation_logs",
+      "creator": "20260329000002_fix_ai_moderation_logs_schema_drift.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|dispute_costs|dispute_costs_evidence_status_check",
+      "name": "dispute_costs",
+      "creator": "20260916000117_r4_dispute_cost_accounting.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|email_logs|email_status_check",
+      "name": "email_logs",
+      "creator": "20260916000153_email_notifications_tracking.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|items|items_seller_id_fkey",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|nodes|nodes_member_count_check",
+      "name": "nodes",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|nodes|nodes_radius_miles_check",
+      "name": "nodes",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|profiles|fk_profiles_node_id",
+      "name": "profiles",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|referral_codes|referral_codes_code_length",
+      "name": "referral_codes",
+      "creator": "20260129000000_referrals_v2_fix_code_sync_and_referred_by.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|referrals|referrals_referrer_profile_fkey",
+      "name": "referrals",
+      "creator": "20241213000002_add_referral_system_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "CONSTRAINT|trade_events|trade_events_actor_id_fkey",
+      "name": "trade_events",
+      "creator": "20260916000106_trade_events.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "INDEX|nodes|idx_nodes_member_count",
+      "name": "nodes",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "TRIGGER|profiles|trg_profiles_sync_phone_verified",
+      "name": "profiles",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "TRIGGER|seller_payout_methods|trg_auto_promote_sole_verified_payout_method",
+      "name": "seller_payout_methods",
+      "creator": "20260916000045_seller_payouts.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "TRIGGER|trades|trg_terminalize_payouts_on_trade_delete",
+      "name": "trades",
+      "creator": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|complete_trade_v2|p_trade_id uuid, p_user_id uuid",
+      "name": "complete_trade_v2",
+      "creator": "20240101000003_update_trade_rpcs_v2.sql",
+      "creators": 14,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|fn_auto_promote_sole_verified_payout_method|",
+      "name": "fn_auto_promote_sole_verified_payout_method",
+      "creator": "20260918000001_fix_task_56_auto_promote_sole_verified_payout_method.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|fn_terminalize_payouts_on_trade_delete|",
+      "name": "fn_terminalize_payouts_on_trade_delete",
+      "creator": "20260918000010_fix_task_62_requeue_action_required_payouts.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|get_admin_sp_economy_summary|p_start_date timestamp with time zone, p_end_date timestamp with time zone",
+      "name": "get_admin_sp_economy_summary",
+      "creator": "20260606000002_deprecate_payment_processing.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|get_payout_fee_config|",
+      "name": "get_payout_fee_config",
+      "creator": "20260916000047_admin_payout_fee_config.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|get_sp_wallet_balance|p_user_id uuid",
+      "name": "get_sp_wallet_balance",
+      "creator": "20260510000003_sp_hold_enum.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|invoke_check_offer_timeouts|",
+      "name": "invoke_check_offer_timeouts",
+      "creator": "20260510000005_offer_timeout_rpc.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|is_admin|",
+      "name": "is_admin",
+      "creator": "20251219000004_admin_listing_view_policy.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|promote_sole_verified_payout_method|p_user_id uuid",
+      "name": "promote_sole_verified_payout_method",
+      "creator": "20260918000001_fix_task_56_auto_promote_sole_verified_payout_method.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|rpc_process_auto_complete|p_batch_size integer",
+      "name": "rpc_process_auto_complete",
+      "creator": "20260528000005_auto_complete_cron.sql",
+      "creators": 7,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|rpc_record_dispute_evidence|p_dispute_id text, p_status text, p_file_id text, p_error text, p_evidence jsonb",
+      "name": "rpc_record_dispute_evidence",
+      "creator": "20260916000122_n3_dispute_evidence.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|search_listings|p_query text, p_sp_eligible_only boolean, p_limit integer",
+      "name": "search_listings",
+      "creator": "20251220000002_search_listings_rpc.sql",
+      "creators": 6,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|send_parental_consent_email|p_user_id uuid, p_parent_email text",
+      "name": "send_parental_consent_email",
+      "creator": "20251215100001_auth_v2_rpc_functions.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|sync_profile_phone_verified|",
+      "name": "sync_profile_phone_verified",
+      "creator": "20260918000002_fix_task_58_phone_verified_source_of_truth.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "FUNCTION|upsert_admin_config_setting|p_key text, p_value text, p_category admin_config_category, p_data_type text, p_is_secret boolean, p_is_active boolean",
+      "name": "upsert_admin_config_setting",
+      "creator": "20260712000004_fix_admin_config_rpc_security_definer.sql",
+      "creators": 5,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|admin_config|Admins can update config",
+      "name": "admin_config",
+      "creator": "20241215100005_create_admin_config.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|admin_config|Admins can view config",
+      "name": "admin_config",
+      "creator": "20241215100005_create_admin_config.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|admin_config|admin_config_read_all",
+      "name": "admin_config",
+      "creator": "20241215100005_create_admin_config.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|admin_config|admin_config_write_service_role",
+      "name": "admin_config",
+      "creator": "20241215100005_create_admin_config.sql",
+      "creators": 2,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|badge_audit_logs|Admins can insert audit logs",
+      "name": "badge_audit_logs",
+      "creator": "20260111000000_badge_admin_config.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|badge_audit_logs|Admins can view audit logs",
+      "name": "badge_audit_logs",
+      "creator": "20260111000000_badge_admin_config.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|badge_config_history|Admins can view config history",
+      "name": "badge_config_history",
+      "creator": "20260111000000_badge_admin_config.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|badges|Admins can insert badges",
+      "name": "badges",
+      "creator": "20260110000000_badges_v2.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|Admins can delete items",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|Admins can update items",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|Admins can view all items",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|Anyone or trade participants can view items",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|Buyers can view items they are purchasing",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|Sellers can update own items",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|Sellers can view own items",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|items_insert_pending_review",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|items|items_select_same_node_or_own",
+      "name": "items",
+      "creator": "20251217000002_create_items_table_node_filtering.sql",
+      "creators": 3,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|profiles|profiles_authenticated_read",
+      "name": "profiles",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|profiles|profiles_service_role_read",
+      "name": "profiles",
+      "creator": "20241213000001_add_auth_module_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|referrals|referrals_service_role",
+      "name": "referrals",
+      "creator": "20241213000002_add_referral_system_tables.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|review_reports|Admins can delete review reports",
+      "name": "review_reports",
+      "creator": "20260916000032_review_reports.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|review_reports|Admins can view all review reports",
+      "name": "review_reports",
+      "creator": "20260916000032_review_reports.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|trade_events|Admin role read trade_events",
+      "name": "trade_events",
+      "creator": "20260916000106_trade_events.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|trades|Users can insert trades",
+      "name": "trades",
+      "creator": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|trades|Users can update their trades",
+      "name": "trades",
+      "creator": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    },
+    {
+      "key": "POLICY|trades|Users can view own trades",
+      "name": "trades",
+      "creator": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+      "creators": 1,
+      "createdAtLeastOneLedgerFile": false
+    }
+  ]
+}

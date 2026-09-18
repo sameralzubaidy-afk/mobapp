@@ -1,0 +1,14 @@
+# Manual-testing guides — canonical location & pilot findings (2026-08-13)
+
+## Canonical location
+- The **corrected/consolidated** manual-testing guides live in `cross-checked-and-consolidated/` (newer, larger — created in commit `9ed159fd`, "test coverage clean up and consolidations"). `misc./` and root copies are OLDER versions — do NOT edit them as if canonical.
+- **Phase 7.5 repoint (2026-08-13):** all active automation + docs now point to `cross-checked-and-consolidated/` (manifest source, run-tradeflow-suite.mjs, RUNBOOK.md, dispute-evidence.mjs, flow-registry.md, edge-functions.instructions.md, agent.md, detox INSTRUCTIONS, e2e-howitworks, SYSTEM_REQUIREMENTS_V2). `misc./` was ARCHIVED to `archive/misc./` (git mv, 659 files) with a repoint note. Manifest case IDs are now module-prefixed: TRD-TC-* (TradeFlowV2), incl. REG regression cases as TRD-TC-REG-R01..R08 (Samer-approved; the guide's Regression section reuses TRD-TC-R01..R08 which COLLIDES with Group R — known guide defect, unresolved). Residual `misc/` refs remain ONLY in forbidden-to-edit files: canonical guide cross-refs (ADMIN ×3, TRD ×1), `supabase/functions/initiate-payout/index.ts` comment (app source), plus historical records (CONSOLIDATION-MANIFEST, gap-analysis, archive scripts, reports/).
+- 6 guides: AUTH-ONBOARDING..., MODULE-15.1.2-TradeFlowV2, MODULE-ADMIN-PORTAL, MODULE-SUBSCRIPTIONS-PAYOUTS-SPWALLET, MODULE-ACCOUNT-DASHBOARD-HELP-LEGAL, MESSAGING-BADGES-...
+- **TC IDs are REUSED across guides with different meanings** (e.g. TC-A01 = signup in AUTH guide, Cash-Only happy path in TradeFlowV2, admin login in Admin guide). Always disambiguate (file, TC) before editing. Confirmed with Samer on 2026-08-13.
+
+## AI-agent-readiness pilot (11 cases enriched: Setup/Locator hints/Assert/Dependencies)
+- Enriched cases: Account guide TC-A01/B01/B02/G03, Subscriptions guide TC-C05, Admin guide TC-B03/M03/N01/P02/T02/V02.
+- **Locator coverage was only ~33% (24/73 interactive elements had a real testID)**. Mobile screens with ZERO testIDs: EditProfileScreen (fields + Save), ManageKidsClubScreen (whole cancel modal). Admin pages with ZERO testIDs: users, referrals/configuration-tab, badges, monitoring/cron. Well-instrumented: subscriptions/manage (btn-*), analytics/notifications (date-range-*), SettingsScreen (settings-*-button).
+- Dashboard quick-action tiles have `testID=action-tile-*` but NO `accessible`/`accessibilityRole` (BP-53 gap — won't surface on iOS tree).
+- Quirks found: "Help & Support" row listed in Account TC-A01 does NOT exist in SettingsScreen row config (spec drift); EditProfile "Edit basic info" entry has misnamed testID `avatar-upload-button`; TC-M03/M04 lack the `---` separator other cases have.
+- Pilot verdict: go FORWARD-ONLY with the format; add a locator-adding pass first. Full retrofit premature at 33% coverage.

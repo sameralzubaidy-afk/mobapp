@@ -1,0 +1,136 @@
+CONFLICT|ENUM|admin_config_category|referral
+CONFLICT|ENUM|admin_config_category|tax
+CONFLICT|ENUM|admin_config_category|trade
+CONFLICT|FUNCTION|acknowledge_trade_disclaimer|p_trade_id uuid, p_disclaimer_policy_id uuid
+CONFLICT|FUNCTION|add_to_retry_queue|p_notification_id uuid, p_user_id uuid, p_error text, p_error_details jsonb
+CONFLICT|FUNCTION|admin_delete_user|p_admin_id uuid, p_user_id uuid, p_reason text
+CONFLICT|FUNCTION|admin_force_delete_listing|p_listing_id uuid, p_reason text
+CONFLICT|FUNCTION|admin_pause_listing|p_listing_id uuid, p_reason text
+CONFLICT|FUNCTION|admin_suspend_user|p_admin_id uuid, p_user_id uuid, p_reason text
+CONFLICT|FUNCTION|admin_unpause_listing|p_listing_id uuid, p_reason text
+CONFLICT|FUNCTION|admin_unsuspend_user|p_admin_id uuid, p_user_id uuid, p_reason text
+CONFLICT|FUNCTION|award_badge_if_eligible|p_user_id uuid, p_category text, p_current_value integer
+CONFLICT|FUNCTION|award_challenge_sp|p_user_id uuid, p_challenge_id uuid, p_sp_amount integer
+CONFLICT|FUNCTION|calculate_payout_fee_cents|p_method_type text, p_amount_cents integer
+CONFLICT|FUNCTION|check_badge_milestones|p_user_id uuid
+CONFLICT|FUNCTION|check_push_rate_limit|p_user_id uuid
+CONFLICT|FUNCTION|check_referral_code_exists|p_code text
+CONFLICT|FUNCTION|check_sp_badges|
+CONFLICT|FUNCTION|cleanup_expired_deduplications|
+CONFLICT|FUNCTION|create_badge_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb
+CONFLICT|FUNCTION|create_email_log|p_user_id uuid, p_recipient_email text, p_template_type text, p_template_data jsonb
+CONFLICT|FUNCTION|create_notification|p_user_id uuid, p_type text, p_title text, p_body text, p_data jsonb
+CONFLICT|FUNCTION|create_referral_code|p_user_id uuid
+CONFLICT|FUNCTION|create_sp_notification|p_user_id uuid, p_notification_type text, p_title text, p_body text, p_data jsonb, p_check_subscription boolean
+CONFLICT|FUNCTION|create_trade_with_disclaimer_v2|p_item_id uuid, p_sp_amount integer, p_disclaimer_policy_id uuid
+CONFLICT|FUNCTION|debug_auth_context|
+CONFLICT|FUNCTION|dispatch_sp_notification_push|
+CONFLICT|FUNCTION|extend_trial_period|p_user_id uuid, p_referral_user_id uuid
+CONFLICT|FUNCTION|fn_items_enforce_pending_for_starter_pack|
+CONFLICT|FUNCTION|fn_on_listing_pending_notification|
+CONFLICT|FUNCTION|fn_validate_trade_timing_config|
+CONFLICT|FUNCTION|get_ab_test_performance|p_notification_type text, p_start_date timestamp with time zone, p_end_date timestamp with time zone
+CONFLICT|FUNCTION|get_admin_notifications|p_admin_id uuid, p_limit integer, p_unread_only boolean
+CONFLICT|FUNCTION|get_email_delivery_stats|p_start_date timestamp with time zone, p_end_date timestamp with time zone
+CONFLICT|FUNCTION|get_notification_channel_metrics|p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_category text
+CONFLICT|FUNCTION|get_notification_preferences|p_user_id uuid
+CONFLICT|FUNCTION|get_seller_node_id|p_seller_id uuid
+CONFLICT|FUNCTION|get_sp_config|p_key text
+CONFLICT|FUNCTION|get_unread_messages_for_email|p_limit integer
+CONFLICT|FUNCTION|get_unread_notification_count|p_user_id uuid
+CONFLICT|FUNCTION|get_user_expiration_warnings|p_user_id uuid
+CONFLICT|FUNCTION|invoke_trial_conversion_edge_function|
+CONFLICT|FUNCTION|is_duplicate_notification|p_user_id uuid, p_notification_type text, p_fingerprint text
+CONFLICT|FUNCTION|is_earning_subscriber|p_user_id uuid
+CONFLICT|FUNCTION|is_eligible_for_starter_pack|p_seller_id uuid
+CONFLICT|FUNCTION|is_in_quiet_hours|p_user_id uuid, p_current_time time without time zone
+CONFLICT|FUNCTION|issue_starter_pack|p_user_id uuid, p_listing_id uuid
+CONFLICT|FUNCTION|log_push_delivery|p_user_id uuid, p_notification_id uuid, p_push_token_id uuid, p_expo_receipt_id text, p_receipt_status text, p_receipt_message text, p_receipt_details jsonb, p_retry_count integer
+CONFLICT|FUNCTION|mark_all_notifications_read|p_user_id uuid
+CONFLICT|FUNCTION|mark_expired_messages|
+CONFLICT|FUNCTION|mark_message_email_sent|p_message_id uuid
+CONFLICT|FUNCTION|mark_notification_as_read|p_notification_id uuid
+CONFLICT|FUNCTION|mark_notification_read|p_notification_id uuid, p_user_id uuid
+CONFLICT|FUNCTION|mark_starter_pack_claimed|p_listing_id uuid
+CONFLICT|FUNCTION|mark_trade_messages_delivered|p_trade_id uuid, p_user_id uuid
+CONFLICT|FUNCTION|mark_trade_messages_read|p_trade_id uuid, p_user_id uuid
+CONFLICT|FUNCTION|notify_new_message|
+CONFLICT|FUNCTION|notify_seller_item_status_change|
+CONFLICT|FUNCTION|populate_trade_node_id|
+CONFLICT|FUNCTION|process_sp_expiration|
+CONFLICT|FUNCTION|process_unsubscribe|p_token text
+CONFLICT|FUNCTION|recompute_seller_balance|p_user_id uuid
+CONFLICT|FUNCTION|record_notification_dedup|p_user_id uuid, p_notification_type text, p_fingerprint text
+CONFLICT|FUNCTION|refund_sp_for_cancelled_trade|p_user_id uuid, p_trade_id uuid, p_sp_amount integer
+CONFLICT|FUNCTION|remove_from_retry_queue|p_notification_id uuid
+CONFLICT|FUNCTION|rpc_cart_add_item|p_listing_id uuid
+CONFLICT|FUNCTION|search_listings_by_category_and_query|p_category_id uuid, p_query text, p_sp_eligible_only boolean, p_limit integer, p_offset integer
+CONFLICT|FUNCTION|search_listings_by_category|p_category_id uuid, p_sp_eligible_only boolean, p_limit integer, p_offset integer
+CONFLICT|FUNCTION|send_sp_expiration_warnings|
+CONFLICT|FUNCTION|sync_sp_config_on_admin_update|
+CONFLICT|FUNCTION|track_email_event|p_sendgrid_message_id text, p_event_type text, p_bounce_reason text
+CONFLICT|FUNCTION|track_notification_event|p_notification_id uuid, p_event_type text, p_event_data jsonb
+CONFLICT|FUNCTION|update_email_log_status|p_log_id uuid, p_sendgrid_message_id text, p_status text, p_error_message text
+CONFLICT|FUNCTION|update_message_delivery_status|p_message_id uuid, p_status text
+CONFLICT|FUNCTION|update_notification_preference|p_user_id uuid, p_category notification_category, p_push_enabled boolean, p_in_app_enabled boolean, p_email_enabled boolean, p_quiet_hours_enabled boolean, p_quiet_hours_start time without time zone, p_quiet_hours_end time without time zone
+CONFLICT|FUNCTION|update_sp_config|p_key text, p_value jsonb, p_admin_id uuid
+CONFLICT|FUNCTION|upsert_admin_config|p_key text, p_value text
+CONFLICT|FUNCTION|verify_user_phone|p_user_id uuid, p_phone text
+CONFLICT|INDEX|items|idx_items_node_id
+CONFLICT|INDEX|trades|idx_trades_completed_at
+CONFLICT|POLICY|badges|Admins can update badges
+CONFLICT|POLICY|profiles|Users can insert their own profile
+CONFLICT|POLICY|trades|trades_select_participant_same_node
+CONFLICT|POLICY|user_badges|Service role can read all user badges
+SUBSET|CONSTRAINT|email_logs|email_logs_status_check
+SUBSET|FUNCTION|bytea_to_text|data bytea
+SUBSET|FUNCTION|http_delete|uri character varying
+SUBSET|FUNCTION|http_delete|uri character varying, content character varying, content_type character varying
+SUBSET|FUNCTION|http_get|uri character varying
+SUBSET|FUNCTION|http_get|uri character varying, data jsonb
+SUBSET|FUNCTION|http_header|field character varying, value character varying
+SUBSET|FUNCTION|http_head|uri character varying
+SUBSET|FUNCTION|http_list_curlopt|
+SUBSET|FUNCTION|http_patch|uri character varying, content character varying, content_type character varying
+SUBSET|FUNCTION|http_post|uri character varying, content character varying, content_type character varying
+SUBSET|FUNCTION|http_post|uri character varying, data jsonb
+SUBSET|FUNCTION|http_put|uri character varying, content character varying, content_type character varying
+SUBSET|FUNCTION|http_reset_curlopt|
+SUBSET|FUNCTION|http_set_curlopt|curlopt character varying, value character varying
+SUBSET|FUNCTION|http|request http_request
+SUBSET|FUNCTION|is_in_quiet_hours|p_user_id uuid
+SUBSET|FUNCTION|text_to_bytea|data text
+SUBSET|FUNCTION|urlencode|data jsonb
+SUBSET|FUNCTION|urlencode|string bytea
+SUBSET|FUNCTION|urlencode|string character varying
+SUBSET|POLICY|admin_config|admin_config_authenticated_read
+SUBSET|POLICY|ai_moderation_logs|ai_logs_system_create
+SUBSET|POLICY|email_logs|email_logs_select_own
+SUBSET|POLICY|email_logs|email_logs_service_role
+SUBSET|POLICY|items|Items visibility based on status
+SUBSET|POLICY|items|items_anon_select
+SUBSET|POLICY|items|items_insert_own_seller
+SUBSET|POLICY|items|items_update_own_seller
+SUBSET|POLICY|profiles|Allow phone verification updates
+SUBSET|POLICY|profiles|Public profiles are viewable
+SUBSET|POLICY|profiles|Service role can read all profiles
+SUBSET|POLICY|profiles|Service role can update profiles
+SUBSET|POLICY|profiles|profiles_anon_insert
+SUBSET|POLICY|profiles|profiles_anon_select
+SUBSET|POLICY|profiles|profiles_anon_update
+SUBSET|POLICY|referrals|referrals_anon_insert
+SUBSET|POLICY|referrals|referrals_anon_select
+SUBSET|POLICY|referrals|referrals_anon_update
+SUBSET|POLICY|referrals|referrals_insert
+SUBSET|POLICY|referrals|referrals_select_own
+SUBSET|POLICY|seller_payout_methods|Service role bypass - seller_payout_methods
+SUBSET|POLICY|seller_payouts|Service role bypass - seller_payouts
+SUBSET|POLICY|subscription_tiers|subscription_tiers_public
+SUBSET|POLICY|subscriptions|subscriptions_anon_insert
+SUBSET|POLICY|subscriptions|subscriptions_anon_select
+SUBSET|POLICY|subscriptions|subscriptions_anon_update
+SUBSET|POLICY|trades|trades_insert_own
+SUBSET|POLICY|trades|trades_update_own
+SUBSET|POLICY|user_notifications|user_notifications_anon_insert
+SUBSET|POLICY|user_notifications|user_notifications_anon_select
+SUBSET|POLICY|user_notifications|user_notifications_anon_update

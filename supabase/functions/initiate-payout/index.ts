@@ -208,10 +208,44 @@ serve(async (req) => {
     return errResp(409, 'PAYOUT_AMOUNT_MISSING', 'Payout amount was not computed on completion; needs admin review');
   }
 
-  // requires_action: payout was created by complete_trade_v2 but seller has no
-  // payout method. Send BOTH an in-app and push notification and return — do NOT
-  // attempt Stripe transfer. (§6.3.3)
+  // FIX-Task-62 (Fix B): `requires_action` is only terminal for as long as the
+  // seller has no payable method. Re-resolve that FIRST — once the seller is
+  // payable, this trade must fall through to the dispatch path below instead of
+  // being re-parked on every call, forever. Previously this branch returned BEFORE
+  // the seller_payout_methods lookup, so a method added after the trade completed
+  // was unreachable and the money was stranded permanently.
+  let recoveredFromRequiresAction = false;
   if (trade.payout_status === 'requires_action') {
+    const { data: payableConnectMethod } = await svcClient
+      .from('seller_payout_methods')
+      .select('id, stripe_account_id')
+      .eq('user_id', trade.seller_id)
+      .eq('method_type', 'stripe_connect')
+      .eq('is_primary', true)
+      .eq('is_verified', true)
+      .maybeSingle();
+
+    if (payableConnectMethod?.stripe_account_id) {
+      recoveredFromRequiresAction = true;
+      console.log(
+        `[initiate-payout] Trade ${trade_id} was requires_action but seller ${trade.seller_id} is now payable via ${payableConnectMethod.id} — continuing to dispatch`,
+      );
+      logFinancialAudit(svcClient, {
+        mutationType: 'payout_initiated',
+        entityType: 'trade',
+        entityId: trade_id,
+        actorId: trade.seller_id,
+        beforeState: { payout_status: 'requires_action' },
+        afterState: { recovered_from_requires_action: true, payout_method_id: payableConnectMethod.id },
+        idempotencyKey: `payout_requires_action_recovered_${trade_id}`,
+      });
+    }
+  }
+
+  // Still parked: payout was created by complete_trade_v2 but the seller has no
+  // payable method. Send BOTH an in-app and push notification and return — do NOT
+  // attempt Stripe transfer. (§6.3.3)
+  if (trade.payout_status === 'requires_action' && !recoveredFromRequiresAction) {
     console.log(`[initiate-payout] Trade ${trade_id} has requires_action — sending notifications`);
     const efBaseUrl = `${supabaseUrl}/functions/v1`;
     let listingTitle = 'your item';
@@ -224,46 +258,68 @@ serve(async (req) => {
       }
     } catch { /* non-fatal */ }
 
-    // 1. Create in-app notification via create_trade_notification RPC
-    try {
-      await svcClient.rpc('create_trade_notification', {
-        p_user_id: trade.seller_id,
-        p_notification_type: 'payout_requires_action',
-        p_title: 'Payout Action Required',
-        p_body: `Your ${listingTitle} sold! Add a payout method to receive your $${(amountCents / 100).toFixed(2)}.`,
-        p_data: JSON.stringify({ trade_id, deep_link: '/payout-settings' }),
-      });
-      console.log(`[initiate-payout] In-app notification created for seller ${trade.seller_id}`);
-    } catch (notifErr: unknown) {
-      const msg = notifErr instanceof Error ? notifErr.message : 'Unknown error';
-      console.error(`[initiate-payout] Failed to create in-app notification: ${msg}`);
-    }
+    // FIX-Task-62 (Fix D): this branch is reached on EVERY call for a parked trade,
+    // so notifying unconditionally re-notified the seller without limit. (The
+    // 48h / max-3 cadence specified in docx/TRADING-FLOW-V2.md §6.3.3 was never
+    // built — no `payout_requires_action_N` notification type exists anywhere.)
+    // Gate on a prior notification for THIS trade; the audit call below already
+    // carries the same trade-scoped idempotency key.
+    const { data: priorPayoutNotice } = await svcClient
+      .from('user_notifications')
+      .select('id')
+      .eq('user_id', trade.seller_id)
+      .eq('type', 'payout_requires_action')
+      .eq('data->>trade_id', trade_id)
+      .limit(1)
+      .maybeSingle();
+    const alreadyNotified = !!priorPayoutNotice?.id;
 
-    // 2. Send push notification directly via send-push-notification (same proven
-    //    path used by create_trade_notification — bypasses send-trade-notifications
-    //    which silently returns sent=0 for reasons unknown)
-    try {
-      const pushResp = await fetch(`${efBaseUrl}/send-push-notification`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseSvcKey}` },
-        body: JSON.stringify({
-          userId: trade.seller_id,
-          title: 'Payout Action Required',
-          body: `Your ${listingTitle} sold! Add a payout method to receive your $${(amountCents / 100).toFixed(2)}.`,
-          data: {
-            trade_id,
-            type: 'payout_requires_action',
-            event_type: 'payout_requires_action',
-            deep_link: '/payout-settings',
-            listing_title: listingTitle,
-            amount_cents: amountCents,
-          },
-        }),
-      });
-      const pushBody = await pushResp.text();
-      console.log(`[initiate-payout] Push notification responded: status=${pushResp.status} body=${pushBody}`);
-    } catch (pushErr) {
-      console.error(`[initiate-payout] Failed to send push notification:`, pushErr);
+    if (alreadyNotified) {
+      console.log(
+        `[initiate-payout] payout_requires_action already notified for trade ${trade_id} — skipping duplicate notification`,
+      );
+    } else {
+      // 1. Create in-app notification via create_trade_notification RPC
+      try {
+        await svcClient.rpc('create_trade_notification', {
+          p_user_id: trade.seller_id,
+          p_notification_type: 'payout_requires_action',
+          p_title: 'Payout Action Required',
+          p_body: `Your ${listingTitle} sold! Add a payout method to receive your $${(amountCents / 100).toFixed(2)}.`,
+          p_data: JSON.stringify({ trade_id, deep_link: '/payout-settings' }),
+        });
+        console.log(`[initiate-payout] In-app notification created for seller ${trade.seller_id}`);
+      } catch (notifErr: unknown) {
+        const msg = notifErr instanceof Error ? notifErr.message : 'Unknown error';
+        console.error(`[initiate-payout] Failed to create in-app notification: ${msg}`);
+      }
+
+      // 2. Send push notification directly via send-push-notification (same proven
+      //    path used by create_trade_notification — bypasses send-trade-notifications
+      //    which silently returns sent=0 for reasons unknown)
+      try {
+        const pushResp = await fetch(`${efBaseUrl}/send-push-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseSvcKey}` },
+          body: JSON.stringify({
+            userId: trade.seller_id,
+            title: 'Payout Action Required',
+            body: `Your ${listingTitle} sold! Add a payout method to receive your $${(amountCents / 100).toFixed(2)}.`,
+            data: {
+              trade_id,
+              type: 'payout_requires_action',
+              event_type: 'payout_requires_action',
+              deep_link: '/payout-settings',
+              listing_title: listingTitle,
+              amount_cents: amountCents,
+            },
+          }),
+        });
+        const pushBody = await pushResp.text();
+        console.log(`[initiate-payout] Push notification responded: status=${pushResp.status} body=${pushBody}`);
+      } catch (pushErr) {
+        console.error(`[initiate-payout] Failed to send push notification:`, pushErr);
+      }
     }
 
     return new Response(
@@ -482,6 +538,16 @@ serve(async (req) => {
     updated_at:           new Date().toISOString(),
   }).eq('id', trade_id);
 
+  // FIX-Task-62: keep the seller_payouts mirror in lockstep with trades. Without
+  // this the two sources of truth diverge (live: 88 requires_action in
+  // seller_payouts vs 70 in trades; 4 completed vs 20 paid) and the seller-facing
+  // "N payouts need a payout method" count never falls after a payout is sent.
+  await svcClient.from('seller_payouts').update({
+    status:       'processing',
+    initiated_at: new Date().toISOString(),
+    updated_at:   new Date().toISOString(),
+  }).eq('trade_id', trade_id);
+
   // N2 — Idempotency & Audit: payout initiated.
   logFinancialAudit(svcClient, {
     mutationType: 'payout_initiated',
@@ -522,6 +588,14 @@ serve(async (req) => {
       updated_at:       new Date().toISOString(),
     }).eq('id', trade_id);
 
+    // FIX-Task-62: mirror the terminal state onto seller_payouts.
+    await svcClient.from('seller_payouts').update({
+      status:                'completed',
+      provider_reference_id: transfer.id,
+      completed_at:          new Date().toISOString(),
+      updated_at:            new Date().toISOString(),
+    }).eq('trade_id', trade_id);
+
     await svcClient.from('trade_events').insert({
       trade_id, event_type: 'payout_sent', actor_id: trade.seller_id,
       metadata: { transfer_id: transfer.id, amount_cents: payoutAmountCents },
@@ -560,6 +634,13 @@ serve(async (req) => {
       payout_status: 'failed',
       updated_at:    new Date().toISOString(),
     }).eq('id', trade_id);
+
+    // FIX-Task-62: mirror the failure onto seller_payouts.
+    await svcClient.from('seller_payouts').update({
+      status:         'failed',
+      failure_reason: msg,
+      updated_at:     new Date().toISOString(),
+    }).eq('trade_id', trade_id);
 
     await svcClient.from('trade_events').insert({
       trade_id, event_type: 'payout_failed', actor_id: trade.seller_id,

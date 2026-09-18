@@ -197,7 +197,7 @@ Treat the VS Code / GitHub workspace as:
 Root: kids_marketplace_app/
 p2p-kids-marketplace/ – Expo React Native app (iOS + Android)
 supabase/ – Supabase configuration, SQL migrations, Edge Functions (Deno/TypeScript)
-(future) admin-portal/ – React web admin (Vercel)
+p2p-kids-admin/ – Next.js admin portal (runs on http://localhost:3001)
 docx/ – core product/architecture specs
 Prompts/ – all AI module prompt and verification files
 Inside docx/ you have:
@@ -342,22 +342,15 @@ Mobile App (MVP)
 
 React Native with Expo (managed workflow)
 TypeScript
-Tailwind-style utility classes via NativeWind (or equivalent)
+Styling: React Native `StyleSheet` + Pass It Up theme tokens in `src/theme/` (NativeWind/Tailwind is not installed)
 React Navigation for routing
 Stripe RN SDK for payments & subscriptions
-Firebase Analytics for events
+Amplitude (`@amplitude/analytics-react-native`) for analytics events; Sentry for crash reporting
 Backend / API Layer
 
 Supabase Postgres for DB + Auth + Storage
 Edge Function Convention (MANDATORY)
-We use Pattern A (one function = one folder):
-
-supabase/functions/<domain>-<action>/index.ts Examples:
-supabase/functions/auth-signup/index.ts
-supabase/functions/listings-create/index.ts
-supabase/functions/transactions-create/index.ts
-supabase/functions/sp-wallet-read/index.ts
-supabase/functions/subscriptions-webhook/index.ts
+One function = one folder: `supabase/functions/<kebab-case-name>/index.ts`. Existing names are mixed (`cancel-trade`, `create-trade-offer`, `auth-update-phone`, `process-expired-offers`, `stripe-webhook`): match the neighboring functions in the same domain, prefer `<verb>-<noun>` for new ones, and do not rename existing functions.
 Rules:
 
 Do NOT assume Express-style /auth/* routing unless an API router is explicitly implemented.
@@ -1047,33 +1040,12 @@ Database tables: snake_case (e.g., swap_points_transactions)
 TypeScript types: PascalCase (e.g., SwapPointsTransaction)
 Functions/variables: camelCase (e.g., calculateSwapPoints)
 Components: PascalCase with suffix (e.g., ListingCard.tsx, CheckoutScreen.tsx)
-Edge Functions: kebab-case (e.g., transactions-create/, sp-wallet-balance/)
-11 UX / Design (placeholder for now)
-For now, the final frontend design is NOT locked. Until I provide explicit UX specs:
-
-Use simple, clean, mobile-friendly layouts with standard React Native components:
-SafeAreaView, ScrollView, View, Text, TextInput, Pressable/Button, FlatList.
-Prioritize:
-Clear grouping of sections (header, content, actions).
-Good spacing and readability.
-Obvious primary action (e.g. “Publish listing”, “Confirm trade”).
-Avoid:
-Overly custom styling.
-Hard-coding complex colors/typography. Use a simple, neutral theme and keep styles centralized (e.g. src/theme/).
-Very important for future redesign:
-
-Structure screens so they are easy to restyle later:
-
-Break UI into small components (e.g. ListingCard, PrimaryButton, FormField) under src/components/.
-Avoid giant monolithic screen components with inline styles everywhere.
-Whenever you make a UX assumption, add:
-
-// TODO(UX): refine layout once final Figma design is available
-Or more specific: // TODO(UX): align spacing and colors with final listing screen design
-Once I provide final Figma-based UX specs (e.g. Markdown under docx/UX/), you must:
-
-Treat them as source of truth for layout and visuals.
-Refactor existing screens to match the new UX while preserving working logic.
+Edge Functions: kebab-case (e.g., cancel-trade/, create-trade-offer/)
+11 UX / Design (locked)
+The design is locked. `docx/design-system-passitup.md` is the source of truth for colors, typography, spacing, components and accessibility (not the legacy `docx/design-system.md`).
+- Use the Pass It Up semantic tokens in `p2p-kids-marketplace/src/theme/`; never raw hex, Material, Tailwind or system-blue defaults (BP-56, BP-82). Primary/confirm actions use the brand green `#5DBB8E`.
+- Keep screens small and composable: break UI into components under `src/components/`; no monolithic screens with inline styles.
+- If a screen has no spec, add `// TODO(UX): ...` and ask before inventing a layout. If a spec exists for the screen (for example under `docx/UX/`), it wins over guesses.
 MCP Usage Protocol (MANDATORY — single source of truth for all MCP/tool policy; supersedes any other MCP wording in this file)
 Allowed MCP servers in this workspace
 Filesystem MCP (`mcp_secure-filesy_*`, plus the built-in read_file/replace_string_in_file/grep_search/file_search tools) — browse, read, search, and write files within the workspace. Use this for the Read-Before-Write rule.
@@ -1140,7 +1112,7 @@ HP-2 Quality gates (stop if failing)
 Before marking any task “done”, you MUST provide:
 
 Commands to run + expected results:
-Mobile: yarn lint, yarn typecheck, yarn test
+Mobile: npm run lint, npm run typecheck, npm test
 Supabase: supabase start, supabase db reset, supabase functions serve, deno lint, deno test
 At least 1 unit test for any non-trivial business logic:
 SP cap, fee formula, pending/release, grace period, etc.
@@ -1161,13 +1133,13 @@ You MUST NOT claim “Fixed” unless the preflight compile gate passes.
 Commands (MUST obey Script Existence Rule):
 
 If typecheck exists in p2p-kids-marketplace/package.json:
-cd p2p-kids-marketplace && yarn typecheck
+cd p2p-kids-marketplace && npm run typecheck
 Else use:
 cd p2p-kids-marketplace && npx tsc -p tsconfig.json --noEmit
 Lint:
 
 If lint exists:
-cd p2p-kids-marketplace && yarn lint
+cd p2p-kids-marketplace && npm run lint
 Else:
 cd p2p-kids-marketplace && npx eslint .
 Expected results:
@@ -1179,7 +1151,7 @@ Treat it as a Tier 0 blocker and fix it BEFORE any further steps.
 HP-3 (Supabase auth/RLS rule for Edge Functions), HP-4 (DB invariants), and HP-5 (atomic RPC) moved to .github/instructions/edge-functions.instructions.md and .github/instructions/supabase-sql.instructions.md (auto-attach when editing supabase/functions/** or supabase/migrations/**/*.sql respectively).
 
 Script Existence Rule (MANDATORY)
-Before telling the user to run any command like yarn typecheck, you MUST:
+Before telling the user to run any command like npm run typecheck, you MUST:
 
 confirm the script exists in the target app’s package.json If it does NOT exist, you MUST either: A) provide the exact package.json change to add it, OR B) use a command that definitely exists (e.g., yarn lint only if it exists). Never invent scripts.
 HP-6 “Done” evidence format
@@ -1286,8 +1258,8 @@ Tier 0 MUST include a compile gate that would fail on duplicate identifiers:
 
 Mobile (minimum):
 
-cd p2p-kids-marketplace && (yarn typecheck OR npx tsc -p tsconfig.json --noEmit)
-cd p2p-kids-marketplace && (yarn lint OR npx eslint .)
+cd p2p-kids-marketplace && (npm run typecheck OR npx tsc -p tsconfig.json --noEmit)
+cd p2p-kids-marketplace && (npm run lint OR npx eslint .)
 Hard rule:
 
 If the user cannot reach the app loading screen because of a SyntaxError, Tier 0 was NOT satisfied.
@@ -1295,9 +1267,9 @@ Do NOT ask for simulator testing until Tier 0 passes.
 Admin Portal Tier 0 (mandatory when admin-portal changes)
 If ANY file under p2p-kids-admin/ (or admin-portal/) changes, you MUST run:
 
-yarn lint
-yarn typecheck (or next lint + tsc --noEmit)
-yarn build (Next.js compile check)
+npm run lint
+npm run typecheck (or next lint + tsc --noEmit)
+npm run build (Next.js compile check)
 Admin unit tests use Vitest (`npm test` / `npx vitest run <file>`), NOT Jest — running `npx jest` on a Vitest test file fails with "Vitest cannot be imported in a CommonJS module using require()".
 You MUST NOT mark work complete if build fails. You MUST include the exact error line + the fix.
 
