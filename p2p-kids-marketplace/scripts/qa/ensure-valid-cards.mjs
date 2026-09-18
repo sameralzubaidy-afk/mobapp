@@ -67,6 +67,12 @@ const QA_BUYER_PERSONAS = {
   'test-free': { id: 'a1234567-0000-0000-0000-000000000001', email: 'test-free@kidsmarketplace.test' },
   'test-buyer-2': { id: 'a1234567-0000-0000-0000-000000000003', email: 'test-buyer-2@kidsmarketplace.test' },
   'test-buyer-3': { id: 'a1234567-0000-0000-0000-000000000004', email: 'test-buyer-3@kidsmarketplace.test' },
+  // FIX-Task-53 item 1 prerequisite (2026-09-17): the GRACE-period persona. Any
+  // offer needs a saved card — `fn_item_effective_sp_cap` caps SP at 40-70% of the
+  // item price, so `cash_amount_cents > 0` is unavoidable and there is no cash-0
+  // bypass. Without this entry the grace-SP-spend regression could not be proven
+  // end-to-end on-device (QA SUB Android Round 8 recorded exactly that gap).
+  'test-grace': { id: 'a1234567-0000-0000-0000-000000000011', email: 'test-grace@kidsmarketplace.test' },
 };
 
 /** The magic Stripe TEST token that yields the confirmed-valid MASTERCARD •••• 4444 (BP-69). */

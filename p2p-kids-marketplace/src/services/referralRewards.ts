@@ -323,7 +323,11 @@ export class ReferralRewardsService {
 
       const isActive = (sub: typeof referrerSub) => {
         if (!sub) return false;
-        return ['active', 'trial', 'trialing', 'grace'].includes(sub.status);
+        // FIX-Task-53 item 3 (2026-09-17): the canonical grace spelling was missing,
+        // so a grace-period member failed this "both subscribed" check and the
+        // referral reward was withheld. (paused/cancelled stay excluded here —
+        // widening that gate is a separate product decision.)
+        return ['active', 'trial', 'trialing', 'grace', 'grace_period'].includes(sub.status);
       };
 
       return {

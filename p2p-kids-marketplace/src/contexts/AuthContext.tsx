@@ -13,6 +13,7 @@ import { useUserStore } from '../stores/userStore';
 // unrelated run. No-op outside dev/test builds (devTestingService gate).
 import { clearQaLocalValues } from '../services/devTestingService';
 import { invalidatePaymentMethodCache } from '../services/subscription';
+import { canSpendSpStatus } from '../services/subscriptionStatus';
 // FIX-Task-37 item 1 (BP-95): reuse the existing auth-state subscription helper
 // (previously exported but never consumed) for the user-scoped cache boundary.
 import { onAuthStateChange } from '../services/supabase/auth';
@@ -309,9 +310,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             case 'paused':
               return 'paused';
             case 'grace_period':
-              return 'grace_period';
+            // FIX-Task-53 item 3 (2026-09-17): the legacy 'grace' spelling is
+            // normalized HERE (BP-76), so `session.subscription_status` can never
+            // carry the non-canonical value into a call site's literal comparison.
+            // Leaving it distinct is what let TradeOfferScreen's grace check match
+            // zero real users once FIX-Task-51 finished the data normalization.
             case 'grace':
-              return 'grace';
+              return 'grace_period';
             case 'cancelled':
               return 'cancelled';
             case 'canceled':
@@ -807,11 +812,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // ADMIN-V2-003: can_spend_sp now checks BOTH subscription AND wallet state
             // DEV-TASK-66 item 1: grace users may spend (wallet 'grace_period' is
             // spendable — consistent with R6 fn_reserve_sp_on_offer).
+            // FIX-Task-53 item 3 (2026-09-17): the status half uses the shared
+            // predicate (both grace spellings). The wallet-state half stays local
+            // because it is a DIFFERENT server rule (fn_get_sp_entitlement).
             const canSpendSP =
-              (subscriptionStatus === 'trial' ||
-                subscriptionStatus === 'active' ||
-                subscriptionStatus === 'grace' ||
-                subscriptionStatus === 'grace_period') &&
+              canSpendSpStatus(subscriptionStatus) &&
               (walletSummary.wallet_state === 'active' ||
                 walletSummary.wallet_state === 'grace_period');
 

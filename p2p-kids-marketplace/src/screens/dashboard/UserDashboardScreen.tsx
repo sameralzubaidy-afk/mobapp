@@ -21,6 +21,7 @@ import { useAuth, useSPWallet } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getActiveDrafts } from '@/services/draftService';
 import { idBadgeService } from '@/services/idBadge';
+import { isGraceStatus } from '@/services/subscriptionStatus';
 import { supabase } from '@/config/supabase';
 
 // Types
@@ -164,7 +165,8 @@ export default function UserDashboardScreen() {
         .limit(1)
         .maybeSingle();
       if (error || !data) return;
-      if ((data.status === 'grace' || data.status === 'grace_period') && data.grace_ends_at) {
+      // FIX-Task-53 item 3 (2026-09-17): shared predicate — both grace spellings.
+      if (isGraceStatus(data.status) && data.grace_ends_at) {
         setGraceEndDate(data.grace_ends_at);
       } else {
         setGraceEndDate(null);
@@ -478,8 +480,7 @@ export default function UserDashboardScreen() {
           {/* ── Action Items Section ──────────────────────────────────────── */}
           {(() => {
             const graceDaysRemaining =
-              (subscription.status === 'grace' || subscription.status === 'grace_period') &&
-              graceEndDate
+              isGraceStatus(subscription.status) && graceEndDate
                 ? Math.ceil((new Date(graceEndDate).getTime() - Date.now()) / 86_400_000)
                 : 0;
 

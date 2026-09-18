@@ -24,6 +24,12 @@ import {
   getSubscriptionDetails,
   getPaymentMethod,
   invalidatePaymentMethodCache,
+  // FIX-Task-53 item 3 (2026-09-17): the canonical status predicates.
+  isGraceStatus,
+  isSubscriberStatus,
+  isFeeActiveMemberStatus,
+  canSpendSpStatus,
+  buyerSubscriptionSnapshotStatus,
 } from '../subscription';
 import {
   getSimulatedPaymentCardPreference,
@@ -1048,5 +1054,107 @@ describe('getSubscriptionSummary — FIX-Task-47 item 2 (in-flight dedup)', () =
       'user-1',
       'user-2',
     ]);
+  });
+});
+
+/**
+ * FIX-Task-53 item 3 (2026-09-17) — the canonical status predicates.
+ *
+ * One predicate per SEMANTIC. `subscriptions.status` legally admits two spellings of
+ * the grace state, and ad-hoc literal lists drifted until a grace user was offered SP
+ * by the UI and refused by the server. These tests pin the two-spelling tolerance AND
+ * the deliberate SEPARATION between membership benefits and the fee tier — collapsing
+ * those two would silently change what a grace buyer is charged.
+ */
+describe('Subscription status predicates — FIX-Task-53 item 3', () => {
+  describe('isGraceStatus', () => {
+    it('accepts BOTH spellings', () => {
+      expect(isGraceStatus('grace_period')).toBe(true);
+      expect(isGraceStatus('grace')).toBe(true);
+    });
+
+    it('rejects every non-grace status and nullish input', () => {
+      for (const status of ['free', 'trial', 'active', 'paused', 'cancelled', 'expired']) {
+        expect(isGraceStatus(status)).toBe(false);
+      }
+      expect(isGraceStatus(null)).toBe(false);
+      expect(isGraceStatus(undefined)).toBe(false);
+    });
+  });
+
+  describe('isSubscriberStatus (membership BENEFITS)', () => {
+    it('is TRUE for grace in both spellings — grace keeps Kids Club+ benefits (R6)', () => {
+      expect(isSubscriberStatus('grace_period')).toBe(true);
+      expect(isSubscriberStatus('grace')).toBe(true);
+    });
+
+    it('is TRUE for every paying/retained status', () => {
+      for (const status of ['trial', 'active', 'paused', 'cancelled', 'canceled']) {
+        expect(isSubscriberStatus(status)).toBe(true);
+      }
+    });
+
+    it('is FALSE for free/expired/unknown — fail closed', () => {
+      expect(isSubscriberStatus('free')).toBe(false);
+      expect(isSubscriberStatus('expired')).toBe(false);
+      expect(isSubscriberStatus('unknown')).toBe(false);
+      expect(isSubscriberStatus(null)).toBe(false);
+      expect(isSubscriberStatus(undefined)).toBe(false);
+    });
+  });
+
+  describe('isFeeActiveMemberStatus (the SERVER fee tier)', () => {
+    it('matches fn_get_buyer_fee_for_checkout exactly: trial | active ONLY', () => {
+      expect(isFeeActiveMemberStatus('trial')).toBe(true);
+      expect(isFeeActiveMemberStatus('active')).toBe(true);
+
+      // The load-bearing negative: a grace buyer is billed the NON-member tier
+      // (explicit owner decision), so the fee helper must NOT follow the
+      // membership flag. If this ever returns true, the client would display a fee
+      // the server will not charge.
+      expect(isFeeActiveMemberStatus('grace_period')).toBe(false);
+      expect(isFeeActiveMemberStatus('grace')).toBe(false);
+      expect(isFeeActiveMemberStatus('paused')).toBe(false);
+      expect(isFeeActiveMemberStatus('cancelled')).toBe(false);
+      expect(isFeeActiveMemberStatus('free')).toBe(false);
+    });
+
+    it('is deliberately NARROWER than isSubscriberStatus', () => {
+      expect(isSubscriberStatus('grace_period')).toBe(true);
+      expect(isFeeActiveMemberStatus('grace_period')).toBe(false);
+    });
+  });
+
+  describe('canSpendSpStatus (R6 SP entitlement)', () => {
+    it('allows grace to keep SPENDING existing points', () => {
+      expect(canSpendSpStatus('grace_period')).toBe(true);
+      expect(canSpendSpStatus('grace')).toBe(true);
+    });
+
+    it('allows the paying statuses and refuses free/expired', () => {
+      for (const status of ['trial', 'active', 'paused', 'cancelled', 'canceled']) {
+        expect(canSpendSpStatus(status)).toBe(true);
+      }
+      expect(canSpendSpStatus('free')).toBe(false);
+      expect(canSpendSpStatus('expired')).toBe(false);
+    });
+  });
+
+  describe('buyerSubscriptionSnapshotStatus', () => {
+    it('records the CANONICAL grace spelling — the FIX-Task-53 item 1 defect', () => {
+      expect(buyerSubscriptionSnapshotStatus('grace_period')).toBe('grace_period');
+      // Defensive: the legacy alias must never be written into a trade row.
+      expect(buyerSubscriptionSnapshotStatus('grace')).toBe('grace_period');
+    });
+
+    it('preserves the historical narrowing for every other status', () => {
+      expect(buyerSubscriptionSnapshotStatus('active')).toBe('active');
+      expect(buyerSubscriptionSnapshotStatus('trial')).toBe('trial');
+      // Unchanged from before this fix — only grace gained a value.
+      expect(buyerSubscriptionSnapshotStatus('paused')).toBe('free');
+      expect(buyerSubscriptionSnapshotStatus('cancelled')).toBe('free');
+      expect(buyerSubscriptionSnapshotStatus('free')).toBe('free');
+      expect(buyerSubscriptionSnapshotStatus(undefined)).toBe('free');
+    });
   });
 });

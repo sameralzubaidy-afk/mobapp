@@ -648,6 +648,22 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
   - **R6 correction (2026-09-16, FIX-Task-37 item 4):** this expected result previously read *"Your SP wallet will be frozen if you don't re-subscribe"*. That is the **stale pre-R6** model. During grace the wallet stays **SPENDABLE** — the user keeps spending existing SP and stops **EARNING** new SP; it is frozen only when the grace window **ENDS**. Assert the live banner copy on the device rather than this note, and cross-reference **SUB-TC-I05** (the wallet-state view of the same rule).
   - **FIX-Task-50 item 1 (2026-09-17) — the app contradicted ITSELF here.** The live banner still claimed *"Your Swap Points are frozen"* while the SP Wallet screen (same user, same build, same session) said the points were spendable. The wrong copy was swept app-wide: the Manage grace **and** cancelled branches, `SubscriptionBanner`, `SubscriptionStatusCard`, the cancellation notification (client **and** the `stripe-webhook-subscriptions` writer) and the SP Wallet grace banner now all state the R6 rule. **Cross-screen assertion:** Manage Kids Club+ and the SP Wallet screen must not contradict each other for the same user.
 
+**Second leg — the promised spend must actually be OFFERED (FIX-Task-53 item 1, 2026-09-17):**
+
+**Setup:**
+- As **test-grace**, give the wallet SP: `npm run qa:set-sp-balance -- --persona test-grace --amount 20 --state preserve` (`--state preserve` is required — it keeps the `grace_period` wallet state, which is the whole point of the case).
+- Give the persona a saved card: `npm run qa:ensure-cards -- --persona test-grace`. An offer **always** has a cash portion here, because `fn_item_effective_sp_cap` caps SP at 40–70% of the item price — there is no cash-0 bypass.
+
+**Steps:**
+1. Open an item whose seller **accepts Swap Points** and tap to make an offer.
+2. Enter an SP amount, then send the offer and accept the disclaimer.
+
+**Expected Result:**
+- The **`ADD SP OFFER` input renders** (`sp-amount-input`) with `Max: {n} SP ({pct}% of price)`. The server already allows the spend (`fn_get_sp_entitlement` → `can_spend_sp = true` during grace), so the client MUST offer it.
+- The **"Join Kids Club+" upsell card is ABSENT** (`subscribe-upsell-card`). A paying member in grace must not be sold a subscription they already have — and certainly not directly beneath a banner telling them they can keep spending Swap Points.
+- The offer succeeds and `trades.sp_amount > 0` with a matching SP reservation is visible in the DB (a UI success alone is not proof — verify the row).
+- 🔴 **Regression context:** `TradeOfferScreen`'s subscriber check listed `'active' | 'trial' | 'grace'` and **omitted `'grace_period'`**. Once FIX-Task-51 normalized the last legacy-spelled row, that check matched **ZERO** real grace users — the SP control disappeared and `!isSubscriber` rendered the upsell instead, leaving a promised feature completely unusable (QA SUB Android Round 8, MED-HIGH). Fixed by the shared predicates in `src/services/subscriptionStatus.ts`; pinned by a unit test in `TradeOfferScreen.test.tsx`.
+
 ---
 
 ### SUB-TC-D02 · Re-subscribe from grace period — 🔴 RETIRED (web-first)
@@ -786,6 +802,7 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 **Expected Result:**
 - Shows a status badge, Stripe customer & subscription IDs, billing period start/end + days remaining, next billing date, auto-renew flag, payment-failure retry count (max 3 before grace), grace-period info (if any) with the SP-freeze warning, trial end date, and last-updated timestamp.
 - Loading, error (with Retry), and "No subscription record found" states render appropriately.
+- **Cancellation card (FIX-Task-53 item 11, 2026-09-17):** a settlement is stamped the moment the seller cancels, but access continues to the period end. When the row has `cancelled_at` **and** a `current_period_end` still in the **future** **and** the status is still live (`active` / `trial` / `cancelled`), the row label reads **`Cancelled At (historical)`** — not the bare `Cancelled At`, which read as a live contradiction beside an active status and a future renewal date. Otherwise it stays `Cancelled At`.
 
 ---
 
@@ -957,7 +974,9 @@ Evidence for the retirement is in-source, not just editorial: `AppNavigator.tsx`
 - The success alert names what actually happened (FIX-Task-52 item 1, 2026-09-17 — the alert used to say "Stripe account created!" even when the flow idempotently reused an existing account):
   - a **newly created** Connect account → "Stripe account created! You will now be redirected to complete your onboarding."
   - an **existing, already-verified** account reused → "This payout account is already connected and verified. You will now be redirected to Stripe."
-  - an **existing account whose onboarding is still incomplete** → "This payout account is already connected. You will now be redirected to continue your onboarding."
+  - an **existing account whose onboarding is still incomplete** → "This payout account is already connected. You will now be redirected to continue your onboarding." When the seller reached this from a **resume** (the method card's **Continue Onboarding**, or the withdraw guard's **Continue Onboarding**), the alert appends `\n\nNote: You may need to re-verify your phone number before continuing.` — assert the first sentence, then the note.
+
+> 🔧 **Corrected 2026-09-17 (FIX-Task-53 item 4).** The third bullet above was **unreachable** after FIX-Task-52: the code tested `resumingOnboarding` FIRST, and that flag is true for exactly the "existing account, onboarding still incomplete" state — so it always won and the documented string could never render for its own case (QA SUB Android Round 8, finding F4). `result.created` is now tested first (branch order pinned by `src/utils/__tests__/payoutConnectCopy.test.ts`), so all three bullets are reachable. Assert them by their **first sentence** — the resume path appends the phone note.
 
 > ⚠️ **Doc-drift corrected 2026-09-17 (QA SUB Android Round 7, F2).** This case previously said to tap **[Add Payout Method]**. That string is the **modal title** and the **NoMethodModal button** — it is NOT the entry-point CTA on Payout Settings. The live CTAs are **`+ Add Bank Account`** / **`+ Add Another Method`** (see the steps above).
 >
@@ -1110,6 +1129,13 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 **Expected Result:**
 - Modal **Payment Method Required** shows `To withdraw your earnings, you need to add and verify a payout method first.` with **Add Payout Method** (opens the add flow) and **Cancel**.
 
+**Variant — an UNVERIFIED method already exists (FIX-Task-53 item 5, 2026-09-17; asserted by `PayoutSettingsScreen.test.tsx`):**
+1. As a seller with a Stripe Connect method whose onboarding is still incomplete (no primary method), tap **Withdraw Now**.
+
+**Expected Result:**
+- The modal does **NOT** say "you need to add and verify a payout method first" and does **NOT** offer **Add Payout Method** — both told the seller to add something they already have, and the CTA would have created a **duplicate** method.
+- Title **Verify Your Payout Method**; body `To withdraw your earnings, finish setting up your payout method first.`; CTA **Continue Onboarding** (routes to `handleContinueOnboarding` for the existing method, minting a fresh hosted-onboarding link); **Cancel** unchanged. Title/`Payment Method Required`-body/`Add Payout Method` must all be **absent**.
+
 ---
 
 ## Group H — Withdraw (Payout Settings — live surface)
@@ -1184,6 +1210,7 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 **Expected Result:**
 - NoMethodModal **Payment Method Required** opens — "To withdraw your earnings, you need to add and verify a payout method first."
 - **Add Payout Method** opens the add flow; **Cancel** dismisses; no payout is created.
+- **If the seller already HAS a method that still needs onboarding** (no primary/verified method), the guard switches to **Verify Your Payout Method** / "To withdraw your earnings, finish setting up your payout method first." with a **Continue Onboarding** CTA instead — see the variant under **SUB-TC-G11** (FIX-Task-53 item 5). Assert the correct branch for the fixture you actually drove.
 
 ---
 

@@ -13,6 +13,7 @@ import { Crown, CrownSimple, CheckCircle } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getSubscriptionPrice, getTrialDays, isTrialEnabled } from '@/services/adminConfig';
 import { captureException } from '@/services/errorReporter';
+import { isGraceStatus } from '@/services/subscriptionStatus';
 import {
   TIER_COMPARISON_ROWS,
   TIER_ID_FREE,
@@ -72,7 +73,15 @@ export default function UpgradePlanScreen() {
     loadConfig();
   }, []);
 
-  const isSubscriber = subscription?.status === 'active' || subscription?.status === 'trial';
+  // FIX-Task-53 item 3 (2026-09-17): grace keeps Kids Club+ membership benefits
+  // (DEV-TASK-66 / R6), so a grace member must not be shown as being on the Free
+  // plan. Legacy 'grace' alias tolerated via isGraceStatus (BP-76).
+  // NOTE: paused/cancelled are deliberately unchanged — whether they should also
+  // read as "Current Plan: Kids Club+" is a product question, not this fix.
+  const isSubscriber =
+    subscription?.status === 'active' ||
+    subscription?.status === 'trial' ||
+    isGraceStatus(subscription?.status);
   const currentPlanId = isSubscriber ? TIER_ID_KIDS_CLUB_PLUS : TIER_ID_FREE;
 
   const freeFeatures: PlanFeature[] = TIER_COMPARISON_ROWS.filter(

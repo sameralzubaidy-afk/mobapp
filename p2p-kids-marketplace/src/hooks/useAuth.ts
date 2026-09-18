@@ -3,6 +3,7 @@
 
 import { useContext } from 'react';
 import { AuthContext, AuthContextType } from '../contexts/AuthContext';
+import { isGraceStatus } from '../services/subscriptionStatus';
 
 /**
  * AUTH-V2-003: useAuth Hook
@@ -60,8 +61,12 @@ export const useSubscriptionStatus = () => {
   return {
     status: session?.subscription_status ?? 'free',
     canSpendSP: session?.can_spend_sp ?? false,
+    // FIX-Task-53 item 3 (2026-09-17): accept BOTH grace spellings. This checked the
+    // legacy 'grace' alias only, so once FIX-Task-51 normalized the last legacy row
+    // it could never be true for a real grace user.
     isTrialExpired:
-      session?.subscription_status === 'free' || session?.subscription_status === 'grace',
+      session?.subscription_status === 'free' ||
+      isGraceStatus(session?.subscription_status),
   };
 };
 

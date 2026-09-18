@@ -3,6 +3,14 @@
  * TASK TRADE-V2-002: Initiate Trade with Subscription & SP Context
  * Updated: ADMIN-V3-007 - Enforce category-specific SP spending cap
  *
+ * ⚠️ ORPHAN SCREEN (verified 2026-09-17, FIX-Task-53 item 2) — nothing imports this
+ * file. `AppNavigator.tsx` imports `TradeOfferScreen` and registers it for the
+ * `TradeInitiation` route, so THIS screen is unreachable dead code. The grace/fee
+ * literal fixes below were applied only for consistency with `TradeOfferScreen` so
+ * the two copies cannot disagree if this file is ever revived; they change no
+ * shipped behaviour. Recommended follow-up: a separate cleanup task to delete it
+ * (kept out of this fix to keep the diff reviewable and reversible).
+ *
  * UI for initiating a trade:
  * - Shows item summary
  * - Shows SP wallet balance
@@ -40,6 +48,11 @@ import { captureException } from '@/services/errorReporter';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import {
+  isSubscriberStatus,
+  isFeeActiveMemberStatus,
+  buyerSubscriptionSnapshotStatus,
+} from '@/services/subscriptionStatus';
 import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
@@ -323,15 +336,13 @@ export default function TradeInitiationScreen() {
   }
 
   // Business Rules using standardized hooks
-  // DEV-TASK-66 item 1: canonical grace literal is 'grace_period' (BP-76) —
-  // keep 'grace' as a legacy alias so both real and legacy rows match.
-  const isSubscriber =
-    subStatus.status === 'active' ||
-    subStatus.status === 'trial' ||
-    subStatus.status === 'grace' ||
-    subStatus.status === 'grace_period';
+  // FIX-Task-53 item 3 (2026-09-17): shared predicate — both grace spellings (BP-76).
+  const isSubscriber = isSubscriberStatus(subStatus.status);
   // R1: server-resolved tiered fee for display + request (legacy fallback only).
-  const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
+  // FIX-Task-53 item 3: the fallback follows the fee engine's declared tier, not the
+  // membership flag (see the discrepancy note on `isFeeActiveMemberStatus`).
+  const platformFeeCents =
+    buyerFeeInfo?.feeCents ?? (isFeeActiveMemberStatus(subStatus.status) ? 99 : 299);
   const itemPriceCents = Math.round(item.price * 100);
 
   // V2: 1 SP = $1.00 (100 cents)
@@ -430,12 +441,9 @@ export default function TradeInitiationScreen() {
       }
 
       // ── 2. TFV2-012A (D-30): Atomic offer creation with Stripe pre-auth ──
-      const subscriptionStatus =
-        subStatus.status === 'active' ||
-        subStatus.status === 'trial' ||
-        subStatus.status === 'grace'
-          ? subStatus.status
-          : 'free';
+      // FIX-Task-53 item 2 (2026-09-17): the snapshot helper accepts BOTH grace
+      // spellings and always records the canonical one.
+      const subscriptionStatus = buyerSubscriptionSnapshotStatus(subStatus.status);
 
       const offerResult = await createTradeOfferWithHold({
         item_id: item.id,

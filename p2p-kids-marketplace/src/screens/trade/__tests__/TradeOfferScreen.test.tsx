@@ -201,6 +201,61 @@ describe('TradeOfferScreen', () => {
     });
   });
 
+  /**
+   * FIX-Task-53 item 1 (2026-09-17) — the grace-period REGRESSION.
+   *
+   * This screen's subscriber check listed 'active' | 'trial' | 'grace' but omitted
+   * 'grace_period'. Once FIX-Task-51 normalized the last legacy 'grace' row, the
+   * check matched ZERO real grace users: the SP control disappeared and the
+   * "Join Kids Club+" upsell rendered instead — directly beneath the screen's own
+   * banner telling the user they can keep spending Swap Points. The server still
+   * allows the spend, so the client simply offered no way to make it.
+   */
+  it('shows the SP input for a GRACE-PERIOD subscriber and suppresses the upsell', async () => {
+    mockUseAuth.mockReturnValue({
+      session: {
+        user: { id: 'buyer-123', email: 'buyer@test.com' },
+        wallet_state: 'grace_period',
+      },
+      refreshSession: jest.fn().mockResolvedValue(undefined),
+    });
+    mockUseSubscriptionStatus.mockReturnValue({
+      status: 'grace_period',
+      canSpendSP: true,
+      isTrialExpired: false,
+    });
+
+    const { getByTestId, queryByTestId } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('sp-amount-input')).toBeTruthy();
+    });
+    // Item 9: a paying member in grace must not be sold "Join Kids Club+".
+    expect(queryByTestId('subscribe-upsell-card')).toBeNull();
+  });
+
+  it('still accepts the legacy grace spelling (defensive, BP-76)', async () => {
+    mockUseAuth.mockReturnValue({
+      session: {
+        user: { id: 'buyer-123', email: 'buyer@test.com' },
+        wallet_state: 'grace_period',
+      },
+      refreshSession: jest.fn().mockResolvedValue(undefined),
+    });
+    mockUseSubscriptionStatus.mockReturnValue({
+      status: 'grace',
+      canSpendSP: true,
+      isTrialExpired: false,
+    });
+
+    const { getByTestId, queryByTestId } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('sp-amount-input')).toBeTruthy();
+    });
+    expect(queryByTestId('subscribe-upsell-card')).toBeNull();
+  });
+
   it('hides SP input for free users', async () => {
     mockUseSubscriptionStatus.mockReturnValue({
       status: 'free',

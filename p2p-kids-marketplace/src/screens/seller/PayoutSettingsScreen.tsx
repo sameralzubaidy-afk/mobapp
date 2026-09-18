@@ -75,6 +75,7 @@ import {
 import ScreenLayout from '@/components/ScreenLayout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 import { getFriendlyPayoutFailureReason } from '@/utils/payoutFailureCopy';
+import { getConnectRedirectMessage } from '@/utils/payoutConnectCopy';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -562,6 +563,38 @@ export default function PayoutSettingsScreen() {
     }
   };
 
+  /**
+   * FIX-Task-53 items 5 + 10 (2026-09-17): the seller's Stripe Connect method whose
+   * hosted onboarding is still incomplete — i.e. the method that needs RESUMING, not
+   * replacing. Defined once so the withdraw guard's copy, the Add-Method modal's
+   * phone hint and the resume entry point cannot disagree.
+   */
+  const findIncompleteOnboardingMethod = () =>
+    methods.find(
+      (m) =>
+        m.method_type === 'stripe_connect' &&
+        !!m.stripe_account_id &&
+        !m.stripe_onboarding_complete
+    );
+
+  /**
+   * FIX-Task-53 items 5 + 10 (2026-09-17): ONE resume-or-add entry point.
+   *
+   * A seller who already has a method must never be pushed into the Add Payout
+   * Method flow — that mints a DUPLICATE method. The withdraw guard and a
+   * `requires_action` payout row both used to do exactly that. Both now funnel here:
+   * resume the existing method's hosted onboarding when there is one, and only fall
+   * back to the add flow when there is genuinely nothing to resume.
+   */
+  const resumeOrAddPayoutMethod = () => {
+    const incomplete = findIncompleteOnboardingMethod();
+    if (incomplete) {
+      void handleContinueOnboarding(incomplete);
+      return;
+    }
+    setShowAddMethodModal(true);
+  };
+
   const handleCloseAddMethod = (shouldRefresh: boolean = false) => {
     setShowAddMethodModal(false);
     if (shouldRefresh) {
@@ -734,6 +767,9 @@ export default function PayoutSettingsScreen() {
 
   const primaryMethod = methods.find((m) => m.id === primaryMethodId);
   const _primaryDisplay = primaryMethod ? formatPayoutMethodDisplay(primaryMethod) : null;
+  // FIX-Task-53 items 5 + 10 (2026-09-17): shared with the Add-Method modal's phone
+  // hint, so the guard's copy and the modal's behaviour can never disagree.
+  const hasIncompleteOnboardingMethod = !!findIncompleteOnboardingMethod();
 
   return (
     <ScreenLayout variant="detail" title="Payout Settings" onBack={_handleBackPress}>
@@ -1116,7 +1152,7 @@ export default function PayoutSettingsScreen() {
               <PayoutHistoryCard
                 key={payout.id}
                 payout={payout}
-                onSetUpPayoutMethod={handleAddMethod}
+                onSetUpPayoutMethod={resumeOrAddPayoutMethod}
               />
             ))}
             {/* FIX-Task-47 item 3 (2026-09-16): gated on `hasMorePayouts`. It used to
@@ -1195,7 +1231,9 @@ export default function PayoutSettingsScreen() {
               }
 
               // Only method guard — DT-121 (item 3): offer a path forward so the
-              // seller isn't left at a dead end (opens the Add Payout Method modal).
+              // seller isn't left at a dead end. FIX-Task-53 item 10 (2026-09-17):
+              // funnelled through resume-or-add, so an incomplete method is RESUMED
+              // instead of inviting a duplicate.
               if (methods.length <= 1) {
                 Alert.alert(
                   'Cannot Delete Only Method',
@@ -1204,7 +1242,7 @@ export default function PayoutSettingsScreen() {
                     { text: 'Cancel', style: 'cancel' },
                     {
                       text: 'Add a method',
-                      onPress: () => setShowAddMethodModal(true),
+                      onPress: resumeOrAddPayoutMethod,
                     },
                   ]
                 );
@@ -1251,9 +1289,10 @@ export default function PayoutSettingsScreen() {
       {showNoMethodModal && (
         <NoMethodModal
           onClose={() => setShowNoMethodModal(false)}
-          onAddMethod={() => {
+          unverifiedMethod={hasIncompleteOnboardingMethod}
+          onPrimaryAction={() => {
             setShowNoMethodModal(false);
-            setShowAddMethodModal(true);
+            resumeOrAddPayoutMethod();
           }}
         />
       )}
@@ -1261,12 +1300,7 @@ export default function PayoutSettingsScreen() {
         <AddPayoutMethodModal
           onClose={handleCloseAddMethod}
           payoutFeeSummary={payoutFeeSummary}
-          resumingOnboarding={methods.some(
-            (m) =>
-              m.method_type === 'stripe_connect' &&
-              !!m.stripe_account_id &&
-              !m.stripe_onboarding_complete
-          )}
+          resumingOnboarding={hasIncompleteOnboardingMethod}
         />
       )}
       {showWithdrawModal && (
@@ -1372,28 +1406,50 @@ function PayoutHistoryCard({ payout, onSetUpPayoutMethod }: PayoutHistoryCardPro
 
 interface NoMethodModalProps {
   onClose: () => void;
-  onAddMethod: () => void;
+  /**
+   * FIX-Task-53 item 5 (2026-09-17): true when the seller ALREADY has a payout
+   * method that still needs onboarding. The guard used to tell them to "add and
+   * verify a payout method" and offer "Add Payout Method" — i.e. it told them to
+   * add something they already had, and the CTA would have minted a DUPLICATE.
+   */
+  unverifiedMethod?: boolean;
+  /** Runs the correct action for the current state (resume onboarding, or add). */
+  onPrimaryAction: () => void;
 }
 
-function NoMethodModal({ onClose, onAddMethod }: NoMethodModalProps) {
+function NoMethodModal({
+  onClose,
+  unverifiedMethod = false,
+  onPrimaryAction,
+}: NoMethodModalProps) {
   return (
     <View style={styles.modalOverlay}>
       <View style={styles.noMethodModalContent}>
         <Bank size={40} color="#5DBB8E" weight="fill" style={styles.noMethodIcon} />
-        <Text style={styles.noMethodTitle}>Payment Method Required</Text>
+        <Text style={styles.noMethodTitle}>
+          {unverifiedMethod ? 'Verify Your Payout Method' : 'Payment Method Required'}
+        </Text>
         <Text style={styles.noMethodMessage}>
-          To withdraw your earnings, you need to add and verify a payout method first.
+          {unverifiedMethod
+            ? 'To withdraw your earnings, finish setting up your payout method first.'
+            : 'To withdraw your earnings, you need to add and verify a payout method first.'}
         </Text>
         <TouchableOpacity
           style={styles.noMethodAddBtn}
-          onPress={onAddMethod}
+          onPress={onPrimaryAction}
           testID="no-method-add-btn"
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Add Payout Method"
+          accessibilityLabel={unverifiedMethod ? 'Continue Onboarding' : 'Add Payout Method'}
         >
-          <Plus size={18} color="#FFFFFF" />
-          <Text style={styles.noMethodAddBtnText}>Add Payout Method</Text>
+          {unverifiedMethod ? (
+            <Clock size={18} color="#FFFFFF" weight="bold" />
+          ) : (
+            <Plus size={18} color="#FFFFFF" />
+          )}
+          <Text style={styles.noMethodAddBtnText}>
+            {unverifiedMethod ? 'Continue Onboarding' : 'Add Payout Method'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.noMethodCancelBtn}
@@ -1603,31 +1659,18 @@ function AddPayoutMethodModal({
             // resumes in one tap instead of this full Add-Method flow).
             const { url } = await createStripeAccountLinkUrl(methodId);
 
-            // FIX-Task-52 item 1 (2026-09-17): this alert used to read
-            // "Stripe account created!" whenever `resumingOnboarding` was false —
-            // but the EF is idempotent, so a seller whose Connect account already
-            // existed got that copy even though NOTHING was created (QA F1: the
-            // provider still showed exactly one account and no new row). The EF
-            // now returns an explicit `created` flag plus the reused account's
-            // onboarding state, so each outcome gets truthful copy.
-            //   1. resuming a partially-complete hosted onboarding (DT-121 item 4)
-            //   2. reused an existing Connect account (created === false)
-            //   3. actually created a new account
-            // The reused case is split on `onboardingComplete` so the copy never
-            // over-claims "verified" for an account that has not finished
-            // onboarding — the same defect class being fixed here.
-            let successMessage: string;
-            if (resumingOnboarding) {
-              successMessage =
-                'You will now be redirected to continue your Stripe onboarding.\n\nNote: You may need to re-verify your phone number before continuing.';
-            } else if (result.created === false) {
-              successMessage = result.onboardingComplete
-                ? 'This payout account is already connected and verified. You will now be redirected to Stripe.'
-                : 'This payout account is already connected. You will now be redirected to continue your onboarding.';
-            } else {
-              successMessage =
-                'Stripe account created! You will now be redirected to complete your onboarding.';
-            }
+            // FIX-Task-52 item 1 (2026-09-17): the EF now returns an explicit
+            // `created` flag plus the reused account's onboarding state, so each
+            // outcome gets truthful copy instead of "Stripe account created!" for a
+            // reused account.
+            // FIX-Task-53 item 4 (2026-09-17): the branch ORDER and copy now live in
+            // `getConnectRedirectMessage`, which tests `result.created` FIRST — the
+            // previous inline order put `resumingOnboarding` at the top, but that flag
+            // is true for EXACTLY the "existing account, onboarding still incomplete"
+            // state, so it shadowed the documented reused-incomplete copy and that
+            // string could never render for its own case. The helper is unit-tested
+            // (the inline version had no test, which is why the ordering bug shipped).
+            const successMessage = getConnectRedirectMessage(result, resumingOnboarding);
 
             Alert.alert('Success', successMessage, [
                 {

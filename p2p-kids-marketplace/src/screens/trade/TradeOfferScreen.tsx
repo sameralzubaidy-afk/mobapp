@@ -46,6 +46,11 @@ import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/ser
 import { trackEvent } from '@/services/analytics';
 import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import {
+  isSubscriberStatus,
+  isFeeActiveMemberStatus,
+  buyerSubscriptionSnapshotStatus,
+} from '@/services/subscriptionStatus';
 import { useStripe } from '@stripe/stripe-react-native';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { supabase } from '@/config/supabase';
@@ -358,20 +363,19 @@ export default function TradeOfferScreen() {
   const handleInitiateTrade = async (policyId?: string) => {
     if (!item) return;
 
-    // DEV-TASK-66 item 1: canonical grace literal is 'grace_period' (BP-76) —
-    // keep 'grace' as a legacy alias so both real and legacy rows match.
-    const isSubscriber =
-      subStatus.status === 'active' ||
-      subStatus.status === 'trial' ||
-      subStatus.status === 'grace' ||
-      subStatus.status === 'grace_period';
-
+    // FIX-Task-53 item 3 (2026-09-17): the membership flag is no longer computed
+    // here — the fee fallback below follows the SERVER's fee tier instead.
     // Calculate cash amount (item price - SP discount + fee)
     const itemPriceCents = Math.round(item.price * 100);
     const spDiscountCents = spAmount * 100;
-    // R1: use the server-resolved fee (falls back to a legacy estimate for
-    // display only; the Edge Function recomputes authoritatively).
-    const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
+    // R1: server-resolved fee (fallback for display only; the Edge Function
+    // recomputes authoritatively). FIX-Task-53 item 3: the fallback is keyed to the
+    // fee engine's DECLARED tier (`isFeeActiveMemberStatus` = trial|active), NOT to
+    // the membership flag — membership benefits and the fee tier are different server
+    // rules. Behaviour-preserving for grace; see the discrepancy note on
+    // `isFeeActiveMemberStatus`.
+    const platformFeeCents =
+      buyerFeeInfo?.feeCents ?? (isFeeActiveMemberStatus(subStatus.status) ? 99 : 299);
     const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
 
     // ── Payment method validation ──────────────────────────────────────────
@@ -403,12 +407,12 @@ export default function TradeOfferScreen() {
       }
 
       // ── 2. TFV2-012A (D-30): Atomic offer creation with Stripe pre-auth ──
-      const subscriptionStatus =
-        subStatus.status === 'active' ||
-        subStatus.status === 'trial' ||
-        subStatus.status === 'grace'
-          ? subStatus.status
-          : 'free';
+      // FIX-Task-53 item 1 (2026-09-17): 'grace_period' was missing from this
+      // allow-list, so a grace buyer's trade was snapshotted 'free' while
+      // `trade-payment` records the raw status — two writers disagreeing about the
+      // same fact. The snapshot is informational: the server resolves the fee from
+      // the DB (DT-54 ignores the client fee) and `buyer_fee_state` carries the tier.
+      const subscriptionStatus = buyerSubscriptionSnapshotStatus(subStatus.status);
 
       // R9 — checkout event: user tapped Send Offer, checkout began.
       trackEvent('checkout_started', {
@@ -649,16 +653,24 @@ export default function TradeOfferScreen() {
     );
   }
 
-  const isSubscriber =
-    subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
+  // FIX-Task-53 item 1 (2026-09-17) — THE regression. This check listed
+  // 'active' | 'trial' | 'grace' but omitted 'grace_period', and once FIX-Task-51
+  // normalized the last legacy 'grace' row it matched ZERO real grace users. The
+  // SP-control branch below (and its `!isSubscriber` upsell sibling) therefore
+  // rendered "Join Kids Club+" instead of the SP input — directly under this
+  // screen's own banner telling the user they can keep spending Swap Points.
+  const isSubscriber = isSubscriberStatus(subStatus.status);
   const availableSp = walletStats.available;
   const maxSpToUse = Math.min(maxSpAllowed, availableSp);
   const spDiscountCents = spAmount * 100;
   const itemPriceCents = Math.round(item.price * 100);
   // Offer amount = item price minus SP (no fees shown on offer screen)
   const offerAmountCents = itemPriceCents - spDiscountCents;
-  // R1: server-resolved tiered fee for display (falls back to legacy estimate).
-  const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
+  // R1: server-resolved tiered fee for display. FIX-Task-53 item 3: the fallback is
+  // keyed to the fee engine's declared tier (`isFeeActiveMemberStatus` = trial|active),
+  // not to `isSubscriber` — membership benefits and the fee tier are different rules.
+  const platformFeeCents =
+    buyerFeeInfo?.feeCents ?? (isFeeActiveMemberStatus(subStatus.status) ? 99 : 299);
   const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
   const grandTotalCents = cashAmountCents + (tax.taxAmountCents || 0);
 

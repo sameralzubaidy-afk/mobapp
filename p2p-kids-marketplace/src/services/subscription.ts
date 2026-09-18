@@ -17,6 +17,19 @@ import {
 } from './devTestingService';
 import { isTransientNetworkError } from '../utils/userFacingError';
 import { withLoadTiming } from '../utils/loadTiming';
+import { isSubscriberStatus, isFeeActiveMemberStatus, canSpendSpStatus } from './subscriptionStatus';
+
+// FIX-Task-53 item 3 (2026-09-17): re-export the pure predicates so any importer
+// still reaching for them via this module keeps working. NEW code should import them
+// from './subscriptionStatus' directly — that module has no I/O, so it cannot be
+// turned into `undefined` by a `jest.mock('@/services/subscription')` auto-mock (BP-94).
+export {
+  isGraceStatus,
+  isSubscriberStatus,
+  isFeeActiveMemberStatus,
+  canSpendSpStatus,
+  buyerSubscriptionSnapshotStatus,
+} from './subscriptionStatus';
 
 /**
  * Subscription status enum (V2.1)
@@ -152,6 +165,18 @@ function normalizeSubscriptionStatus(rawStatus: unknown): SubscriptionStatus {
   return 'free';
 }
 
+/* ---------------------------------------------------------------------------
+ * FIX-Task-53 item 3 (2026-09-17): the canonical subscription-status predicates
+ * now live in `./subscriptionStatus` — a PURE, dependency-free module — and are
+ * re-exported below so existing importers keep working.
+ *
+ * They were moved OUT of this file because this module does I/O and is therefore
+ * auto-mocked in tests (`jest.mock('@/services/subscription')`), which turned the
+ * predicates into `jest.fn()` returning `undefined` and silently disabled the SP
+ * control for every status (BP-94). Pure render-time helpers must not sit behind an
+ * auto-mockable I/O module.
+ * ------------------------------------------------------------------------- */
+
 /**
  * FIX-Task-47 item 1 (2026-09-16): SINGLE SOURCE OF TRUTH for the "period end"
  * date rendered on subscription screens.
@@ -278,25 +303,10 @@ async function fetchSubscriptionSummary(userId: string): Promise<SubscriptionSum
     // DEV-TASK-66 item 1 (R6-consistent): grace users keep membership benefits
     // (member fee tier, badge, no "upgrade" prompts — ItemDetail/ReviewOffer/
     // spCalculator read this flag) and may SPEND but NOT earn.
-    const isSubscriber = [
-      'trial',
-      'active',
-      'paused',
-      'cancelled',
-      'canceled',
-      'grace',
-      'grace_period',
-    ].includes(status);
+    // FIX-Task-53 item 3 (2026-09-17): the literals now live in ONE predicate.
+    const isSubscriber = isSubscriberStatus(status);
     const canEarnSp = ['trial', 'active', 'paused', 'cancelled'].includes(status);
-    const canSpendSp = [
-      'trial',
-      'active',
-      'paused',
-      'cancelled',
-      'canceled',
-      'grace',
-      'grace_period',
-    ].includes(status);
+    const canSpendSp = canSpendSpStatus(status);
 
     // Transaction fee: Read dynamically from admin_config via RPC (V2.1 enhancement)
     // This allows admins to adjust fees without code changes
@@ -307,9 +317,14 @@ async function fetchSubscriptionSummary(userId: string): Promise<SubscriptionSum
         getTransactionFee(userId)
       );
     } catch (err) {
-      // If dynamic fee fetch fails, use fallback based on subscriber status
+      // If dynamic fee fetch fails, use the fallback for the SERVER's declared fee
+      // tier — FIX-Task-53 item 3: keyed to `isFeeActiveMemberStatus` (trial|active),
+      // NOT to `isSubscriber`. Membership benefits and the fee tier are different
+      // server rules. NOTE: this is behaviour-preserving for grace (299 before and
+      // after the fix) and the live fee resolver may in fact treat grace as a member
+      // — see the flagged discrepancy on `isFeeActiveMemberStatus`.
       console.warn('[subscription] ⚠️ Failed to fetch dynamic fee, using fallback:', err);
-      transactionFeeCents = isSubscriber ? 99 : 299;
+      transactionFeeCents = isFeeActiveMemberStatus(status) ? 99 : 299;
     }
 
     // Determine expiration date based on status

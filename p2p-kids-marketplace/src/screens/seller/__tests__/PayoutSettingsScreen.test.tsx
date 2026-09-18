@@ -21,7 +21,11 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import PayoutSettingsScreen from '../PayoutSettingsScreen';
-import { listPayoutMethods, checkPayoutEligibility } from '@/services/payoutMethods';
+import {
+  listPayoutMethods,
+  checkPayoutEligibility,
+  createStripeAccountLinkUrl,
+} from '@/services/payoutMethods';
 import {
   getSellerBalance,
   getRecentPayouts,
@@ -89,6 +93,15 @@ jest.mock('@/services/sellerBalance', () => ({
 }));
 
 jest.mock('@/services/payoutRouter', () => ({ getAdminPayoutConfig: jest.fn() }));
+
+// FIX-Task-53 item 10: the resume path opens the hosted-onboarding URL, so Linking
+// must be drivable rather than hitting an unimplemented native module.
+jest.mock('react-native/Libraries/Linking/Linking', () => ({
+  canOpenURL: jest.fn(async () => true),
+  openURL: jest.fn(async () => undefined),
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+  getInitialURL: jest.fn(async () => null),
+}));
 
 jest.mock('@/components/ui', () => ({ LoadingSpinner: () => null }));
 jest.mock('@/components/ScreenLayout', () => {
@@ -303,6 +316,97 @@ describe('PayoutSettingsScreen — FIX-Task-46', () => {
     expect(getByTestId('balance-pending').props.children).toBe('$1177.60');
     expect(getByTestId('balance-lifetime').props.children).toBe('$2087.00');
     expect(queryByTestId('no-balance-hint')).toBeNull();
+  });
+
+  // ── FIX-Task-53 items 5 + 10 (2026-09-17) ─────────────────────────────────────
+  // The withdraw guard had ONE copy branch, so a seller who already had a method
+  // still needs onboarding was told to "add and verify a payout method" and offered
+  // an "Add Payout Method" CTA — i.e. told to add what they already had, with a CTA
+  // that would mint a DUPLICATE method.
+
+  const FUNDED_BALANCE = { ...ZERO_BALANCE, available_balance_cents: 5000 };
+
+  const incompleteStripeMethod = {
+    id: 'method-incomplete',
+    user_id: 'seller-1',
+    method_type: 'stripe_connect',
+    is_primary: false,
+    is_verified: false,
+    stripe_account_id: 'acct_****0000',
+    stripe_onboarding_complete: false,
+    display_name: null,
+    paypal_email: null,
+    venmo_handle: null,
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-01T00:00:00.000Z',
+  };
+
+  it('item 5: with an unverified method the guard asks the seller to VERIFY, not to add', async () => {
+    (getSellerBalance as jest.Mock).mockResolvedValue(FUNDED_BALANCE);
+    (listPayoutMethods as jest.Mock).mockResolvedValue({
+      methods: [incompleteStripeMethod],
+      primary_method: null,
+      has_verified_method: false,
+    });
+
+    const { getByTestId, getByText, queryByText } = render(<PayoutSettingsScreen />);
+
+    await waitFor(() => expect(getByTestId('request-payout-btn')).toBeTruthy());
+    fireEvent.press(getByTestId('request-payout-btn'));
+
+    await waitFor(() => expect(getByText('Verify Your Payout Method')).toBeTruthy());
+    expect(
+      getByText('To withdraw your earnings, finish setting up your payout method first.')
+    ).toBeTruthy();
+    // Assert on the MODAL's own CTA: the screen legitimately renders a method-card
+    // "Continue Onboarding" for the same method, so a bare text query is ambiguous.
+    expect(getByTestId('no-method-add-btn').props.accessibilityLabel).toBe('Continue Onboarding');
+    // The old copy must be gone — it named something the seller already has.
+    expect(queryByText('Payment Method Required')).toBeNull();
+    expect(queryByText('Add Payout Method')).toBeNull();
+  });
+
+  it('item 5: with NO method at all the guard keeps the original add copy', async () => {
+    (getSellerBalance as jest.Mock).mockResolvedValue(FUNDED_BALANCE);
+    (listPayoutMethods as jest.Mock).mockResolvedValue({
+      methods: [],
+      primary_method: null,
+      has_verified_method: false,
+    });
+
+    const { getByTestId, getByText } = render(<PayoutSettingsScreen />);
+
+    await waitFor(() => expect(getByTestId('request-payout-btn')).toBeTruthy());
+    fireEvent.press(getByTestId('request-payout-btn'));
+
+    await waitFor(() => expect(getByText('Payment Method Required')).toBeTruthy());
+    expect(
+      getByText('To withdraw your earnings, you need to add and verify a payout method first.')
+    ).toBeTruthy();
+    expect(getByText('Add Payout Method')).toBeTruthy();
+  });
+
+  it('item 10: the guard CTA RESUMES the existing onboarding instead of opening the add flow', async () => {
+    (getSellerBalance as jest.Mock).mockResolvedValue(FUNDED_BALANCE);
+    (listPayoutMethods as jest.Mock).mockResolvedValue({
+      methods: [incompleteStripeMethod],
+      primary_method: null,
+      has_verified_method: false,
+    });
+
+    const { getByTestId, getByText, queryByText } = render(<PayoutSettingsScreen />);
+
+    await waitFor(() => expect(getByTestId('request-payout-btn')).toBeTruthy());
+    fireEvent.press(getByTestId('request-payout-btn'));
+    await waitFor(() => expect(getByText('Verify Your Payout Method')).toBeTruthy());
+    fireEvent.press(getByTestId('no-method-add-btn'));
+
+    // Resuming mints a fresh hosted-onboarding link for the EXISTING method...
+    await waitFor(() =>
+      expect(createStripeAccountLinkUrl).toHaveBeenCalledWith('method-incomplete')
+    );
+    // ...and never opens the Add Payout Method modal (which would create a duplicate).
+    expect(queryByText('Add Payout Method')).toBeNull();
   });
 
   // ── FIX-Task-47 items 3 + 11: Load More must disappear on the last page ──────

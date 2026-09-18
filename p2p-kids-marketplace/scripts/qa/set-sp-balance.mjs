@@ -269,15 +269,23 @@ async function main() {
     console.error(`⚠️  Read-back failed: ${verifyError?.message ?? 'no wallet row'}`);
     process.exit(1);
   }
+  // FIX-Task-53 item 6 (2026-09-17): the wallet `state` is PRESERVED by default
+  // (FIX-Task-52 item 7c), so comparing the read-back against a hardcoded 'active'
+  // printed `❌ VERIFY FAILED` on a fully successful, DB-correct update — reproduced
+  // in BOTH directions against a `grace_period` wallet. A tool that reports a false
+  // failure invites a future QA session to abandon a perfectly good fixture.
+  // Compare against the state we actually asked for: the explicit `--state`, else the
+  // wallet's prior state (preserved), else 'active' for a brand-new wallet.
+  const expectedState = stateToSet ?? wallet?.state ?? 'active';
   const ok =
     verifyWallet.available_balance === amount &&
     verifyWallet.pending_balance === 0 &&
     verifyWallet.reserved_sp === 0 &&
-    verifyWallet.state === 'active';
+    verifyWallet.state === expectedState;
   log(
     ok
       ? `✅ VERIFIED: available=${verifyWallet.available_balance} pending=${verifyWallet.pending_balance} reserved=${verifyWallet.reserved_sp} state=${verifyWallet.state}`
-      : '❌ VERIFY FAILED: read-back does not match the requested state'
+      : `❌ VERIFY FAILED: read-back does not match the requested state (expected available=${amount}, pending=0, reserved=0, state=${expectedState})`
   );
   if (!ok) process.exit(1);
 

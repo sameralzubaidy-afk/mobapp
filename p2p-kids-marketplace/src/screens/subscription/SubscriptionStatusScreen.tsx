@@ -20,6 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { isGraceStatus } from '@/services/subscriptionStatus';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -68,7 +69,7 @@ function getNextChange(info: SubscriptionInfo): { label: string; value: string }
     return { label: 'Renews On', value: formatDate(info.current_period_end) };
   }
 
-  if ((info.status === 'grace_period' || info.status === 'grace') && info.grace_ends_at) {
+  if (isGraceStatus(info.status) && info.grace_ends_at) {
     return { label: 'Grace Ends', value: formatDate(info.grace_ends_at) };
   }
 
@@ -177,11 +178,25 @@ export default function SubscriptionStatusScreen() {
     );
   }
 
-  const isGracePeriod = info.status === 'grace_period' || info.status === 'grace';
+  const isGracePeriod = isGraceStatus(info.status);
   const hasPaymentFailed = info.payment_retry_count > 0;
   const nextChange = getNextChange(info);
   const isFreeOrCancelled =
     info.status === 'free' || info.status === 'cancelled' || info.status === 'canceled';
+  // FIX-Task-53 item 11 (2026-09-17): `cancelled_at` is stamped the moment the user
+  // cancels, but the subscription stays LIVE until the period ends. Rendered beside
+  // an active status and a future period end, a bare "Cancelled At" reads as a live
+  // contradiction ("cancelled" yet still renewing). Label it as the historical fact
+  // it is whenever access has not actually ended yet.
+  const cancellationIsHistorical =
+    !!info.cancelled_at &&
+    !!info.current_period_end &&
+    new Date(info.current_period_end).getTime() > Date.now() &&
+    (info.status === 'active' ||
+      info.status === 'trial' ||
+      info.status === 'cancelled' ||
+      info.status === 'canceled' ||
+      isGracePeriod);
 
   return (
     <ScreenLayout variant="detail" title="Subscription Status">
@@ -255,7 +270,10 @@ export default function SubscriptionStatusScreen() {
         {info.cancelled_at && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Cancellation</Text>
-            <Row label="Cancelled At" value={formatDate(info.cancelled_at)} />
+            <Row
+              label={cancellationIsHistorical ? 'Cancelled At (historical)' : 'Cancelled At'}
+              value={formatDate(info.cancelled_at)}
+            />
           </View>
         )}
 

@@ -65,6 +65,7 @@ import { supabase } from '@/config/supabase';
 import { getBuyerSpBalance } from '@/services/spWalletService';
 import { calculateCategorySP, getItemEffectiveSpCap } from '@/services/categoryService';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import { isSubscriberStatus } from '@/services/subscriptionStatus';
 import { Modal } from '@/components/ui/Modal';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
@@ -97,10 +98,9 @@ export default function CartCheckoutScreen() {
   // badge could stay stale until the Basket screen mounted or the app was
   // foregrounded. Refresh the count explicitly on success (BP-36).
   const { refreshCartCount } = useCartContext();
-  // DEV-TASK-66 item 1: grace users keep the member fee tier (R6-consistent).
-  // Canonical grace literal is 'grace_period' (BP-76); keep 'grace' as legacy alias.
-  const isSubscriber =
-    status === 'active' || status === 'trial' || status === 'grace' || status === 'grace_period';
+  // DEV-TASK-66 item 1: grace users keep membership benefits (R6-consistent).
+  // FIX-Task-53 item 3 (2026-09-17): shared predicate — ONE canonical list (BP-76).
+  const isSubscriber = isSubscriberStatus(status);
 
   const {
     setupPaymentSheet,

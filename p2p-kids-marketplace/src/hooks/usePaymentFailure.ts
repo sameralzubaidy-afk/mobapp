@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSubscription } from './useSubscription';
 import { SubscriptionSummary } from '@/services/subscription';
+import { isGraceStatus } from '@/services/subscriptionStatus';
 
 export interface PaymentFailureInfo {
   hasFailure: boolean;
@@ -50,7 +51,6 @@ export function usePaymentFailure(options?: UsePaymentFailureOptions): UsePaymen
     const retryCount = effectiveSubscription?.payment_retry_count ?? 0;
     const failedAt = effectiveSubscription?.payment_failed_at ?? null;
     const subscriptionStatus = effectiveSubscription?.status ?? 'free';
-    const isGraceStatus = subscriptionStatus === 'grace' || subscriptionStatus === 'grace_period';
     const hasFailure = retryCount > 0;
 
     // Check if failure is recent (within 24 hours)
@@ -79,7 +79,7 @@ export function usePaymentFailure(options?: UsePaymentFailureOptions): UsePaymen
 
     if (!hasFailure) {
       message = '';
-    } else if (isMaxRetriesReached && isGraceStatus) {
+    } else if (isMaxRetriesReached && isGraceStatus(subscriptionStatus)) {
       message = 'Your Kids Club+ access has been paused. Re-subscribe to restore Swap Points.';
       urgencyLevel = 'high';
     } else if (isMaxRetriesReached) {

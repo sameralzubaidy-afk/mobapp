@@ -45,6 +45,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { BadgeShowcase } from '@/components/BadgeShowcase';
 import { idBadgeService } from '@/services/idBadge';
 import { getTrialStatus, TrialStatus } from '@/services/subscriptions/trialConversion';
+import { isSubscriberStatus, isGraceStatus } from '@/services/subscriptionStatus';
 import { getUserReviews, getReviewStats, Review, ReviewStats } from '@/services/review';
 import { ReviewCard } from '@/components/ReviewCard';
 import { StarRating } from '@/components/StarRating';
@@ -401,16 +402,10 @@ export default function ProfileScreen({ route }: any) {
   // the same subscriber-status set DT-66's is_subscriber uses (trial / active /
   // paused / cancelled / grace / grace_period).
   const promoStatus = trialStatus?.status;
-  const isPromoMember = [
-    'trial',
-    'active',
-    'paused',
-    'cancelled',
-    'canceled',
-    'grace',
-    'grace_period',
-  ].includes(promoStatus ?? '');
-  const isPromoGrace = promoStatus === 'grace' || promoStatus === 'grace_period';
+  // FIX-Task-53 item 3 (2026-09-17): both predicates come from the single source of
+  // truth (BP-76). This set must equal DT-66's `is_subscriber`.
+  const isPromoMember = isSubscriberStatus(promoStatus);
+  const isPromoGrace = isGraceStatus(promoStatus);
 
   if (loading) {
     return (
