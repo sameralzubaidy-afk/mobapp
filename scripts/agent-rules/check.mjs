@@ -80,6 +80,14 @@ const dups = [...bodyDefs].filter(([, v]) => v.length > 1);
 for (const [id, v] of dups) add('FAIL', `BP-${id} has ${v.length} body definitions (${v.join(', ')})`);
 if (!dups.length) add('PASS', `BP ids: ${bodyDefs.size} full-text rules, no duplicate definitions`);
 
+// 4b. every BP rule with a body has a one-line entry in docs/agent-ref/bp-index.md
+const IDX = 'docs/agent-ref/bp-index.md';
+if (fs.existsSync(path.join(ROOT, IDX))) {
+  const indexed = new Set([...read(IDX).matchAll(/^(?:- )?BP-(\d+)\b/gm)].map((m) => +m[1]));
+  const unindexed = [...bodyDefs.keys()].filter((id) => !indexed.has(id)).sort((a, b) => a - b);
+  add(unindexed.length ? 'WARN' : 'PASS', unindexed.length ? `BP rules with a body but no line in ${IDX}: ${unindexed.map((i) => `BP-${i}`).join(', ')}` : `${IDX} lists every BP rule that has a body`);
+}
+
 // 5. §5.x citations resolve to a heading (capture trailing letter: 5.47b is not 5.47)
 const playbook = read('.github/instructions/QA-Test-Agent.instructions.md');
 const headings = new Set([...playbook.matchAll(/^#{2,4} (5\.\d+[a-z]?)\b/gm)].map((m) => m[1]));

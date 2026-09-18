@@ -42,7 +42,7 @@ Run `npm run agent-rules:check` from the repo root and paste the summary. It alr
    - **STALE DUPLICATE** — both versions still exist; the old one is now dead text that a future session will read and obey. **These are the defects.**
 4. For each STALE DUPLICATE, build the merge proposal: old number → target number, the current/complete version, any clause in the old version that is NOT in the new one (that clause is the only thing worth folding in), and the exact edits you would make.
 5. Present the list. **Do not merge until Samer confirms each one.**
-6. When a merge is confirmed: delete the superseded text, fold in any unique clause, and leave a one-line tombstone in both Rule Indexes (e.g. `BP-77: RETIRED (merged into BP-41, <date>) — historical citations refer to BP-41`) so the hundreds of historical `BP-N` citations in `e2e-test-results/**` and `docs/**` stay decodable.
+6. When a merge is confirmed: delete the superseded text, fold in any unique clause, and leave a one-line tombstone in the file's Rule Index and in `docs/agent-ref/bp-index.md` (e.g. `BP-77: RETIRED (merged into BP-41, <date>) — historical citations refer to BP-41`) so the hundreds of historical `BP-N` citations in `e2e-test-results/**` and `docs/**` stay decodable.
 
 ## Step 2 — Verify every referenced path actually exists
 
@@ -98,7 +98,7 @@ Rule numbers are only half the picture: the QA playbook is cited by **section** 
    - dated changelog/incident narrative inside a rule or `.agent.md` -> move to `docs/agent-memory/rule-changelog.md` or a topic note, leave a one-line pointer;
    - two rules that prevent the same failure -> merge;
    - a rule that cites no incident and is not cited by any QA report or handoff in the last 60 days -> retire with a tombstone;
-   - reference material (module map, troubleshooting, examples) inside an always-loaded file -> move to `docs/agent-reference/`.
+   - reference material (module map, troubleshooting, examples) inside an always-loaded file -> move to `docs/agent-ref/`.
 3. After confirmed trims, run `node scripts/agent-rules/check.mjs --ratchet` to lower the baselines to the new sizes.
 4. Review `docs/agent-memory/rule-candidates.md`: drop rows older than 90 days with count 1; promote nothing here (promotion happens in the intake prompt).
 

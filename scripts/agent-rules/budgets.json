@@ -2,7 +2,7 @@
   "files": {
     ".github/agents/Kids P2P App Builder.agent.md": {
       "targetBytes": 40000,
-      "baselineBytes": 192726
+      "baselineBytes": 51626
     },
     ".github/agents/QA-Test-Agent.agent.md": {
       "targetBytes": 10000,
@@ -14,21 +14,21 @@
     },
     ".github/instructions/supabase-sql.instructions.md": {
       "targetBytes": 60000,
-      "baselineBytes": 111724
+      "baselineBytes": 111721
     },
     ".github/instructions/mobile-client.instructions.md": {
       "targetBytes": 50000,
-      "baselineBytes": 78085
+      "baselineBytes": 78082
     },
     ".github/instructions/edge-functions.instructions.md": {
       "targetBytes": 40000,
-      "baselineBytes": 58988
+      "baselineBytes": 58985
     },
     ".github/instructions/admin-portal.instructions.md": {
-      "baselineBytes": 10180
+      "baselineBytes": 10177
     },
     ".github/instructions/navigation.instructions.md": {
-      "baselineBytes": 9200
+      "baselineBytes": 9193
     },
     ".github/copilot-instructions.md": {
       "baselineBytes": 9381

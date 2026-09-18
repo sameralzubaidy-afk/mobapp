@@ -35,14 +35,15 @@ If the new rule replaces an old one, do not leave both: propose the merge and wa
 
 | It is | Home | Id |
 |---|---|---|
-| Dev, applies to mobile + backend + admin | `Kids P2P App Builder.agent.md` body (non-negotiables / hardening section), only as a one-line edit to an existing rule where possible | none |
+| Dev, applies to mobile + backend + admin | `Kids P2P App Builder.agent.md` body (non-negotiables / hardening section), only as a one-line edit to an existing rule where possible (the file is size-budgeted) | none |
 | Dev, Postgres / migrations / RLS / RPC | `supabase-sql.instructions.md` | BP-N |
 | Dev, Edge Functions | `edge-functions.instructions.md` | BP-N |
 | Dev, mobile screens / services / hooks | `mobile-client.instructions.md` | BP-N |
 | Dev, navigation | `navigation.instructions.md` | BP-N |
 | Dev, admin portal (`p2p-kids-admin/src/**`; the admin app is a git submodule, rules for the submodule's own repo do not go here) | `admin-portal.instructions.md` | BP-N |
 | QA, how to drive or judge a test | the QA playbook section that owns the topic (`QA-Test-Agent.instructions.md`, or its platform module if one exists) | R-N |
-| Never | `QA-Test-Agent.agent.md` and the appendix of the Builder file (both are role/scope/pointer only; the appendix holds one-line pointers for BP rules) | - |
+| Dev, reference material an agent reads on demand (troubleshooting, examples, module notes) | `docs/agent-ref/<topic>.md` (not auto-loaded; the Builder core links to it) | none |
+| Never | `QA-Test-Agent.agent.md` (role/scope/pointers only) or any inline text in the Builder file's pointer sections | - |
 
 If no row fits, ask before creating a file or section.
 
@@ -66,7 +67,7 @@ Rule body, max ~8 lines:
 Not allowed in a rule: incident narratives ("Real evidence ..."), dates of sessions, screenshots, "see also" chains, restating another rule. Put evidence in the changelog line.
 
 Then, in this order:
-1. Add one index line (max 150 chars) to that file's own Rule Index. For BP rules also add the one-line pointer in the Builder appendix index (`- BP-N - title - full text in <file>`), and a "See also" under Section 9.2 only if it maps to a recognizable bug symptom (one line).
+1. Add one index line (max 150 chars) to that file's own Rule Index. For BP rules also add the one-line entry to `docs/agent-ref/bp-index.md` (`- BP-N - title - full text in <file>`), and a "See also" under §9.2 of `docs/agent-ref/troubleshooting.md` only if it maps to a recognizable bug symptom (one line).
 2. Append ONE line to `docs/agent-memory/rule-changelog.md`: `date | id | file | summary (max 120 chars) | source task`.
 3. If the rule cites a longer evidence note, write it to `docs/agent-memory/<topic>.md`. No credentials, ever (README in that folder).
 

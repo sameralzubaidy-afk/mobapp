@@ -68,23 +68,8 @@ Before implementing ANY new feature, change, or bug fix, you MUST complete this 
 Step 1 — Identify the relevant docx files
 The canonical requirements live in docx/. Before touching any code, scan this folder and identify ALL files relevant to the task at hand:
 
-File	What it governs
-docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md	Master BRD — feature set, user stories, acceptance criteria
-docx/SYSTEM_REQUIREMENTS_V2.md	Technical + functional requirements, SP rules, fee logic
-docx/Solution Architecture & Implementation Plan.md	Architecture decisions, data model, service boundaries
-docx/TRADING-FLOW-V2.md	Trade flow states, transitions, rules — canonical for all trade logic
-docx/SELLER-PAYOUTS-DOCUMENTATION-INDEX.md	Payout rules, eligibility, timing, Stripe Connect logic
-docx/SELLER-PAYOUTS-IMPLEMENTATION-SUMMARY.md	Payout implementation spec
-docx/SEARCH-FILTER-REQUIREMENTS.md	Search, filter, sort behavior — canonical for discovery features
-docx/BULK-LISTING-REQUIREMENTS.md	Bulk listing rules and constraints
-docx/ADMIN-CATEGORY-MANAGEMENT.md	Category taxonomy, admin controls
-docx/SOCIAL-LOGIN-REQUIREMENTS.md	OAuth / social login rules
-docx/TRADING-EDUCATION-REQUIREMENTS.md	In-app trading education feature rules
-docx/WESTPORT-GTM-CONTEXT-AND-DECISIONS.md	Go-to-market context, launch constraints
-docx/PASS-IT-UP-GTM-PLAN.md	GTM plan — informs feature priority and phasing
-docx/RESEARCH-SELLER-PAYOUT-OPTIONS.md	Payout options research — background for payout decisions
-docx/DOCUMENTATION-UPDATE-SUMMARY.md	Tracks recent doc changes — check this for anything updated recently
-docx/README-UPDATES.md	Running changelog of requirement updates
+The spec list (what each `docx/` file governs) is in `docs/agent-ref/requirements-docs.md`. Always read `docx/SYSTEM_REQUIREMENTS_V2.md` plus the file(s) that govern your task (trade flow: `docx/TRADING-FLOW-V2.md`; payouts: `docx/SELLER-PAYOUTS-DOCUMENTATION-INDEX.md`; discovery: `docx/SEARCH-FILTER-REQUIREMENTS.md`).
+
 Step 2 — Read before you build
 For the task you are about to implement:
 
@@ -154,10 +139,8 @@ After writing any copy, use the filesystem MCP to verify the file was saved corr
 
 If the requirements doc cannot be read via MCP (file missing or path wrong), STOP and tell Samer — do not proceed with copy based on assumptions.
 
-Copy-Consistency Class Sweep (MANDATORY — 2026-08-31, DT68→DT73 arc)
-When a fix changes user-facing copy to correct a conceptual mismatch (e.g. "captured" vs "authorized"), fix the WHOLE class in that same session — never only the exact string QA flagged. The "charged/paid/captured vs authorized" wording issue was fixed piecemeal across DT68 → DT71 item 1 → DT73 items 1–2, each round leaving another instance for a later QA pass to find (QA Task 13 P3/P4 surfaced the same class one session after DT71). In the SAME session as the first fix, grep the whole codebase for all related strings near the affected flow (`paid`, `charged`, `captured`, `authorized`, `refund`, `hold`) and fix or explicitly triage every instance at once. Do not ship a copy-class fix expecting QA to hunt the remaining instances.
+Copy-Consistency Class Sweep (MANDATORY): when a fix changes user-facing copy, or corrects a doc claim about what is "safe", grep the whole class of related strings/claims and fix or explicitly triage every instance in the SAME session, not just the one QA flagged. Full text and examples: `docs/agent-ref/copy-and-doc-claims.md`.
 
-**Extended 2026-09-17 (FIX-Task-52) — the sweep also covers ENGINEERING SAFETY CLAIMS in docs, not just user-facing copy.** A claim written in a runbook / script header / README that tells a future engineer what is SAFE ("no real outgoing transfer is minted", "this is read-only", "it is idempotent", "DB-only") is evidence-grade text: someone will plan work on it. Two obligations follow. **(1) Verify the claim at the layer that can falsify it before relying on it** — for a money/provider claim that layer is the provider itself (`qa:stripe-inspect`), never the app's own mirror table (see BP-95's sibling discipline: name the writer). **(2) When you discover such a claim is WRONG, sweep every surface that repeats it in the same pass.** `payout-fixture.mjs`'s header AND `docs/qa-fixture-payout-runbook.md` both promised "NO real outgoing transfer is minted"; a QA round disproved it (a real `metadata.source=manual_withdrawal` test-mode transfer was found), the script header was corrected at the time, and the runbook was **missed** — so weeks later the false claim still stood in the doc an engineer would actually read before planning a "cheap DB-only" withdrawal. Grep the claim's distinctive phrase across `docs/`, `p2p-kids-marketplace/scripts/`, `supabase/` and the guides, and fix or explicitly triage every hit.
 
 SESSION HANDOFF (MANDATORY at end of every session — single end-of-response contract; supersedes any other "must end every response with" wording in this file, including the former standalone "Definition of Done")
 At the end of every response that makes a code change, output this block, make sure to fill in all sections accurately so the next session can pick up context correctly. In case one section has no information, fill it with "none".
@@ -179,52 +162,10 @@ Two-phase provisioning (BP-80): when a change includes provisioning that mutates
 
 This block ensures that if a session ends abruptly, or a new session starts weeks later, the context is always recoverable without reading the code.
 
-1. Repo & folder layout (assumed for this agent)
-TODO: Confirm actual repo folder tree (DO NOT GUESS)
-The folder layout below is provisional. Before implementing ANY change, you MUST:
+1. Repo layout & docs folders
+Root `kids_marketplace_app/`: `p2p-kids-marketplace/` (Expo React Native, iOS + Android), `p2p-kids-admin/` (Next.js admin portal on http://localhost:3001; a git submodule), `supabase/` (migrations, Edge Functions), `docx/` (canonical product/architecture specs, markdown), `docs/` (engineering docs, `docs/flow-registry.md`), `Prompts/` (module prompts + verification files; folder name is case-sensitive), `cross-checked-and-consolidated/` (the canonical QA manual-testing guides; keep exactly ONE copy of each guide).
+Verify a path exists before you cite or edit it; if a root folder is missing or renamed, stop and ask. Never create the same spec in both `docx/` and `docs/`. Details, the module prompt file list and the guide-editing rules: `docs/agent-ref/repo-modules-examples.md`.
 
-Verify the real workspace tree exists using MCP tools:
-
-- **Root folders:** Call `list_dir(".")` to confirm `p2p-kids-marketplace/`, `p2p-kids-admin/`, `supabase/`, `docs/`, `docx/`, `Prompts/` all exist.
-- **Key files:** Call `file_search` with globs like `"p2p-kids-marketplace/package.json"`, `"supabase/functions/*"`, `"supabase/migrations/*.sql"` to confirm canonical paths.
-- **Config check:** Call `file_search("p2p-kids-marketplace/app.json")` and `file_search("p2p-kids-admin/next.config.js")` to confirm app roots.
-- **Multi-root:** If a root folder is missing, use `grep_search` on `list_dir` output to detect renamed/moved directories before guessing.
-If any canonical root differs, update the “Canonical app roots” list in this agent FIRST.
-If there are multiple candidate roots (e.g., multiple Expo apps), STOP and ask which is canonical.
-
-Treat the VS Code / GitHub workspace as:
-
-Root: kids_marketplace_app/
-p2p-kids-marketplace/ – Expo React Native app (iOS + Android)
-supabase/ – Supabase configuration, SQL migrations, Edge Functions (Deno/TypeScript)
-p2p-kids-admin/ – Next.js admin portal (runs on http://localhost:3001)
-docx/ – core product/architecture specs
-Prompts/ – all AI module prompt and verification files
-Inside docx/ you have:
-
-Documentation Folder Standard (MANDATORY — confirmed against actual repo contents)
-docx/ holds the canonical product/business/architecture specs as markdown (*.md) — BRD, system requirements, solution architecture, trade flow, payouts, etc. (see the Requirements Gate table). Despite the folder name, it is NOT a Word-file folder.
-docs/ holds engineering/testing/operational docs — manual test cases, module implementation summaries, the Flow Registry (docs/flow-registry.md), environment/CI notes, store-submission checklists, etc.
-You MUST NOT create duplicate copies of the same spec in both folders. When in doubt which folder a new doc belongs in, ask.
-Manual-testing guides (e.g., `MODULE-*.md`) are canonical in the `misc/` folder — the test automation (`test-automation/trade-flow-v2/manifest.json`, `RUNBOOK.md`, `run-tradeflow-suite.mjs`) reads them from `misc/`, and `docs/flow-registry.md` points there. NEVER create or maintain a second copy of a manual-testing guide at the workspace root.
-Before editing any manual-testing guide, run a TC-ID diff to detect duplicate or lost test cases: `grep -nE "^### .*TC-[A-Za-z0-9-]+" "misc./<guide>.md"` (and on ANY other copy of the same guide), then confirm exactly ONE canonical copy exists. If you find two diverged copies, merge them into `misc/` first (preserve every TC; re-letter colliding IDs rather than dropping either) and mark the other copy DEPRECATED — never edit both. When you edit a group's section body (re-wording steps / expected results), update that group's index/summary table in the SAME pass — they drift independently (2026-08-31: the TradeFlowV2 T-group body was synced to the numeric SP-input UI, but the group index rows still read "toggle switch" until caught).
-Guide Expected-Results Must Be Verified Against Shipped Source (MANDATORY — 2026-09-11, FIX-Task-16v2)
-A guide's expected results, labels and numbers are CLAIMS ABOUT THE SHIPPED APP — never carry them forward from the previous guide's wording. Before re-wording any expected result, prove each claim from the code that owns it: `grep` the screen/service for the literal string the user actually sees (`Combined Offer`, `Safety & Platform Fee`), read the live value/seed for any number (`admin_config`, not the guide), and treat admin-portal field labels as DERIVED unless you see a hardcoded label (`min_listing_price` renders as "Min Listing Price" via key title-casing — grep the derivation, not just a literal label). Then apply the Copy-Consistency Class Sweep to the GUIDE itself: grep the whole guide for the OLD string before replacing it, because other surfaces can legitimately still ship that wording (trade-timeline fee rows hardcode "Platform Fee:", and `TradeListScreen` ships "📦 Bundle Offer · N items" while checkout ships "📦 Combined Offer") — never blanket-replace a string just because one screen changed. Verify each edit landed with a targeted `grep` per intended string, and re-read any block whose edit spans a blank line: a replacement that swallows the blank line silently joins `**Objective:**` and `**Steps:**` into one Markdown paragraph. Evidence: FIX-Task-16v2 — the K/N/S-group drift (stale "free tier / 5%" seller-fee premise, "Transaction Fee" on Item Detail, "Minimum Listing Price", "Bundle Offer" vs "Combined Offer") had survived ~3 QA rounds because each docs pass copied the previous guide instead of the rendered screen.
-File Path Normalization (MANDATORY)
-Filenames MUST NOT include leading/trailing spaces.
-The canonical doc `docx/Solution Architecture & Implementation Plan.md` is correctly named (no leading space) — the historical leading-space workaround is no longer needed and must not be re-added.
-If you detect ANY file whose name has a leading/trailing space, STOP and ask Samer to rename it (do not implement features against a "fragile" path).
-Never “guess” the path. Always verify the exact filename in the workspace first.
-Core product & architecture docs
-docx/SYSTEM_REQUIREMENTS_V2.md
-docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md
-docx/Solution Architecture & Implementation Plan.md
-These are the source of truth for:
-
-Feature set (Free vs Kids Club+)
-Swap Points (SP) rules (earn/spend, 3-day pending, 90-day grace, 50% redemption cap, etc.)
-Revenue model (subscription + buyer fee + seller fee, etc.)
-Architecture decisions: React Native, Supabase Postgres, Edge Functions, Stripe, Twilio, CPSC API, etc.
 Monorepo App Scope Rules (MANDATORY)
 This repo contains multiple apps. Every instruction MUST specify which app it targets.
 
@@ -245,7 +186,7 @@ Required in every SQL deliverable:
 
 Full Postgres RPC / SQL naming convention and required verification queries moved to .github/instructions/supabase-sql.instructions.md (auto-attaches when editing supabase/migrations/**/*.sql).
 
-See the 🛡️ Appendix: Bug Prevention Rule Library at the very end of this file (BP-1 – BP-89) for the full numbered bug-prevention rules and the scannable Rule Index — moved there so sections 1–14 below read contiguously.
+See the Bug Prevention rule index in `docs/agent-ref/bp-index.md` (one line per rule); full rule text lives in the `.github/instructions/*.instructions.md` files, which auto-attach by file path.
 UI Performance Defaults (MANDATORY)
 Debounce defaults:
 
@@ -258,83 +199,6 @@ Prefer one-time initialization patterns:
 useRef for “didInit”
 dependency-safe effects
 Any screen showing repeated rerenders must be fixed before handoff.
-Module prompt files (implementation + verification)
-All module prompt files live under Prompts/: Note: Folder name is case-sensitive. Use Prompts/ exactly as it exists in the repo. Do not create prompts/ or PROMPTS/.
-
-Prompts/00-START-HERE.md
-
-Prompts/MASTER-IMPLEMENTATION-PLAN.md
-
-Prompts/MODULE-01-INFRASTRUCTURE.md
-
-Prompts/MODULE-01-VERIFICATION.md
-
-Prompts/MODULE-02-AUTHENTICATION.md
-
-Prompts/MODULE-02-VERIFICATION.md
-
-Prompts/MODULE-03-AUTH-V2.md
-
-Prompts/MODULE-03-NODE-MANAGEMENT.md
-
-Prompts/MODULE-03-Node Management VERIFICATION.md
-
-Prompts/MODULE-03-VERIFICATION-V2.md
-
-Prompts/MODULE-04-ITEM-LISTING-V2.md
-
-Prompts/MODULE-04-VERIFICATION-V2.md
-
-Prompts/MODULE-05-DISCOVERY-V2.md
-
-Prompts/MODULE-05-VERIFICATION-V2.md
-
-Prompts/MODULE-06-TRADE-FLOW-V2.md
-
-Prompts/MODULE-06-VERIFICATION-V2.md
-
-Prompts/MODULE-07-MESSAGING.md
-
-Prompts/MODULE-07-VERIFICATION.md
-
-Prompts/MODULE-08-BADGES-V2.md
-
-Prompts/MODULE-08-REVIEWS-RATINGS.md
-
-Prompts/MODULE-09-SUBSCRIPTIONS-REMAINING.md
-
-Prompts/MODULE-09-SUBSCRIPTIONS-VERIFICATION.md
-
-Prompts/MODULE-10-SWAP-POINTS-CORE-REMAINING.md
-
-Prompts/MODULE-10-SWAP-POINTS-CORE-VERIFICATION.md
-
-Prompts/MODULE-11-REFACTORING-V2-ALIGNMENT.md
-
-Prompts/MODULE-11-REFACTORING-VERIFICATION.md
-
-Prompts/MODULE-12-REFERRALS-V2-IMPLEMENTATION.md
-
-Prompts/MODULE-12-REFERRALS-VERIFICATION.md
-
-Prompts/MODULE-13-GAMIFICATION-IMPLEMENTATION.md
-
-Prompts/MODULE-13-GAMIFICATION-VERIFICATION.md
-
-Prompts/MODULE-14-NOTIFICATIONS-V2.md
-
-Prompts/MODULE-14-VERIFICATION-V2.md
-
-Prompts/MODULE-15-TESTING-QA.md
-
-Prompts/MODULE-15-VERIFICATION.md
-
-Prompts/MODULE-16-DEPLOYMENT.md
-
-Prompts/MODULE-16-VERIFICATION.md
-
-Rule: For “V2” modules, treat V2 as canonical and earlier versions as historical context. Files prefixed with DEPRECATED- are for reference only and contain no active implementation work.
-
 2. Tech stack you must follow
 When generating or editing code, you must respect the agreed architecture:
 
@@ -476,66 +340,9 @@ If JSX is generated:
 
 It must be valid JSX, not stringified JSX
 No escaped quotes (\") are allowed inside JSX attributes
-5. Module-by-module intent (high-level)
-When asked to implement or change something, map it to these modules:
+6. Validation checklists
+Before handoff, run the matching checklist in `docs/agent-ref/validation-checklists.md` (subscription gating, Swap Points math, DB/RLS, Edge Functions, mobile, testing). Two rules from that section stay here because they apply everywhere:
 
-Module 01 – Infrastructure
-
-Project scaffolding, Expo app setup, Supabase project structure, environment config, basic navigation/layout.
-Module 02 & 03 – Authentication & Node Management
-
-User registration, login, phone verification, JWT handling.
-Node / ZIP code mapping, waitlist logic, gating of access by node status.
-Module 04 – Item Listing
-
-Listing creation, editing, expiration, payment preference (Cash Only / Accept SP / Donate), AI moderation hooks.
-Module 05 – Discovery
-
-Swipe feed, search filters, favorites, subscriber-priority listing exposure.
-Module 06 – Trade Flow
-
-End-to-end purchase flow, SP slider for subscribers, transaction states, settlement, fees.
-Module 07 – Messaging
-
-Secure in-app chat with moderation (no contact info sharing, basic profanity filters, report flow).
-Module 08 – Badges, Achievements, Reviews
-
-Ratings, reviews, donation badges, trust badges.
-Module 09 – Subscriptions (Stripe)
-
-Stripe integration, Kids Club+ tier gating, webhook handling, and grace periods.
-Module 10 – Swap Points Core
-
-SP ledger implementation, 50% cap, pending/release transition logic.
-Module 11 – App Refactoring & Alignment
-
-Performance audit, navigation hardening, and state management consistency (v2 alignment).
-Module 12 – Referrals V2
-
-Secure referral code generation and subscriber-only incentive management.
-Module 13 – Gamification (Lifetime SP)
-
-Lifetime statistics, milestones, and advanced point-based achievements.
-Module 14 – Notifications
-
-Push, in-app, email notifications for key events (transactions, SP changes, subscription status, safety alerts).
-Module 15 – Testing & QA
-
-Testing strategy, test data, automation, end-to-end flows.
-Module 16 – Deployment
-
-CI/CD, environment promotion, release process, monitoring.
-Always use the relevant module's VERIFICATION file as your definition of done.
-
-6. Common pitfalls & validation checklist
-Before implementing any feature, validate against these common issues:
-
-6.1 Subscription gating validation
-✅ SP features: Earning, spending, wallet access → Kids Club+ only
-✅ Payment preferences: "Accept SP" / "Donate" → Kids Club+ only (Free users: Cash Only)
-✅ Discovery priority: Subscribers get higher listing visibility
-✅ Grace period logic: 90 days with frozen (not deleted) SP after cancellation
-⚠️ Don't gate: Basic listing creation, search/browse, messaging, reviews
 Authentication Canonical Decision (MANDATORY)
 Default (MVP):
 
@@ -546,18 +353,6 @@ If any doc conflicts with the above:
 
 Prefer: System Requirements → BRD → Solution Architecture → Module prompts.
 Add // TODO(AUTH): clarify whether phone OTP login is required and list it under Open Questions.
-6.2 Swap Points calculation validation
-✅ 50% cap: User can never pay more than 50% of item price with SP
-✅ Pending period: Earned SP stays "pending" for 3 days (can be reverted on return)
-✅ Platform fee: Buyer ALWAYS pays cash platform fee, even when using SP
-✅ Seller choice: Respect seller's payment preference (Cash Only / Accept SP / Donate)
-✅ No cash-out: SP can never be converted to fiat currency
-✅ Expiration: SP expires after 90 days of inactivity (subscriber-only)
-6.3 Database & RLS validation
-✅ RLS policies: Every table with user data must have RLS enabled
-✅ Node isolation: Users can only see listings/transactions in their node (or nodes they manage)
-✅ Soft deletes: Use deleted_at for listings, transactions, messages (audit trail)
-✅ Indexing: Add indexes on foreign keys, frequently queried columns (node_id, user_id, status, created_at)
 Admin moderation views MUST be driven from ENTITY tables
 e.g. reviews, listings, users
 Event tables (*_reports, *_logs, *_history) are:
@@ -565,28 +360,6 @@ Supplementary metadata only
 NEVER the primary query source
 Deleting events MUST NOT cause entities to disappear from admin views.
 
-6.4 Edge Function validation
-✅ Auth verification: Every Edge Function must validate JWT and extract user_id
-✅ Input validation: Validate all inputs with Zod or similar schema validator
-✅ Error responses: Return structured errors: { error: { code: string, message: string, details?: any } }
-✅ Transaction safety: Use Postgres transactions for multi-table operations (SP + transaction creation)
-✅ Idempotency: Critical operations (payments, SP adjustments) should be idempotent
-✅ **Column existence pre-check**: Before deploying any Edge Function that uses `.select('col_a, col_b, ...')`, verify EVERY column name exists on the target table using `information_schema.columns`. Missing columns cause silent 404 errors. Run:
-   ```sql
-   SELECT column_name FROM information_schema.columns 
-   WHERE table_name = '<table>' AND column_name IN ('col_a', 'col_b');
-   ```
-6.5 Mobile app validation
-✅ Loading states: Show loading indicators for all async operations
-✅ Error handling: Display user-friendly error messages with retry options
-✅ Offline support: Cache critical data (user profile, wallet balance, active listings)
-✅ Deep linking: Support deep links for notifications (message, transaction status change)
-✅ Feature flags: Check subscription status before showing premium features
-6.6 Testing validation
-✅ Unit tests: Test pure business logic (SP calculations, fee formulas)
-✅ Integration tests: Test Edge Functions with mock Supabase client
-✅ E2E tests: Test critical user flows (signup → list item → purchase with SP)
-✅ Test data: Create seeded test users (free + subscriber, different nodes)
 7. How to respond to the user (format)
 When the user asks for help, your response should generally include:
 
@@ -623,418 +396,9 @@ Dependencies & prerequisites
 If the requested module depends on other modules being implemented first, clearly state:
 "⚠️ Prerequisites: Module 04 (Listings) and Module 09 (SP Wallet) must be implemented before Module 06 (Trade Flow)."
 If types/schemas are missing, list them: "📋 Needs: Transaction type, sp_wallet table schema."
-8. Example prompts the user might ask you (usage examples)
-Here are some concrete ways the user can use this agent in GitHub Copilot Chat:
+9. Troubleshooting & debugging (full text: `docs/agent-ref/troubleshooting.md`)
+Read Section 9.1 there before investigating any bug or QA finding, and check the 9.2 symptom-to-rule map before debugging from scratch. Section 9.1 rules by title: gather context first; 9.1a state your stance (confirm vs. rule out) up front; 9.1b quote-verify on-screen text; 9.1c spec-silent finding: look for an in-file sibling precedent before escalating it as a product decision; 9.1d verify the matcher and the history before filing an absence/duplicate defect; 9.1e reproduce a dispatched fix's premise before implementing its remedy; 9.1f reproduce a UI defect through its real entry path; 9.1g trace the readers of a field before choosing the fix layer; 9.1h a regression test is not evidence until you have watched it fail with the fix disabled. 9.2 lists common symptoms with the BP rule to check first; 9.3 lists debugging steps.
 
-Infrastructure / initial setup
-“Using docx/MODULE-01-INFRASTRUCTURE.md and its verification file, scaffold the Expo React Native app in p2p-kids-marketplace/ and set up basic navigation + Supabase client configuration. Show me which files you create and the exact commands to run.”
-
-Auth & node access
-“Implement phone-based signup and login flows based on MODULE-02-AUTHENTICATION.md and MODULE-03-AUTH-V2.md, including Twilio verification and node/waitlist logic. Update both Supabase Edge Functions and the RN screens, and confirm against the Module 02/03 verification checklists.”
-
-Listings & SP-aware payment preference
-“From MODULE-04-ITEM-LISTING-V2.md and the BRD’s Listing Management + Swap Points sections, implement the listing creation screen and Edge Function. Support Cash Only / Accept SP / Donate options for subscribers, and Cash Only only for free users. Show how you enforce these rules server-side.”
-
-Trade flow with SP slider
-“Using MODULE-06-TRADE-FLOW-V2.md and the System Requirements FR-TX and FR-SP sections, implement the checkout Edge Function and RN UI with an SP slider capped at 50% of item price. Ensure subscribers still pay the cash platform fee and that SP pending logic is correct.”
-
-Swap Points wallet
-“Based on MODULE-09-POINTS-GAMIFICATION-V2.md and the SP schema in the Solution Architecture doc, implement the SP wallet Edge Functions plus a mobile wallet screen showing available vs pending SP, lifetime stats, and countdown to release. Include tests where feasible.”
-
-Subscriptions & grace period
-“Using MODULE-11-SUBSCRIPTIONS-V2.md and the BRD’s subscription model, implement Stripe subscription handling, free trial, and 90-day grace period. Wire up the correct SP freezing/unfreezing behavior in the wallet layer.”
-
-Notifications
-“Implement the core notification system from MODULE-14-NOTIFICATIONS-V2.md: push notifications for new messages, sales, SP release, and subscription events. Use the verification checklist to confirm coverage and show me where to plug in FCM keys.”
-
-Testing & QA
-“From MODULE-15-TESTING-QA.md, propose a Jest-based test structure for RN + Edge Functions and add a sample test suite for the trade flow + SP release, mapping directly to the verification checklist.”
-
-Duplicate Identifier Gate — full rule moved to Section 13 "Duplicate Identifier Prevention" (single canonical source); Tier 0 typecheck (HP-2a) is the backstop check, not the first line of defense.
-9. Troubleshooting & debugging guidelines
-When the user reports issues or asks for debugging help:
-
-9.1 Gather context first
-Read the error: Get full error messages, stack traces, console logs
-Check the module: Which module/feature is failing?
-Verify implementation: Compare against VERIFICATION checklist - what's missing?
-Review related code: Read Edge Function, RLS policies, and mobile screen code
-9.1a State the investigation stance upfront (confirm vs. rule out — 2026-08-31)
-At the top of any QA-finding investigation, explicitly state whether you are confirming a bug or ruling one out. A "false alarm, no bug" verdict with evidence (source + DB read-back) is an equally valid, first-class outcome and must be recorded as such in the handoff — never treated as a wasted investigation. (Worked examples: DT68 refund-vs-void — confirmed not a bug: uncaptured PIs are correctly voided, not refunded; DT71 tax-report mislabeling — ruled out after source + DB check.)
-
-9.1b Quote-verify any quoted on-screen text before trusting the finding's surface (2026-09-11)
-Before accepting a QA finding that quotes on-screen text — a label, error string, alert title, banner heading, or button copy — grep that EXACT literal from the source (`grep -rn "<quoted string>" <app dirs>`) and, for a string that may have been removed, check history too (`git log -S "<quoted string>" --all`). If the literal has never existed in the codebase, the finding's quoted evidence is unverified AND its SURFACE attribution is unreliable (the screenshot may show a different component, or the quote may be an OCR/paraphrase artifact) — so re-base the investigation on the surface that actually renders that state and record the discrepancy in the handoff. Never invent or style-migrate a component to match a quoted string that no code emits; if no surface matches, ask QA for a fresh capture of the exact moment. Pair this with 9.1a: "quoted string not in source" is itself a first-class ruled-out result. (Worked example: FIX-Task-17 item 3, 2026-09-11 — a QA finding quoted an inline banner reading "Cashout Failed / Payout method is invalid or expired"; neither string has ever existed in the repo (grep + `git log -S` both empty) and the cited screenshots showed a different surface entirely, while the real, fixable defect was the checkout alert echoing the raw Edge Function message instead of the canonical copy. The unverified quote cost investigation time and risked a fabricated "fix".)
-
-9.1c Spec-silent QA finding — check for an in-file sibling precedent before you escalate it as a product decision (2026-09-11)
-When a QA finding describes behaviour the canonical spec does NOT cover (a state the spec never contemplates), do not jump straight to "is this intentional?" — first look for a sibling feature in the SAME file/module that already solves the analogous problem (the neighbouring prompt, filter, guard, or status gate). If one exists, the finding is an in-file inconsistency: the parallel path skipped the pattern its own neighbour follows, so mirror the sibling, re-verify both states, and hand Samer a recommendation with evidence instead of an open question. Escalate as a product/UX decision only after that check comes up empty — and even then surface it as a question with a recommended option before implementing (OWNER CONTEXT: "Never assume a product decision"). Mirror the sibling's derived values as well as its gate (the bundle fix had to correct an over-counting `total`, not just the condition), and name the sibling you mirrored in the handoff so the consistency fix is reviewable. (Worked example: FIX-Task-18 item 1, 2026-09-11 — QA reported the bundle "Confirm All" shortcut vanishing once one bundle item was completed; the spec (§11.3.1) only described the all-in-progress case, so it read as a judgement call. `TradeTimelineScreen`'s cancel-all prompt, in the SAME file, already filtered its sibling set by status before offering its batch option — so the completion path was inconsistent with its own neighbour. Mirroring the cancel pattern (filter siblings to `in_progress`, count only confirmable trades) turned a product question into a consistency fix, gave the owner one clear recommendation, and made the guide's TRD-TC-L02 leg testable again. Same instinct as the Copy-Consistency Class Sweep, one surface over: sweep for how the codebase already does it before inventing behaviour.)
-
-9.1d Verify the MATCHER and the HISTORY before filing an absence/duplicate defect (2026-09-12)
-Two false positives cost investigation time in the agent-rules audit, and each is avoidable with one extra check. **(1) A collision claim is only as good as the pattern that produced it.** Before reporting "X appears twice / is duplicated", capture the FULL identifier and print both occurrences — a pattern like `^### 5\.[0-9]+` truncates the legitimate `5.47b` to `5.47` and reports every `X`/`Xb` parent-and-sub-section pair as a duplicate; a rule defined as `R62a/b/c` is missed by `**R62 —` and then reported as a gap. The audit's "three duplicated §5.x headings" finding was **retracted the same day** as a grep artifact: `^### 5\.[0-9]+[a-z]?` returns zero true duplicates. **(2) An absence claim needs a history check, not just a working-tree check.** "This number is unassigned" and "this rule was deleted" produce the SAME empty grep today but need OPPOSITE fixes (allocate a number vs. restore lost content), so re-run the search against the pre-edit commit (`git grep -n "<id>" <pre-edit-commit> -- <dir>`) before declaring a slot free. Both cases arose in the same audit: BP-50/BP-52 returned zero hits at the pre-edit commit (genuinely never allocated — `UNASSIGNED` was correct), while R58–R60 and R79 looked equally empty in the working tree but were **missing/deleted content** that had to be restored, not re-allocated. Pair with 9.1a (state the stance upfront — "retracted as a grep artifact" is a first-class outcome, not a wasted investigation). (Worked example: agent-rules audit, 2026-09-12.)
-
-9.1e Reproduce a dispatched fix's PREMISE before implementing its prescribed remedy — and verify a leg's REACHABILITY PRECONDITION before accepting it as owed (2026-09-16; extended 2026-09-17)
-When a task arrives pre-diagnosed — "the cause is X, so do Y" — treat that diagnosis as a CLAIM to verify, not an instruction to execute. Reproduce the reported failure yourself and measure the FULL failure set (not just the first error the reporter happened to hit), because a prescribed remedy can be genuinely correct for the symptom it was written against and still be structurally incapable of reaching the stated goal. If the evidence contradicts the premise, STOP and escalate the scope change WITH the evidence BEFORE building — do not implement the remedy, watch it fail, and hand back another round of the same failure. Cheapest ordering: reproduce the failure → enumerate every distinct failure class → then decide whether the prescribed remedy can actually reach the goal. This is the dev-task twin of 9.1a (state the stance upfront) and 9.1d (an absence claim needs a history check): here the claim under test is the TASK'S OWN diagnosis, and "the prescribed fix is insufficient" is a first-class finding — not a reason to keep executing harder. Pair with Root-Cause Discipline (find out WHY a fix did not persist before re-applying it) and Blocked-Tier Discipline (a tier that keeps failing on a pre-existing defect needs an OWNER decision, not another silent carry-forward). (Worked example: FIX-Task-38, 2026-09-16 — dispatched for the THIRD time as "renumber the 111 legacy migration files into dependency order and `supabase db reset` will pass". Reproducing the failure and replaying all 522 migration files with failure-deferral showed 234 could never apply: `public.trades` had no creator in ANY migration (verified against the working tree AND the full git history) and the node-id columns were `text` where the live schema is `uuid` — so renumbering alone could not have worked; it would have moved the failure, not fixed it. Escalating the scope change before building avoided a fourth identical round, and the repair that WAS possible took the chain from 288 to 448 of 523 files applying.)
-
-**Second face — a REACHABILITY PRECONDITION is also a claim, not a fact (added 2026-09-17).** A dispatched task carries preconditions on the work it hands over, and they arrive phrased as established fact: "not yet device-verified (conditional on data state): the `profileButton` border (needs an active trade)", "needs a FREE persona", "this branch is unreachable until X". Settle each one with a single read of the file that owns the named style/gate — does `profileButton` really set its border conditionally? — BEFORE it shapes your plan, because the precondition decides your own coverage report: a wrong one understates what you verified, inflates the owed list, and is then copied into the next handoff where it hardens into folklore. Cheapest ordering: read the owning style block / gate expression → confirm the named condition is genuinely required → only then mark the leg owed, and CORRECT the precondition in the handoff when it turns out to be unconditional. This is the third face of the same discipline (9.1a: state the stance upfront; 9.1d: an absence claim needs a history check; here: a REACHABILITY claim needs a source read), and it is the INPUT side of BP-91 rule 2 — that rule obliges an owed leg to name the fixture state it needs, so the name it receives must be verified rather than inherited. Do not over-correct into distrust: run the check on every precondition in the dispatch and expect most to hold — in the worked example below the siblings "this listing has `color: null`" and "this seller has 1 listing" were both true for the data they named — so the discipline is a one-grep tax, not a reason to re-derive the whole dispatch. QA-side analogues, to cite when the precondition concerns a test path rather than a code path: R42 (§5.51 — verify a guide's "reachable via `<path>`" claim against `linking.config` BEFORE trusting it) and R26 (§5.40 — verify fixtures/preconditions BEFORE assembling a case). (Worked example: FIX-Task-49, 2026-09-17 — the owed leg inherited from the previous round's handoff, "`profileButton` border (needs an active trade)", was FALSE: `ItemDetailScreen.profileButton` sets `borderColor: '#CCCCCC'` with `borderWidth: 1` UNCONDITIONALLY, so the border was already verifiable in the plain no-active-trade state and closed in that same session; the inherited precondition had understated the previous round's coverage by a whole leg — and the same list's genuine conditions were left honestly owed rather than declared verified.)
-
-9.1f Reproduce a reported UI defect through its REAL entry path — navigating to the screen masks initial-mount-only defects (2026-09-17)
-A defect a user hits on the way INTO the app (cold launch, the post-login remount, session restore, a deep link that mounts the route directly) can be invisible when you reproduce it by navigating to the same screen afterwards — because a component's own route/state read can differ on an INITIAL mount from its value after any navigation event. So reproduce through the SAME entry path the report describes (terminate → cold launch, or relaunch-to-restore), not just "open the screen": a passing UNIT/integration test can look green for exactly the same reason, because tests almost always drive a navigation rather than an initial-route mount. When a fix gates a root-level element (floating tab bar, overlay, banner) on the active route, read that route from the navigator that OWNS it — or from root state updated by the navigator's own route listener — and never by keying a root-level sibling with the navigator's own key: `key={navigatorKey}` on both the `<Stack.Navigator>` and a sibling overlay raises "Encountered two children with the same key" AND does not fix the gate (measured this round: a keyed remount and a post-mount `useState` nudge both failed; only root-level route tracking worked). Pair with 9.1a (state the stance upfront — "cannot reproduce by navigation" is not "cannot reproduce"), BP-55 (a root-level gate whose state is only ever set by a mount effect), and the QA-side entry-path discipline (a verdict must name the entry path it actually drove). (Worked example: FIX-Task-50 item 2, 2026-09-17 — the Subscription Expired gate's `continue-free-link` sat under the floating tab pill, and tapping it opened the Sell sheet. The route-based pill-hide worked when the gate was reached by NAVIGATION (so the QA deep-link re-test looked green) but not when `SubscriptionExpired` was the navigator's INITIAL route (an expired user launching the app or logging in) — the defect only reproduced on a cold boot, and its unit test was green for the same reason.)
-
-9.1g Trace the READERS of a field before choosing the layer that fixes it (2026-09-18)
-When a task hands you a fix with a suggested location ("likely in the Edge Function, or as a check whenever the list loads"), treat that location as a CLAIM to test exactly like the diagnosis itself (9.1e). The question that decides the layer is not where the symptom is visible but **who READS the state you are about to correct**: grep every reader of the field/flag and rank them by consequence. A fix that corrects a STATE must live at the layer that owns that state for its **most consequential reader** — usually the database — not at the layer where the symptom happens to be visible; and prefer extending the rule where it already lives over adding a parallel mechanism in a second layer, which would be split-brain (BP-27). Cheapest ordering: grep the readers → name the most consequential one → implement there → verify at BOTH that layer and the surface that reported the symptom. Pair with 9.1e (the suggested location is part of the dispatched premise), BP-27 (duplicate enforcement across layers), BP-92/BP-95 (one source of truth per value). (Worked example: FIX-Task-56 item 2, 2026-09-18 — the brief proposed auto-promoting a seller's sole verified payout method either in `sync-stripe-connect-status` or "as a check whenever the payout methods list is loaded". Tracing the readers showed the same `is_primary` flag was read by four server-side money paths, and that `rpc_create_payout_on_trade_complete` parks EVERY payout as `requires_action` when it finds no primary — so the suggested UI-side fix would have made the screen claim the seller was set up while their earnings kept stranding. Implementing the rule once in the database (a `SECURITY DEFINER` rule function + `AFTER INSERT OR UPDATE OF is_verified` trigger + backfill) fixed the guard AND the money paths, and was verified at both layers: fixture read-back on staging, then the withdraw modal on device. Same round, the sibling instinct — check the fixture against the writers that can create its state — became BP-98.)
-
-9.1h A regression test is not evidence until you have watched it FAIL with the fix disabled (2026-09-18)
-A test written to guard a fix proves nothing about the fix until it has been shown able to fail. Write the test, then NEUTRALISE the fix (comment the guard out, `false &&` the branch, flip the flag) and re-run it: expect RED. Restore the fix and re-run: expect GREEN. Record BOTH runs as the evidence — a green-only run is indistinguishable from a vacuous test, and a vacuous test is worse than no test because it certifies the fix as covered. This is the test-side twin of BP-90 ("invoke the patched object immediately — `CREATE OR REPLACE` success proves nothing") and of the QA playbook's discriminating check (R79-1): in all three the failure mode is a PASS obtained without the code under test ever running. A vacuous test usually fails for a TIMING reason rather than a logic one — with a mock that resolves immediately, the competing trigger never overlaps the one under guard, so the assertion passes even with the fix removed. Make the window DETERMINISTIC instead of hoping for it: hold the promise PENDING via a deferred/controlled mock so the race you are guarding is guaranteed to occur. Tells that a test is vacuous: it also passed before the fix existed; it asserts the call only with `toHaveBeenCalledWith` (which passes for ANY count); it counts calls INSIDE `waitFor` (which can pass at the instant of the first resolve, before the second arrives); or its mock settles so fast the competing path never runs. The rule applies at every layer, not just Jest — SQL (invoke the changed branch AND a negative-control argument that must fail, per the `--self-test-fail` harness pattern), Edge Functions, admin Playwright specs (assert that broken input is REJECTED, not only that good input passes), and fixture scripts. Leave no residue: grep for the marker used to disable the fix (`TEMP-PROBE`, `false &&`) and confirm the tree is clean before handing over — the same un-stub discipline BP-89 requires for `page.route`. Pair with BP-88 (a mocked branch may never fire on the real path at all — that is the reachability/INPUT side; this is the test-power side), BP-57 (update tests written around the old broken behaviour — never weaken the fix to keep them green), BP-98 (a fixture must only assert a state the production writers can create), and BP-91 rule 3 (a green test is never on-device verification). (Worked example: FIX-Task-58 item 3, 2026-09-18 — the fix added a single-verify guard to the phone-gate modal so the DEV autofill button could not publish a listing twice. The first regression test PASSED with the guard removed, because the suite's immediate `mockResolvedValue` let the first verify settle before the auto-verify effect re-fired — the duplicate trigger the test existed to catch never happened at all. Rewriting it to hold `verifyPhoneCode` pending via a deferred promise made the overlap deterministic: with the guard disabled it failed `Expected number of calls: 1, Received: 2`, and with the guard restored it passed. Without that second run the handoff would have claimed a duplicate-publish bug was covered by a test incapable of detecting it.)
-
-9.2 Common issue patterns (with symptom → rule cross-references — check these BP rules FIRST before investigating from scratch)
-
-Issue: "Listings not showing up"
-
-✅ Check: RLS policies on listings table
-✅ Check: Node filtering (user can only see their node's listings)
-✅ Check: status = 'active' filter
-✅ Check: Subscription tier visibility rules
-See also: BP-3 (ambiguous column reference can silently mis-filter a query)
-Issue: "SP not being earned/spent"
-
-✅ Check: User subscription status (SP is Kids Club+ only)
-✅ Check: Seller's payment preference (Cash Only = no SP)
-✅ Check: 50% cap enforcement
-✅ Check: Transaction status (must be 'completed' to release pending SP)
-See also: BP-14 (notification copy vs. actual ledger semantics), BP-31 (verify both trigger AND RPC layers)
-Issue: "Edge Function returning 401/403"
-
-✅ Check: JWT token passed in Authorization header
-✅ Check: RLS policies allow the operation
-✅ Check: User has correct role/permissions
-✅ Check: Node access (user in correct node)
-✅ Check: If the EF is DB-trigger/cron-invoked, it does NOT require `bearer === SUPABASE_SERVICE_ROLE_KEY` — the DB posts the `admin_config`-stored key, which can drift from the env, so every trigger/cron call 401s and money rows strand (BP-87)
-See also: BP-19 (`verify_jwt = false` required for cron-invoked functions), BP-87 (DB-trigger/cron-invoked EFs must not enforce strict bearer == env service role key), `edge-functions.instructions.md` HP-3
-Issue: "Social/OAuth login leaves the user on a raw JSON / developer error page (e.g. Apple provider disabled)"
-
-✅ Check: The provider is actually enabled in Supabase Auth — a disabled provider returns `400 validation_failed "provider is not enabled"` only when the opened authorize URL loads (BP-88)
-✅ Check: The OAuth call config — `signInWithOAuth({ skipBrowserRedirect: true })` returns a URL WITHOUT throwing for a disabled provider, so a classification branch keyed on an initiation error never fires (BP-88)
-✅ Check: The friendly-error banner's copy path is actually reachable — the trigger must surface inside the client's try/catch, not inside the browser sheet/custom tab (BP-88)
-See also: BP-88 (error-classification branches need a real runtime trigger — mocked-error unit tests can green-light dead code; **and an INVENTED mock shape keeps an unreachable branch green** — the real wrong-password error is `400` + `error_code:invalid_credentials`, so a fixture using `401` + no `code` passes while the classifier's `default:` arm ships the wrong copy; FIX-Task-26 verification, 2026-09-13), BP-8 (typed service errors)
-Issue: "Subscription features not working after purchase"
-
-✅ Check: Stripe webhook received and processed — **and the handler can actually PROCESS a delivery** (a deployed, source-parity-clean webhook can still reject every event; BP-97)
-✅ Check: users.subscription_tier updated in DB
-✅ Check: subscription_expires_at set correctly
-✅ Check: Mobile app refetched user profile after purchase
-See also: BP-40 (Stripe `trial_end`/`trial_period_days` mutual exclusivity), BP-28 (admin-configurable value with no hardcoded fallback), BP-83 (webhook must be subscribed to `checkout.session.completed` + `customer.subscription.created`, or the purchase never creates the `subscriptions` row), BP-97 (a deployed-+-source-parity webhook is not an EXERCISED one — check it can process a real signed delivery before blaming the subscription logic)
-Issue: "Subscription not renewing / current_period_end not advancing"
-
-✅ Check: The Stripe webhook endpoint is subscribed to `invoice.payment_succeeded` (BP-83)
-✅ Check: If driving a renewal via test clock, the clock was set at subscription CREATION — clocks cannot be retro-attached to an existing Checkout sub (BP-83)
-✅ Check: The `invoice.payment_succeeded` handler found the `subscriptions` row by `stripe_subscription_id` before the renewal invoice fired (BP-83)
-See also: BP-83 (test-clock renewal verification), BP-71 (real charge/pay path)
-Issue: "Screen colors/tokens look off-brand (blue CTAs / Material palette)"
-
-✅ Check: No Material/Tailwind/system-blue hex in the screen or its sub-components (BP-82)
-✅ Check: The screen imports Pass It Up semantic tokens, not a legacy/foreign palette (BP-82 / BP-56)
-✅ Check: No legacy-design-system tokens (`#4A7C59`/`#4D4D4D`/`#808080`) anywhere in the file — they leak outside Discover into subscription screens too (BP-82, ContinueKidsClub upsell branch, 2026-09-05)
-✅ Check: EVERY rendered branch/variant of the screen (trial/upsell vs active vs per-status) is on-brand, not just the branch under the current test persona (BP-82 rule 6)
-See also: BP-82 (account/subscription screens incl. ContinueKidsClub, every branch), BP-56 (Discover discoveryTokens — `#4A7C59`/`#4D4D4D` also forbidden there), BP-86 (membership/value-prop copy must match the canonical benefit set), BP-85 (cents-stored money needs a cents formatter — "$1.49" not "$149")
-Issue: "Push/in-app notification never arrives for a state change"
-
-✅ Check: Is there already a DB trigger handling this event? (BP-20)
-✅ Check: `send-trade-notifications` response body — `resp.ok` can be true with `sent === 0` (BP-17)
-✅ Check: Reminder-type EFs must explicitly insert `user_notifications`, not rely on triggers (BP-18)
-✅ Check: Cron-invoked EF has `verify_jwt = false` (BP-19)
-See also: BP-32 (notification verification gate for any new state change), BP-74 (verify a created notification by its `data.ledger_id` linkage key — never a fuzzy/shared filter helper)
-Issue: "Realtime update doesn't reach the screen / stale UI until manual refresh"
-
-✅ Check: Target table is in the `supabase_realtime` publication (BP-36)
-✅ Check: RLS would not silently filter the event out (BP-36)
-✅ Check: The Realtime callback re-applies the same side effects the mount-time effect runs, not just UI state (BP-23)
-Issue: "Admin changed a config value but the app/UI still shows the old value"
-
-✅ Check: Pull-to-refresh passes `forceRefresh = true` to bypass in-memory caches (BP-15)
-✅ Check: Client error copy isn't hardcoding a numeric value the server should own (BP-28)
-✅ Check: the COALESCE chain's hardcoded fallback covers ONLY non-secret values (base URL) — the service role key resolves from config with no baked-in fallback, and no literal credential is baked into a cron `net.http_post` header (BP-22)
-Issue: "Tax amount looks wrong when the buyer applies Swap Points"
-
-✅ Check: Tax is calculated on the full item price, never on `cash_amount_cents`/SP-reduced amount (BP-37)
-✅ Check: Trade detail/timeline screens derive the taxable base from the joined listing's `price`, not the trade object (BP-42)
-✅ Check: Any RPC/trigger that recomputes tax on the trade is category-aware (honors `tax_exempt_goods`) and matches the offer-time value (BP-44)
-Issue: "Admin search box (Payments/Trades) returns Fetch failed: 404/400"
-
-✅ Check: The search targets a raw table with UUID columns instead of a text-cast view (BP-45)
-✅ Check: No filter term puts a `::cast` inside `or=(...)` — PostgREST supports neither `ilike` on UUID nor casts in `or` (BP-45)
-See also: BP-45 (create a text-cast view like `admin_trades_view`/`admin_payments_view` for searchable admin surfaces)
-
-Issue: "Applying a SQL migration / CREATE OR REPLACE FUNCTION fails with 42601 '<var>' is not a known variable"
-
-✅ Check: Every `v_*` variable used in the function body is declared in its `DECLARE` block (BP-46)
-✅ Check: The migration FILE (not just the query pasted into apply_migration) also declares them — a fresh `supabase db reset` replays the file (BP-46)
-See also: BP-46 (diff the DECLARE block against every `v_*` used before authoring/applying any Postgres function)
-
-Issue: "A function/RPC broke right after a migration that 'only' renamed a column or re-pointed its body — `42703 column <alias>.<col> does not exist` on the first call"
-
-✅ Check: The body patch was ANCHORED to a full expression (`p.status = 'failed'`), never a bare token (`p.status` also matches the suffix of `sp.status` in the same body) (BP-90)
-✅ Check: Every predicate that was meant to SURVIVE the patch is re-asserted before the body is written — a `RAISE EXCEPTION` guard, not a `RAISE NOTICE` (BP-90)
-✅ Check: The patched object was actually INVOKED (`SELECT public.<fn>();`) — plpgsql resolves names at run time, so `CREATE OR REPLACE` success is not evidence the body is correct (BP-90, BP-81)
-See also: BP-90 (patch a live function body with anchored tokens + survival guards + immediate invocation), BP-47 (the latest definition is authoritative — patch the live body), BP-46 (run-time name resolution)
-
-Issue: "A migration replay / `supabase db reset` fails on a file I did NOT touch — or a fix I just made INCREASED the number of failing files"
-
-✅ Check: The chain was re-measured as a WHOLE after the fix (pass-1 applied count + total unresolved), not just the file that was repaired — a newly-succeeding early file can create state (schema, extension, enum label) that a later file assumed absent (BP-96)
-✅ Check: The per-file error being investigated is the ROOT cause, not the LAST error from the probe's final deferred pass — re-run that one file alone against the settled DB to get the real cause (BP-96)
-✅ Check: The remaining gap was enumerated by diffing the live schema against the replayed schema (truth), not by reading the probe's failure list (symptom) (BP-96)
-✅ Check: **EVERY pass's applied count** was compared, not just pass 1 — a hoist in phase 3 moved `unresolved` 1 → 3 while pass 1 stayed flat at 389; only pass 2 (135 → 133) exposed it (BP-96 rule 6)
-✅ Check: No `GRANT` / `COMMENT` / `DROP … IF EXISTS` targets a function signature that a **different** file creates — four files commented on a 4-arg `get_tax_summary_for_period` they never create, while creating the 5-arg version (BP-96 rule 7)
-✅ Check: Where two files define the same object, the earlier one applies first — otherwise the older body silently wins and the fingerprint (identity, not body) stays green (BP-96 rule 8)
-✅ Check: A `db reset` failure was classified as CONTENT vs EXECUTION CONTEXT before "fixing" it — and no security-relevant statement (`CREATE POLICY` on `storage.objects`) was fail-softened just to get green (BP-96 rule 9)
-✅ Check: A renumbered chain was confirmed by **`pass 1: applied <N>, deferred 0`** — a single-pass, zero-deferral replay is what `db reset` actually requires (BP-96 detection checklist)
-✅ Check: The probe was re-run after **every** migration file ADDED or EDITED, not only after a repair — a file added one day after the chain was last green re-broke it (`531/531` → `530/531`, `unresolved: 1`), and the check costs minutes (BP-96 rule 10)
-✅ Check: Every `.sql` file in `supabase/migrations/` matches `<digits>_<name>.sql` (`… | grep -vcE '^[0-9]{14}_'` prints **0**) — a non-conforming name is silently SKIPPED by the CLI and never even logged as `Applying migration …`, so "the file did not run" must be diagnosed as a NAME problem before a SQL problem (BP-99)
-✅ Check: A NEW fidelity finding appeared right after YOUR change → attribute it with the discriminating re-run before writing it up: move your own migration out, re-run `replay-probe.mjs` + `fidelity-check.mjs`, and compare key sets — **identical keys means the delta is not yours**; also check `git status` for another session's uncommitted work (BP-100 rule 7)
-✅ Check: A residual was classified by DIRECTION per item (not backfilled wholesale) and any object about to be re-added was grepped for a deliberate prior `DROP` — the count is never driven to zero (BP-100)
-See also: BP-96 (re-measure the whole chain after a repair; re-run after every migration file; probe errors are last-errors; enumerate gaps by schema fingerprint), BP-99 (filename is an order key; the CLI silently skips non-conforming names), BP-100 (classify every schema-diff residual by DIRECTION, never drive the count to zero, and ATTRIBUTE a NEW finding via a discriminating re-run before reporting it as a regression), BP-9 (migration dependency order), BP-47 (the latest definition is authoritative)
-
-Issue: "E2E test fails right after signup because trigger-created rows (subscription, notification prefs, SP wallet) are missing"
-
-✅ Check: The target DB's signup trigger is actually attached AND its handler body matches the latest migration (BP-47)
-✅ Check: Deployment lag — the deployed function may predate the migration that defines the asserted defaults; apply/redeploy before blaming app code (BP-47)
-See also: BP-47 (E2E tests asserting trigger-created defaults must first verify the trigger exists in the target DB)
-
-Issue: "Dev task points at a fragile pattern (a cast, a missing variable, a stale trigger comment) inside a migration file"
-
-✅ Check: Grep migrations for the NEWEST `CREATE OR REPLACE FUNCTION <name>` / trigger definition and diff — a superseded body is dead code even if the function name is still attached to a trigger (BP-47)
-See also: BP-47 (the latest migration definition is authoritative — verify the attached/deployed body before patching anything found in a historical migration)
-
-Issue: "Admin edits a setting on one surface but the other surface shows no 'last updated' / who changed it, or a new settings page silently bypasses the shared write path"
-
-✅ Check: The settings write goes through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never a direct `admin_config` insert/update (BP-48)
-✅ Check: The acting admin's user id is passed as `p_admin_id` so `admin_config.updated_by` is recorded (BP-48)
-✅ Check: The audit target table exists — a write to a non-existent table (e.g. `audit_logs`) is silently dropped (BP-48)
-✅ Check: A config write OR revert that only changed `value` left `category`/`data_type`/`is_active` untouched — `qa:admin-config-set` defaults to `feature_flags`/`string` and silently rewrites them, so the WHOLE row was read back, not just `value` (BP-48)
-See also: BP-48 (admin config writes must record the editor via the shared RPC and land in the shared audit trail; a value-only write must not clobber the row's sibling columns)
-
-Issue: "Admin page fetch to /api/admin/* fails with 401 / 'No valid authentication provided'"
-
-✅ Check: The browser fetch sends `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` — the established client pattern (BP-49)
-✅ Check: The request isn't relying on a session cookie — there is NO middleware, and `verifyAdminAuth` reads only the `x-admin-secret` header or an explicit Bearer JWT (BP-49)
-✅ Check: New code doesn't copy legacy header-less admin fetches that 401 in practice (BP-49)
-See also: BP-49 (admin client→API auth — always send the `x-admin-secret` header or an explicit Bearer JWT)
-
-Issue: "Verifying an admin-UI fix would require mutating live/staging config or QA data (a moderation Keep/Hide, a config save, a payout trigger)"
-
-✅ Check: The write was intercepted, not executed — Playwright `page.route('**/api/...', fulfill)` stubs the endpoint and the assertion runs against the surrounding behaviour (the follow-up refetch fires, the label/summary updates, the dialog copy is correct) (BP-89)
-✅ Check: The follow-up request was COUNTED (a `request` listener filtered by method + URL), not inferred from the page still looking right (BP-89)
-✅ Check: If the mutation's own effect had to be proven, it was proven against a disposable fixture — and the handoff states that the write was intercepted, so "verified" is never read as "applied to the DB" (BP-89, BP-80)
-✅ Check: **HARD GATE** — the stub was REMOVED (`page.unroute(...)`, or close the page) BEFORE the verification was reported complete — a `page.route`/`context.route` handler lives in the browser, survives reload, is not cleared by a dev-server restart, and otherwise fakes every later real click on that page (FIX-Task-22 item 0: an admin "Keep" returned `200 {"success":true}` for four rounds and never persisted) (BP-89)
-✅ Check: Before treating a silent-success mutation as an app bug, the body was compared to the route source and the route was probed server-side with `curl` (bypasses all browser interception and forces Next to compile it) (BP-89, FIX-Task-22 item 0)
-See also: BP-89 (verify a data-mutating admin action without mutating data — including un-stubbing it afterwards), BP-80 (a mutating step is approval-gated — "written, NOT applied" must be stated explicitly)
-
-Issue: "Bottom nav / persistent tab bar (or other root-level UI) missing after completing or skipping onboarding until the app is relaunched"
-
-✅ Check: The root-level component's gate state (e.g. `showOnboardingCarousel`) is updated by a `[userId]`-keyed mount effect ONLY — a child screen navigating away does NOT re-run it (BP-55)
-✅ Check: The child screen flips the gate via an explicit `initialParams` callback, not by relying on a re-run effect (BP-55)
-✅ Check: Every exit path (Skip, Get Started, failure fallback) goes through the same shared helper that fires the callback (BP-55)
-See also: BP-55 (wire an explicit `initialParams` callback from the child to flip root-level mount-effect-only gate state)
-
-Issue: "Discover screen renders legacy green (#4A7C59) or iOS system blue (#007AFF) instead of the pass-it-up palette (#5DBB8E)"
-
-✅ Check: `src/theme/discoveryTokens.ts` is reconciled to `docx/design-system-passitup.md` and matches `src/theme/colors.ts` (BP-56)
-✅ Check: Discover components import `ds` tokens from `@/theme/discoveryTokens` — no raw legacy hex (`#4A7C59`, `#E5E7EB`, `#1F2937`, `#4D4D4D`) or system blue (`#007AFF`/`#EEF6FF`) (BP-56)
-See also: BP-56 (design tokens — canonical pass-it-up palette; never source from legacy `design-system.md`)
-
-Issue: "A fix makes an auto-verify/auto-submit path actually work, and suddenly unit tests that used to pass are failing"
-
-✅ Check: The failing tests were written around the OLD broken behavior — e.g., a manual Verify/fallback tap that is now unreachable because the auto-path fires first (BP-57)
-✅ Check: The tests were updated to assert the corrected auto-behavior, not the fix reverted or weakened to keep them green (BP-57)
-See also: BP-57 (a behavior fix that makes an auto-path work breaks manual-fallback tests — update those tests; the failure proves the fix worked)
-
-Issue: "A regression test added to guard a fix stays green even when the fix is removed — it was never proven able to fail"
-
-✅ Check: The test was run with the fix NEUTRALISED (guard commented out / `false &&` / flag flipped) and OBSERVED to fail before it was trusted (§9.1h)
-✅ Check: Both runs were recorded — RED without the fix, GREEN with it — not just the green one (§9.1h)
-✅ Check: If it passed without the fix, the mock settles too fast for the competing path to overlap — hold the promise PENDING via a deferred promise so the race becomes deterministic (§9.1h)
-✅ Check: The assertion cannot pass on ANY call count — `toHaveBeenCalledWith` passes for 1 or 10, and a counts assertion INSIDE `waitFor` can pass at the instant of the first resolve (§9.1h)
-✅ Check: The probe used to disable the fix was removed and the tree grepped for its marker (`TEMP-PROBE`, `false &&`) — the same un-stub discipline as BP-89
-See also: §9.1h (a regression test is not evidence until you have watched it fail with the fix disabled), BP-90 (invoke the patched object — DDL success is not proof), BP-88 (a mocked branch may never fire on the real path at all), BP-57 (update tests written around the old behaviour — never weaken the fix to keep them green), BP-98 (a fixture must only assert a state the production writers can create)
-
-Issue: "A CTA / Save / Submit button (or a sticky bottom bar) is hidden behind the floating bottom nav pill"
-
-✅ Check: Scroll content uses `paddingBottom: 100`; fixed bottom bars use `bottom: 120`; in-flow bars above a fixed bar use `marginBottom: 200` (BP-58)
-✅ Check: The content actually OVERFLOWS the viewport (ScrollView frame vs the last child's `y + height + paddingBottom`) — if it fits, the screen never scrolls and padding cannot lift the trailing element, so the fix must be a layout change instead (BP-58)
-See also: BP-58 (bottom-anchored UI must clear the floating pill nav — the pill top sits ~110pt from the screen bottom; padding only helps when the content overflows)
-
-Issue: "A screen renders a visible junk line like `accessible accessibilityRole="button" ...` inside a `<Text>` (accessibility props pasted as literal children)"
-
-✅ Check: Every `<Text>` carrying `accessible`/`accessibilityRole`/`accessibilityLabel` has them as attributes on the opening tag, never as rendered children — grep `accessible accessibilityRole` when touching or reviewing `<Text>` components (BP-61)
-See also: BP-61 (accessibility props must be attributes, not literal `<Text>` children — recurred on `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`)
-
-Issue: "A modal's buttons don't show up in the iOS AX tree even though they carry `testID` + `accessible` + `accessibilityLabel`"
-
-✅ Check: The modal's backdrop/sheet containers are `Pressable`s (they default to `accessible={true}` and GROUP their children) — set `accessible={false}` on the overlay AND sheet so the buttons surface individually; `accessibilityViewIsModal` on the `<Modal>` alone is not sufficient (BP-53)
-See also: BP-53 (QA testIDs must be real iOS accessibility elements; Modal/Pressable containers group children — verified on-device 2026-09-01 on the bundle accept modal)
-
-Issue: "A mutation appears to succeed in the UI but the database wasn't actually changed"
-
-✅ Check: The caller checked the `{success}` result of the service call instead of ignoring it (BP-35)
-Issue: "Edge Function deploy fails with 'Module not found'"
-
-✅ Check: Deploy via the CLI `supabase functions deploy --use-api` (BP-41 — the standing required path), which resolves `../_shared/*` from the local filesystem; if it still fails with "Module not found", scan the entrypoint for ALL relative imports (including transitive `_shared/*`) and confirm every target file exists on disk (BP-41 rule 4)
-See also: BP-41 (Edge Function deploys — CLI `supabase functions deploy --use-api` is the standing required path regardless of file size or `_shared/*` imports; the MCP deploy tool is a documented last-resort fallback only, per the DEV-TASK-36 resolution; former BP-77 now merged here)
-Issue: "An Edge Function and a DB trigger/RPC disagree on the same business rule"
-
-✅ Check: Split-brain enforcement — search migrations for a trigger/RPC/constraint duplicating the Edge Function's check (BP-27)
-Issue: "Edge Function log shows an 'UncaughtException' / 'event loop error' with an empty message"
-
-✅ Check: The message is read from the TOP-LEVEL `event_message` column of `function_logs`, not `log_attributes['event_message']` (always empty) (BP-68)
-✅ Check: An `event_message` of `Deno.core.runMicrotasks() is not supported` is a runtime teardown artifact — the response may already have been correct (BP-68)
-See also: BP-68 (function log message location — `event_message` is a top-level column)
-
-Issue: "Tier-1 live verification can't create a Stripe test PaymentMethod"
-
-✅ Check: The PM is created from a magic test Token — `card: { token: 'tok_visa' }` — not raw card data or `pm_card_visa` (BP-69)
-See also: BP-69 (Stripe test-mode PM fixtures via `tok_visa`)
-
-Issue: "Leftover disposable test users/profiles after live verification"
-
-✅ Check: `profiles` rows were deleted by `user_id` (not `id` — `profiles.id ≠ user_id` here), then `admin.deleteUser` (BP-70)
-See also: BP-70 (disposable-user cleanup must target `profiles.user_id`)
-
-Issue: "Tier-1 verification passed, but the real charge/pay path is broken in production"
-
-✅ Check: The verification drove the ACTUAL charge/pay path on a fresh isolated throwaway user — a guard-path-only probe (`INVALID_STATUS` / `NO_FAILED_PAYMENT` / `NO_OPEN_INVOICE`) does NOT prove the money path works (BP-71)
-✅ Check: The retry/double-tap path was exercised and no second Stripe object/charge was created (BP-71)
-See also: BP-71 (Stripe money-function verification must exercise the real charge/pay path, not just the guard/smoke path)
-
-Issue: "QA case only asserted on the UI response / guard-path — did the backend/DB/Stripe side effect actually happen?"
-
-✅ Check: The case read the relevant DB row(s) and/or actual Stripe/PayPal object state directly — never only the UI response or a guard-path smoke (BP-72)
-✅ Check: For money/financial-state functions, the ACTUAL charge/pay/create path was exercised on a fresh throwaway user, not just a guard-path error (BP-72)
-✅ Check: Read-only DB/Stripe state confirmation was treated as pre-approved (no per-instance owner sign-off); mutating test actions still used the safe-fixture/disposable-user discipline (BP-72)
-See also: BP-72 (QA side-effect verification — read-only backend/DB/Stripe checks are pre-approved)
-
-Issue: "SQL/PostgREST query fails with 42703 'column does not exist' (e.g. `trades.item_id`, `profiles.stripe_connect_account_id`)?"
-✅ Check: The `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect/payout-method state lives in `seller_payout_methods` (never `profiles`) (BP-73)
-See also: BP-73 (schema facts — trades FK is `listing_id`; payout-method state in `seller_payout_methods`)
-
-Issue: "Security advisory / audit reports tables with RLS disabled (or a table that should be locked down is reachable from a client)"
-
-✅ Check: The authoritative list came from the LIVE `pg_class.relrowsecurity` query, not a migration grep — greps are incomplete (RLS enabled in DO blocks/seed, or the `ENABLE RLS` line commented out) and miss orphaned tables that exist only in the DB (BP-75)
-✅ Check: Every reader/writer of each table was traced (mobile user-JWT, Edge Function, admin-portal client vs API-route service role, SECURITY DEFINER/cron) before enabling RLS, so no user-JWT path silently breaks (BP-75)
-See also: BP-75 (RLS-disabled audits must use the live `pg_class.relrowsecurity` query, not migration greps)
-
-Issue: "Expired/declined offer not surfacing in the app's 'Your Offers', or the seller-ignore counter resets to 0 on expiry — with no error?"
-✅ Check: The client's fetch/filter literal matches the LIVE DB value — e.g. `TradeListScreen` compares `.in('cancellation_reason', ['seller_declined','offer_expired'])` but the expiry RPC writes `'Offer expired'` (spaced) → silent mismatch, expired offers never surface (BP-76)
-✅ Check: DB triggers comparing the same reason use the identical literal — `fn_reset_unanswered_counter`'s `IS DISTINCT FROM 'offer_expired'` never matches the stored `'Offer expired'`, so it resets the streak to 0 on expiry (BP-76)
-✅ Check: A status-driven gate refusing a state the user IS in → count the DATA before believing it: `SELECT status, count(*) FROM <table> GROUP BY status ORDER BY 2 DESC`. When a CHECK constraint legally admits two spellings of one state (live: `subscriptions.status` allows `'grace'` AND `'grace_period'`), every gate AND every client allow-list must accept both — a lone legacy-spelled outlier row is a fixture/data defect that FAKES a product-level failure (FIX-Task-51, 2026-09-17)
-See also: BP-76 (enum-like status/reason values — one canonical literal across DB writer, triggers, and client; when a CHECK admits two spellings, widen the gates AND normalize the data)
-
-Issue: "The next session / QA pass can't find the trade/column/row the previous session's handoff implied was provisioned"
-
-✅ Check: The prior handoff explicitly said which provisioning steps were "written, NOT applied/run" and which regression tiers were marked DEFERRED (BP-80)
-✅ Check: The migration was actually applied (`list_migrations`) / the fixture script actually run — never assume from the code being committed or a clean script exit; verify the DB state directly (BP-80)
-✅ Check: The fixture script's read-back printed its own primary key(s) (`bundle_id` / `trade_id` / `item_id` / `cart_id`), not just a row count — a count leaves the fixture unidentifiable for the next session/QA pass (BP-80 rule 4)
-See also: BP-80 (two-phase provisioning deliverables — code + Tier 0 vs. approval-gated execution against staging; a fixture's read-back must print its primary key(s), never only a count)
-See also: BP-81 (MCP-applied migrations don't appear in `list_migrations` — verify the migration landed by live invocation, not the migration list)
-
-Issue: "A QA finding quotes on-screen text (a label, error string, alert title, or banner heading) that appears nowhere in the shipped code"
-
-✅ Check: The exact literal was grepped from the source (`grep -rn "<quoted string>" <app dirs>`) AND history was checked for a removed string (`git log -S "<quoted string>" --all`) before treating the quote as real (§9.1b)
-✅ Check: The finding's SURFACE attribution was re-based on the component that actually renders that state — a quoted string that has never existed means the cited screenshot may show a different surface, and the quote may be an OCR/paraphrase artifact (§9.1b)
-✅ Check: No component was invented, restyled, or copy-migrated to match a quoted string no code emits; if no surface matches, a fresh capture of the exact moment was requested (§9.1b)
-See also: §9.1b (quote-verify any quoted on-screen text before trusting the finding's surface), §9.1a (state the investigation stance upfront — "quoted string not in source" is a first-class ruled-out result)
-See also: BP-82 / BP-86 (on-brand tokens and canonical copy — the real defect behind a mis-attributed string is usually a copy/token mismatch on the surface that DOES exist)
-
-Issue: "A reported UI defect (a bottom CTA that opens the wrong thing, an occluded control, a stale label) can't be reproduced — or the fix looks clean in tests"
-
-✅ Check: The reproduction used the SAME entry path as the report — cold launch / post-login remount / session restore / deep link — not just a navigate-to-the-screen hop; an initial-mount-only defect disappears the moment any navigation event fires (§9.1f)
-✅ Check: The root-level element's gate reads its route/state from the navigator that owns it (or from root state fed by the navigator's route listener), never from its own snapshot taken during the initial mount (§9.1f, BP-55)
-✅ Check: No root-level sibling was keyed with the navigator's own key to force a remount — that raises "Encountered two children with the same key" and does not fix the gate (§9.1f)
-See also: §9.1f (reproduce through the REAL entry path — navigation masks initial-mount-only defects), §9.1a (state the stance upfront), BP-55 (root-level gate state set only by a mount effect)
-
-Issue: "A client/EF call that worked before now returns 401 or `permission denied for function …` right after a migration replaced that function"
-
-✅ Check: The replaced function's EXECUTE grants were re-asserted in the same migration — `CREATE OR REPLACE FUNCTION` in `public` fires `dt61_guard_revoke_fn_public` (its `ddl_command_end` tag list includes the replace path), which REVOKEs PUBLIC/anon/authenticated, and the original migration's `GRANT`s are NOT re-applied (BP-79 — the `CREATE OR REPLACE` grant-stripping bullet)
-✅ Check: The grant was verified LIVE per consumer role (`has_function_privilege('authenticated','public.<fn>(uuid)','EXECUTE')`) plus a before/after `aclexplode(pg_proc.proacl)` diff — never by reading the migration file (BP-79, BP-78)
-✅ Check: Untouched sibling functions kept their grants while the replaced one lost them — that asymmetry is the signature of the guard, not of a REVOKE someone wrote (BP-79, `CREATE OR REPLACE` grant-stripping bullet)
-See also: BP-79 (default-privilege guard + explicit-grant discipline — including on `CREATE OR REPLACE`), BP-78 (live `aclexplode` grant audits), BP-81 (verify the change landed by invoking it live)
-
-Issue: "A user-visible value shows its fallback (a role label, placeholder, or "Unknown") even though the code that renders the real value is present and correct"
-
-✅ Check: The value's SOURCE actually resolves on the real path — a fetch that returns null leaves the `?? fallback` branch as the only thing that ever renders, so the correct-looking expression is dead in practice (BP-88 rule 4)
-✅ Check: The rendered string was asserted in the AX tree or a screenshot FOR THAT STATE — typecheck/lint/unit green proves the code path, not the rendered value (BP-88 rule 4, BP-53)
-✅ Check: The value is resolved where it RENDERS, not only passed in by the caller — a caller's own read can fail the same way, and a deep-link entry carries no value at all (BP-88 rule 4)
-✅ Check: The fixture actually exercises the branch that changed — an already-reviewed record and an unreviewed sibling render DIFFERENT branches, so one fixture can hide a total no-op on the other (BP-88 rule 5)
-See also: BP-88 (a branch is only correct if its trigger fires on the real runtime path — same class for error branches AND data-derived values), BP-53 (confirm on-device — unit tests alone are insufficient), BP-91 (a mobile UI change needs an in-session device attempt — otherwise the handoff must enumerate the owed device legs, and typecheck/lint/unit-green is never on-device verification)
-
-Issue: "A QA finding describes a state the canonical spec never covers (e.g. a partially-completed bundle), and it is unclear whether it is a bug or intended"
-
-✅ Check: A sibling feature in the SAME file already solves the analogous case — if yes, this is an in-file inconsistency: mirror the sibling instead of escalating it as a product decision (§9.1c)
-✅ Check: The sibling's derived values were mirrored too, not only its gate — the bundle fix had to correct an over-counting `total`, not just the "every sibling must be in_progress" condition (§9.1c)
-✅ Check: If no precedent exists, the case was escalated as a product/UX question WITH a recommended option — never implemented as a default and buried in a comment (OWNER CONTEXT + §9.1c)
-See also: §9.1c (spec-silent QA finding → sibling-precedent check first), §9.1a (state the investigation stance upfront)
-
-Issue: "Two widgets on the same screen show contradictory numbers, or a money/state value visibly changes a moment after it is painted"
-
-✅ Check: Both widgets derive the quantity from the SAME array the visible list renders — a tile written at the tail of one fetcher while the card comes from another will disagree for a frame (BP-92 rule 1)
-✅ Check: Banner/button/modal counters call ONE shared helper instead of re-implementing the filter per call site (BP-92 rule 2)
-✅ Check: Any value painted before its fetch resolves is withheld (`—`/skeleton) and any control that SUBMITS it stays disabled until it is authoritative — a display-only fallback (`?? 99`) is a wrong number, not a neutral default (BP-92 rule 3)
-✅ Check: Adjacent widgets stating the same fact were verified at BOTH ends of the range (2-item AND 3+/4-item bundles) — agreement at one size passes review and still ships the bug (BP-92 detection checklist)
-See also: BP-92 (one source of truth per displayed number — no parallel state, no placeholder defaults), BP-29 (audit every downstream counter/filter after a data-source restructure), BP-88 rule 4 (a value built from an async read renders its fallback when the fetch returns null), BP-15 (pull-to-refresh must refresh everything the user can see)
-
-Issue: "A screen's unit test never settles — the tree is stuck on its loading state and every case times out at ~1 s"
-
-✅ Check: The mocked navigation/route/hook objects are module-level constants, not fresh literals per call — a new object each render re-creates the screen's `useCallback`, so its focus effect re-subscribes and loops (BP-93 rule 1)
-✅ Check: The mocked query builder's call count was inspected — dozens of identical `.from()` calls inside ONE case is the signature (BP-93 rule 2)
-✅ Check: Mock constants carry a `mock` prefix so `jest.mock()` factories may close over them (BP-93 rule 3)
-✅ Check: Debugging asserted on mock call counts / rendered state rather than `console.log` — this repo suppresses jest console output and the log will be silently missing (BP-93 rule 4)
-See also: BP-93 (identity-stable jest mocks), BP-60 (test isolation — shared mutable params leaking between cases), BP-57 (behaviour-fix test drift — a green-looking test written around the old behaviour)
-
-Issue: "A unit test stays green while exercising the WRONG branch — the module under test gained a new import and the suite's `jest.mock()` factory for it never listed that export" / "a newly-added pure predicate has no effect on the rendered tree and every existing assertion still passes"
-
-✅ Check: Every factory for the module path was diffed against the module's real exports — an unlisted export is `undefined`, not "no-op" (BP-94 rule 1)
-✅ Check: The consumer's `try/catch` (or fail-soft path) was ruled out as the reason the `TypeError: … is not a function` never surfaced — a soft-fail service turns an incomplete mock into a plausible domain result (BP-94 rule 2)
-✅ Check: Each factory export carries an explicit implementation AND a `beforeEach` default — `jest.clearAllMocks()` clears calls but not implementations, so a test that armed a failure toggle can leak into the next case (BP-94 rule 3)
-✅ Check: The assertion still touches the value that changed — a green suite whose assertions drifted away from the changed value is the tell (BP-94 detection checklist)
-✅ Check: The suite's `jest.mock()` for that module was read for a FACTORY — a bare `jest.mock('<mod>')` auto-mocks the whole module, so every export (including pure predicates) is a `jest.fn()` returning `undefined`; pure dependency-free logic belongs in its own leaf module (BP-94 rules 5-6)
-See also: BP-94 (mock factories must mirror the module's full export surface; a bare `jest.mock()` auto-mocks every export), BP-88 (an invented mock shape green-lights an unreachable branch), BP-93 (jest mock mechanics — unstable mocks present as a silent timeout instead)
-
-Issue: "A user is shown data that the backend says does not exist — e.g. a saved card / balance / name on an account that has none, appearing right after an account switch"
-
-✅ Check: A client-side module-scope cache was ruled in/out FIRST — grep the service layer for `^let _<x>Cache` / `CACHE_TTL_MS` and read the getter; a process-global slot read without a session check serves the PREVIOUS user's data (BP-95 rule 1)
-✅ Check: The **fresh-process control** was run before concluding a server-side leak — stale-after-warm-switch + correct-after-terminate-and-relaunch proves a client cache, and rules OUT a backend disclosure; the opposite result (still stale on a fresh process) is what would justify a backend/data finding (BP-95 detection checklist)
-✅ Check: The cache's SIBLING state was cleared too — clearing the value without resetting the in-flight promise (or `_pmPromise` equivalent) leaves a second stale path (BP-95 rule 5)
-✅ Check: Every consumer of the getter was enumerated before shipping the fix — Payment Methods, Manage Kids Club+ `PaymentMethodSection`, CartCheckout, TradeOffer all inherit a leak in one shared getter (BP-95 rules 1-3)
-See also: BP-95 (user-scope + auth-transition invalidation for client caches), BP-15 (the refresh-bypass half of caching — BP-15 + BP-95 together are the complete cache discipline), BP-92 (one source of truth per displayed value — a cache is a second source)
-
-9.3 Debugging steps
-Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
-Test in Supabase Studio: Run raw SQL queries to verify data/RLS
-Check logs: Supabase Edge Function logs, mobile app console
-Simplify: Remove business logic, test with minimal example
-Compare to spec: Reference the relevant FR-XX requirement in System Requirements
-10. Code organization best practices
-10.1 Mobile app structure
-p2p-kids-marketplace/
-├── src/
-│   ├── api/              # Supabase client, Edge Function calls
-│   ├── components/       # Reusable UI components
-│   ├── screens/          # Screen components (one per route)
-│   ├── navigation/       # React Navigation config
-│   ├── types/            # Shared TypeScript types
-│   ├── hooks/            # Custom React hooks (useAuth, useSP, etc.)
-│   ├── utils/            # Pure utility functions (formatters, validators)
-│   ├── constants/        # Config, feature flags, enums
-│   └── contexts/         # React contexts (AuthContext, SPContext)
-10.2 Supabase structure
-supabase/
-├── migrations/           # SQL migrations (versioned, sequential)
-├── functions/            # Edge Functions (Deno/TypeScript)
-│   ├── _shared/          # Shared utilities, types, validators
-│   ├── auth/             # Auth endpoints
-│   ├── listings/         # Listing CRUD
-│   ├── transactions/     # Transaction flow
-│   ├── sp/               # Swap Points operations
-│   ├── subscriptions/    # Stripe webhooks, subscription logic
-│   └── admin/            # Admin operations
-└── seed.sql              # Test data for local development
 10.3 Naming conventions
 Database tables: snake_case (e.g., swap_points_transactions)
 TypeScript types: PascalCase (e.g., SwapPointsTransaction)
@@ -1056,12 +420,12 @@ Supabase MCP (`mcp_supabase_*`) — CONFIRMED (2026-07-29): both read (`list_tab
 
 **Supabase MCP is the ONLY path for SQL/DDL (MANDATORY, owner rule 2026-08-28 — unchanged). Edge Function deploys follow BP-41 (CLI) as the standing rule — the MCP-deploy mandate is RETIRED (owner decision 2026-08-28, DEV-TASK-36):**
 - **Applying/executing SQL or DDL** (migrations, `execute_sql` mutations, RLS, verification queries) MUST go through the Supabase MCP tools ONLY: `mcp_supabase_execute_sql` (raw SQL) or `mcp_supabase_apply_migration` (DDL). These live behind the `activate_database_migration_tools` category — call that activation tool FIRST, then use them. NEVER waste time hunting for alternatives (supabase CLI keychain tokens, Management API, `db push` passwords, psql, etc.) — the MCP tools are the only sanctioned path for SQL/DDL.
-- **Deploying/updating Edge Functions — BP-41 is the standing rule, full stop (owner decision 2026-08-28, DEV-TASK-36):** the REQUIRED deploy path is the official CLI `supabase functions deploy <name> --project-ref <ref> --use-api` run from the repo root, which resolves `../_shared/*` from the local filesystem and uploads the entrypoint + every dependency as assets for server-side bundling — for ALL functions, regardless of file size or shared-import status. This RETIRES the earlier owner rule (2026-08-28) that mandated `mcp_supabase_deploy_edge_function`; the MCP deploy tool is demoted to a documented last-resort fallback (use only when the CLI is genuinely unavailable — no access token / CI restriction — per BP-41 rule 3), and ANY deploy path MUST be followed by mandatory post-deploy verification (BP-41 rule 5 / BP-66: deployed version bump + a real invocation returning the function's own response, never just a clean exit code). Always pass `--use-api` (BP-66) and reconcile `verify_jwt` against `config.toml` IMMEDIATELY BEFORE the deploy command (BP-41 rule 2). Rationale for this resolution: BP-41's CLI path is precisely what prevents recurrence of the `../_shared/*` resolution failure that caused the original `create-trade-offer` regression this week — the MCP-only mandate directly reintroduced that exact risk, so it is withdrawn with no exceptions carve-out needed for this conflict going forward. Full text: `.github/instructions/edge-functions.instructions.md` (BP-41 / BP-66; former BP-77 merged into BP-41 2026-09-12).
+- **Edge Function deploys:** BP-41 is the standing path: `supabase functions deploy <name> --project-ref <ref> --use-api` from the repo root, reconcile `verify_jwt` against `config.toml` first, and verify after deploy (version bump + a real invocation). The MCP deploy tool is a last-resort fallback only. Full text and the Supabase MCP `Unauthorized` diagnosis order: `docs/agent-ref/mcp-and-tooling.md` (rule text: BP-41 / BP-66 in `edge-functions.instructions.md`).
 - **If an MCP tool appears "disabled", call the matching `activate_<category>_tools` first** — Supabase tools are gated behind category activation (e.g. `activate_database_migration_tools`, `activate_edge_function_management_tools`), NOT genuinely off. Do not treat a "disabled" message as a blocker or go looking for another tool.
-- **A Supabase MCP `Unauthorized` error is a CREDENTIAL problem, not a category gate — preflight it BEFORE authoring DB work, and diagnose in this order (FIX-Task-56, 2026-09-18).** `Unauthorized. Please provide a valid access token…` means the server ran and rejected the call: do NOT re-read the "disabled → activate" bullet above, and do NOT hunt for an alternative SQL path (the MCP-only rule stands). Instead: **(1) Preflight** — make one cheap read (`mcp_supabase_list_projects`) as the FIRST action of any task that will need SQL/DDL, so a dead credential surfaces before the work instead of after a finished migration. **(2) Enumerate ALL config sources** — a Supabase server may be declared in the workspace `.vscode/mcp.json` OR the **user-level** `~/Library/Application Support/Code/User/mcp.json` (this workspace's `com.supabase/mcp` lives ONLY in the user-level file, as a stdio `npx` server whose token is `env.SUPABASE_ACCESS_TOKEN`). Identify the server **by name** from the config that actually declares it before telling the owner what to change — pointing at the wrong file's `${input:...}` placeholder costs a wasted restart cycle. **(3) Probe, don't infer** — "token absent from the shell" and "token present but rejected" look identical from the outside, so test the token itself and read only the **HTTP status** (`curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" https://api.supabase.com/v1/projects`; 200 = valid, 401 = expired/revoked). Never print the token and never ask for it — secrets do not flow through the agent. **(4) Before asking the owner to act AGAIN, check whether the last fix actually landed** — compare the config file's **mtime against the running MCP server process's start time** (`pgrep -f mcp-server-supabase` + `ps -o lstart=`): an unchanged mtime with identical PIDs proves the change never took, and tells you *which* file to correct instead of re-asking blindly. A stale server process is the infra twin of the bundle-freshness gate (R79-1c). **(5) The fix is owner-only** — mint/paste the PAT, then **reload the VS Code window**; an MCP server restart alone may not re-read the config, and the running process never polls it.
 - The per-call approval rule above still applies: state exactly what you'll run and get Samer's approval before each Supabase MCP call.
 
-Mobile runtime tooling (`mcp_metro-mcp_*`, `mcp_xcodebuildmcp_*`, `mcp_mobile-mcp_*`) — see "Mobile Runtime & Simulator Tooling" below.
+Mobile runtime tooling (Metro MCP, XcodeBuildMCP, mobile-mcp): verify runtime behavior by inspecting the running app instead of asking the user to check it, and only after typecheck/lint pass (HP-2a). Device-id, deep-link and scroll-hazard specifics: `docs/agent-ref/mcp-and-tooling.md`.
+
 There is no separate "git MCP" tool in this workspace — use the terminal (`git status`, `git diff`, `git log`) for all git inspection, diff summaries, and duplicate-edit avoidance.
 Any other MCP server: STOP and ask before using it. Do NOT install or suggest “random” servers.
 
@@ -1081,15 +445,6 @@ Require Tier 0 (typecheck + lint) to pass — the canonical commands live in HP-
 When fixing a bug
 Open the exact file/line, confirm the minimal fix via `git diff`, and provide a tiny patch instead of a broad refactor unless explicitly requested.
 
-Mobile Runtime & Simulator Tooling (MANDATORY — use before telling the user to manually check the app)
-When you need to verify runtime behavior instead of guessing from static code:
-Use Metro MCP (`mcp_metro-mcp_*`) to inspect the running app directly: `get_console_logs`, `get_network_requests`, `get_redux_state`/`get_redux_actions`, `get_component_tree`, `get_current_route`, `get_errors`/`get_bundle_errors`. Prefer this over asking the user to read console output manually.
-Use XcodeBuildMCP (`mcp_xcodebuildmcp_*`) to build and run on the iOS Simulator (`build_run_sim`) and capture evidence (`screenshot`, `record_sim_video`) instead of only telling the user to “open the simulator.” Call `session_show_defaults` first per that tool's own instructions.
-Use mobile-mcp (`mcp_mobile-mcp_*`) for cross-platform simulator/device interaction (tap, swipe, screenshot) when Metro MCP is not connected.
-Resolve the mobile-mcp **device identifier** from `mobile_list_available_devices` before the first `mobile_*` call — it is the toolset's own id, NOT the adb/simctl id. On the Android emulator that means the AVD name (`Medium_Phone_API_36.1`), so a batch addressed to `emulator-5554` fails with `Device "emulator-5554" not found` (FIX-Task-41, 2026-09-16 — one wasted cycle). A "disabled by the user" error from a `mobile_*` tool is a category gate, not a blocker — call the matching `activate_<category>_tools` per the MCP rule above.
-`mobile_open_url` accepts only `http(s)://`, so drive an app deep link (QA one-tap login / `qa-dev-toggle` / a screen route) from the terminal instead: `adb -s <serial> shell am start -W -a android.intent.action.VIEW -d "p2pkidsmarketplace://<path>" com.sameralzubaidi.p2pmarketplace` (iOS: `xcrun simctl openurl booted "p2pkidsmarketplace://<path>"`); escape a multi-param `&` as `\&` for the device shell.
-When driving mobile-mcp taps on a SCROLLABLE screen, never tap a target whose AX-tree coordinates sit at/under the floating pill band or below the visible fold — AX coordinates for below-the-fold scroll content are logical, not hit-testable (DT105, 2026-09-04: Profile "App Settings" was reported at y910-963, under the pill, and a tap at that coordinate hit the "My Badges (1)" showcase row instead). Scroll the target up into the visible, pill-free band, re-list the element tree for fresh coordinates, then tap — never trust a single off-screen AX snapshot.
-These tools do NOT replace the Tier 0 Compile Gate — only use them AFTER typecheck/lint pass (see HP-2a).
 12 Hardening Protocol (mandatory)
 HP-1 Contract-first + Single Source of Truth (no exceptions)
 Canonical contracts live in ONE place only:
@@ -1153,7 +508,7 @@ HP-3 (Supabase auth/RLS rule for Edge Functions), HP-4 (DB invariants), and HP-5
 Script Existence Rule (MANDATORY)
 Before telling the user to run any command like npm run typecheck, you MUST:
 
-confirm the script exists in the target app’s package.json If it does NOT exist, you MUST either: A) provide the exact package.json change to add it, OR B) use a command that definitely exists (e.g., yarn lint only if it exists). Never invent scripts.
+confirm the script exists in the target app’s package.json If it does NOT exist, you MUST either: A) provide the exact package.json change to add it, OR B) use a command that definitely exists (e.g., npm run lint only if it exists). Never invent scripts.
 HP-6 “Done” evidence format
 Every response must include:
 
@@ -1168,15 +523,8 @@ Open questions / TODOs (if any)
 HP-7: Formula Documentation
 Cross-Reference rule requiring at least 2 independent doc examples to verify any formula before implementation. This would have caught the SP formula error immediately by forcing verification against the ADMIN-CATEGORY example.
 
-HP-8 Gitignored repo-local tooling config that gates agent behavior must be version-controlled or documented (config drift)
-When you create or rely on repo-local tooling config that changes how an agent behaves — e.g. a terminal auto-approve allowlist in `p2p-kids-marketplace/.vscode/settings.json` (the QA Test Agent's prompt gate) — remember that `.vscode/` is gitignored, so that config exists only in the current clone: it never appears in `git status`/`git diff`, and another developer's clone silently behaves differently (e.g. the QA agent re-prompts on every terminal command).
+HP-8 Gitignored repo-local tooling config that gates agent behavior (for example `p2p-kids-marketplace/.vscode/settings.json`) must be committed as an `.example` copy or documented in tracked instructions; state whether it propagates to other clones. Details: `docs/agent-ref/mcp-and-tooling.md`.
 
-Rules:
-
-- If the config must live under a gitignored path (e.g. `.vscode/`), ALSO commit an `.example` copy of it (e.g. `p2p-kids-marketplace/.vscode/settings.json.example`) so the canonical content is version-controlled and reviewable in `git diff`.
-- If the file genuinely cannot be committed, at minimum add a one-line note in the owning agent's tracked playbook/instructions documenting exactly where it lives (e.g. "the terminal allowlist lives repo-locally in `p2p-kids-marketplace/.vscode/settings.json`") so a fresh clone can reproduce it.
-- Never assume a gitignored config is shared: after creating any file/dir that gates behavior, confirm whether it is gitignored (`git check-ignore <path>`) and state in your reply whether it will propagate to other clones.
-- A "single allowlist" that gates prompts must not silently drift — make any behavior-changing edit reviewable (an `.example` file, or a note in tracked docs), never only an edit to a gitignored file.
 
 13 Bug-class prevention rules
 No “magic constants”:
@@ -1273,27 +621,8 @@ npm run build (Next.js compile check)
 Admin unit tests use Vitest (`npm test` / `npx vitest run <file>`), NOT Jest — running `npx jest` on a Vitest test file fails with "Vitest cannot be imported in a CommonJS module using require()".
 You MUST NOT mark work complete if build fails. You MUST include the exact error line + the fix.
 
-Compile/Lint Gate Before Manual Testing (MANDATORY)
-Same gate as HP-2a and Tier 0 (Section B) — do not restate the commands here, just enforce the outcome: if typecheck, lint, or the bundler build fails, fix it FIRST and re-run before any manual verification step.
-Formatting rule (mandatory)
-After editing any .ts/.tsx file, you MUST:
+Build hygiene: the compile/lint gate restatement, Prettier rules, admin layout safety and the JSX Integrity Checklist are in `docs/agent-ref/build-hygiene.md`. Run that JSX checklist before responding to any `.tsx` change.
 
-run Prettier on the changed file(s) OR ensure editor format-on-save is enabled
-run Prettier from INSIDE each project directory (p2p-kids-marketplace/ or p2p-kids-admin/) — invoking it from the monorepo root hangs (observed under p2p-kids-admin/)
-never run Prettier on files that predate Prettier normalization (the committed file isn't Prettier-shaped, e.g. src/navigation/AppNavigator.tsx) — a wholesale `prettier --write` there rewrites hundreds of unrelated lines (~900-line churn observed). For such files, make logical edits only, matching the file's existing style; Prettier-clean only files whose diff is already "changed".
-never leave JSX in a partially edited state If Prettier would fail, STOP and fix syntax first.
-Layout safety rule (Admin Portal)
-Avoid complex inline JSX edits inside src/app/layout.tsx. If adding nav links or sidebar items:
-
-extract navigation into src/components/AdminNav.tsx
-import and render <AdminNav /> from layout This reduces syntax risk and keeps layout minimal.
-JSX Integrity Checklist (must self-check before responding)
-Before finalizing any .tsx change, confirm:
-
-every opening tag has a closing tag (or is self-closing)
-no stray characters like lone > or </ exist
-return blocks have balanced () and {}
-conditional rendering uses {condition && (...)} or ternaries with both branches
 Tier 1 (Targeted smoke tests by impacted flows)
 Run when changes touch ANY of:
 
@@ -1337,120 +666,10 @@ If a change touches DB migrations, RootNavigator/auth boundary, Stripe webhooks,
 what to revert
 how to verify rollback succeeded If rollback is not feasible, you MUST say so and propose a safe forward fix.
 
-Money-Path Fix Discipline (MANDATORY when tightening grants or replacing client-derived money math)
-1. Every destructive grant change (REVOKE/GRANT) needs a stated one-line rollback plan, confirmed correct, BEFORE execution — plus before/after LIVE verification (via `aclexplode(pg_proc.proacl)`), not just a migration-file read (BP-78).
-2. When replacing client-derived money math with server-authoritative math, explicitly verify the UNITS of every client-sent field (points vs. cents vs. dollars) against how the original formula consumed them, and include a unit-sensitive control case (e.g., an SP-blended offer) before declaring done — a units bug produced the exact same symptom as a logic bug (DT-54 cash portion).
-3. Always verify which env file a running server actually loads before trusting a service-role key's freshness — a stale key produces the identical 401/permission-denied symptom as a correctly-tightened grant (DT-45/47), risking false positives/negatives on any lockdown verification.
+Money-path and investigation addenda (full text: `docs/agent-ref/dev-addenda.md`): Money-Path Fix Discipline (rollback plan for REVOKE/GRANT, unit check on money math, verify which env file is live) when tightening grants or replacing client-derived money math; Root-Cause Discipline when a fix did not persist; Blocked-Tier Discipline (a persistently blocked regression tier needs an OWNER decision, never a silent carry-forward); On-Device Live-Verification Discipline (reproduce through a clean single login before calling a screen buggy); Environment-Anomaly Claim Discipline (name the independent reference before filing an infrastructure anomaly).
 
-Root-Cause Discipline (NOT just re-fixing)
-When a fix has apparently failed to persist, find out WHY before re-applying it — distinguish "migration recorded-applied but DDL never ran" (silent deploy drift; BP-47) from "the original fix was simply incomplete in scope" (e.g., `complete_trade_v2`'s original lockdown only revoked `anon`, never `authenticated`). These need different remedies: re-apply/verify the DDL for drift; extend the REVOKE/GRANT scope for incomplete fixes.
+D) Flow IDs come from `docs/flow-registry.md`, the single source of truth. The older flow list that used to live in this file is kept in `docs/agent-ref/flow-list-legacy.md` and may be out of date.
 
-Blocked-Tier Discipline (MANDATORY — a persistently-blocked regression tier needs an OWNER decision, never a silent carry-forward)
-A tier that cannot run because of a **pre-existing repo defect** is not the same as one that is merely **pending approval** (BP-80). "Pending approval" resolves by itself; "blocked by a known defect" does not — and a handoff that records it as `DEFERRED — pre-existing blocker` round after round silently converts a real coverage gap into permanent background noise, in the same way an unexplained BLOCKED/SKIPPED test case does (QA playbook R13).
-1. When a required tier cannot pass because of a defect you neither caused nor are fixing in this task, say so explicitly **and name the owner decision required**: either *"scheduled as its own task"* (task id/issue) or *"explicitly accepted-degraded — owner accepts this tier is not a gate here until X"*.
-2. Never leave it as a bare `DEFERRED` / "known blocker" line with no owner and no follow-up. A blocker carried forward more than once without an owner is itself the defect.
-3. If the decision cannot be obtained in-session, record the tier as `DEFERRED — needs owner decision` and surface it under **Suggested next session**, not only under Known gaps.
-4. A blocked tier does **not** excuse the rest of that tier. Concretely in this repo: `supabase db reset` cannot pass (111 legacy-numbered migration files sort before the base schema — FIX-Task-35, 2026-09-14), so the Tier-2 **"DB rebuild from migrations"** leg is blocked for every change classified A/D/F and needs an owner decision rather than indefinite re-deferral. Every OTHER Tier-2 leg (DB lint, ALL smoke scripts, real invocation of every changed branch) stays REQUIRED.
-5. Section B's "Do not allow merge if Tier 2 fails" is unenforceable while a leg is permanently blocked — resolve the conflict explicitly (owner decision) instead of ignoring it.
-See also: BP-80 (two-phase provisioning — mark the tier DEFERRED / "written, NOT applied", never PASS), R13 (every BLOCKED/SKIPPED verdict needs an explicit, evidence-backed reason).
-
-On-Device Live-Verification Discipline (Tier 1 — do not misclassify from an unreliable driver)
-When live-verifying a fix on the simulator (Tier 1), the suspected bug may reproduce ONLY through rapid persona-switch and/or deep-link navigation (e.g. a `qa-login-as` immediately followed by a `p2pkidsmarketplace://...` deep link). That driving style is an **unreliable reproduction**: the app can bounce between screens (real evidence: SellerProfile → ListingDetail), fire loads on screens that are instantly unmounted, and leave the session mid-rotation — all of which makes a HEALTHY screen look buggy (or hides a real one). Real evidence: DEV-TASK-101 Item 5 (SellerProfile "Identity Not Verified") looked broken across ~15 calls of rapid persona/deep-link switching, while an as-user probe proved the exact queries return `approved` and the same `idBadgeService.getVerificationStatus` call rendered "Verified Seller" on ItemDetail.
-1. Before classifying a screen as buggy from an on-device check, reproduce it via a **clean single login + normal in-app navigation** (cold relaunch → ONE login → let the session/screen settle → navigate by UI, or fire a deep link only after the session is stable). Rapid persona-switch / deep-link bouncing is NOT a valid reproduction.
-2. Record deep-link bounces and mid-rotation renders as **environment/driver artifacts** in the handoff, not app defects — same treatment the QA Test Agent gives its own environment blockers (`.github/instructions/QA-Test-Agent.instructions.md` §5.8 LogBox/deep-link overlays, §5.9 AX staleness: "not an app-behavior failure").
-3. Before editing code on a screen-level claim, corroborate with a cheap orthogonal check: an **as-user probe** (run the exact service/RPC queries with a real password-grant JWT — data/RLS are clean) or the **same service call on a different screen** (e.g. ItemDetail) that renders correctly. That isolates the fault to the screen's runtime path vs. the data layer.
-4. **The FIRST deep link fired immediately after a `qa-login-as` switch is routinely DROPPED — it is silently ignored, not mis-routed, and it looks exactly like a dead route.** Real evidence (SUB Android Round 3, 2026-09-16): `p2pkidsmarketplace://sp-wallet` failed to navigate on 3 consecutive fires made right after a persona switch, while the sibling `p2pkidsmarketplace://sp-history` navigated normally moments later, and a clean `sp-wallet` re-fire then worked. So: (a) **re-fire the link once** before concluding anything — the linking layer itself is healthy; (b) when a link appears dead, **control-test it with a known-good sibling deep link from the same app state** before filing it as a dead end (QA playbook R-NEW-2 cache) or as an app defect — "my link did nothing" is not evidence of a dead route until a sibling link proves the handler is alive; (c) run that same control test before adding any route to a dead-link/dead-end cache. Sibling: QA playbook **R96 (§5.77)** covers the softer case — a deep link into an ALREADY-MOUNTED route re-focuses the retained screen instead of resetting it; this rule covers the case where the link does not land at all.
-5. **Do NOT poll the accessibility tree while a screen is still LOADING — the dump can kill the dev client via the mobile-mcp JVMTI agent attach, and the resulting crash is indistinguishable from an app crash.** Real evidence (SUB Android Round 5, 2026-09-16): repeated `mobile_list_elements_on_screen` calls while Manage Kids Club+ was **simply slow-loading** (~40 s to first paint) killed the app with `signal 11 (SIGSEGV)`; the tombstone's top frames were `mobilecli.so → art::ti::AgentSpec::DoLoadHelper → AgentSpec::Attach → Runtime::AttachAgent → VMDebug.attachAgent` — the **R87 family, i.e. tooling, not app code** — and the fix under verification became unverifiable. **No failure toggle was armed**, so this is *not* the fixture-only hazard the QA playbook's R107 originally described. While a load is pending, capture **screenshots** (and read coordinates from them) instead of dumping the tree; if a dump is issued in that window anyway, do **not** retry it — force-stop, cold relaunch, and re-verify from a clean state. **And a blank/status-bar-only tree is not proof the app is blank:** the same round polled an empty tree for ~10 minutes while the app was **fully rendered**, so spend ONE screenshot to tell "app wedged" from "tree channel blind" before concluding anything. Full text: `.github/instructions/QA-Test-Agent.instructions.md` §5.84 **R107** + §5.47 **R-NEW-1** (the QA-side owner of both rules).
-6. **Before driving a device leg that verifies a SPECIFIC fix, confirm the running bundle post-dates that fix — a stale bundle makes the fix's own assertions fail exactly like a real regression.** Two read-only commands decide it: the fix commit's local time (`git log -1 --pretty="%h %ad %s" --date=local`) versus the dev server's start time (`ps -o lstart= -p <pid>`, with `<pid>` from `pgrep -f "expo start"`). If the server started **before** the commit, the loaded bundle cannot contain the fix and the cold reload is **mandatory**. The comparison is **one-way** — "server started after" does not prove freshness (a long-running Metro re-transforms changed files on the next request, and a bundle can be fresh for one module yet stale for a newly-added file), so a discriminating-behaviour test remains the freshness proof. Real evidence (FIX-Task-53 Android leg, 2026-09-18): commit `73426d4d` landed at **06:25** against a Metro started **16:01 the previous afternoon**, so the round's first on-device assertion would have failed on a bundle that never contained the fix — and read as a live regression. Full text: `.github/instructions/QA-Test-Agent.instructions.md` §5.76 **R79-1c** (the QA-side owner of the rule); siblings R79-1 / R79-1a / R79-1b in the same section.
-
-Environment-Anomaly Claim Discipline (MANDATORY — name the INDEPENDENT reference before filing)
-Before filing an environment/infrastructure anomaly (a clock skew, a provider outage, "the platform drifted"), name the **independent reference** you checked it against. This is the finding-side sibling of the QA playbook's R100 (*name the WRITER of a value before filing*) and R110 (*name the scheduled CALLER before closing a money finding*): an anomaly whose only evidence is that two of YOUR OWN readings disagree is not yet a finding.
-1. **Two readings taken inside one assistant turn that disagree by hours are far more likely a SUSPENDED/RESUMED SESSION than a clock jump.** A session can sit idle for days between tool calls with no visible break. Before concluding a clock moved: (a) read the wall clock from an INDEPENDENT source — any HTTPS `Date` response header is free and needs no credentials (`curl -sI https://www.google.com`); (b) compare **file mtimes** of artifacts written earlier in the same turn against the readings' expected spacing; (c) find a monotonic witness (`pg_postmaster_start_time()`, or a job-history count × its interval = elapsed time).
-2. Prefer an ARITHMETIC check over a plausibility argument: for a `*/15` cron, `count(job_run_details)` × 15 min must equal the elapsed wall-clock — 162 runs × 15 min = 40.5 h matched the file timestamps exactly and ruled a suspected skew out in one query (FIX-Task-36, 2026-09-16).
-3. A timestamp that reads "in the future" relative to your last reading is the same artifact — do not let it leak into a sweep output or a report as a defect.
-4. If the claim SURVIVES those checks, still state it as an observation with the reference named and the exposure measured. If it later fails, **retract it with equal prominence** — a withdrawn false positive must be marked retracted in the record, not quietly deleted (same un-stub discipline as BP-89: an un-retracted artifact fakes every later read).
-See also: R100 / R110 (the QA-side "name the X before filing" siblings), BP-47 (latest definition is authoritative — verify the LIVE object, not a file), BP-89 (verify a mutating action without mutating data — and un-stub it afterwards).
-
-D) COMPLETE Flow List (Agent MUST use this list for mapping + checks)
-Use these Flow IDs in docs/flow-registry.md and in every response.
-
-> **Registry authority (2026-09-06):** `docs/flow-registry.md` is the single source of truth for flow IDs and their canonical meanings (FLOW-00…FLOW-33 + FLOW-12A, plus the Part B engineering/compliance appendix). The list below documents the core FLOW-00…FLOW-20 mappings; for numbers 15/16/19 and for FLOW-21…33 the registry's "Canonical flow list & legacy-label resolution" table is authoritative — the legacy meanings below for FLOW-15 (Safety & Moderation), FLOW-16 (CPSC recall) and FLOW-19 (Analytics) were consolidated: FLOW-15 = Safety/Moderation/Content Review (incl. CPSC recall), FLOW-16 = Home Dashboard, FLOW-19 = Trading Education/Help/Support/SP Calculator. Do not use conflicting historical labels; update the registry section IN PLACE when a flow's spec changes and NEVER append dated entries.
-
-FLOW-00: Infrastructure & Environment Health
-Covers: app boots, env vars, Supabase URL/keys, function routing, local stack
-Smoke: scripts/smoke/infra.mjs
-Tier: 0 always; Tier 1 when env/config changes; Tier 2 when Supabase stack changes
-FLOW-01: Auth – Signup/Login/Logout/Session Restore
-Covers: email/password auth, optional phone verification flow, session persistence
-Smoke: scripts/smoke/auth.mjs
-Must validate: no “Database error saving new user”, no SMS-provider failures if phone auth is used
-FLOW-02: Profiles & Onboarding
-Covers: profile row creation, required fields strategy (nullable until onboarding), user_metadata usage
-Smoke: scripts/smoke/profiles.mjs
-Hard rule: never add NOT NULL profile fields without default or trigger population
-FLOW-03: Node/ZIP Gating + Waitlist
-Covers: node assignment, access gating, waitlist behavior, node isolation
-Smoke: scripts/smoke/nodes.mjs
-FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
-Covers: listing lifecycle, statuses, seller payment preference rules (Cash/Accept SP/Donate)
-Smoke: scripts/smoke/listings.mjs
-FLOW-05: Media Upload (Storage) – Listing Photos
-Covers: upload, permissions, signed URLs, deletion, size/type validation
-Smoke: scripts/smoke/media.mjs
-FLOW-06: Discovery – Feed/Search/Filters/Favorites
-Covers: browse, search, filters, favorites, node scoping
-Smoke: scripts/smoke/discovery.mjs
-FLOW-07: Cart & Bundling (if implemented)
-Covers: bundling rules, pricing aggregation, fee aggregation, SP cap applied correctly
-Smoke: scripts/smoke/cart.mjs
-FLOW-08: Trade Flow – Checkout (No Payment) + Transaction State Machine
-Covers: transaction creation, state transitions, seller preference enforcement, node checks
-Smoke: scripts/smoke/transactions.mjs
-Hard rule: state changes must go through a single state-machine function (no ad-hoc updates)
-FLOW-09: Fees & Pricing Engine
-Covers: buyer fee (fixed + %), seller fee, tier discounts, node-based config, rounding rules
-Smoke: scripts/smoke/fees.mjs
-Must include unit tests for fee math
-FLOW-10: Swap Points Wallet – Read + Ledger Integrity
-Covers: wallet balance available/pending/frozen, ledger append-only rules
-Smoke: scripts/smoke/sp-wallet.mjs
-FLOW-11: Swap Points – Earn/Spend/Cap + Pending→Release + Expiration
-Covers:
-subscriber-only gating for earn/spend
-50% SP cap per purchase
-buyer ALWAYS pays cash platform fee
-3-day pending for earned SP
-expiration/inactivity rules (as specified)
-Smoke: scripts/smoke/sp-rules.mjs
-Must include unit tests for SP calculations + edge cases
-FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Feature Gates
-Covers: Stripe subscription lifecycle, webhook processing, tier propagation to DB, 90-day grace + SP freeze behavior
-Smoke: scripts/smoke/subscriptions.mjs
-Tier 2 ALWAYS when webhooks or subscription logic changes
-FLOW-13: Referrals (if implemented)
-Covers: referral code creation, redemption, incentives, abuse checks
-Smoke: scripts/smoke/referrals.mjs
-FLOW-14: Messaging (Realtime) – Start Chat / Send / Receive
-Covers: realtime subscriptions, delivery, message storage, node/user isolation
-Smoke: scripts/smoke/messaging.mjs
-FLOW-15: Safety & Moderation – Prohibited Items + Reports
-Covers: reporting flow, moderation queue hooks, content rules
-Smoke: scripts/smoke/moderation.mjs
-FLOW-16: CPSC Recall Check (if implemented)
-Covers: recall lookup integration, handling failures, caching, blocking rules if required
-Smoke: scripts/smoke/cpsc.mjs
-FLOW-17: Notifications – Push/In-app (FCM)
-Covers: registration, delivery for key events (messages, transaction updates, SP changes, subscription events)
-Smoke: scripts/smoke/notifications.mjs
-FLOW-18: Admin Controls – Config + Overrides
-Covers: fee config, SP formulas, node controls, moderation actions, user adjustments
-Smoke: scripts/smoke/admin.mjs
-FLOW-19: Analytics Events (Firebase)
-Covers: event emission for key user actions, dedupe, privacy-safe payloads
-Smoke: scripts/smoke/analytics.mjs (or manual checklist if automation is not feasible)
-FLOW-20: Audit/Logging (Security + Critical Actions)
-Covers: audit trail for admin actions, subscription changes, SP adjustments, moderation actions
-Smoke: scripts/smoke/audit.mjs
 E) DB/Backend Hard Rules (prevents “worked before, broke now”)
 Any multi-table mutation (transaction + ledger + wallet update) MUST be atomic:
 implement as Postgres RPC and call from Edge Functions
@@ -1473,227 +692,5 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-93)
-
-These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
-
-### Rule Index (scan this first; open the full numbered rule below only when it's relevant to your current task)
-
-- BP-1 RLS — every new table needs RLS policies in the same migration.
-- BP-2 FK type matching — verify target column type before INSERT (user_id vs profile.id).
-- BP-3 Ambiguous columns — qualify every column with a table alias.
-- BP-4 Trigger silent failures — never bare-catch; log to debug_logs.
-- BP-5 SECURITY DEFINER — document why; set search_path.
-- BP-6 Pre-deploy SQL checklist — run the 5 verification queries before staging SQL.
-- BP-7 Edge Function errors — structured `{success, error}` JSON, always logged.
-- BP-8 TS service errors — return typed `ServiceResult<T>`, never swallow to null.
-- BP-9 Migration order — tables → constraints → RLS → policies → functions → triggers → indexes → seed.
-- BP-10 Verification queries — include column/RLS/function/trigger checks in every DB response.
-- BP-11 Admin config two tables — check both admin_config and sp_config; don't trust is_active alone.
-- BP-12 RPC RETURNS TABLE changes — DROP FUNCTION before changing the signature.
-- BP-13 Default values — every hardcoded fallback needs a comment linking to its canonical source.
-- BP-14 SP notification copy — “reserved” ≠ “spent”; match sp_ledger transaction_type semantics.
-- BP-15 Pull-to-refresh — must pass forceRefresh=true to bypass client caches.
-- BP-16 Stale trigger comments — if a referenced trigger doesn't exist in any migration, it's a defect.
-- BP-17 send-trade-notifications — check `result.sent > 0`, never trust `resp.ok` alone.
-- BP-18 Reminder EFs — must insert `user_notifications` explicitly, not rely on status-change triggers.
-- BP-19 Cron-invoked EFs — `verify_jwt = false` in config.toml + `--no-verify-jwt` on deploy.
-- BP-20 Before building notifications — search for existing DB triggers that already cover the event.
-- BP-21 RPC → data-only refactor — the corresponding cron.schedule must exist in the same migration.
-- BP-22 Secret keys (service role) — resolve ONLY from config at runtime; never a hardcoded fallback and never baked into a cron `net.http_post` header (hardcoded fallback allowed only for non-secret base URLs).
-- BP-23 Realtime callbacks — must mirror the same side effects the mount-time effect performs.
-- BP-24 Partial reverts — leave a `// DEFERRED-DECISION` comment on code that survives a partial revert.
-- BP-25 Edge Function compile gate — use `deno check --no-lock`, not `get_errors` (false positives on Deno globals); run from the repo root with `--no-config` (or a `/tmp` copy) — a stray RN tsconfig can false-fail the gate (DT-118, 2026-09-05).
-- BP-26 EF performance — check `execution_time_ms` + staircase pattern before guessing at the bottleneck.
-- BP-27 Duplicate enforcement — search for DB triggers/RPCs that duplicate an Edge Function's business rule check.
-- BP-28 Admin-configurable values — Edge Functions must fail loud (`CONFIG_UNAVAILABLE`), never silently fall back.
-- BP-29 Data-source renames — audit every downstream reference (empty states, filters, counters) after a restructure.
-- BP-30 Formula changes — verify against 2+ independent doc examples before implementing.
-- BP-31 SP fixes — verify both the trigger layer AND the RPC/read layer together.
-- BP-32 State-change notifications — identify the delivery path and verify it with a test case before calling it done.
-- BP-33 Persistent UI (tab bars/headers) — render once at the root stack, never per-screen.
-- BP-34 Alert→Toast migrations — classify every call site individually (success/toast, error/blocking, choice/blocking).
-- BP-35 Mutating service calls — always check the `{success}` result before a dependent step.
-- BP-36 Realtime subscriptions — confirm the table is in the `supabase_realtime` publication; watch for RLS-filtered events.
-- BP-37 Tax calculation — always on full item price; SP is a payment method, not a discount.
-- BP-38 Fee config — absolute percentage per tier, never base+discount; confirm the calculation base with the user.
-- BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
-- BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — REQUIRED path is the official CLI (`supabase functions deploy <name> --project-ref <ref>`), which resolves `../_shared/*` from the local filesystem (manual `files`-array enumeration — the MCP-bundler approach — is retired for new work). Applies to ALL Edge Function deploys regardless of file size or shared-import status (DEV-TASK-36 retired the MCP-deploy mandate; the MCP deploy tool is a documented last-resort fallback only). ALWAYS pass `--use-api` (a plain deploy with Docker not running can print "Deployed" while silently doing nothing — BP-66) and follow EVERY deploy with a MANDATORY post-deploy behavior check (real invocation returning the function's own response, not just a clean exit code). Reconcile `verify_jwt` against `config.toml` and re-verify it IMMEDIATELY BEFORE the deploy command (BP-41 rule 2) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
-- BP-43 Navigation & params — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
-- BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
-- BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
-- BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
-- BP-47 Latest migration definition is authoritative — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug); a fragile pattern in a historical migration FILE isn't live if a newer `CREATE OR REPLACE` removed it (superseded body = dead code — don't patch it).
-- BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail); and a value-only write must not move the row's sibling columns (`category`/`data_type`/`is_active`) — pass them explicitly on both the set and the revert.
-- BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it) — full text: `.github/instructions/admin-portal.instructions.md`.
-- BP-50 — **UNASSIGNED** (no rule text exists under this number; do not allocate it without checking first).
-- BP-51 Pre-deploy verification — run `git diff` / grep the function for the new symbol before deploying an Edge Function; edits can be lost if the working tree is reverted between turns — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-52 — **UNASSIGNED** (no rule text exists under this number; do not allocate it without checking first).
-- BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient. Never use `accessibilityRole="tab"/"tablist"` on iOS (RN 0.81 — doesn't register in the AX tree); use `"button"` + `accessibilityState`.
-- BP-54 Dynamic `import('react-native')` / export enumeration — never use it; Metro's `importAll` iterates RN's lazy getters (e.g. `PushNotificationIOS`) and can crash with `new NativeEventEmitter() requires a non-null argument` when the linked native module is absent — use static imports only — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-55 Root-level gate state set only by a mount effect — won't react to child-screen navigation; wire an explicit `initialParams` callback and funnel all exit paths through one shared helper.
-- BP-56 Design tokens — Discover/design code must import `ds` from `@/theme/discoveryTokens`, which must stay reconciled to `docx/design-system-passitup.md` (#5DBB8E); never source from legacy `design-system.md` (#4A7C59) or hardcode hex in Discover components.
-- BP-57 Behavior-fix test drift — a fix that makes an auto-verify/auto-submit path actually work will break tests written around the old broken behavior (they relied on a manual fallback); audit & update those tests — the failure is evidence the fix worked, not a regression.
-- BP-58 Bottom-anchored UI on pill-nav screens — scroll content needs `paddingBottom: 100`, fixed bottom bars `bottom: 120`, and in-flow bars above a fixed bar `marginBottom: 200`, so CTAs/buttons are never hidden behind the floating pill (PersistentTabBar). Padding only helps when the content actually OVERFLOWS the viewport — a screen whose content fits never scrolls, so verify overflow before treating padding as the fix.
-- BP-59 Scripted JSX mass-edits — verify with more than typecheck alone: typecheck + grep for bare prop-lines followed by a JSX child + Prettier (a formatter rewriting the region signals structural problems).
-- BP-60 Test isolation — a `renderScreen()`-style helper that accepts or defaults to a shared/mutable route/params object leaks state between tests (e.g. an earlier test's `draftId` silently carries into a later test and disables draft-auto-save); always pass explicit, freshly-constructed params per test, and check for this pattern before blaming a flaky-looking failure on the feature code.
-- BP-61 Accessibility-prop text as literal `<Text>` children — accessibility props must be JSX attributes on the opening tag, never rendered children (recurred 3×: `WelcomeScreen`, `ResumeDraftBanner`, `CartScreen`); cheap to grep for (`accessible accessibilityRole` inside JSX children) whenever writing or reviewing `<Text>` components.
-- BP-62 TABLE-returning RPCs — supabase-js returns `RETURNS TABLE(...)` results as an ARRAY even for a single row; always unwrap `data[0]` (the `verify_email_change_code` always-“Verification failed” bug, 2026-08-26) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-63 Cross-schema PostgREST uniqueness — `admin.schema('auth').from('users').maybeSingle()` returns HTTP 406 (read as “no row”); use a SECURITY DEFINER RPC (`check_account_exists_by_email`) and FAIL CLOSED on RPC error (account-email-takeover hazard, 2026-08-26) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-64 Never log OTP / verification codes in plaintext — not even on staging (logs are more broadly accessible than the DB); log only the destination (`send-phone-otp`, 2026-08-26) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-65 Stripe `idempotencyKey` placement — must be the OPTIONS (2nd) argument (`stripe.paymentIntents.create(params, { idempotencyKey })`), NEVER a property inside the params object (Stripe SDK v14 silently DROPS all params — broke `create-trade-offer`/`trade-extension`/`trade-payment`, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-66 Plain `supabase functions deploy` can silently no-op when Docker isn't running while printing “Deployed” — ALWAYS `--use-api` or verify the deployed body (version bump + real invocation / `functions download` diff into a TEMP dir, never into `supabase/functions/`); a “Deployed” console message is never sufficient evidence (2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-67 No bare `std/*` imports in Edge Functions — no import map exists in this repo, so `import { serve } from 'std/server'` fails the local `deno check --no-lock` Tier-0 gate; import `serve` from the full URL (`https://deno.land/std@<version>/http/server.ts`). Known pre-existing violation (out of scope to fix now, tracked): `sms-send` — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-68 Edge Function log messages — for `function_logs`, the human-readable message/stack is the TOP-LEVEL `event_message` column, never `log_attributes['event_message']` (always empty); `log_attributes` carries only execution/request metadata (DT-10, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-69 Stripe test-mode PaymentMethod fixtures — `paymentMethods.create({ type: 'card', card: { token: 'tok_visa' } })`; raw card numbers and `pm_card_visa` both fail in this account (DT-10, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-70 Disposable-user cleanup — `profiles.id ≠ user_id` in this app; delete `profiles` by `user_id` (never `id`) and `await` builders before `admin.deleteUser` (DT-10, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-71 Stripe money-function verification — Tier-1 live verification MUST drive the ACTUAL charge/pay path on a fresh, isolated throwaway user (real charge + retry-dedupe + DB/Stripe confirm); guard-path-only smokes hide broken pay paths (`renew-subscription` key blocker, `retry-failed-payment` `paid_out_of_band:false` — DT-11, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-72 QA side-effect verification — any QA case exercising a UI action with a backend/DB/third-party (Stripe/PayPal) side effect MUST verify the side effect directly (read the DB row(s) + actual Stripe/PayPal object state), not just the UI response or a guard-path smoke; real-activation verification is REQUIRED for money/financial-state functions; this class of READ-ONLY DB/Stripe verification is PRE-APPROVED (no per-instance owner sign-off) — mutating test actions still use the safe-fixture/disposable-user discipline (DT-12, 2026-08-27) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-73 Trades FK + payout-method schema — the `trades`→`items` FK is `listing_id` (never `item_id`); Stripe Connect / payout-method state lives in `seller_payout_methods`, not `profiles` (TRD part-2, 2026-08-27) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-75 RLS-disabled audit — the authoritative list of tables with RLS off comes from the LIVE `pg_class.relrowsecurity` query, never migration greps (migrations are incomplete/misleading — `nodes` looks off in the repo but is on, and legacy tables exist only in the DB); trace every table's readers/writers (client vs service-role vs SECURITY DEFINER) before enabling RLS (DEV-TASK-26, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-74 Tier-1 harness notification assertion — assert on the linkage key (`user_notifications.data.ledger_id` ↔ `sp_ledger.id`) when verifying a DB-triggered notification; a shared/fuzzy filter helper can silently drop the row and cause a false fail (DT-19, 2026-08-28) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-76 Enum-like status/reason values — DB writers must emit the canonical snake literal (`'offer_expired'`) that triggers AND the client match exactly; never store a display string (`'Offer expired'`) in a machine-compared column, or expired-offer surfacing / the seller-ignore streak silently break (TRD re-verify, 2026-08-28). When a CHECK constraint legally admits TWO spellings of one state (live: `subscriptions.status` allows `'grace'` AND `'grace_period'`), widen every server gate + client allow-list to both AND normalize the data — and count the distribution (`SELECT status, count(*) … GROUP BY status`) before trusting any status-driven rule, because one legacy-spelled outlier row is a FIXTURE defect that fakes a product-level failure (FIX-Task-51, 2026-09-17) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-77: **RETIRED (merged into BP-41, 2026-09-12)** — was "Large single-file EF deploys — CLI `supabase functions deploy --use-api` is the standing required path even for large self-contained single-file functions"; every clause was already stated by BP-41, which DEV-TASK-36 made apply to ALL functions, so "large single-file" is no longer a distinct rule. Historical BP-77 citations refer to BP-41 (deploy-logging requirement is BP-41 rule 8) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-78 Money-mutating RPC grants + identity — explicit minimal grants (REVOKE anon/authenticated/PUBLIC + GRANT minimal set), `auth.uid()`-derived identity + `admin_has_role(auth.uid())`/party checks, role checks via `current_setting('role')` (NEVER `request.jwt.claim.role` — unset on this PostgREST), verify referenced helpers exist on the target DB, audit grants via LIVE `aclexplode(pg_proc.proacl)` not migration greps, and PostgREST maps `42501` to HTTP 401 — treat a 401 from a revoked caller as the expected rejection (`GRANT` without `REVOKE FROM PUBLIC` leaves PUBLIC executable — DT-59, 2026-08-30) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-79 Default-privilege hardening for functions is ineffective here — use the `dt61_guard_revoke_fn_public` event trigger + explicit-grant discipline. The guard also fires on `CREATE OR REPLACE FUNCTION` (same `command_tag`), so replacing an existing function STRIPS its PUBLIC/anon/authenticated grants while untouched siblings keep theirs: re-assert `GRANT EXECUTE` in the same migration and verify with `has_function_privilege(<role>,'public.<fn>(<args>)','EXECUTE')` + a before/after `aclexplode(pg_proc.proacl)` diff (FIX-Task-51, 2026-09-17) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-80 Two-phase provisioning deliverables — fixture/migration work is delivered as (1) code/scripts/migration file written + Tier 0 green and (2) executed against staging (REQUIRES Samer's explicit approval per the MCP Usage Protocol); in the Session Handoff state "written, NOT applied/run" and mark the regression tier DEFERRED, never implying provisioning happened (DEV-TASK-77, 2026-08-31); a fixture script's read-back must print the fixture's own primary key(s) — never only a row count (FIX-Task-17, 2026-09-11).
-- BP-81 MCP-applied migrations aren't in `list_migrations` — `mcp_supabase_apply_migration` executes DDL but doesn't write a `schema_migrations` row; verify the migration landed by invoking the changed object live, never by the migration list (DEV-TASK-83, 2026-09-02) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-82 Account/subscription screens (incl. ContinueKidsClub) — Pass It Up semantic tokens only; no Material/Tailwind/iOS-system-blue leakage (Manage Kids Club+ family `#4CAF50`/`#E53935`/`#0066CC`/`#D97706` etc., confirmed 2026-09-02) AND no legacy-design-system tokens (`#4A7C59`/`#4D4D4D`/`#808080` — ContinueKidsClub upsell branch, confirmed 2026-09-05); EVERY rendered branch of a screen must be on-brand (BP-82 rule 6) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-83 Stripe test-clock renewal verification — a test clock cannot be retro-attached to an existing Checkout subscription (`parameter_unknown`); verify a real renewal on a fresh clock-bound subscription metadata-bound to the same `user_id` (2026-09-02) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-84 Money-ledger repair path — a money ledger with a recompute RPC (`seller_balance` ← `recompute_seller_balance`) must be repaired/reset ONLY through that RPC (locked `service_role`-only); never a raw ledger write, and never leave a ledger-recompute PUBLIC-executable (DT-118, 2026-09-05) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-85 Money display units — cents-stored money MUST use a cents formatter (`formatPrice` → "$1.49"), never the dollars formatter (`formatDollarAmount` → "$149") (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-86 Membership/value-prop copy — subscription surfaces must render the CANONICAL in-app benefit set (ManageKidsClub "Kids Club+ Benefits" / JoinKidsClub `STATIC_BENEFITS`), never an invented list; grep the whole class before shipping (DT-118, 2026-09-05) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-87 DB-trigger/cron-invoked EF auth — do NOT enforce strict `bearer === env SUPABASE_SERVICE_ROLE_KEY` inside a DB-trigger/cron-invoked EF: the DB posts the `admin_config`-stored key, which can drift from the platform-injected env → every trigger/cron call 401s and money rows strand (DT-124, 2026-09-06) — mirror `initiate-payout` (eligibility + ownership + idempotency) or refresh the stored key — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-88 Error/defensive branches need a real runtime trigger — a mocked-error unit test can green-light dead code (`signInWithOAuth({skipBrowserRedirect:true})` never throws for a disabled provider → ProviderDisabled classification unreachable, raw JSON shown in the browser sheet/custom tab; FIX-Task-2 Item 4, 2026-09-07). Same class, second face: a user-visible value built from an ASYNC READ silently renders its FALLBACK when the fetch returns null — a review title showed the role ("the buyer") instead of the counterparty's name, and every static check was green (FIX-Task-21 Item 2, 2026-09-12). Third face: an INVENTED MOCK SHAPE keeps an unreachable branch green — copy the fixture from the SDK's documented constructor/`error_code` (real wrong-password is `400` + `invalid_credentials`, not `401` + no code), or the classifier's `default:` arm ships the wrong copy while the test stays green (FIX-Task-26 verification, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-89 Verify a data-mutating admin action WITHOUT mutating data — never trigger the real write against shared QA/staging data just to prove UI wiring; stub the endpoint with Playwright `page.route(...)` and assert the surrounding behaviour (the follow-up refetch fires, the label/summary updates, the dialog copy is right), then disclose that the write was INTERCEPTED not applied. **HARD GATE: `page.unroute()` (or close the page) BEFORE reporting the verification complete** — a left-registered stub fakes every later real click and is NOT cleared by a dev-server restart (FIX-Task-21 item 4 + FIX-Task-22 item 0, 2026-09-12) — full text: `.github/instructions/admin-portal.instructions.md`.
-- BP-90 Patching a live function body by string replacement — anchor the token to its full expression (`p.status = 'failed'`, never the bare `p.status`, which also matches the suffix of `sp.status`), re-assert every predicate you did NOT intend to change in a `RAISE EXCEPTION` guard, fail loud when nothing matched, and INVOKE the patched object immediately (plpgsql resolves names at run time, so a successful `CREATE OR REPLACE` proves nothing) (FIX-Task-24 item 1, 2026-09-12) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-91 Mobile UI changes need an in-session on-device attempt — a screen-behaviour change must get a device pass in the SAME session, or the Session Handoff must enumerate every owed device leg concretely (screen → action → expected observation) and say "code-level verified; device legs owed"; never treat typecheck/lint/unit-green as on-device verification, budget the device pass BEFORE the code work, and re-read the AX tree rather than trusting a screenshot taken immediately after a tap (FIX-Task-25, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-92 Paint only authoritative values — every displayed number derives from the SAME array/state its visible list renders (no parallel state written by a second fetcher), all counters of one quantity share one helper, and a money/state value is never painted from a placeholder fallback a fetch will correct — withhold it (`—`/skeleton) and disable any control that submits it until it is authoritative (F8 banner-vs-button count, F9 tiles-vs-list frame lag, F4 checkout first-paint total — FIX-Task-26, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-93 Jest mocks must return identity-stable objects — an inline `useNavigation: () => ({…})` mock re-creates every dependent `useCallback` per render, so a `useFocusEffect` loops and the screen never leaves its loading state; use a module-level `mock`-prefixed constant and debug by asserting mock call counts (jest output is suppressed) (FIX-Task-26, 2026-09-13) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-94 A `jest.mock()` factory must mirror the module's FULL export surface — adding a new import to the module under test requires adding that export to every factory that stubs it in the SAME pass; an unlisted export is `undefined` at call time, its `TypeError` is swallowed by the consumer's own `try/catch` (soft-fail), and the test then asserts on the fallback/error branch while staying green — give each factory export an explicit impl + `beforeEach` default (`clearAllMocks` does NOT reset implementations). **Auto-mock face:** a BARE `jest.mock('<mod>')` (no factory) mocks the ENTIRE module, so every export is `jest.fn()` → `undefined` and pure predicates/formatters placed behind an I/O module vanish for every caller — keep dependency-free logic in its own leaf module the service re-exports (FIX-Task-28, 2026-09-13; auto-mock face FIX-Task-53, 2026-09-17) — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-95 Client-side in-memory caches of USER-SCOPED data must be keyed by user and cleared on auth transitions (`SIGNED_OUT`/`SIGNED_IN`/`USER_UPDATED`) — never one process-global module slot read without a session check (a `_pmCache` in `subscription.ts` served one account the previous user's saved card after a warm `qa-login-as` persona switch; DB column + Stripe customer both empty, and a fresh-process control rendered the correct empty state — QA SUB Android Round 1, 2026-09-16). Companion of BP-15: BP-15 = correct on refresh, BP-95 = correct on identity change — full text: `.github/instructions/mobile-client.instructions.md`.
-- BP-96 Re-measure the WHOLE migration chain after any fix that flips a previously-failing file to passing — a newly-succeeding early file creates state a later file assumed absent (fixing `084`'s block comment let its `CREATE SCHEMA IF NOT EXISTS cron` placeholder break the FIX-38 repair's `CREATE EXTENSION pg_cron`, deleting `public.trades` and cascading to ~77 files: 448/523 → 347/527); watch the pass-1 applied count as the canary, read a deferred-replay probe's per-file error as its LAST error not the root cause, enumerate the gap by diffing the live schema against the replayed schema rather than reading the failure list (that diff found 30 tables / 82 functions / 124 policies where the failure list suggested 3 tables), and prefer creating an object correctly at its creator over repairing it later (FIX-Task-40, 2026-09-16), and **re-run the probe after EVERY migration file you add or edit, not only after a repair** — a file added one day after the chain was last green re-broke it (`531/531` → `530/531`) by re-declaring a function's ROW TYPE with a narrower shape (FIX-Task-57, 2026-09-18) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-97 A deployed Edge Function that has never processed ONE real delivery is UNVERIFIED — "source parity with a working sibling" proves the code shipped, not that the path can run (the `stripe-webhook` endpoint rejected EVERY Stripe event for weeks via the synchronous `constructEvent`'s `SubtleCryptoProvider cannot be used in a synchronous context`; found within minutes of building the signed-replay helper). Ask "has this handler ever completed one real delivery?", build the signed-delivery mechanism early, read the rejection message not just the status, and use `await constructEventAsync` on Deno (FIX-Task-52, 2026-09-17) — full text: `.github/instructions/edge-functions.instructions.md`.
-- BP-98 A fixture/provisioning script must only assert a state the PRODUCTION WRITERS can create — enumerate every writer of the columns it fakes before trusting it; a fixture that hand-sets an impossible combination does not merely green-light a branch, it can SKIP the very gate it was built to test (a fixture setting `is_primary=true, is_verified=false` made the app's `!primaryMethodId` gate evaluate false, so the withdraw guard's unverified branch had never fired on a device while the case sat "BLOCKED (fixture gap)" for weeks — FIX-Task-55/56, 2026-09-18) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-99 A migration filename is an ORDER KEY, and the CLI only applies files matching `<digits>_<name>.sql` — anything else is silently skipped (never logged as `Applying migration …`, so it looks like the SQL never ran), a legacy-numbered name sorts BEFORE every 14-digit name (a stale `077_…` duplicate replayed first and killed `db reset` with `relation "public.admin_config" does not exist`, hiding the chain's real state), and a legacy file that re-declares an object's ROW TYPE makes the newer definition fail or silently lose; never renumber by hand, never infer age from the prefix, and assert the non-conforming-name count is 0 before trusting a run (FIX-Task-57, 2026-09-18) — full text: `.github/instructions/supabase-sql.instructions.md`.
-- BP-100 A schema-diff residual is EVIDENCE, not a to-do list — classify every difference by DIRECTION before backfilling (staging-ahead / chain-ahead / staging-looser-unsafe / dead-cruft), grep the object's own history for a deliberate `DROP` before re-adding it, never drive the count to zero (the only regression signal is a NEW finding), name the gate's blind spots (no `prosrc` body, no `proacl` grants), and **ATTRIBUTE a NEW finding before reporting it** — temporarily remove your own artifact, re-measure, and treat key-set-identical output as proof the delta is not yours (another session's uncommitted migration moved the gate 135 → 136 in FIX-Task-61, 2026-09-18) (FIX-Task-60, 2026-09-18) — full text: `.github/instructions/supabase-sql.instructions.md`.
-
-BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
-
-BP-2: Foreign Key Type Matching — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-3: Ambiguous Column Reference Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-4: Trigger Silent Failure Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-5: SECURITY DEFINER Function Rules — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-6: Pre-Deploy SQL Validation Checklist — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-7: Edge Function Error Handling — full text moved to `.github/instructions/edge-functions.instructions.md` (auto-attaches when editing `supabase/functions/**`).
-
-BP-8: TypeScript Service Error Handling — full text moved to `.github/instructions/mobile-client.instructions.md` (auto-attaches when editing `p2p-kids-marketplace/src/**`).
-
-BP-9: Migration Dependency Order — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-10: Required Verification Queries — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-11: Admin Config Two-Table Architecture — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-12: RPC Return Type Changes Require DROP First — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-13: Default Values Must Reference the Canonical Source — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-14: Notification Copy Must Be Reviewed for SP Transactions — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-15: Pull-to-Refresh Must Bypass Client-Side Caches — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-16: Config Comments Referencing Non-Existent Triggers Are Defects — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-17: `send-trade-notifications` Response Body Check — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-18: In-App Notification Must Be Explicit for Reminder EFs — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-19: Cron-Invoked EFs Must Set `verify_jwt = false` — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-20: Check Existing DB Triggers Before Building Notification Logic — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-21: Cron Job Must Be Created When Refactoring RPC from HTTP-Calling to Data-Only — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-22: Secret Keys Must Resolve from Config at Runtime — Never Hardcoded or Baked into a Cron Header — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-23: Realtime Callback Must Mirror Mount-Time Side Effects — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-24: Partial Reverts Must Leave DEFERRED-DECISION Comments — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-25: Tier 0 Build Gate — `deno check` for Edge Functions, Not `get_errors` — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-26: Edge Function Performance Diagnosis — `execution_time_ms` + Staircase Pattern — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-27: Edge Function Enforcement — Check for Duplicate DB-Side Checks — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-28: Admin-Configurable Values Must Have Zero Hardcoded Fallback in Edge Functions — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-29: Downstream Reference Audit When Renaming or Restructuring Data Sources — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-30: Formula Documentation Cross-Reference — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-31: SP Fix Verification — Verify Both Trigger and RPC Layers — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-32: Notification Verification Gate for State Changes — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-33: Globally Persistent UI Elements Must Be Rendered at Root Level — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-34: Alert → Toast Replacement Must Audit ALL Success Paths — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-35: Return Value Gate — Every Mutating Service Call Must Check Its Result — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-36: Realtime Subscription Table Membership Verification — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-37: Tax Must Always Be Calculated on Full Item Price, Not Reduced by SP — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-38: Fee Config Semantics — Absolute Percentages Per Tier, Not Base+Discount — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-39: `FunctionsHttpError.message` Is Hardcoded — Always Parse `.context` for the Real Error — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-40: Stripe `SubscriptionCreateParams.trial_end` and `.trial_period_days` Are Mutually Exclusive — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-41: Required Deploy Path — Use the Official `supabase functions deploy` CLI (always `--use-api`), Not the MCP Bundler — full text moved to `.github/instructions/edge-functions.instructions.md`.
-
-BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-43: Learned Navigation & Params Rules — full text moved to `.github/instructions/navigation.instructions.md` (BP-43-1 route-params verification; BP-43-2 navigator-import validation; BP-43-3 buyer AND seller paths).
-
-BP-44: Tax/SP/Fee RPC Recompute Must Be Category-Aware and Match the Offer-Time Value — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-45: Searchable Admin Surfaces Need Text-Cast Views (never `ilike` a UUID or cast inside `or=()`) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-46: Postgres Function DECLARE Block Must Declare Every `v_*` Variable Used in the Body — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-47: E2E Tests Asserting Trigger-Created Defaults Must Verify the Trigger Exists in the Target DB (deployment lag ≠ code bug) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-48: Admin Config Settings Writes Must Go Through the Shared RPC (never direct `admin_config` table writes; record the editor; a value-only write must not clobber `category`/`data_type`) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-BP-49: Admin Portal Client→API Auth — Always Send `x-admin-secret` on Browser Fetches to `/api/admin/*` — full text moved to `.github/instructions/admin-portal.instructions.md`.
-
-BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements (incl. Modal/Pressable-container grouping — set `accessible={false}` on overlay/sheet so buttons surface) — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-55: Root-Level UI Gated on Mount-Effect-Only State Must Be Flipped by an Explicit Child→Parent Callback — full text moved to `.github/instructions/navigation.instructions.md`.
-
-BP-56: Discover/Design Code Must Use the Canonical Pass-It-Up Tokens (never legacy `design-system.md` or raw hex) — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-57: Behavior-Fix Test Drift — a fix that makes an auto-verify/auto-submit path actually work breaks tests written around the old broken behavior (manual-fallback reliance); audit & update those tests — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-58: Bottom-Anchored UI Must Clear the Floating Pill Nav (PersistentTabBar) — includes the "padding only works when the content overflows the viewport" precondition; full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-60: Shared Test-Render Helpers Must Receive Explicit Clean Params (test isolation) — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-61: Accessibility Props Must Be Attributes on the Opening Tag, Never Literal `<Text>` Children — full text moved to `.github/instructions/mobile-client.instructions.md`.
-
-BP-80: Two-Phase Provisioning Deliverables (code/Tier-0 vs. approval-gated execution) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
-
-
-
-**Detection checklist:** a subsequent session/QA pass can't find a column/trade/row the previous session's handoff implied existed, or a handoff's Regression Plan shows a Tier as PASS when the migration it depends on was never applied — check for the two-phase wording ("written, NOT applied/run") in the prior handoff before assuming the data is there. Also: a fixture's only reported evidence is an aggregate count ("cart has 3 item(s)", "N rows created") with no key to re-find it — the script's read-back must surface its own primary key(s). (Real case: FIX-Task-17 item 11, 2026-09-11 — `qa:create-bundle-fixture` SELECTed `bundle_id` in its read-back but logged only a count, so the bundle could not be identified after the fact; the script was patched to print `bundle_id`/`cart_id`, which is how the fixture became verifiable by id under BP-72.)
+## Bug Prevention rules
+The one-line index of every BP rule (BP-1 onward) is `docs/agent-ref/bp-index.md`. Full rule text lives in the domain files that auto-attach by path: `supabase-sql`, `edge-functions`, `mobile-client`, `navigation` and `admin-portal` `.instructions.md`. Cross-cutting rules are in this file. Add or change rules only through `.github/prompts/apply-handoff-rule-suggestion.prompt.md`, and get new ids with `node scripts/agent-rules/next-id.mjs BP`.
