@@ -80,18 +80,30 @@ jobs:
       # The scratch stack. Loopback by construction: the gate refuses any DSN whose host
       # is not 127.0.0.1/localhost/::1, and refuses any DSN naming a non-scratch project
       # ref (supabase/migrations/tools/non-scratch-targets.json).
-      - name: Start scratch Supabase stack
+      #
+      # MIGRATIONS ARE PARKED FIRST. `supabase start` applies supabase/migrations on a
+      # fresh volume and dies at `CREATE POLICY ... ON storage.objects` with 42501 — the
+      # documented CLI execution-context blocker (README, "Option A"), which is why a
+      # green `db reset` is NOT a Tier-2 requirement on this project. With the directory
+      # parked the schema initialises cleanly, and the gate's probe then replays every
+      # migration over psql — which DOES create the storage policy. Measured in the first
+      # CI run: without this, the job failed at this very step.
+      #
+      # `gotrue` and `storage-api` are deliberately NOT excluded: the `auth` and `storage`
+      # schemas come from their containers, and the chain depends on both.
+      - name: Start scratch Supabase stack (migrations parked)
         run: |
-          supabase start -x realtime,storage-api,imgproxy,studio,pgadmin-schema-diff,postgrest,edge-runtime,logflare,vector,supavisor,gotrue
-          supabase db reset --no-seed --yes
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io
+          mv supabase/migrations /tmp/migrations-park
+          if [ -f supabase/seed.sql ]; then mv supabase/seed.sql /tmp/seed-park; fi
+          mkdir -p supabase/migrations
+          supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+          rmdir supabase/migrations
+          mv /tmp/migrations-park supabase/migrations
+          if [ -f /tmp/seed-park ]; then mv /tmp/seed-park supabase/seed.sql; fi
+          echo "migrations restored: $(ls supabase/migrations/*.sql | wc -l) files"
 
-      - name: Pre-pull images (keeps the 15-minute budget honest)
-        run: docker image ls --format '{{.Repository}}:{{.Tag}}' | sort | uniq | head -50
-
-      - name: psql availability
-        run: psql --version
+      - name: psql availability and scratch reachability
+        run: psql --version && psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -At -c "select 'scratch db reachable'"
 
       # NOTE: deliberately NO staging secrets in this job's environment. If a step ever
       # needs one, that is a design error — the full tier compares against the committed

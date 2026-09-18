@@ -1,15 +1,178 @@
 {
-  "generatedAt": "2026-09-18T21:55:09.889Z",
+  "generatedAt": "2026-09-18T21:56:50.833Z",
   "passes": [
     {
       "pass": 1,
-      "applied": 544,
-      "deferred": 0
+      "applied": 504,
+      "deferred": 40
+    },
+    {
+      "pass": 2,
+      "applied": 2,
+      "deferred": 38
+    },
+    {
+      "pass": 3,
+      "applied": 0,
+      "deferred": 38
     }
   ],
-  "pass1Applied": 544,
-  "pass1Deferred": 0,
-  "appliedCount": 544,
-  "unresolvedCount": 0,
-  "unresolved": []
+  "pass1Applied": 504,
+  "pass1Deferred": 40,
+  "appliedCount": 506,
+  "unresolvedCount": 38,
+  "unresolved": [
+    {
+      "file": "20240101000010_badge_leaderboard.sql",
+      "error": "ERROR:  function name \"get_badge_leaderboard\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20240101000014_update_leaderboard_query.sql",
+      "error": "ERROR:  function name \"get_badge_leaderboard\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20240101000016_improve_leaderboard_display_name.sql",
+      "error": "ERROR:  function name \"get_badge_leaderboard\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20241213000000_add_push_tokens_table.sql",
+      "error": "ERROR:  relation \"idx_push_tokens_user_id\" already exists"
+    },
+    {
+      "file": "20241213000001_add_auth_module_tables.sql",
+      "error": "ERROR:  constraint \"fk_profiles_node_id\" for relation \"profiles\" already exists"
+    },
+    {
+      "file": "20241215100005_create_admin_config.sql",
+      "error": "ERROR:  type \"admin_config_category\" already exists"
+    },
+    {
+      "file": "20251215000005_add_referred_by_to_profiles.sql",
+      "error": "ERROR:  column \"referred_by\" of relation \"profiles\" already exists"
+    },
+    {
+      "file": "20251215100000_auth_v2_schema.sql",
+      "error": "ERROR:  column \"status\" does not exist"
+    },
+    {
+      "file": "20251215100001_auth_v2_rpc_functions.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20251217000003_user_preferences_and_distance_NODE007.sql",
+      "error": "ERROR:  function \"update_user_preferences_updated_at\" already exists with same argument types"
+    },
+    {
+      "file": "20251219000004_admin_listing_view_policy.sql",
+      "error": "ERROR:  function is_admin() is not unique | HINT:  Could not choose a best candidate function. You might need to add explicit type casts."
+    },
+    {
+      "file": "20251220000002_search_listings_rpc.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20251224000001_add_category_text_search_rpc.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20260111000000_badge_admin_config.sql",
+      "error": "ERROR:  function is_admin() is not unique | HINT:  Could not choose a best candidate function. You might need to add explicit type casts."
+    },
+    {
+      "file": "20260122000001_remove_trial_extension_artifacts.sql",
+      "error": "ERROR:  cannot drop column referral_extensions_used of table subscriptions because other objects depend on it | DETAIL:  view user_subscriptions depends on column referral_extensions_used of table subscriptions"
+    },
+    {
+      "file": "20260129000000_referrals_v2_fix_code_sync_and_referred_by.sql",
+      "error": "ERROR:  cannot change name of input parameter \"p_user_id\" | HINT:  Use DROP FUNCTION apply_referral_code(uuid,text) first."
+    },
+    {
+      "file": "20260204000006_referrals_fail_safe_apply_and_legacy_lookup.sql",
+      "error": "ERROR:  cannot change name of input parameter \"p_user_id\" | HINT:  Use DROP FUNCTION apply_referral_code(uuid,text) first."
+    },
+    {
+      "file": "20260204000007_referrals_secure_apply_referral_code.sql",
+      "error": "ERROR:  cannot change name of input parameter \"p_user_id\" | HINT:  Use DROP FUNCTION apply_referral_code(uuid,text) first."
+    },
+    {
+      "file": "20260205000002_fix_referral_and_items_schema_mismatch.sql",
+      "error": "ERROR:  cannot change name of input parameter \"p_user_id\" | HINT:  Use DROP FUNCTION apply_referral_code(uuid,text) first."
+    },
+    {
+      "file": "20260207000001_admin_listing_search_rpc.sql",
+      "error": "ERROR:  function name \"admin_search_listings_v2\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20260213000000_enhance_subscriptions_sub_002.sql",
+      "error": "ERROR:  cannot change name of view column \"referral_extensions_used\" to \"tier_id\" | HINT:  Use ALTER VIEW ... RENAME COLUMN ... to change name of view column instead."
+    },
+    {
+      "file": "20260213000001_subscription_rpcs_sub_002.sql",
+      "error": "ERROR:  function name \"public.update_subscription_status\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20260225000004_fix_get_subs_summary_grace_period_v2.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20260309000005_fix_subscription_summary_consistency_sub_018.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20260420000002_update_search_listings_rpc.sql",
+      "error": "ERROR:  function name \"search_listings\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20260420000005_update_search_listings_distance_node.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20260425000002_admin_listing_search_category_fields.sql",
+      "error": "ERROR:  function name \"admin_search_listings_v2\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20260425000003_admin_listing_detail_fields.sql",
+      "error": "ERROR:  function name \"admin_search_listings_v2\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20260603000001_fix_search_listings_node_id_column.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20260712000004_fix_admin_config_rpc_security_definer.sql",
+      "error": "ERROR:  function name \"upsert_admin_config_setting\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20260724000001_tax_refund_and_reconciliation.sql",
+      "error": "ERROR:  cannot change return type of existing function | DETAIL:  Row type defined by OUT parameters is different."
+    },
+    {
+      "file": "20260817000003_node_scope_p3_search_rpc_node_filter.sql",
+      "error": "ERROR:  function name \"public.search_listings\" is not unique | HINT:  Specify the argument list to select the function unambiguously."
+    },
+    {
+      "file": "20260914000001_fix_task_35_capture_invariant_and_auto_complete_ids.sql",
+      "error": "ERROR:  function \"rpc_process_auto_complete\" already exists with same argument types"
+    },
+    {
+      "file": "20260916000025_payments_reconciliation_and_partial_refunds.sql",
+      "error": "ERROR:  column \"status\" does not exist"
+    },
+    {
+      "file": "20260916000035_admin_listing_force_delete_and_pause.sql",
+      "error": "ERROR:  policy \"Admins can manage listing actions\" for table \"admin_listing_actions\" already exists"
+    },
+    {
+      "file": "20260916000052_enable_realtime_messages.sql",
+      "error": "ERROR:  relation \"messages\" is already member of publication \"supabase_realtime\""
+    },
+    {
+      "file": "20260916000101_id_badge_verification_system.sql",
+      "error": "ERROR:  type \"id_badge_request_status\" already exists"
+    },
+    {
+      "file": "20260916000112_create_admin_payments_view.sql",
+      "error": "ERROR:  column p.status does not exist"
+    }
+  ]
 }

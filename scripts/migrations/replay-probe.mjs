@@ -172,6 +172,17 @@ const firstError = (t) => {
  * scratch `--workdir` yields a migration-free base (the CLI keys containers to the
  * project directory).  So: move the directory aside, reset, and always move it back.
  */
+/**
+ * Prefer the `supabase` binary on PATH (what `supabase/setup-cli` provides in CI) and only
+ * fall back to `npx supabase` locally. Without this, CI would silently download the package
+ * through npx — slower, and a network dependency inside a 15-minute budget.
+ */
+function supabaseCli() {
+  const direct = spawnSync('supabase', ['--version'], { encoding: 'utf8' });
+  if (direct.status === 0) return { cmd: 'supabase', args: [] };
+  return { cmd: 'npx', args: ['supabase'] };
+}
+
 function pristineReset() {
   recoverOrphanedHold();
   if (fs.existsSync(HOLD)) throw new Error(`${HOLD} already exists — refusing to clobber`);
@@ -185,7 +196,8 @@ function pristineReset() {
 
   try {
     fs.mkdirSync(MIG_DIR);
-    const r = spawnSync('npx', ['supabase', 'db', 'reset', '--no-seed', '--yes'], {
+    const cli = supabaseCli();
+    const r = spawnSync(cli.cmd, [...cli.args, 'db', 'reset', '--no-seed', '--yes'], {
       cwd: SUPA,
       encoding: 'utf8',
     });
