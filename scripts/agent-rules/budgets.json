@@ -14,7 +14,7 @@
     },
     ".github/instructions/supabase-sql.instructions.md": {
       "targetBytes": 60000,
-      "baselineBytes": 111721
+      "baselineBytes": 117390
     },
     ".github/instructions/mobile-client.instructions.md": {
       "targetBytes": 50000,
@@ -39,5 +39,8 @@
   "datedBulletBaseline": {
     ".github/agents/Kids P2P App Builder.agent.md": 0,
     ".github/agents/QA-Test-Agent.agent.md": 0
+  },
+  "sizeRaiseNotes": {
+    ".github/instructions/supabase-sql.instructions.md": "FIX-Task-63 (2026-09-18): +BP-101 — file-first staging DDL, the migration gate verdict policy, number reservation, and the ledger audit. Deliberately one compact rule + detection checklist; procedure detail lives in supabase/migrations/README.md."
   }
 }

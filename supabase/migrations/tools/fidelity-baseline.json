@@ -1,0 +1,115 @@
+{
+  "mode": "kind-digest",
+  "fpVersion": 2,
+  "fpQueriesSha": "9f14f3a425acd95d4f606a5cf6dd3b56",
+  "generatedAt": "2026-09-18T21:52:11.907Z",
+  "gitHash": "d980891b",
+  "stagingCapturedAt": "2026-09-18T21:52:11.517Z",
+  "reason": "first real staging comparison (FIX-Task-64): freezes the pre-existing chain-vs-staging residuals so any NEW drift fails",
+  "kindDigests": {
+    "ACL": {
+      "staging": {
+        "count": 5610,
+        "md5": "56ea498eea97a0cc85a0cdd77b03b13f"
+      },
+      "local": {
+        "count": 5253,
+        "md5": "5bb91f1088b44541754ebf96964f0142"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    },
+    "COLUMN": {
+      "staging": {
+        "count": 1463,
+        "md5": "d769eacdb1c2b50986cb8311e36698aa"
+      },
+      "local": {
+        "count": 1473,
+        "md5": "267cbba204f177ae28783d80c5cc2f37"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    },
+    "CONSTRAINT": {
+      "staging": {
+        "count": 489,
+        "md5": "4da89b1cc19ca4254d2238c63459b821"
+      },
+      "local": {
+        "count": 499,
+        "md5": "7a20b420fb99600787ead1119c857a32"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    },
+    "ENUM": {
+      "staging": {
+        "count": 46,
+        "md5": "69e3fabff69f740d3b52abd988fa0417"
+      },
+      "local": {
+        "count": 46,
+        "md5": "e197ad3dc568f58f10478a13d1552c9e"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    },
+    "FUNCTION": {
+      "staging": {
+        "count": 437,
+        "md5": "04609e8999196bec5d2c6419b15f5746"
+      },
+      "local": {
+        "count": 447,
+        "md5": "c9958e5e12c4145614b54a8abb07146c"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    },
+    "INDEX": {
+      "staging": {
+        "count": 527,
+        "md5": "da1443cd5e10c67368d94771f4a599cb"
+      },
+      "local": {
+        "count": 528,
+        "md5": "a0e13f9d304fbedf6e3708ee73c1b230"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    },
+    "POLICY": {
+      "staging": {
+        "count": 253,
+        "md5": "3b36edb974598d2b2e5946c1327a086f"
+      },
+      "local": {
+        "count": 262,
+        "md5": "91f449848a44fa2912a19d53d786b64c"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    },
+    "STORAGE": {
+      "staging": {
+        "count": 7,
+        "md5": "49203d687585ea28ace1002e5dfb783c"
+      },
+      "local": {
+        "count": 5,
+        "md5": "b9da707e28385402680eb47a5e974e0c"
+      },
+      "direction": "review-direction-before-backfilling",
+      "reason": "pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)",
+      "owningTask": "FIX-Task-64"
+    }
+  }
+}

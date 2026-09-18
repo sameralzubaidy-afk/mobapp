@@ -655,3 +655,152 @@ later hardening migrations on purpose (see §B of `fidelity-exceptions.md`).
 
 Still blocked by the CLI-execution-context defect (FIX-Task-43/57 analysis, options A–D). This task
 did not change that; `replay-probe.mjs` remains the Tier-2 evidence.
+
+---
+
+## ✅ FIX-Task-63 (2026-09-18) — the drift is now caught automatically, same-day
+
+**Read this section first. It is the current operating contract; the dated sections above are
+history.** Report + red-pair evidence: `e2e-test-results/fix-task-63-2026-09-18/report.md`.
+
+The problem was never that the checks did not exist — `replay-probe.mjs` and `fidelity-check.mjs`
+already existed. The problem was that a **human had to remember** to run them, every few weeks, and
+each run then discovered weeks of accumulated breakage in one expensive sitting. This task converts
+that into a gate that runs on every change.
+
+### Run it
+
+```bash
+npm run migration-gate          # static tier: no DB, no network, no lock — seconds
+npm run migration-gate:full     # full tier: rebuild + fidelity + freshness (scratch target only)
+npm run migration-gate:status   # who holds the scratch lock (read-only)
+npm run migration-gate:baseline # deliberate baseline move: prints NEW/GONE diff, needs --reason
+npm run migration:next-number   # reserve a migration number before writing the file
+npm run migration:ledger-audit  # staging ledger vs repo files (approval-gated read)
+npm run hooks:install           # activate .githooks/pre-commit for this clone
+```
+
+### Verdict vocabulary — only `PASS` is success
+
+| Verdict | Exit | Meaning | What to do |
+|---|---|---|---|
+| `PASS` | 0 | everything checked | nothing |
+| `FAIL` | 1 | a real finding (broken migration, NEW fidelity key, unlabelled baseline entry) | fix the named item |
+| `STALE BASELINE` | 2 | the comparison is not trustworthy yet — snapshot older than 7 days, older than an approved staging DDL, or captured with different fingerprint queries | take an approved fresh capture and commit it |
+| `BLOCKED` | 3 | the check could NOT run — no scratch target, lock held, `psql` missing, no snapshot/baseline | remove the blocker; **never** read this as green |
+| `TIMEOUT` | 4 | the 15-minute budget was exceeded | investigate the slowness; do not shrink the check to fit |
+
+### Gate runtime & failure policy (binding)
+
+| Rule | Requirement |
+|---|---|
+| Static tier | every relevant PR/push; target **<10 s** local, CI job `timeout-minutes: 5`; **lock-free, DB-free, network-free** |
+| Full tier | every relevant PR touching migrations/schema tooling; CI job `timeout-minutes: 15` |
+| Target isolation | **only** a dedicated scratch target; **never** shared staging — the gate fails closed on any non-loopback DSN and on any DSN naming a ref in `tools/non-scratch-targets.json` |
+| Timeout / lock | `TIMEOUT` / `BLOCKED` — a visible failure with uploaded diagnostics. **Never** a silent skip, a downgrade, or a green |
+| Fresh live capture | **never** a CI step; approval-gated, and only when the snapshot is stale or immediately after approved staging DDL |
+| No silent paths | no `\|\| true`, no `continue-on-error`, no skipping beyond the declared path filter, no green-on-unknown |
+
+Failure diagnostics (CI artifacts, plus `tools/reports/`): the probe report **with its per-pass
+ladder**, the fidelity report + finding-key diff, the lock state, the resolved scratch DSN with
+credentials redacted, and a phase timing breakdown.
+
+### The scoped lock: it protects the database, never the QA work
+
+`replay-probe.mjs` resets the local database, and on 2026-09-18 that destroyed a sibling session's
+verification run. It now takes `tools/.lock` (owner, branch, pid, process start, heartbeat, 30-minute
+TTL) and refuses to start if another session holds it.
+
+It is consulted **only** by local-stack-mutating work: `replay-probe`, the `db reset` equivalent, a
+local migration apply, and any fidelity capture that rebuilds a scratch database. It is **never**
+consulted by mobile QA, Android emulator work, app tests, read-only staging checks, doc edits, or the
+static tier. A stale heartbeat expires automatically; `--force-unlock --reason "<why>"` is the
+deliberate override and it is logged to `tools/reports/lock-events.log`.
+
+### Derived artifacts are committed — that is the point
+
+`tools/reports/` holds `migration-order.txt`, `renumber-map.json`, `fidelity-report.json` and the
+local fingerprints. These are **evidence**, so they are committed: while the renumber map lived in
+`$TMPDIR` the FIX-Task-60 clobber scan could not be reproduced a day later. Per-machine run trails
+(`*.log`, `gate-last-run.json`) are gitignored instead, so a gated commit does not dirty the tree.
+The static tier's **S5** check fails if any migration tool writes to `$TMPDIR` without an
+`ALLOW_TMPDIR` annotation.
+
+### "Staging matches" needs a FRESH capture
+
+`tools/staging-fp/` holds the staging side. **The committed snapshot is for repeatability only.**
+Procedure `tools/staging-fp/README.md`; the capture is an approval-gated read-only query run one
+statement per call. The gate reports `STALE BASELINE` — never green — when the snapshot is older than
+7 days, when `lastApprovedStagingDDLAt` is later than `capturedAt`, or when `fpQueriesSha` no longer
+matches `tools/fp*.sql`.
+
+Fingerprint **v2** (this task) adds the three dimensions the old gate was structurally blind to:
+`md5(prosrc)` **function bodies**, **ACLs** (functions and relations), and **storage bucket
+properties**. Each is proven sensitive in the report: a formatting-only body change produces exactly
+one `FUNCTION` conflict with two different body hashes; a revoked `EXECUTE` appears as an `ACL`
+subset-miss; an RLS flag, a column default and a bucket limit each appear as their own conflict.
+
+### Migration numbers are RESERVED, and collisions fail the gate (hard rule)
+
+Before creating a migration file:
+
+```bash
+node scripts/migrations/reserve-number.mjs --next           # next free 14-digit prefix
+node scripts/migrations/reserve-number.mjs --next --block   # reserved block, when a parallel session is live
+node scripts/migrations/reserve-number.mjs --claim --owner "<task/session>" --reason "<why>" --prefix <p> --files <name>.sql
+```
+
+A filename is an ORDER KEY (BP-99) and two files sharing a prefix have an **undefined apply order** —
+measured on 2026-09-18, when two sessions wrote `20260918000010_*`/`20260918000011_*` into the same
+working tree and one task had to move into a `+50000` reserved block mid-flight. The gate's **S4**
+fails if two owners claim one prefix, or if a file appears under a prefix a different owner reserved.
+`tools/reservations.json` currently records the two `2026091805000x` files.
+
+### Out-of-band staging changes: audited, with visible time-bounded exceptions
+
+```bash
+node scripts/migrations/ledger-audit.mjs --print-query   # the canonical read (approval-gated)
+node scripts/migrations/ledger-audit.mjs                 # after saving the dump
+```
+
+Three states, never one blended diff — `FILE_ONLY` (normal before deployment), `APPLIED_ONLY`
+(staging has it, no committed file → block and reconcile), `APPLIED_UNCOMMITTED` (applied from the
+working tree → block closure until committed). Matching is by **normalised name**, because this
+project's ledger `version` column holds APPLY times, not filename prefixes. Known historical
+exceptions live in `tools/ledger-exceptions.json` with reason, approver and **expiry** — history is
+not rewritten, but nothing stays unexplained forever.
+
+### ✅ Tier 2 record — `replay-probe.mjs` is ACCEPTED as the rebuild evidence (owner decision, Option A)
+
+**This is the deliberately-deferred decision carried since FIX-Task-35 and recorded here at last.**
+`supabase db reset` remains blocked by a **CLI execution-context** defect, not by migration content:
+the identical `CREATE POLICY … ON storage.objects` statement succeeds through `psql` as `postgres` and
+the probe applies all 544 files, while the CLI's own migrator fails it with `42501` (FIX-Task-43/57
+measured this, including the falsification of the role-membership theory and the volume-reset
+behaviour). Fail-softening the storage policies to make the reset green was **rejected** — it would
+weaken bucket security to satisfy a tool.
+
+**Owner decision:** `replay-probe.mjs`'s pristine reset + full replay is the accepted local Tier-2
+"DB rebuild from migrations" evidence. A green `db reset` is **not** a Tier-2 requirement on this
+project. Re-open only if the CLI's execution context is fixed and a reset then passes.
+
+> ⚠️ A consequence measured in this task: because `supabase start`/`db start` apply migrations on
+> boot, they hit the SAME `storage.objects` blocker on a fresh volume. To bring a local stack up
+> when it is down, park the migrations (and `supabase/seed.sql`) first — the probe does exactly this
+> for its own reset, and `node scripts/migrations/replay-probe.mjs --recover-hold` restores them.
+> That restore path refuses to run if `migrations/` already contains migrations, so a "recovery"
+> can never delete a healthy tree.
+
+### Probe outputs moved, and the crash-safety net
+
+The probe's report and apply-order now live in `tools/reports/` (committed) and its JSON carries a
+**per-pass ladder** (`passes[]`, `pass1Applied`, `pass1Deferred`) so the gate reads a report instead
+of scraping stdout.
+
+The migrations directory is parked at `supabase/.migrations-hold` during the pristine reset —
+**inside the repo**, not `os.tmpdir()`. That change was forced by a real incident during this task:
+the gate's own timeout kill left all 544 files (plus `tools/`) parked in a hidden temp directory and
+the repo presented an empty `supabase/migrations`. Now the hold is visible, `--recover-hold` heals it
+(and self-heals automatically at probe startup), and the static tier's **S7** fails with the recovery
+command while an orphan exists.
+

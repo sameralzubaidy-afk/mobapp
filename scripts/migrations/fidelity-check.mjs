@@ -31,16 +31,24 @@
  * USAGE
  *   node scripts/migrations/fidelity-check.mjs                 # regenerate local fp, then compare
  *   node scripts/migrations/fidelity-check.mjs --no-generate   # reuse an existing local fingerprint
- *   node scripts/migrations/fidelity-check.mjs --staging-prefix /tmp/staging-fp
+ *   node scripts/migrations/fidelity-check.mjs --staging-prefix <path prefix>
+ *
+ * FIX-Task-63: all derived artifacts are COMMITTED under
+ * supabase/migrations/tools/reports/ (never $TMPDIR — a capture that dies with the
+ * shell silently goes stale, which is how a real `nodes.id` divergence stayed hidden).
+ * The staging side lives in supabase/migrations/tools/staging-fp/ and is captured with
+ * an APPROVED read-only staging query; the queries' own sha is recorded so a capture
+ * can never be compared against a different query set.
  *
  * The staging side must be captured with the SAME three queries that live in
  * supabase/migrations/tools/fp{1,2,3}-*.sql.
  */
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { FP_VERSION, REPORTS_DIR, STAGING_FP_DIR, ensureReportsDir } from './lib/guard.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -54,11 +62,33 @@ const args = Object.fromEntries(
     return [k, v ?? true];
   })
 );
-const STAGING_PREFIX = args['staging-prefix'] ?? '/tmp/staging-fp';
-const LOCAL_PREFIX = args['local-prefix'] ?? '/tmp/local-fp';
-const LEDGER = args.ledger ?? '/tmp/staging-migrations.txt';
-const ORDER_FILE = args.order ?? '/tmp/mig-probe-order-p3.txt';
-const REPORT = args.out ?? '/tmp/fidelity-report.json';
+ensureReportsDir();
+const STAGING_PREFIX = args['staging-prefix'] ?? path.join(STAGING_FP_DIR, 'staging-fp');
+const LOCAL_PREFIX = args['local-prefix'] ?? path.join(REPORTS_DIR, 'local-fp');
+const LEDGER = args.ledger ?? path.join(STAGING_FP_DIR, 'staging-ledger.json');
+const ORDER_FILE = args.order ?? path.join(REPORTS_DIR, 'migration-order.txt');
+const REPORT = args.out ?? path.join(REPORTS_DIR, 'fidelity-report.json');
+
+/**
+ * Kinds that rule 2 (provenance) must NOT demand a creator for. A storage bucket row
+ * is seeded by an INSERT, so the provenance index — which looks for `CREATE <object>`
+ * statements — could never find one and would report every bucket as an invention of
+ * the rebuild. Buckets are still checked for PRESENCE (rule 1) and EQUALITY (rule 3).
+ */
+const PROVENANCE_EXEMPT_KINDS = new Set(['STORAGE']);
+
+/**
+ * Hash of the three fingerprint queries. Recorded in the report and compared by the
+ * gate against the snapshot's recorded value: a capture taken with different queries
+ * is not evidence about the current schema.
+ */
+function fpQueriesSha() {
+  const h = crypto.createHash('md5');
+  for (const f of ['fp1-columns.sql', 'fp2-constraints.sql', 'fp3-objects.sql']) {
+    h.update(fs.readFileSync(path.join(TOOLS, f)));
+  }
+  return h.digest('hex');
+}
 
 /**
  * Excluded by name from the comparison (agreed in FIX-Task-40):
@@ -134,6 +164,14 @@ function keyOf(line) {
     case 'RLS':
     case 'VIEW':
       return `${p[0]}|${p[2]}`;
+    // ACL rows are keyed on the FULL grant tuple. Keying on the object alone would
+    // silently collapse several grants on one function into a single map entry, so a
+    // REVOKE could hide behind a surviving GRANT. Presence is the finding here.
+    case 'ACL':
+      return `${p[0]}|${p[1]}|${p[2]}|${p[3]}|${p[4]}|${p[5]}`;
+    // STORAGE rows are keyed by bucket id; the compared properties ride in the line.
+    case 'STORAGE':
+      return `${p[0]}|${p[2]}|${p[3]}`;
     default:
       return line;
   }
@@ -171,7 +209,7 @@ function normalize(line) {
 /**
  * The fingerprint prefixes, used both for keying and for reassembling records.
  */
-const PREFIXES = ['COLUMN', 'CONSTRAINT', 'INDEX', 'TRIGGER', 'FUNCTION', 'ENUM', 'POLICY', 'RLS', 'VIEW'];
+const PREFIXES = ['COLUMN', 'CONSTRAINT', 'INDEX', 'TRIGGER', 'FUNCTION', 'ACL', 'ENUM', 'POLICY', 'RLS', 'VIEW', 'STORAGE'];
 const RECORD_START = new RegExp(`^(${PREFIXES.join('|')})\\|`);
 
 /**
@@ -296,8 +334,13 @@ for (const [key, line] of staging.map) if (!local.map.has(key)) subsetMisses.pus
 // Rule 2 - EXPLAINED (provenance) + ledger corroboration
 const explained = [];
 const unexplained = [];
+const provenanceExempt = [];
 for (const [key, line] of local.map) {
   if (staging.map.has(key)) continue;
+  if (PROVENANCE_EXEMPT_KINDS.has(line.split('|')[0])) {
+    provenanceExempt.push({ key, line });
+    continue;
+  }
   const name = objectName(line);
   const owners = creators.get(String(name).toLowerCase()) ?? [];
   if (owners.length === 0) {
@@ -340,6 +383,7 @@ if (subsetMisses.length) {
 }
 console.log(`2) EXPLAINED     - replay-only objects WITH provenance     : ${explained.length}  ${JSON.stringify(byKind(explained))}`);
 console.log(`                 - replay-only objects with NO CREATOR     : ${unexplained.length}`);
+console.log(`                 - exempt from provenance (seeded rows)    : ${provenanceExempt.length}  ${JSON.stringify(byKind(provenanceExempt))}`);
 for (const x of unexplained.slice(0, 40)) console.log(`     NO-CREATOR  ${x.key}`);
 console.log(`3) CONFLICT      - same object, different definition       : ${conflicts.length}`);
 for (const x of conflicts.slice(0, 40)) {
@@ -362,12 +406,15 @@ fs.writeFileSync(
   JSON.stringify(
     {
       generatedAt: new Date().toISOString(),
+      fpVersion: FP_VERSION,
+      fpQueriesSha: fpQueriesSha(),
       counts: {
         staging: staging.map.size,
         local: local.map.size,
         subsetMisses: subsetMisses.length,
         explained: explained.length,
         unexplained: unexplained.length,
+        provenanceExempt: provenanceExempt.length,
         conflicts: conflicts.length,
       },
       namedExclusions: NAMED_EXCLUSIONS,
@@ -376,6 +423,7 @@ fs.writeFileSync(
       unexplained,
       conflicts,
       explained,
+      provenanceExempt,
     },
     null,
     2

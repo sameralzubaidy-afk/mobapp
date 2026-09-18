@@ -1,0 +1,367 @@
+{
+  "at": "2026-09-18T22:18:38.898Z",
+  "purpose": "FIX-Task-64 final accounting — every row that the pre-fix audit reported as APPLIED_ONLY (45) mapped to its disposition. APPLIED_ONLY = 0 is a claim about ACCOUNTING, not about deleting rows: all 45 rows are still in the ledger and are listed below.",
+  "ledgerSource": "supabase/migrations/tools/staging-fp/staging-ledger.json",
+  "auditCounts": {
+    "repoFiles": 544,
+    "ledgerRows": 284,
+    "fileOnly": 305,
+    "appliedOnly": 34,
+    "appliedOnlyExplained": 34,
+    "appliedOnlyUnexplained": 0,
+    "appliedUncommitted": 0,
+    "exceptionsExpired": 0,
+    "versionAnchoredInformational": 11
+  },
+  "preFix": {
+    "appliedOnly": 45,
+    "unexplained": 44,
+    "note": "e2e-test-results/fix-task-64-2026-09-18/ledger-reconciliation.json is the pre-fix finding and is left unchanged for the record."
+  },
+  "postFix": {
+    "appliedOnly_blocking": 0,
+    "explained_by_exception": 34,
+    "versionAnchored_informational": 11,
+    "appliedUncommitted": 0
+  },
+  "rows": [
+    {
+      "version": "20251215100000",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20251215100000_auth_v2_schema.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20251215100001",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20251215100001_auth_v2_rpc_functions.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20251216100002",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20251216100002_admin_config_trial_settings.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20251217000002",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20251217000002_create_items_table_node_filtering.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20251217000003",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20251217000003_user_preferences_and_distance_NODE007.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20260325000010",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20260325000010_fix_admin_list_users_node_id_type.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20260325000011",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20260325000011_fix_admin_user_detail_tier_lookup.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20260325000012",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20260325000012_fix_admin_list_users_st_join.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20260325000013",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20260325000013_fix_admin_rpcs_transactions_to_trades.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20260325000014",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20260325000014_fix_admin_rpcs_complete_schema_alignment.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20260325000015",
+      "name": "placeholder",
+      "disposition": "VERSION-ANCHORED (informational, non-blocking)",
+      "evidence": "matched on version — the file exists; the ledger ROW's name \"placeholder\" disagrees with \"20260325000015_fix_admin_rpcs_final_complete.sql\" (informational, NOT drift, does not affect the exit code)"
+    },
+    {
+      "version": "20251217000001",
+      "name": "placeholder",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "seed-initial-nodes-renumbered-fix-task-42",
+      "kind": "renamed-migration-row",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260606234915",
+      "name": "fix_cancel_trade_v2_rpc",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260606234953",
+      "name": "harden_credit_sp_for_cancelled_trade",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260607001455",
+      "name": "fix_auto_complete_respects_dispute_status",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260607135411",
+      "name": "fix_sp_ledger_missing_on_trade_complete_v2",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260607140103",
+      "name": "revert_split_restore_combined_sp",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260607141340",
+      "name": "fix_category_sp_multiplier_lookup",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260607142009",
+      "name": "fix_platform_bonus_formula_based_on_sp",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260701200402",
+      "name": "create_fn_cleanup_test_buyer_trades",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260803183246",
+      "name": "fix_handle_new_user_subscription_notification_prefs",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260803192949",
+      "name": "add_sp_config_reader_helpers_no_fallback",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260803192959",
+      "name": "award_referral_sp_fail_loud",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260803193041",
+      "name": "award_listing_referral_sp_fail_loud",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260803193050",
+      "name": "apply_referral_code_fail_loud",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260803193058",
+      "name": "referral_config_read_rpcs_raise_on_missing",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260803193108",
+      "name": "referral_trigger_functions_log_on_missing_config",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260809161311",
+      "name": "r2_cleanup_retire_legacy_auto_complete",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260809161543",
+      "name": "admin_trades_view_pipeline_columns",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260828145355",
+      "name": "enable_rls_group1_zero_risk_tables",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260828145452",
+      "name": "enable_rls_group2_admin_audit_log",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260828150728",
+      "name": "enable_rls_group4_role_based_access_control",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260828150742",
+      "name": "enable_rls_group3_admin_audit_logs_plural",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260904214647",
+      "name": "category_sp_analytics_rpc_fix",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912111237",
+      "name": "fix_task_20_tax_rule_overlap_price_bands_and_message",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912111247",
+      "name": "fix_task_20_tax_rule_precedence_deterministic",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912111253",
+      "name": "fix_task_20_tax_clothing_ct_bands",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912111321",
+      "name": "fix_task_20_tax_status_zero_amount_backfill",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912111324",
+      "name": "fix_task_20_review_report_counter_trigger_security",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912111328",
+      "name": "fix_task_20_review_report_counters_backfill",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912111342",
+      "name": "fix_task_20_tax_summary_gross_collected_reconcile",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260912112241",
+      "name": "fix_task_20_restore_tax_summary_function_grants",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260914144138",
+      "name": "fix_task_32_competing_offer_notification_copy_seller_conditional",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "legacy-pre-existing-unattributed-class-2026-09-18",
+      "kind": "class-pre-existing-unattributed",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260918154537",
+      "name": "fix_task_59_corrective_public_revoke_siblings",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "fix-task-59-superseded-in-session-attempt",
+      "kind": "applied-in-session-superseded-no-file",
+      "expiresAt": "2026-12-17"
+    },
+    {
+      "version": "20260918202715",
+      "name": "fix_task_62_admin_read_lockdown_adapted",
+      "disposition": "RECORDED EXCEPTION",
+      "exceptionId": "fix_task_62_admin_read_lockdown_adapted",
+      "kind": "applied-from-working-tree-not-committed",
+      "expiresAt": "2026-10-18"
+    }
+  ]
+}

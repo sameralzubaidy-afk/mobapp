@@ -23,17 +23,20 @@
  *
  * USAGE
  *   node scripts/migrations/renumber.mjs                       # dry run (default)
- *   node scripts/migrations/renumber.mjs --order /tmp/order.txt
+ *   node scripts/migrations/renumber.mjs --order <file>         # override the order file
  *   node scripts/migrations/renumber.mjs --apply                # perform the rename
  *
  * The dry run prints the count and the first renames and writes nothing; ALWAYS
  * review it before passing --apply. `--apply` writes the full from→to map to
- * /tmp/renumber-map.json so a rename can be reversed or reviewed afterwards.
+ * supabase/migrations/tools/reports/renumber-map.json — COMMITTED, because the map is
+ * evidence: the FIX-Task-60 clobber scan (`fidelity-delta.mjs --clobber-scan`) reads it
+ * to prove which objects a renumber inverted, and while it lived in $TMPDIR that proof
+ * could not be reproduced a day later.
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { REPORTS_DIR, ensureReportsDir } from './lib/guard.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -47,12 +50,9 @@ const args = Object.fromEntries(
 );
 const APPLY = args.apply === true || args.apply === 'true';
 
-/** The probe writes its order to os.tmpdir(); fall back to the copied artifact. */
-const DEFAULT_ORDER = fs.existsSync(path.join(os.tmpdir(), 'mig-probe-order.txt'))
-  ? path.join(os.tmpdir(), 'mig-probe-order.txt')
-  : '/tmp/mig-probe-order-p3.txt';
-const ORDER_FILE = args.order ?? DEFAULT_ORDER;
-const MAP_FILE = args.map ?? '/tmp/renumber-map.json';
+ensureReportsDir();
+const ORDER_FILE = args.order ?? path.join(REPORTS_DIR, 'migration-order.txt');
+const MAP_FILE = args.map ?? path.join(REPORTS_DIR, 'renumber-map.json');
 
 if (!fs.existsSync(ORDER_FILE)) {
   console.error(`order file not found: ${ORDER_FILE}`);

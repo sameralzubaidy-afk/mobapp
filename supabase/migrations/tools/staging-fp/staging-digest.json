@@ -1,0 +1,59 @@
+{
+  "capturedAt": "2026-09-18T21:52:11.517Z",
+  "capturedBy": "GitHub Copilot (FIX-Task-64), via mcp_supabase_execute_sql — read-only",
+  "commitHash": "d980891b",
+  "projectRef": "drntwgporzabmxdqykrp",
+  "fpVersion": 2,
+  "fpQueriesSha": "9f14f3a425acd95d4f606a5cf6dd3b56",
+  "freshnessDays": 7,
+  "lastApprovedStagingDDLAt": "2026-09-18T21:31:00Z",
+  "kindCount": 11,
+  "method": "kind-digest",
+  "queryFile": "fp-digest.sql (generated from fp1/2/3 by make-fp-digest.mjs)",
+  "digests": {
+    "ACL": {
+      "count": 5610,
+      "md5": "56ea498eea97a0cc85a0cdd77b03b13f"
+    },
+    "COLUMN": {
+      "count": 1463,
+      "md5": "d769eacdb1c2b50986cb8311e36698aa"
+    },
+    "CONSTRAINT": {
+      "count": 489,
+      "md5": "4da89b1cc19ca4254d2238c63459b821"
+    },
+    "ENUM": {
+      "count": 46,
+      "md5": "69e3fabff69f740d3b52abd988fa0417"
+    },
+    "FUNCTION": {
+      "count": 437,
+      "md5": "04609e8999196bec5d2c6419b15f5746"
+    },
+    "INDEX": {
+      "count": 527,
+      "md5": "da1443cd5e10c67368d94771f4a599cb"
+    },
+    "POLICY": {
+      "count": 253,
+      "md5": "3b36edb974598d2b2e5946c1327a086f"
+    },
+    "RLS": {
+      "count": 103,
+      "md5": "4c36ad28a9d14db6a80fb2942d5bcd64"
+    },
+    "STORAGE": {
+      "count": 7,
+      "md5": "49203d687585ea28ace1002e5dfb783c"
+    },
+    "TRIGGER": {
+      "count": 113,
+      "md5": "790cad0c192d8a021a198f849fdbcf2d"
+    },
+    "VIEW": {
+      "count": 14,
+      "md5": "0e782f3a6c4e15455764bbb13c8016ea"
+    }
+  }
+}

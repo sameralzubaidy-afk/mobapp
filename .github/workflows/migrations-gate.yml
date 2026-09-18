@@ -1,0 +1,135 @@
+# FIX-Task-63 — the NON-BYPASSABLE migration gate.
+#
+# Why CI and not just the pre-commit hook: a hook is advisory in practice (it can be
+# skipped with `--no-verify`, and nothing stops someone from not having run
+# `hooks:install`). This workflow is the enforcement — a PR that touches migrations or
+# the migration tooling cannot merge until it is green.
+#
+# NON-NEGOTIABLE PROPERTIES (see supabase/migrations/README.md, "Gate runtime & failure
+# policy" — these are the contract, not aspirations):
+#
+#   * `static` is DB-free, network-free and secret-free. It must remain fast.
+#   * `full` runs ONLY against a dedicated scratch target. It is never given staging
+#     secrets, and the gate itself fails closed on a non-loopback DSN, so a
+#     misconfiguration cannot silently point it at production.
+#   * Both jobs are bounded (5 / 15 minutes). A timeout FAILS the job and uploads
+#     diagnostics. There is no `|| true`, no `continue-on-error`, and no path that
+#     reports success without having run the checks.
+#   * A fresh live staging capture is NEVER taken here. The `full` job compares against
+#     the committed snapshot and reports STALE BASELINE (a failure) when that snapshot
+#     is too old or predates an approved staging DDL. Refreshing it is an approved,
+#     human-triggered read-only operation.
+
+name: Migrations gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/migrations/**'
+      - '.github/instructions/supabase-sql.instructions.md'
+      - '.githooks/**'
+      - '.github/workflows/migrations-gate.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/migrations/**'
+      - '.github/instructions/supabase-sql.instructions.md'
+      - '.githooks/**'
+      - '.github/workflows/migrations-gate.yml'
+  workflow_dispatch:
+
+# No `defaults.run.working-directory` here on purpose: the monorepo-ci workflow pins
+# itself to p2p-kids-marketplace, and the migration tooling lives at the repo root.
+jobs:
+  static:
+    name: Static migration checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static tier (no database, no network, no lock)
+        run: node scripts/migrations/migration-gate.mjs --static
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-gate-static-diagnostics
+          path: supabase/migrations/tools/reports/
+          if-no-files-found: ignore
+
+  full:
+    name: Full migration gate (scratch rebuild + fidelity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [static]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # The scratch stack. Loopback by construction: the gate refuses any DSN whose host
+      # is not 127.0.0.1/localhost/::1, and refuses any DSN naming a non-scratch project
+      # ref (supabase/migrations/tools/non-scratch-targets.json).
+      #
+      # MIGRATIONS ARE PARKED FIRST. `supabase start` applies supabase/migrations on a
+      # fresh volume and dies at `CREATE POLICY ... ON storage.objects` with 42501 — the
+      # documented CLI execution-context blocker (README, "Option A"), which is why a
+      # green `db reset` is NOT a Tier-2 requirement on this project. With the directory
+      # parked the schema initialises cleanly, and the gate's probe then replays every
+      # migration over psql — which DOES create the storage policy. Measured in the first
+      # CI run: without this, the job failed at this very step.
+      #
+      # `gotrue` and `storage-api` are deliberately NOT excluded: the `auth` and `storage`
+      # schemas come from their containers, and the chain depends on both.
+      - name: Start scratch Supabase stack (migrations parked)
+        run: |
+          mv supabase/migrations /tmp/migrations-park
+          if [ -f supabase/seed.sql ]; then mv supabase/seed.sql /tmp/seed-park; fi
+          mkdir -p supabase/migrations
+          supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+          rmdir supabase/migrations
+          mv /tmp/migrations-park supabase/migrations
+          if [ -f /tmp/seed-park ]; then mv /tmp/seed-park supabase/seed.sql; fi
+          echo "migrations restored: $(ls supabase/migrations/*.sql | wc -l) files"
+
+      - name: psql availability and scratch reachability
+        run: psql --version && psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -At -c "select 'scratch db reachable'"
+
+      # NOTE: deliberately NO staging secrets in this job's environment. If a step ever
+      # needs one, that is a design error — the full tier compares against the committed
+      # snapshot, never against live staging.
+      - name: Full gate
+        run: node scripts/migrations/migration-gate.mjs --full --timeout-minutes 15 --json
+        env:
+          SCRATCH_DSN: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          GATE_SESSION_ID: ci-${{ github.run_id }}
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-gate-full-diagnostics
+          path: |
+            supabase/migrations/tools/reports/
+            supabase/migrations/tools/.lock
+          if-no-files-found: ignore
+
+      - name: Explain a non-green verdict
+        if: failure()
+        run: |
+          echo "The full gate did not pass. Verdict vocabulary and exit codes:"
+          echo "  PASS=0 · FAIL=1 · STALE BASELINE=2 · BLOCKED=3 · TIMEOUT=4"
+          echo "See supabase/migrations/README.md → 'Gate runtime & failure policy'."
+          echo "A STALE BASELINE means the committed staging snapshot is older than its"
+          echo "freshness window or predates an approved staging DDL — refresh it with an"
+          echo "APPROVED read-only capture (tools/staging-fp/README.md), then re-run."

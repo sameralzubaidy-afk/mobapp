@@ -46,55 +46,89 @@
 -- plus `FROM anon` for the two marked below.
 
 -- ============================================================================
--- Discovery (services/discovery.ts)
+-- Guarded apply (FIX-Task-63, 2026-09-18)
+-- ----------------------------------------------------------------------------
+-- These were 20 bare `GRANT` statements. That form is atomic and ALL-OR-NOTHING:
+-- on staging the very first one failed — `public.search_listings(text,boolean,integer)`
+-- does not exist there (staging's signature predates the repair) — so the whole file
+-- aborted and NONE of the twenty grants landed, leaving the chain and staging
+-- disagreeing in a way nothing recorded. A missing signature is an ENVIRONMENT
+-- difference, not a chain defect, so each target is now applied only if it exists.
+--
+-- FAIL-LOUD IS PRESERVED (BP-90): if ZERO targets matched, the file was inert and it
+-- raises. A partial match prints exactly which signatures were absent, so a genuine
+-- chain gap cannot hide behind the environment difference.
+--
+-- Format: '<signature>|<roles>'. Signature resolution goes through
+-- `to_regprocedure` (never string parsing), which fails to NULL rather than raising
+-- for an unknown name.
 -- ============================================================================
-GRANT EXECUTE ON FUNCTION public.search_listings(TEXT, BOOLEAN, INTEGER) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.search_listings_by_category(UUID, BOOLEAN, INTEGER, INTEGER) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.search_listings_by_category_and_query(UUID, TEXT, BOOLEAN, INTEGER, INTEGER) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_recommendations(UUID, INTEGER) TO authenticated;
+DO $fix60_grants$
+DECLARE
+  v_targets CONSTANT TEXT[] := ARRAY[
+    -- Discovery (services/discovery.ts)
+    'public.search_listings(text,boolean,integer)|authenticated',
+    'public.search_listings_by_category(uuid,boolean,integer,integer)|authenticated',
+    'public.search_listings_by_category_and_query(uuid,text,boolean,integer,integer)|authenticated',
+    'public.get_recommendations(uuid,integer)|authenticated',
+    -- SP display surfaces (services/sp.ts, contexts/AuthContext.tsx)
+    'public.get_sp_config(text)|authenticated',
+    'public.get_user_expiration_warnings(uuid)|authenticated',
+    -- Notifications (services/referralNotifications.ts, services/notificationPreferences.ts)
+    'public.get_unread_notification_count(uuid)|authenticated',
+    'public.mark_notification_read(uuid,uuid)|authenticated',
+    'public.mark_all_notifications_read(uuid)|authenticated',
+    'public.get_notification_preferences(uuid)|authenticated',
+    'public.update_notification_preference(uuid,public.notification_category,boolean,boolean,boolean,boolean,time without time zone,time without time zone)|authenticated',
+    'public.initialize_user_preferences(uuid)|authenticated',
+    -- Policy / ToS gate (services/tos.ts, services/privacyPolicy.ts, services/auth.ts)
+    'public.get_current_policy(text)|authenticated',
+    'public.has_accepted_current_policy(uuid,text)|authenticated',
+    'public.record_policy_acceptance(uuid,uuid,text,text)|authenticated',
+    -- Pre-session paths — reached before a session exists, so they also need `anon`
+    -- (sibling precedent: the guarded-creation file grants anon to its node helpers).
+    'public.check_referral_code_exists(text)|authenticated, anon',
+    'public.process_unsubscribe(text)|authenticated, anon',
+    -- Trade messaging receipts (services/chat.ts)
+    'public.mark_trade_messages_read(uuid,uuid)|authenticated',
+    'public.mark_trade_messages_delivered(uuid,uuid)|authenticated',
+    'public.update_message_delivery_status(uuid,text)|authenticated'
+  ];
+  v_entry   TEXT;
+  v_sig     TEXT;
+  v_roles   TEXT;
+  v_granted INTEGER := 0;
+  v_missing TEXT[] := ARRAY[]::TEXT[];
+BEGIN
+  FOREACH v_entry IN ARRAY v_targets LOOP
+    v_sig   := split_part(v_entry, '|', 1);
+    v_roles := split_part(v_entry, '|', 2);
 
--- ============================================================================
--- SP display surfaces (services/sp.ts, contexts/AuthContext.tsx)
--- ============================================================================
-GRANT EXECUTE ON FUNCTION public.get_sp_config(TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_user_expiration_warnings(UUID) TO authenticated;
+    IF to_regprocedure(v_sig) IS NULL THEN
+      v_missing := v_missing || v_sig;
+      CONTINUE;
+    END IF;
 
--- ============================================================================
--- Notifications (services/referralNotifications.ts, services/notificationPreferences.ts)
--- ============================================================================
-GRANT EXECUTE ON FUNCTION public.get_unread_notification_count(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.mark_notification_read(UUID, UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.mark_all_notifications_read(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_notification_preferences(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_notification_preference(
-  UUID, public.notification_category, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN,
-  TIME WITHOUT TIME ZONE, TIME WITHOUT TIME ZONE
-) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.initialize_user_preferences(UUID) TO authenticated;
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s', v_sig, v_roles);
+    v_granted := v_granted + 1;
+  END LOOP;
 
--- ============================================================================
--- Policy / ToS gate (services/tos.ts, services/privacyPolicy.ts, services/auth.ts)
--- ============================================================================
-GRANT EXECUTE ON FUNCTION public.get_current_policy(TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.has_accepted_current_policy(UUID, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.record_policy_acceptance(UUID, UUID, TEXT, TEXT) TO authenticated;
+  IF v_granted = 0 THEN
+    RAISE EXCEPTION
+      '[FIX-60] none of the % target signature(s) exist — this migration would be a silent no-op',
+      array_length(v_targets, 1);
+  END IF;
 
--- ============================================================================
--- Pre-session paths — these two are reached before a session exists, so they also
--- need the `anon` role (the sibling precedent in the guarded-creation file grants
--- anon to its node helpers for the same reason).
---   * check_referral_code_exists — referral-code entry during signup
---   * process_unsubscribe        — the unsubscribe screen behind an email link
--- ============================================================================
-GRANT EXECUTE ON FUNCTION public.check_referral_code_exists(TEXT) TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION public.process_unsubscribe(TEXT) TO authenticated, anon;
+  IF array_length(v_missing, 1) > 0 THEN
+    RAISE NOTICE
+      '[FIX-60] granted %/% — absent in THIS environment (expected on staging, a DEFECT on a rebuilt chain): %',
+      v_granted, array_length(v_targets, 1), array_to_string(v_missing, ', ');
+  ELSE
+    RAISE NOTICE '[FIX-60] granted %/% client-facing RPCs', v_granted, array_length(v_targets, 1);
+  END IF;
+END
+$fix60_grants$;
 
--- ============================================================================
--- Trade messaging receipts (services/chat.ts)
--- ============================================================================
-GRANT EXECUTE ON FUNCTION public.mark_trade_messages_read(UUID, UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.mark_trade_messages_delivered(UUID, UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_message_delivery_status(UUID, TEXT) TO authenticated;
 
 -- ============================================================================
 -- Verification (SQL-3)
