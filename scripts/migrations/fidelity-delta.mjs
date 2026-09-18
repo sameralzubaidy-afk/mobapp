@@ -17,19 +17,26 @@
  * field-by-field using the field layout of the fp*.sql queries.
  *
  * IMPORTANT HONESTY NOTE: the fingerprints deliberately do NOT capture a function
- * BODY (`prosrc`). Two functions with different bodies but identical
- * signature/result/security/proconfig render identical lines and are therefore NOT
- * reported as conflicts by the gate. Everything below classifies only what the gate
- * can see; body drift is out of scope for this tool by construction.
+ * BODY (`prosrc`). That was TRUE for fingerprint v1 and is NO LONGER TRUE as of
+ * v2 (FIX-Task-63), which appends `md5(prosrc)` to the FUNCTION line — so a body-only
+ * divergence now surfaces as a CONFLICT on the last field, and this tool's field-level
+ * diff attributes it to `body`. Grants (`ACL` rows) and storage bucket properties are
+ * likewise in scope now. Everything this tool classifies is therefore exactly what the
+ * gate can see; nothing here is inferred.
  *
  * USAGE
- *   node scripts/migrations/fidelity-delta.mjs                       # reads /tmp/fidelity-report.json
+ *   node scripts/migrations/fidelity-delta.mjs                       # reads <reports>/fidelity-report.json
  *   node scripts/migrations/fidelity-delta.mjs --report <file> --out <file>
  *   node scripts/migrations/fidelity-delta.mjs --detail FUNCTION     # print every finding of one kind
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { REPORTS_DIR, ensureReportsDir } from './lib/guard.mjs';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const REPO = path.resolve(HERE, '..', '..');
 
 /** Accepts both `--key=value` and `--key value` (the space form bit this file once). */
 function parseArgs(argv) {
@@ -51,8 +58,11 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv.slice(2));
 
-const REPORT = args.report ?? '/tmp/fidelity-report.json';
-const OUT = args.out ?? '/tmp/fidelity-delta.json';
+// FIX-Task-63: derived artifacts are COMMITTED under supabase/migrations/tools/reports/,
+// never $TMPDIR. A delta report that dies with the shell cannot be reviewed later.
+ensureReportsDir();
+const REPORT = args.report ?? path.join(REPORTS_DIR, 'fidelity-report.json');
+const OUT = args.out ?? path.join(REPORTS_DIR, 'fidelity-delta.json');
 
 /**
  * Field layout per fingerprint prefix, taken from supabase/migrations/tools/fp*.sql.
@@ -64,11 +74,16 @@ const LAYOUT = {
   CONSTRAINT: ['kind', 'schema', 'table', 'conname', 'contype', 'definition'],
   INDEX: ['kind', 'schema', 'table', 'indexname', 'definition'],
   TRIGGER: ['kind', 'schema', 'table', 'tgname', 'definition'],
-  FUNCTION: ['kind', 'schema', 'name', 'identity_args', 'result', 'security', 'proconfig'],
+  // v2 appends the body hash, so a divergent body attributes to the field `body`
+  // rather than showing up as an unattributed "same object, different definition".
+  FUNCTION: ['kind', 'schema', 'name', 'identity_args', 'result', 'security', 'proconfig', 'body'],
   ENUM: ['kind', 'schema', 'typname', 'label', 'sortorder'],
   POLICY: ['kind', 'schema', 'table', 'policyname', 'cmd', 'roles', 'qual', 'with_check'],
   RLS: ['kind', 'schema', 'table', 'flag'],
   VIEW: ['kind', 'schema', 'viewname', 'md5'],
+  // v2 kinds.
+  ACL: ['kind', 'schema', 'name', 'objkind', 'grantee', 'privilege'],
+  STORAGE: ['kind', 'schema', 'table', 'bucket_id', 'bucket_name', 'public', 'allowed_mime_types', 'file_size_limit'],
 };
 
 function parse(line) {
@@ -335,8 +350,8 @@ if (args.detail) {
 
 let clobbers = [];
 if (args['clobber-scan']) {
-  const MIG_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'supabase', 'migrations');
-  clobbers = clobberScan(MIG_DIR, args.map ?? '/tmp/renumber-map.json');
+  const MIG_DIR = path.join(REPO, 'supabase', 'migrations');
+  clobbers = clobberScan(MIG_DIR, args.map ?? path.join(REPORTS_DIR, 'renumber-map.json'));
 
   // Cross-reference: which fidelity findings does an inversion actually explain?
   const clobbered = new Set(clobbers.map((c) => c.object));

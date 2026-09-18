@@ -35,3 +35,11 @@ yarn-error.log*
 # GitHub's 100MB per-file limit, which blocks every push. Screenshots
 # (PNG) remain committed as evidence; recordings stay local.
 e2e-test-results/**/*.mp4
+
+# FIX-Task-63 — the replay probe parks supabase/migrations here while it does a
+# pristine reset, INSIDE the repo on purpose: a hold that survives a crash (a gate
+# TIMEOUT, Ctrl-C, SIGKILL) must be visible and greppable, not hidden in os.tmpdir().
+# The probe heals it automatically at startup, and `migration-gate.mjs --static`
+# check S7 fails while it exists. Never commit it, and never `git clean` it away
+# without recovering first: `node scripts/migrations/replay-probe.mjs --recover-hold`.
+supabase/.migrations-hold/

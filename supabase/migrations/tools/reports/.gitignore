@@ -1,0 +1,19 @@
+# Local run trails — deliberately NOT committed.
+#
+# These are per-machine artifacts: committing them would dirty the working tree on
+# every gated commit and on every `--force-unlock`, which trains people to ignore the
+# gate's own output. The REFERENCE artifacts in this directory (migration-order.txt,
+# renumber-map.json, fidelity-report.json, local-fp*.txt) ARE committed — see
+# ../../README.md for the split and the reason for it.
+*.log
+gate-last-run.json
+fidelity-delta.json
+local-fp1.txt
+local-fp2.txt
+local-fp3.txt
+# Local-vs-local control fixtures used ONLY to prove the gate can still say PASS.
+# Deliberately not committed: they are not a staging capture and must never be read as one.
+local-control-*
+
+# Self-test scratch artifacts from the gate harness (never committed).
+zz-*

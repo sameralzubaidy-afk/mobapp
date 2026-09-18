@@ -1,0 +1,11 @@
+{
+  "_comment": "FIX-Task-63 — targets the full gate must NEVER contact. `assertScratchTarget()` in scripts/migrations/lib/guard.mjs fails closed on any match. Add every non-scratch environment here as it is created.",
+  "targets": [
+    {
+      "ref": "drntwgporzabmxdqykrp",
+      "kind": "staging",
+      "note": "Supabase staging — shared, live test data; never reachable from the gate's full tier"
+    }
+  ],
+  "denyHostSuffixes": [".supabase.co", ".supabase.com", "pooler.supabase.com"]
+}

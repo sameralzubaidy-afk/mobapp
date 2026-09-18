@@ -161,16 +161,32 @@
 -- =============================================================================
 DO $fix62_gate$
 DECLARE
-  -- The vulnerable predicate, verbatim in all four live bodies.
-  v_old_predicate CONSTANT TEXT := 'rbac.user_id = p_admin_id AND rbac.role = ''admin''';
+  -- The vulnerable predicate. FIX-Task-63 (2026-09-18): this used to be the single-line
+  -- literal 'rbac.user_id = p_admin_id AND rbac.role = ''admin'''.
+  --
+  -- THAT FORM FAILED ON STAGING AND APPLIED NOTHING. Staging stores the predicate WRAPPED
+  -- across lines in 2 of the 4 signatures:
+  --     WHERE rbac.user_id = p_admin_id
+  --       AND rbac.role = 'admin'
+  -- so `position(<single-line literal>)` found nothing, the guard below raised, and the
+  -- atomic DO block rolled back — leaving all four signatures anon-executable while the
+  -- migration reported a failure that read like an anchor problem rather than a
+  -- security one. A whitespace-tolerant regexp matches BOTH spellings, and the
+  -- exactly-one-match requirement below means it can never half-apply.
+  v_old_predicate_re CONSTANT TEXT := 'rbac\.user_id = p_admin_id\s+AND\s+rbac\.role = ''admin''';
   -- The identity-derived replacement. Single expression, so no DECLARE-block patch
   -- is needed and the surrounding IF NOT EXISTS/RAISE stays byte-identical.
   v_new_predicate CONSTANT TEXT := 'rbac.role = ''admin'' AND (rbac.user_id = auth.uid() OR COALESCE(current_setting(''role'', true), '''') = ''service_role'')';
   -- Idempotency marker: present once the predicate has been replaced.
   v_marker        CONSTANT TEXT := 'rbac.user_id = auth.uid()';
   v_names         CONSTANT TEXT[] := ARRAY['admin_get_user_detail', 'admin_get_user_analytics', 'admin_list_users'];
+  -- 3 names resolve to 4 signatures (admin_list_users has two overloads). Gating fewer
+  -- than all of them leaves part of the surface anon-executable, which is the fail-open
+  -- shape this migration exists to close.
+  v_expected      CONSTANT INTEGER := 4;
   v_rec           RECORD;
   v_new_def       TEXT;
+  v_matches       INTEGER;
   v_gated         INTEGER := 0;
   v_seen          TEXT[] := ARRAY[]::TEXT[];
 BEGIN
@@ -191,18 +207,29 @@ BEGIN
     IF position(v_marker IN v_rec.def) > 0 THEN
       RAISE NOTICE '[FIX-62] public.%(%) already gated — no-op', v_rec.proname, v_rec.idargs;
     ELSE
-      IF position(v_old_predicate IN v_rec.def) = 0 THEN
+      -- Count the matches FIRST. Exactly one is required: zero means this body does not
+      -- carry the predicate we know how to patch (do not guess), and more than one means
+      -- a single anchored replacement could not faithfully express the intent.
+      SELECT count(*) INTO v_matches FROM regexp_matches(v_rec.def, v_old_predicate_re, 'g');
+
+      IF v_matches = 0 THEN
         RAISE EXCEPTION
           '[FIX-62] public.%(%) carries no recognizable self-declared admin predicate — refusing to guess',
           v_rec.proname, v_rec.idargs;
       END IF;
 
-      v_new_def := replace(v_rec.def, v_old_predicate, v_new_predicate);
+      IF v_matches <> 1 THEN
+        RAISE EXCEPTION
+          '[FIX-62] public.%(%) contains % self-declared admin predicates — exactly 1 expected, refusing to guess which one is authoritative',
+          v_rec.proname, v_rec.idargs, v_matches;
+      END IF;
+
+      v_new_def := regexp_replace(v_rec.def, v_old_predicate_re, v_new_predicate);
 
       -- Survival guards (BP-90): the OLD predicate must be gone, the NEW one must be
       -- present, and the body must not have shrunk. Anything else means the anchored
       -- replacement did something other than what this migration intends.
-      IF position(v_old_predicate IN v_new_def) > 0
+      IF v_new_def ~ v_old_predicate_re
          OR position(v_marker IN v_new_def) = 0
          OR length(v_new_def) <= length(v_rec.def) THEN
         RAISE EXCEPTION
@@ -228,6 +255,15 @@ BEGIN
 
   IF v_gated = 0 THEN
     RAISE EXCEPTION '[FIX-62] no admin read function was found — the lockdown would have been a silent no-op';
+  END IF;
+
+  -- PARTIAL-APPLY GUARD. Every signature is handled in this one DO block, so without this
+  -- check a run that gated 2 of 4 would commit happily and report success while half the
+  -- surface stayed anon-executable.
+  IF v_gated <> v_expected THEN
+    RAISE EXCEPTION
+      '[FIX-62] gated % signature(s) but % are expected — a partial lockdown is a fail-open',
+      v_gated, v_expected;
   END IF;
 
   IF NOT (v_names <@ v_seen) THEN

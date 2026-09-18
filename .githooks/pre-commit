@@ -1,0 +1,62 @@
+#!/bin/sh
+# FIX-Task-63 — migration gate, LOCAL PREVIEW tier.
+#
+# This hook is a fast preview, NOT the enforcement. It is trivially bypassed
+# (`git commit --no-verify`) and therefore must never be treated as the guarantee.
+# The non-bypassable version is the `Migrations gate` workflow in CI, which runs the
+# same script on every PR that touches migration tooling and blocks the merge.
+#
+# Scoping: it only does anything when the STAGED set touches migrations or the
+# migration tooling. Mobile QA, emulator work, app tests, and doc edits are untouched —
+# the cure must not become the next interruption to testing.
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 0
+
+STAGED="$(git diff --cached --name-only)"
+if ! printf '%s\n' "$STAGED" | grep -qE '^(supabase/migrations/|scripts/migrations/|\.github/instructions/supabase-sql\.instructions\.md)'; then
+  exit 0
+fi
+
+echo ""
+echo "── migration-gate ─ static tier (preview) ────────────────────────────"
+
+if [ -n "$MIGRATIONS_GATE_BYPASS" ]; then
+  LOG="supabase/migrations/tools/reports/gate-bypass.log"
+  mkdir -p "$(dirname "$LOG")"
+  printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git config user.email || echo unknown)" "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo detached)" "$MIGRATIONS_GATE_BYPASS" >> "$LOG"
+  echo "⚠️  MIGRATIONS_GATE_BYPASS SET — static tier SKIPPED."
+  echo "    reason : $MIGRATIONS_GATE_BYPASS"
+  echo "    logged : $LOG"
+  echo "    CI still runs this gate on the PR, and CI has no bypass."
+  echo "──────────────────────────────────────────────────────────────────────"
+  echo ""
+  exit 0
+fi
+
+if ! node scripts/migrations/migration-gate.mjs --static; then
+  echo ""
+  echo "✖ BLOCKED by the migration gate (static tier)."
+  echo "  Fix the [FAIL] line(s) above. A migration filename is an ORDER KEY: two files"
+  echo "  sharing a number prefix have an undefined apply order (BP-99)."
+  echo ""
+  echo "  Deliberate, documented override:"
+  echo "    MIGRATIONS_GATE_BYPASS=\"<why>\" git commit ..."
+  echo "  It prints a loud warning, writes it to tools/reports/gate-bypass.log, and is"
+  echo "  still caught by CI — which is the real gate."
+  echo "──────────────────────────────────────────────────────────────────────"
+  exit 1
+fi
+
+# The full tier rebuilds the database and therefore needs the local stack plus the
+# scoped scratch lock. Opt-in only: a 2-minute hook on every commit trains people to
+# bypass it, which is worse than not having it.
+if [ "${MIGRATIONS_GATE_FULL:-0}" = "1" ]; then
+  echo ""
+  echo "── migration-gate ─ full tier (MIGRATIONS_GATE_FULL=1) ───────────────"
+  node scripts/migrations/migration-gate.mjs --full || exit 1
+fi
+
+echo "──────────────────────────────────────────────────────────────────────"
+echo ""
+exit 0

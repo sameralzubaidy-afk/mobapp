@@ -1,0 +1,23 @@
+{
+  "_comment": "FIX-Task-63 — migration NUMBER RESERVATIONS. A migration filename is an ORDER KEY (BP-99), so two files sharing a number prefix have an undefined apply order. That happened for real on 2026-09-18: two parallel sessions wrote 20260918000010_* and 20260918000011_* into the same working tree, and one task had to be moved into a reserved block mid-flight. Before creating a migration file, claim its prefix here (node scripts/migrations/reserve-number.mjs --next). `migration-gate.mjs --static` (check S4) fails if two owners claim one prefix, or if a file appears under a prefix a different owner reserved.",
+  "reservations": [
+    {
+      "prefix": "20260918050000",
+      "owner": "fix-task-62-anon-access",
+      "reason": "Reserved block, deliberately far from the concurrent payout workstream's 20260918000010-13 range. The +50000 offset is the convention for 'next free block when the natural number is contested'.",
+      "claimedAt": "2026-09-18T00:00:00Z",
+      "expiresAt": null,
+      "requireFiles": true,
+      "files": ["20260918050000_fix_task_62_admin_read_and_anon_function_lockdown.sql"]
+    },
+    {
+      "prefix": "20260918050001",
+      "owner": "fix-task-62-anon-access",
+      "reason": "Second file of the same reserved block (anon policy alignment).",
+      "claimedAt": "2026-09-18T00:00:00Z",
+      "expiresAt": null,
+      "requireFiles": true,
+      "files": ["20260918050001_fix_task_62_anon_policy_alignment.sql"]
+    }
+  ]
+}

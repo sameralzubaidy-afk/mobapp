@@ -1,0 +1,2642 @@
+[
+  {
+    "from": "006_resolve_active_node_and_waitlist.sql",
+    "to": "20240101000001_resolve_active_node_and_waitlist.sql",
+    "applied": true
+  },
+  {
+    "from": "061_seller_payouts_helpers.sql",
+    "to": "20240101000002_seller_payouts_helpers.sql",
+    "applied": true
+  },
+  {
+    "from": "064_update_trade_rpcs_v2.sql",
+    "to": "20240101000003_update_trade_rpcs_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "067_update_complete_trade_v2_logic.sql",
+    "to": "20240101000004_update_complete_trade_v2_logic.sql",
+    "applied": true
+  },
+  {
+    "from": "069_fix_cancel_trade_v2_use_sp_rpc.sql",
+    "to": "20240101000005_fix_cancel_trade_v2_use_sp_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "072_add_get_user_sp_wallet_summary_rpc.sql",
+    "to": "20240101000006_add_get_user_sp_wallet_summary_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "076_enforce_minimum_withdrawal_in_rpc.sql",
+    "to": "20240101000007_enforce_minimum_withdrawal_in_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "078_payout_router_integration.sql",
+    "to": "20240101000008_payout_router_integration.sql",
+    "applied": true
+  },
+  {
+    "from": "082_message_cleanup_cron.sql",
+    "to": "20240101000009_message_cleanup_cron.sql",
+    "applied": true
+  },
+  {
+    "from": "083_badge_leaderboard.sql",
+    "to": "20240101000010_badge_leaderboard.sql",
+    "applied": true
+  },
+  {
+    "from": "083_message_cleanup_audit.sql",
+    "to": "20240101000011_message_cleanup_audit.sql",
+    "applied": true
+  },
+  {
+    "from": "084_add_pg_cron_send_message_emails.sql",
+    "to": "20240101000012_add_pg_cron_send_message_emails.sql",
+    "applied": true
+  },
+  {
+    "from": "084_message_cleanup_wrapper_update.sql",
+    "to": "20240101000013_message_cleanup_wrapper_update.sql",
+    "applied": true
+  },
+  {
+    "from": "084_update_leaderboard_query.sql",
+    "to": "20240101000014_update_leaderboard_query.sql",
+    "applied": true
+  },
+  {
+    "from": "085_fix_scheduled_message_cleanup_ambiguity.sql",
+    "to": "20240101000015_fix_scheduled_message_cleanup_ambiguity.sql",
+    "applied": true
+  },
+  {
+    "from": "085_improve_leaderboard_display_name.sql",
+    "to": "20240101000016_improve_leaderboard_display_name.sql",
+    "applied": true
+  },
+  {
+    "from": "101_fix_starter_pack_award_on_approval.sql",
+    "to": "20240101000017_fix_starter_pack_award_on_approval.sql",
+    "applied": true
+  },
+  {
+    "from": "174_admin_referral_analytics.sql",
+    "to": "20240101000018_admin_referral_analytics.sql",
+    "applied": true
+  },
+  {
+    "from": "20241213000000_add_push_tokens_table.sql",
+    "to": "20241213000000_add_push_tokens_table.sql",
+    "applied": true
+  },
+  {
+    "from": "20241213000001_add_auth_module_tables.sql",
+    "to": "20241213000001_add_auth_module_tables.sql",
+    "applied": true
+  },
+  {
+    "from": "20241213000002_add_referral_system_tables.sql",
+    "to": "20241213000002_add_referral_system_tables.sql",
+    "applied": true
+  },
+  {
+    "from": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+    "to": "20241213000003_base_schema_repair_node_ids_and_trades.sql",
+    "applied": true
+  },
+  {
+    "from": "20241213000004_base_schema_repair_missing_base_objects.sql",
+    "to": "20241213000004_base_schema_repair_missing_base_objects.sql",
+    "applied": true
+  },
+  {
+    "from": "20241213000005_base_schema_repair_missing_base_functions.sql",
+    "to": "20241213000005_base_schema_repair_missing_base_functions.sql",
+    "applied": true
+  },
+  {
+    "from": "20241214000001_add_profile_creation_trigger.sql",
+    "to": "20241214000001_add_profile_creation_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "20241214000002_phone_verification_codes.sql",
+    "to": "20241214000002_phone_verification_codes.sql",
+    "applied": true
+  },
+  {
+    "from": "20241214000003_fix_phone_verification_and_add_profiles_view.sql",
+    "to": "20241214000003_fix_phone_verification_and_add_profiles_view.sql",
+    "applied": true
+  },
+  {
+    "from": "20241214000004_phone_verification_rls_fix.sql",
+    "to": "20241214000004_phone_verification_rls_fix.sql",
+    "applied": true
+  },
+  {
+    "from": "20241214000005_create_user_avatars_bucket.sql",
+    "to": "20241214000005_create_user_avatars_bucket.sql",
+    "applied": true
+  },
+  {
+    "from": "20241215000001_fix_avatar_rls_policies.sql",
+    "to": "20241215000001_fix_avatar_rls_policies.sql",
+    "applied": true
+  },
+  {
+    "from": "20241215000002_add_referral_bonus_logic.sql",
+    "to": "20241215000002_add_referral_bonus_logic.sql",
+    "applied": true
+  },
+  {
+    "from": "20241215000006_add_referral_bonus_logic.sql",
+    "to": "20241215000006_add_referral_bonus_logic.sql",
+    "applied": true
+  },
+  {
+    "from": "20241215100003_referrals_profiles_relationship.sql",
+    "to": "20241215100003_referrals_profiles_relationship.sql",
+    "applied": true
+  },
+  {
+    "from": "20241227_admin_force_cancel_trade.sql",
+    "to": "20241215100004_admin_force_cancel_trade.sql",
+    "applied": true
+  },
+  {
+    "from": "20250113_create_admin_config.sql",
+    "to": "20241215100005_create_admin_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20250114000000_admin_config_category_add_missing_values.sql",
+    "to": "20250114000000_admin_config_category_add_missing_values.sql",
+    "applied": true
+  },
+  {
+    "from": "20251214000001_add_profiles_dob_and_trigger_update.sql",
+    "to": "20251214000001_add_profiles_dob_and_trigger_update.sql",
+    "applied": true
+  },
+  {
+    "from": "20251215000002_fix_verify_phone_code.sql",
+    "to": "20251215000002_fix_verify_phone_code.sql",
+    "applied": true
+  },
+  {
+    "from": "20251215000003_verify_user_phone_require_verified_code.sql",
+    "to": "20251215000003_verify_user_phone_require_verified_code.sql",
+    "applied": true
+  },
+  {
+    "from": "20251215000004_make_avatar_policies_idempotent.sql",
+    "to": "20251215000004_make_avatar_policies_idempotent.sql",
+    "applied": true
+  },
+  {
+    "from": "20251215000005_add_referred_by_to_profiles.sql",
+    "to": "20251215000005_add_referred_by_to_profiles.sql",
+    "applied": true
+  },
+  {
+    "from": "20251215100000_auth_v2_schema.sql",
+    "to": "20251215100000_auth_v2_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "20251215100001_auth_v2_rpc_functions.sql",
+    "to": "20251215100001_auth_v2_rpc_functions.sql",
+    "applied": true
+  },
+  {
+    "from": "20251216100002_admin_config_trial_settings.sql",
+    "to": "20251216100002_admin_config_trial_settings.sql",
+    "applied": true
+  },
+  {
+    "from": "20251216_create_admin_config.sql",
+    "to": "20251216100003_create_admin_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20251216_create_geographic_nodes_table.sql",
+    "to": "20251216100004_create_geographic_nodes_table.sql",
+    "applied": true
+  },
+  {
+    "from": "20251216_fix_rpc_admin_config_schema.sql",
+    "to": "20251216100005_fix_rpc_admin_config_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "20251217000002_create_items_table_node_filtering.sql",
+    "to": "20251217000002_create_items_table_node_filtering.sql",
+    "applied": true
+  },
+  {
+    "from": "20251217000003_user_preferences_and_distance_NODE007.sql",
+    "to": "20251217000003_user_preferences_and_distance_NODE007.sql",
+    "applied": true
+  },
+  {
+    "from": "20251218000001_add_listing_v2_fields.sql",
+    "to": "20251218000001_add_listing_v2_fields.sql",
+    "applied": true
+  },
+  {
+    "from": "20251218000002_add_items_seller_fkey.sql",
+    "to": "20251218000002_add_items_seller_fkey.sql",
+    "applied": true
+  },
+  {
+    "from": "20251219000001_fix_dob_age_population.sql",
+    "to": "20251219000001_fix_dob_age_population.sql",
+    "applied": true
+  },
+  {
+    "from": "20251219000002_fix_rls_policy_for_trigger.sql",
+    "to": "20251219000002_fix_rls_policy_for_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "20251219000003_fix_trigger_display_name.sql",
+    "to": "20251219000003_fix_trigger_display_name.sql",
+    "applied": true
+  },
+  {
+    "from": "20251219_admin_listing_view_policy.sql",
+    "to": "20251219000004_admin_listing_view_policy.sql",
+    "applied": true
+  },
+  {
+    "from": "20251219_upgrade_free_to_trial.sql",
+    "to": "20251219000005_upgrade_free_to_trial.sql",
+    "applied": true
+  },
+  {
+    "from": "20251220000001_add_search_vector_listings.sql",
+    "to": "20251220000001_add_search_vector_listings.sql",
+    "applied": true
+  },
+  {
+    "from": "20251220000002_search_listings_rpc.sql",
+    "to": "20251220000002_search_listings_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20251220000003_get_recommendations_rpc.sql",
+    "to": "20251220000003_get_recommendations_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20251220_free_subscription_creation.sql",
+    "to": "20251220000004_free_subscription_creation.sql",
+    "applied": true
+  },
+  {
+    "from": "20251222_add_sp_max_percentage_config.sql",
+    "to": "20251220000005_add_sp_max_percentage_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20251224000001_add_category_text_search_rpc.sql",
+    "to": "20251224000001_add_category_text_search_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20251226_add_pg_cron_and_auto_complete.sql",
+    "to": "20251224000002_add_pg_cron_and_auto_complete.sql",
+    "applied": true
+  },
+  {
+    "from": "20251226_fix_auto_complete_runs_schema.sql",
+    "to": "20251224000003_fix_auto_complete_runs_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "20251226_fix_processed_count_and_schedule_12h.sql",
+    "to": "20251224000004_fix_processed_count_and_schedule_12h.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_add_errors_count_and_update_wrapper.sql",
+    "to": "20251224000005_add_errors_count_and_update_wrapper.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_add_expired_status_to_subscriptions.sql",
+    "to": "20251224000006_add_expired_status_to_subscriptions.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_add_phone_to_profiles.sql",
+    "to": "20251224000007_add_phone_to_profiles.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_add_stripe_refund_id_to_trades.sql",
+    "to": "20251224000008_add_stripe_refund_id_to_trades.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_admin_trade_tools.sql",
+    "to": "20251224000009_admin_trade_tools.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_backfill_trade_subscription_status.sql",
+    "to": "20251224000010_backfill_trade_subscription_status.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_create_admin_monitoring_logs.sql",
+    "to": "20251224000011_create_admin_monitoring_logs.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_create_admin_trades_view.sql",
+    "to": "20251224000012_create_admin_trades_view.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_fix_trade_analytics_rpc.sql",
+    "to": "20251224000013_fix_trade_analytics_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_fix_trades_profiles_fk.sql",
+    "to": "20251224000014_fix_trades_profiles_fk.sql",
+    "applied": true
+  },
+  {
+    "from": "20251227_fix_trial_enrollment_idempotency.sql",
+    "to": "20251224000015_fix_trial_enrollment_idempotency.sql",
+    "applied": true
+  },
+  {
+    "from": "20260103000000_fix_complete_trade_v2_two_step_payout_router.sql",
+    "to": "20260103000000_fix_complete_trade_v2_two_step_payout_router.sql",
+    "applied": true
+  },
+  {
+    "from": "20260109_fix_items_profiles_fk_ambiguity.sql",
+    "to": "20260103000001_fix_items_profiles_fk_ambiguity.sql",
+    "applied": true
+  },
+  {
+    "from": "20260110000000_badges_v2.sql",
+    "to": "20260110000000_badges_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "20260110000002_trade_badges.sql",
+    "to": "20260110000002_trade_badges.sql",
+    "applied": true
+  },
+  {
+    "from": "20260111000000_badge_admin_config.sql",
+    "to": "20260111000000_badge_admin_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20260111000001_badge_icons_storage.sql",
+    "to": "20260111000001_badge_icons_storage.sql",
+    "applied": true
+  },
+  {
+    "from": "20260112000001_initialize_badge_order.sql",
+    "to": "20260112000001_initialize_badge_order.sql",
+    "applied": true
+  },
+  {
+    "from": "20260112000002_retroactive_badges.sql",
+    "to": "20260112000002_retroactive_badges.sql",
+    "applied": true
+  },
+  {
+    "from": "20260112000003_fix_subscription_badge_schema.sql",
+    "to": "20260112000003_fix_subscription_badge_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "20260113000001_fix_sandbox_rls_policies.sql",
+    "to": "20260113000001_fix_sandbox_rls_policies.sql",
+    "applied": true
+  },
+  {
+    "from": "20260113000002_fix_trades_rls_for_sandbox.sql",
+    "to": "20260113000002_fix_trades_rls_for_sandbox.sql",
+    "applied": true
+  },
+  {
+    "from": "20260113000003_fix_trade_badge_trigger.sql",
+    "to": "20260113000003_fix_trade_badge_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "20260115000001_fix_user_avatars_rls_again.sql",
+    "to": "20260115000001_fix_user_avatars_rls_again.sql",
+    "applied": true
+  },
+  {
+    "from": "20260116000000_verify_trades_columns_and_refresh_cache.sql",
+    "to": "20260116000000_verify_trades_columns_and_refresh_cache.sql",
+    "applied": true
+  },
+  {
+    "from": "20260120000000_consolidated_profile_trigger.sql",
+    "to": "20260120000000_consolidated_profile_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "20260122000000_create_subscription_events.sql",
+    "to": "20260122000000_create_subscription_events.sql",
+    "applied": true
+  },
+  {
+    "from": "20260122000001_remove_trial_extension_artifacts.sql",
+    "to": "20260122000001_remove_trial_extension_artifacts.sql",
+    "applied": true
+  },
+  {
+    "from": "20260123000000_fix_scheduled_award_tenure_badges.sql",
+    "to": "20260123000000_fix_scheduled_award_tenure_badges.sql",
+    "applied": true
+  },
+  {
+    "from": "20260129000000_referrals_v2_fix_code_sync_and_referred_by.sql",
+    "to": "20260129000000_referrals_v2_fix_code_sync_and_referred_by.sql",
+    "applied": true
+  },
+  {
+    "from": "20260129000001_check_referral_code_exists.sql",
+    "to": "20260129000001_check_referral_code_exists.sql",
+    "applied": true
+  },
+  {
+    "from": "20260201000001_fix_referral_rewards_v2_trigger_and_backfill.sql",
+    "to": "20260201000001_fix_referral_rewards_v2_trigger_and_backfill.sql",
+    "applied": true
+  },
+  {
+    "from": "20260202000001_referral_listing_notifications.sql",
+    "to": "20260202000001_referral_listing_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "20260203000000_fix_complete_trade_v2_missing_sp_wallet.sql",
+    "to": "20260203000000_fix_complete_trade_v2_missing_sp_wallet.sql",
+    "applied": true
+  },
+  {
+    "from": "20260204000000_fix_get_admin_payout_config_safe_parsing.sql",
+    "to": "20260204000000_fix_get_admin_payout_config_safe_parsing.sql",
+    "applied": true
+  },
+  {
+    "from": "20260204000006_referrals_fail_safe_apply_and_legacy_lookup.sql",
+    "to": "20260204000006_referrals_fail_safe_apply_and_legacy_lookup.sql",
+    "applied": true
+  },
+  {
+    "from": "20260204000007_referrals_secure_apply_referral_code.sql",
+    "to": "20260204000007_referrals_secure_apply_referral_code.sql",
+    "applied": true
+  },
+  {
+    "from": "20260204000008_unify_referral_rewards_logic.sql",
+    "to": "20260204000008_unify_referral_rewards_logic.sql",
+    "applied": true
+  },
+  {
+    "from": "20260204000009_referrals_starter_pack_config.sql",
+    "to": "20260204000009_referrals_starter_pack_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20260205000002_fix_referral_and_items_schema_mismatch.sql",
+    "to": "20260205000002_fix_referral_and_items_schema_mismatch.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000000_add_referral_enum.sql",
+    "to": "20260207000000_add_referral_enum.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000001_admin_listing_search_rpc.sql",
+    "to": "20260207000001_admin_listing_search_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000002_secure_admin_config_upsert.sql",
+    "to": "20260207000002_secure_admin_config_upsert.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000005_fix_referral_dashboard_visibility.sql",
+    "to": "20260207000005_fix_referral_dashboard_visibility.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000007_hardened_referral_signup.sql",
+    "to": "20260207000007_hardened_referral_signup.sql",
+    "applied": true
+  },
+  {
+    "from": "20260212000000_subscription_tiers.sql",
+    "to": "20260212000000_subscription_tiers.sql",
+    "applied": true
+  },
+  {
+    "from": "20260212000001_subscription_tiers_verification.sql",
+    "to": "20260212000001_subscription_tiers_verification.sql",
+    "applied": true
+  },
+  {
+    "from": "20260213000000_enhance_subscriptions_sub_002.sql",
+    "to": "20260213000000_enhance_subscriptions_sub_002.sql",
+    "applied": true
+  },
+  {
+    "from": "20260213000001_subscription_rpcs_sub_002.sql",
+    "to": "20260213000001_subscription_rpcs_sub_002.sql",
+    "applied": true
+  },
+  {
+    "from": "20260213000002_fix_sub_002_rpcs_and_rls.sql",
+    "to": "20260213000002_fix_sub_002_rpcs_and_rls.sql",
+    "applied": true
+  },
+  {
+    "from": "20260213000003_fix_sub_002_final.sql",
+    "to": "20260213000003_fix_sub_002_final.sql",
+    "applied": true
+  },
+  {
+    "from": "20260214000001_dynamic_transaction_fees_from_admin_config.sql",
+    "to": "20260214000001_dynamic_transaction_fees_from_admin_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20260215000000_sub_003_trial_reminder_flags.sql",
+    "to": "20260215000000_sub_003_trial_reminder_flags.sql",
+    "applied": true
+  },
+  {
+    "from": "20260215000001_trial_conversion_rpcs.sql",
+    "to": "20260215000001_trial_conversion_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "20260215000002_scheduled_trial_conversion.sql",
+    "to": "20260215000002_scheduled_trial_conversion.sql",
+    "applied": true
+  },
+  {
+    "from": "20260215_scheduled_trial_reminders.sql",
+    "to": "20260215000003_scheduled_trial_reminders.sql",
+    "applied": true
+  },
+  {
+    "from": "20260219000001_cron_observability_rpc.sql",
+    "to": "20260219000001_cron_observability_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260224000001_grace_reminder_thresholds.sql",
+    "to": "20260224000001_grace_reminder_thresholds.sql",
+    "applied": true
+  },
+  {
+    "from": "20260224000002_schedule_grace_period_cron.sql",
+    "to": "20260224000002_schedule_grace_period_cron.sql",
+    "applied": true
+  },
+  {
+    "from": "20260225000003_fix_invoke_grace_period_cron_null_return.sql",
+    "to": "20260225000003_fix_invoke_grace_period_cron_null_return.sql",
+    "applied": true
+  },
+  {
+    "from": "20260225000004_fix_get_subs_summary_grace_period_v2.sql",
+    "to": "20260225000004_fix_get_subs_summary_grace_period_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "20260301000000_add_grace_reminder_thresholds_config.sql",
+    "to": "20260301000000_add_grace_reminder_thresholds_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20260303000000_create_billing_history_sub_014.sql",
+    "to": "20260303000000_create_billing_history_sub_014.sql",
+    "applied": true
+  },
+  {
+    "from": "20260309000005_fix_subscription_summary_consistency_sub_018.sql",
+    "to": "20260309000005_fix_subscription_summary_consistency_sub_018.sql",
+    "applied": true
+  },
+  {
+    "from": "20260312000000_sub_020_trial_limit_control.sql",
+    "to": "20260312000000_sub_020_trial_limit_control.sql",
+    "applied": true
+  },
+  {
+    "from": "20260312000001_fix_dynamic_grace_period_trial_conversion.sql",
+    "to": "20260312000001_fix_dynamic_grace_period_trial_conversion.sql",
+    "applied": true
+  },
+  {
+    "from": "20260325000000_admin_v2_005_revenue_analytics.sql",
+    "to": "20260325000000_admin_v2_005_revenue_analytics.sql",
+    "applied": true
+  },
+  {
+    "from": "20260325000010_fix_admin_list_users_node_id_type.sql",
+    "to": "20260325000010_fix_admin_list_users_node_id_type.sql",
+    "applied": true
+  },
+  {
+    "from": "20260325000011_fix_admin_user_detail_tier_lookup.sql",
+    "to": "20260325000011_fix_admin_user_detail_tier_lookup.sql",
+    "applied": true
+  },
+  {
+    "from": "20260325000012_fix_admin_list_users_st_join.sql",
+    "to": "20260325000012_fix_admin_list_users_st_join.sql",
+    "applied": true
+  },
+  {
+    "from": "20260325000013_fix_admin_rpcs_transactions_to_trades.sql",
+    "to": "20260325000013_fix_admin_rpcs_transactions_to_trades.sql",
+    "applied": true
+  },
+  {
+    "from": "20260325000014_fix_admin_rpcs_complete_schema_alignment.sql",
+    "to": "20260325000014_fix_admin_rpcs_complete_schema_alignment.sql",
+    "applied": true
+  },
+  {
+    "from": "20260325000015_fix_admin_rpcs_final_complete.sql",
+    "to": "20260325000015_fix_admin_rpcs_final_complete.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000016_fix_admin_rpcs_aggregate_ordering.sql",
+    "to": "20260328000016_fix_admin_rpcs_aggregate_ordering.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000017_fix_admin_user_detail_dob_column.sql",
+    "to": "20260328000017_fix_admin_user_detail_dob_column.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000018_fix_admin_user_detail_wallet_state.sql",
+    "to": "20260328000018_fix_admin_user_detail_wallet_state.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000019_fix_admin_user_detail_sp_lifetime_source.sql",
+    "to": "20260328000019_fix_admin_user_detail_sp_lifetime_source.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000020_fix_admin_user_detail_badges_icon_url.sql",
+    "to": "20260328000020_fix_admin_user_detail_badges_icon_url.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000021_fix_admin_user_detail_entity_id_cast.sql",
+    "to": "20260328000021_fix_admin_user_detail_entity_id_cast.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000022_fix_admin_delete_user_wallet_state.sql",
+    "to": "20260328000022_fix_admin_delete_user_wallet_state.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000023_fix_admin_activity_log_entity_id_uuid.sql",
+    "to": "20260328000023_fix_admin_activity_log_entity_id_uuid.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000024_fix_admin_get_user_analytics_alias_scope.sql",
+    "to": "20260328000024_fix_admin_get_user_analytics_alias_scope.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000025_fix_admin_list_users_deleted_filter.sql",
+    "to": "20260328000025_fix_admin_list_users_deleted_filter.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000026_fix_admin_list_users_null_status_filter.sql",
+    "to": "20260328000026_fix_admin_list_users_null_status_filter.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000027_fix_admin_identity_phone_dob_backfill.sql",
+    "to": "20260328000027_fix_admin_identity_phone_dob_backfill.sql",
+    "applied": true
+  },
+  {
+    "from": "20260328000100_create_item_images_bucket.sql",
+    "to": "20260328000100_create_item_images_bucket.sql",
+    "applied": true
+  },
+  {
+    "from": "20260329000001_fix_item_images_storage_rls_path.sql",
+    "to": "20260329000001_fix_item_images_storage_rls_path.sql",
+    "applied": true
+  },
+  {
+    "from": "20260329000002_fix_ai_moderation_logs_schema_drift.sql",
+    "to": "20260329000002_fix_ai_moderation_logs_schema_drift.sql",
+    "applied": true
+  },
+  {
+    "from": "20260330000001_safety_008_request_edits_status.sql",
+    "to": "20260330000001_safety_008_request_edits_status.sql",
+    "applied": true
+  },
+  {
+    "from": "20260402000001_safety_009_dynamic_appeal_limits_and_edit_tracking.sql",
+    "to": "20260402000001_safety_009_dynamic_appeal_limits_and_edit_tracking.sql",
+    "applied": true
+  },
+  {
+    "from": "20260406000001_notif_v2_fix_trial_reminder_trigger_alias.sql",
+    "to": "20260406000001_notif_v2_fix_trial_reminder_trigger_alias.sql",
+    "applied": true
+  },
+  {
+    "from": "20260406000002_fix_scheduled_trial_reminders_invocation.sql",
+    "to": "20260406000002_fix_scheduled_trial_reminders_invocation.sql",
+    "applied": true
+  },
+  {
+    "from": "20260415000001_auth_signup_trigger_stabilization_hotfix.sql",
+    "to": "20260415000001_auth_signup_trigger_stabilization_hotfix.sql",
+    "applied": true
+  },
+  {
+    "from": "20260415000002_enforce_pending_review_for_all_user_listings.sql",
+    "to": "20260415000002_enforce_pending_review_for_all_user_listings.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000001_add_item_filter_columns.sql",
+    "to": "20260420000001_add_item_filter_columns.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000002_update_search_listings_rpc.sql",
+    "to": "20260420000002_update_search_listings_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000003_create_item_bulk_uploads.sql",
+    "to": "20260420000003_create_item_bulk_uploads.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000004_create_item_drafts.sql",
+    "to": "20260420000004_create_item_drafts.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000004_update_search_listings_distance_node.sql",
+    "to": "20260420000005_update_search_listings_distance_node.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000005_add_bulk_listing_columns_to_items.sql",
+    "to": "20260420000006_add_bulk_listing_columns_to_items.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000005_admin_list_users_search_by_user_id.sql",
+    "to": "20260420000007_admin_list_users_search_by_user_id.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000006_add_category_management_columns.sql",
+    "to": "20260420000008_add_category_management_columns.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000006_admin_list_users_search_by_user_id_v2.sql",
+    "to": "20260420000009_admin_list_users_search_by_user_id_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000007_create_category_suggestions.sql",
+    "to": "20260420000010_create_category_suggestions.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000008_category_item_count_trigger.sql",
+    "to": "20260420000011_category_item_count_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000009_reorder_categories_rpc.sql",
+    "to": "20260420000012_reorder_categories_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000010_create_category_icons_storage_bucket.sql",
+    "to": "20260420000013_create_category_icons_storage_bucket.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000011_create_user_linked_providers_view.sql",
+    "to": "20260420000014_create_user_linked_providers_view.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000012_add_phone_verification_tracking.sql",
+    "to": "20260420000015_add_phone_verification_tracking.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000013_link_social_account_rpc.sql",
+    "to": "20260420000016_link_social_account_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000014_create_phone_verification_codes.sql",
+    "to": "20260420000017_create_phone_verification_codes.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000015_check_account_exists_rpc.sql",
+    "to": "20260420000018_check_account_exists_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000017_can_set_password_rpc.sql",
+    "to": "20260420000019_can_set_password_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000018_create_education_sections.sql",
+    "to": "20260420000020_create_education_sections.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000019_create_education_examples.sql",
+    "to": "20260420000021_create_education_examples.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000020_create_education_analytics_and_seed.sql",
+    "to": "20260420000022_create_education_analytics_and_seed.sql",
+    "applied": true
+  },
+  {
+    "from": "20260420000021_education_publish_rpcs.sql",
+    "to": "20260420000023_education_publish_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "20260421000003_fix_get_recommendations_status_ambiguity.sql",
+    "to": "20260421000003_fix_get_recommendations_status_ambiguity.sql",
+    "applied": true
+  },
+  {
+    "from": "20260421000004_fix_get_recommendations_enum_text_cast.sql",
+    "to": "20260421000004_fix_get_recommendations_enum_text_cast.sql",
+    "applied": true
+  },
+  {
+    "from": "20260421000005_fix_get_recommendations_affordability_bonus.sql",
+    "to": "20260421000005_fix_get_recommendations_affordability_bonus.sql",
+    "applied": true
+  },
+  {
+    "from": "20260422000001_seed_test_item_images.sql",
+    "to": "20260422000001_seed_test_item_images.sql",
+    "applied": true
+  },
+  {
+    "from": "20260424000001_allow_item_draft_image_uploads.sql",
+    "to": "20260424000001_allow_item_draft_image_uploads.sql",
+    "applied": true
+  },
+  {
+    "from": "20260425000001_listing_approval_notifications.sql",
+    "to": "20260425000001_listing_approval_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "20260425000002_admin_listing_search_category_fields.sql",
+    "to": "20260425000002_admin_listing_search_category_fields.sql",
+    "applied": true
+  },
+  {
+    "from": "20260425000003_admin_listing_detail_fields.sql",
+    "to": "20260425000003_admin_listing_detail_fields.sql",
+    "applied": true
+  },
+  {
+    "from": "20260425000004_enable_realtime_core_tables.sql",
+    "to": "20260425000004_enable_realtime_core_tables.sql",
+    "applied": true
+  },
+  {
+    "from": "20260429000011_allow_seller_insert_category_suggestions.sql",
+    "to": "20260429000011_allow_seller_insert_category_suggestions.sql",
+    "applied": true
+  },
+  {
+    "from": "20260429000013_admin_sp_economy_summary.sql",
+    "to": "20260429000013_admin_sp_economy_summary.sql",
+    "applied": true
+  },
+  {
+    "from": "20260501000001_phone_otp_hashing_rpcs.sql",
+    "to": "20260501000001_phone_otp_hashing_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000001_tax_001_sales_tax_schema.sql",
+    "to": "20260510000001_tax_001_sales_tax_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000001_trade_authorization_updates.sql",
+    "to": "20260510000002_trade_authorization_updates.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000002_sp_hold_enum.sql",
+    "to": "20260510000003_sp_hold_enum.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000002_tax_002_calculate_tax_rpc.sql",
+    "to": "20260510000004_tax_002_calculate_tax_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000003_offer_timeout_rpc.sql",
+    "to": "20260510000005_offer_timeout_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000003_tax_003_apply_tax_rpc.sql",
+    "to": "20260510000006_tax_003_apply_tax_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000004_tax_004_refund_tax_rpc.sql",
+    "to": "20260510000007_tax_004_refund_tax_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000005_tax_005_get_tax_summary_rpc.sql",
+    "to": "20260510000008_tax_005_get_tax_summary_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000006_tax_006_update_node_tax_rpc.sql",
+    "to": "20260510000009_tax_006_update_node_tax_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000007_tax_007_get_tax_export_data_rpc.sql",
+    "to": "20260510000010_tax_007_get_tax_export_data_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000008_tax_008_backfill_defaults.sql",
+    "to": "20260510000011_tax_008_backfill_defaults.sql",
+    "applied": true
+  },
+  {
+    "from": "20260510000009_tax_009_get_tax_summary_full_report_types.sql",
+    "to": "20260510000012_tax_009_get_tax_summary_full_report_types.sql",
+    "applied": true
+  },
+  {
+    "from": "20260516000001_fix_get_nodes_within_radius_text_casts.sql",
+    "to": "20260516000001_fix_get_nodes_within_radius_text_casts.sql",
+    "applied": true
+  },
+  {
+    "from": "20260516000002_fix_get_nodes_within_radius_postgis_schema.sql",
+    "to": "20260516000002_fix_get_nodes_within_radius_postgis_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "20260523000001_add_deletion_type_and_self_delete_rpc.sql",
+    "to": "20260523000001_add_deletion_type_and_self_delete_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000001_admin_config_trade_timing.sql",
+    "to": "20260528000001_admin_config_trade_timing.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000002_trades_v2_columns.sql",
+    "to": "20260528000002_trades_v2_columns.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000003_sp_reserve_release_triggers.sql",
+    "to": "20260528000003_sp_reserve_release_triggers.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000004_offer_expiry_cron.sql",
+    "to": "20260528000004_offer_expiry_cron.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000005_auto_complete_cron.sql",
+    "to": "20260528000005_auto_complete_cron.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000006_reset_unanswered_counter.sql",
+    "to": "20260528000006_reset_unanswered_counter.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000007_notification_log.sql",
+    "to": "20260528000007_notification_log.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000008_notification_cron.sql",
+    "to": "20260528000008_notification_cron.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000009_payout_trigger.sql",
+    "to": "20260528000009_payout_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000011_cart_tables.sql",
+    "to": "20260528000011_cart_tables.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000012_seller_cancel_consequences.sql",
+    "to": "20260528000012_seller_cancel_consequences.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528100001_cart_system_schema.sql",
+    "to": "20260528100001_cart_system_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528100002_cart_system_rpcs.sql",
+    "to": "20260528100002_cart_system_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528113000_fix_favorites_user_fk_compat.sql",
+    "to": "20260528113000_fix_favorites_user_fk_compat.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528121500_fix_cart_get_items_uuid_aggregate.sql",
+    "to": "20260528121500_fix_cart_get_items_uuid_aggregate.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528200001_cart_saved_expiry.sql",
+    "to": "20260528200001_cart_saved_expiry.sql",
+    "applied": true
+  },
+  {
+    "from": "20260601000001_coppa_enforcement.sql",
+    "to": "20260601000001_coppa_enforcement.sql",
+    "applied": true
+  },
+  {
+    "from": "20260601000001_tax_status_add_missing_values.sql",
+    "to": "20260601000002_tax_status_add_missing_values.sql",
+    "applied": true
+  },
+  {
+    "from": "20260603000001_fix_search_listings_node_id_column.sql",
+    "to": "20260603000001_fix_search_listings_node_id_column.sql",
+    "applied": true
+  },
+  {
+    "from": "20260603000002_fix_get_listing_by_id_rls.sql",
+    "to": "20260603000002_fix_get_listing_by_id_rls.sql",
+    "applied": true
+  },
+  {
+    "from": "20260603143828_record_315_applied_manually.sql",
+    "to": "20260603143828_record_315_applied_manually.sql",
+    "applied": true
+  },
+  {
+    "from": "20260603190500_fix_fn_reset_unanswered_counter_schema_drift.sql",
+    "to": "20260603190500_fix_fn_reset_unanswered_counter_schema_drift.sql",
+    "applied": true
+  },
+  {
+    "from": "20260604000002_relax_items_select_policy_for_discovery.sql",
+    "to": "20260604000002_relax_items_select_policy_for_discovery.sql",
+    "applied": true
+  },
+  {
+    "from": "20260605000001_d30_in_progress_initial_status.sql",
+    "to": "20260605000001_d30_in_progress_initial_status.sql",
+    "applied": true
+  },
+  {
+    "from": "20260606000002_deprecate_payment_processing.sql",
+    "to": "20260606000002_deprecate_payment_processing.sql",
+    "applied": true
+  },
+  {
+    "from": "20260607000001_fix_offer_expiry_notifications.sql",
+    "to": "20260607000001_fix_offer_expiry_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "20260607000001_fix_sp_multiplier_formula.sql",
+    "to": "20260607000002_fix_sp_multiplier_formula.sql",
+    "applied": true
+  },
+  {
+    "from": "20260608000001_fix_offer_expiry_complete.sql",
+    "to": "20260608000001_fix_offer_expiry_complete.sql",
+    "applied": true
+  },
+  {
+    "from": "20260609000001_fix_rpc_settings_namespace.sql",
+    "to": "20260609000001_fix_rpc_settings_namespace.sql",
+    "applied": true
+  },
+  {
+    "from": "20260609000002_fix_rpc_remove_http_calls.sql",
+    "to": "20260609000002_fix_rpc_remove_http_calls.sql",
+    "applied": true
+  },
+  {
+    "from": "20260620000001_drop_coppa_enforcement.sql",
+    "to": "20260620000001_drop_coppa_enforcement.sql",
+    "applied": true
+  },
+  {
+    "from": "20260703000001_fix_seller_ignore_prompt_count_check.sql",
+    "to": "20260703000001_fix_seller_ignore_prompt_count_check.sql",
+    "applied": true
+  },
+  {
+    "from": "20260703000002_admin_list_users_sort_by_sp.sql",
+    "to": "20260703000002_admin_list_users_sort_by_sp.sql",
+    "applied": true
+  },
+  {
+    "from": "20260703000002_fix_cancel_trade_clear_dispute_status.sql",
+    "to": "20260703000003_fix_cancel_trade_clear_dispute_status.sql",
+    "applied": true
+  },
+  {
+    "from": "20260703000002_update_cron_job_schedule_rpc.sql",
+    "to": "20260703000004_update_cron_job_schedule_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260703000003_add_dispute_status_columns_to_trades.sql",
+    "to": "20260703000005_add_dispute_status_columns_to_trades.sql",
+    "applied": true
+  },
+  {
+    "from": "20260703000003_run_cron_job_now_rpc.sql",
+    "to": "20260703000006_run_cron_job_now_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260703000004_fix_notification_cron_settings.sql",
+    "to": "20260703000007_fix_notification_cron_settings.sql",
+    "applied": true
+  },
+  {
+    "from": "20260704000001_add_reserved_sp_to_wallet_summary.sql",
+    "to": "20260704000001_add_reserved_sp_to_wallet_summary.sql",
+    "applied": true
+  },
+  {
+    "from": "20260704000001_fix_fee_config_rpc_security_definer.sql",
+    "to": "20260704000002_fix_fee_config_rpc_security_definer.sql",
+    "applied": true
+  },
+  {
+    "from": "20260704000001_fix_trade_notifications_cron_bake_url.sql",
+    "to": "20260704000003_fix_trade_notifications_cron_bake_url.sql",
+    "applied": true
+  },
+  {
+    "from": "20260705000000_grant_payout_config_to_authenticated.sql",
+    "to": "20260705000000_grant_payout_config_to_authenticated.sql",
+    "applied": true
+  },
+  {
+    "from": "20260707000000_fix_payout_trigger_and_config.sql",
+    "to": "20260707000000_fix_payout_trigger_and_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20260708000001_auto_complete_reminders.sql",
+    "to": "20260708000001_auto_complete_reminders.sql",
+    "applied": true
+  },
+  {
+    "from": "20260709000001_send_offer_reminders_cron.sql",
+    "to": "20260709000001_send_offer_reminders_cron.sql",
+    "applied": true
+  },
+  {
+    "from": "20260712000001_admin_cancellation_insights.sql",
+    "to": "20260712000001_admin_cancellation_insights.sql",
+    "applied": true
+  },
+  {
+    "from": "20260712000002_admin_cancellation_user_detail.sql",
+    "to": "20260712000002_admin_cancellation_user_detail.sql",
+    "applied": true
+  },
+  {
+    "from": "20260712000003_backfill_cancelled_at.sql",
+    "to": "20260712000003_backfill_cancelled_at.sql",
+    "applied": true
+  },
+  {
+    "from": "20260712000004_fix_admin_config_rpc_security_definer.sql",
+    "to": "20260712000004_fix_admin_config_rpc_security_definer.sql",
+    "applied": true
+  },
+  {
+    "from": "20260715000001_points_redemption_caps_and_accept_transfer.sql",
+    "to": "20260715000001_points_redemption_caps_and_accept_transfer.sql",
+    "applied": true
+  },
+  {
+    "from": "20260718000001_admin_config_per_seller_offer_cap.sql",
+    "to": "20260718000001_admin_config_per_seller_offer_cap.sql",
+    "applied": true
+  },
+  {
+    "from": "20260719000001_fix_cart_get_items_left_join.sql",
+    "to": "20260719000001_fix_cart_get_items_left_join.sql",
+    "applied": true
+  },
+  {
+    "from": "20260720000001_enable_cart_realtime.sql",
+    "to": "20260720000001_enable_cart_realtime.sql",
+    "applied": true
+  },
+  {
+    "from": "20260721000001_fix_favorites_show_in_progress.sql",
+    "to": "20260721000001_fix_favorites_show_in_progress.sql",
+    "applied": true
+  },
+  {
+    "from": "20260721000002_min_listing_price.sql",
+    "to": "20260721000002_min_listing_price.sql",
+    "applied": true
+  },
+  {
+    "from": "20260721000003_fix_admin_config_is_active_on_upsert.sql",
+    "to": "20260721000003_fix_admin_config_is_active_on_upsert.sql",
+    "applied": true
+  },
+  {
+    "from": "20260723000001_tax_category_rules.sql",
+    "to": "20260723000001_tax_category_rules.sql",
+    "applied": true
+  },
+  {
+    "from": "20260723000002_tax_status_lifecycle.sql",
+    "to": "20260723000002_tax_status_lifecycle.sql",
+    "applied": true
+  },
+  {
+    "from": "20260724000001_tax_refund_and_reconciliation.sql",
+    "to": "20260724000001_tax_refund_and_reconciliation.sql",
+    "applied": true
+  },
+  {
+    "from": "20260724000002_fix_tax_refund_reconciliation.sql",
+    "to": "20260724000002_fix_tax_refund_reconciliation.sql",
+    "applied": true
+  },
+  {
+    "from": "20260727000001_category_tax_mapping.sql",
+    "to": "20260727000001_category_tax_mapping.sql",
+    "applied": true
+  },
+  {
+    "from": "20260727000002_seed_tax_rules.sql",
+    "to": "20260727000002_seed_tax_rules.sql",
+    "applied": true
+  },
+  {
+    "from": "20260729000001_tax_category_aware_preview.sql",
+    "to": "20260729000001_tax_category_aware_preview.sql",
+    "applied": true
+  },
+  {
+    "from": "20260729000002_get_listing_by_id_tax_category.sql",
+    "to": "20260729000002_get_listing_by_id_tax_category.sql",
+    "applied": true
+  },
+  {
+    "from": "20260730_add_bundle_fields_to_admin_view.sql",
+    "to": "20260729000003_add_bundle_fields_to_admin_view.sql",
+    "applied": true
+  },
+  {
+    "from": "20260801000001_fix_apply_tax_to_trade_category_aware.sql",
+    "to": "20260801000001_fix_apply_tax_to_trade_category_aware.sql",
+    "applied": true
+  },
+  {
+    "from": "20260801000002_repair_exempt_trade_tax_data.sql",
+    "to": "20260801000002_repair_exempt_trade_tax_data.sql",
+    "applied": true
+  },
+  {
+    "from": "20260801000004_fix_tax_report_refunds_sql.sql",
+    "to": "20260801000004_fix_tax_report_refunds_sql.sql",
+    "applied": true
+  },
+  {
+    "from": "20260801000005_fix_tax_export_admin_role_check.sql",
+    "to": "20260801000005_fix_tax_export_admin_role_check.sql",
+    "applied": true
+  },
+  {
+    "from": "20260805000001_fix_sp_refund_notification_copy.sql",
+    "to": "20260805000001_fix_sp_refund_notification_copy.sql",
+    "applied": true
+  },
+  {
+    "from": "20260808000001_settings_single_source_audit.sql",
+    "to": "20260808000001_settings_single_source_audit.sql",
+    "applied": true
+  },
+  {
+    "from": "20260808000002_admin_action_center.sql",
+    "to": "20260808000002_admin_action_center.sql",
+    "applied": true
+  },
+  {
+    "from": "20260809000001_admin_global_search.sql",
+    "to": "20260809000001_admin_global_search.sql",
+    "applied": true
+  },
+  {
+    "from": "20260809000002_add_health_config_category.sql",
+    "to": "20260809000002_add_health_config_category.sql",
+    "applied": true
+  },
+  {
+    "from": "20260809000003_admin_health_strip.sql",
+    "to": "20260809000003_admin_health_strip.sql",
+    "applied": true
+  },
+  {
+    "from": "20260809000004_n1_configurability.sql",
+    "to": "20260809000004_n1_configurability.sql",
+    "applied": true
+  },
+  {
+    "from": "20260809000006_fix_admin_config_meta_42804.sql",
+    "to": "20260809000006_fix_admin_config_meta_42804.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000001_r2_auth_capture_countdown.sql",
+    "to": "20260810000001_r2_auth_capture_countdown.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000002_r2_cleanup.sql",
+    "to": "20260810000002_r2_cleanup.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000003_admin_trades_view_pipeline.sql",
+    "to": "20260810000003_admin_trades_view_pipeline.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000004_r2_auto_complete_reminder_config.sql",
+    "to": "20260810000004_r2_auto_complete_reminder_config.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000010_r11_r6_sp_caps_and_entitlement.sql",
+    "to": "20260810000010_r11_r6_sp_caps_and_entitlement.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000010_web_first_subscription.sql",
+    "to": "20260810000011_web_first_subscription.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000001_r8_image_moderation_approval_gate.sql",
+    "to": "20260811000001_r8_image_moderation_approval_gate.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000002_n4_min_age_18_registration_gate.sql",
+    "to": "20260811000002_n4_min_age_18_registration_gate.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000006_discover_trending_categories_rpc.sql",
+    "to": "20260811000006_discover_trending_categories_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000007_discover_count_listings_rpc.sql",
+    "to": "20260811000007_discover_count_listings_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000008_record_discover_rpcs_applied_manually.sql",
+    "to": "20260811000008_record_discover_rpcs_applied_manually.sql",
+    "applied": true
+  },
+  {
+    "from": "20260817000002_node_scope_p2_radius_rpc_on_nodes.sql",
+    "to": "20260817000002_node_scope_p2_radius_rpc_on_nodes.sql",
+    "applied": true
+  },
+  {
+    "from": "20260817000003_node_scope_p3_search_rpc_node_filter.sql",
+    "to": "20260817000003_node_scope_p3_search_rpc_node_filter.sql",
+    "applied": true
+  },
+  {
+    "from": "20260819000001_enforce_phone_verification_on_items_insert.sql",
+    "to": "20260819000001_enforce_phone_verification_on_items_insert.sql",
+    "applied": true
+  },
+  {
+    "from": "20260820000001_fix_phone_otp_pgcrypto_search_path.sql",
+    "to": "20260820000001_fix_phone_otp_pgcrypto_search_path.sql",
+    "applied": true
+  },
+  {
+    "from": "20260821000001_restore_seller_approval_notification.sql",
+    "to": "20260821000001_restore_seller_approval_notification.sql",
+    "applied": true
+  },
+  {
+    "from": "20260821000002_admin_approve_flagged_listing.sql",
+    "to": "20260821000002_admin_approve_flagged_listing.sql",
+    "applied": true
+  },
+  {
+    "from": "20260821000003_starter_pack_parity_shared_logic.sql",
+    "to": "20260821000003_starter_pack_parity_shared_logic.sql",
+    "applied": true
+  },
+  {
+    "from": "20260821000004_fix_issue_starter_pack_jsonb_cast.sql",
+    "to": "20260821000004_fix_issue_starter_pack_jsonb_cast.sql",
+    "applied": true
+  },
+  {
+    "from": "20260823000001_reconcile_education_analytics_event_type.sql",
+    "to": "20260823000001_reconcile_education_analytics_event_type.sql",
+    "applied": true
+  },
+  {
+    "from": "20260823000002_drop_node_member_count.sql",
+    "to": "20260823000002_drop_node_member_count.sql",
+    "applied": true
+  },
+  {
+    "from": "20260824000001_update_item_images_bucket_file_size_limit.sql",
+    "to": "20260824000001_update_item_images_bucket_file_size_limit.sql",
+    "applied": true
+  },
+  {
+    "from": "20260824000002_fix_merge_item_draft_sync_photo_urls.sql",
+    "to": "20260824000002_fix_merge_item_draft_sync_photo_urls.sql",
+    "applied": true
+  },
+  {
+    "from": "20260825000001_email_change_verification.sql",
+    "to": "20260825000001_email_change_verification.sql",
+    "applied": true
+  },
+  {
+    "from": "20260826000001_sync_profiles_phone_on_auth_phone_update.sql",
+    "to": "20260826000001_sync_profiles_phone_on_auth_phone_update.sql",
+    "applied": true
+  },
+  {
+    "from": "20260828000000_add_trades_payout_columns.sql",
+    "to": "20260828000000_add_trades_payout_columns.sql",
+    "applied": true
+  },
+  {
+    "from": "20260828000003_dev_task_31_offer_expired_literal_align.sql",
+    "to": "20260828000003_dev_task_31_offer_expired_literal_align.sql",
+    "applied": true
+  },
+  {
+    "from": "20260829000000_enable_rls_on_unprotected_tables.sql",
+    "to": "20260829000000_enable_rls_on_unprotected_tables.sql",
+    "applied": true
+  },
+  {
+    "from": "20260829000001_dev_task_34_seller_ignore_streak.sql",
+    "to": "20260829000001_dev_task_34_seller_ignore_streak.sql",
+    "applied": true
+  },
+  {
+    "from": "20260829000002_dev_task_39_fix_auto_complete_payout.sql",
+    "to": "20260829000002_dev_task_39_fix_auto_complete_payout.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000002_dev_task_45_remove_hardcoded_service_role_key.sql",
+    "to": "20260830000002_dev_task_45_remove_hardcoded_service_role_key.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000003_dev_task_47_key_name_reconcile.sql",
+    "to": "20260830000003_dev_task_47_key_name_reconcile.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000004_dev_task_47_scrub_remaining_hardcoded_tokens.sql",
+    "to": "20260830000004_dev_task_47_scrub_remaining_hardcoded_tokens.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000005_dev_task_48_restore_disclaimer_tracking.sql",
+    "to": "20260830000005_dev_task_48_restore_disclaimer_tracking.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000006_dev_task_48_restore_tax_refund_rpc.sql",
+    "to": "20260830000006_dev_task_48_restore_tax_refund_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000007_dev_task_48_trades_scale_indexes.sql",
+    "to": "20260830000007_dev_task_48_trades_scale_indexes.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000008_dev_task_56a_revoke_secure_upsert_admin_config_execute.sql",
+    "to": "20260830000008_dev_task_56a_revoke_secure_upsert_admin_config_execute.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000013_dev_task_61_event_trigger.sql",
+    "to": "20260830000013_dev_task_61_event_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000014_dev_task_62_items_sold_at.sql",
+    "to": "20260830000014_dev_task_62_items_sold_at.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000015_dev_task_62_ledger_earn_copy.sql",
+    "to": "20260830000015_dev_task_62_ledger_earn_copy.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000016_dev_task_63_exclude_unavailable_cart_total.sql",
+    "to": "20260830000016_dev_task_63_exclude_unavailable_cart_total.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830190000_fix_cart_switch_saved_limit_copy.sql",
+    "to": "20260830190000_fix_cart_switch_saved_limit_copy.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830220000_dev_task_66_grace_aware_subscriber.sql",
+    "to": "20260830220000_dev_task_66_grace_aware_subscriber.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830220001_dev_task_66_money_config_guard.sql",
+    "to": "20260830220001_dev_task_66_money_config_guard.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830230000_dev_task_68_global_tax_toggle.sql",
+    "to": "20260830230000_dev_task_68_global_tax_toggle.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830235900_dev_task_69_trade_payment_method.sql",
+    "to": "20260830235900_dev_task_69_trade_payment_method.sql",
+    "applied": true
+  },
+  {
+    "from": "20260831220000_dev_task_71_tax_voided_report_fix.sql",
+    "to": "20260831220000_dev_task_71_tax_voided_report_fix.sql",
+    "applied": true
+  },
+  {
+    "from": "20260831235900_dev_task_75_trade_refunds_read.sql",
+    "to": "20260831235900_dev_task_75_trade_refunds_read.sql",
+    "applied": true
+  },
+  {
+    "from": "20260901000000_cancel_request_flow.sql",
+    "to": "20260901000000_cancel_request_flow.sql",
+    "applied": true
+  },
+  {
+    "from": "20260901000000_dev_task_77_fixture_notes.sql",
+    "to": "20260901000001_dev_task_77_fixture_notes.sql",
+    "applied": true
+  },
+  {
+    "from": "20260902000000_fix_escalate_expired_cancel_requests_notify.sql",
+    "to": "20260902000000_fix_escalate_expired_cancel_requests_notify.sql",
+    "applied": true
+  },
+  {
+    "from": "20260902000001_dev_task_86_forward_only_min_price.sql",
+    "to": "20260902000001_dev_task_86_forward_only_min_price.sql",
+    "applied": true
+  },
+  {
+    "from": "20260902120000_subscription_authority_consolidation.sql",
+    "to": "20260902120000_subscription_authority_consolidation.sql",
+    "applied": true
+  },
+  {
+    "from": "20260903000001_dev_task_97_admin_identity_reconcile.sql",
+    "to": "20260903000001_dev_task_97_admin_identity_reconcile.sql",
+    "applied": true
+  },
+  {
+    "from": "20260903000002_dev_task_98_grace_reminder_flags.sql",
+    "to": "20260903000002_dev_task_98_grace_reminder_flags.sql",
+    "applied": true
+  },
+  {
+    "from": "20260903000003_dev_task_100_badges_email_default_on.sql",
+    "to": "20260903000003_dev_task_100_badges_email_default_on.sql",
+    "applied": true
+  },
+  {
+    "from": "20260903000004_dev_task_100_remove_stale_admin_config_referral_keys.sql",
+    "to": "20260903000004_dev_task_100_remove_stale_admin_config_referral_keys.sql",
+    "applied": true
+  },
+  {
+    "from": "20260904000000_category_sp_analytics_rpc.sql",
+    "to": "20260904000000_category_sp_analytics_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "20260904000000_dev_task_106_admin_config_batch.sql",
+    "to": "20260904000001_dev_task_106_admin_config_batch.sql",
+    "applied": true
+  },
+  {
+    "from": "20260904000001_dev_task_108_trade_timing_notif_whitelist.sql",
+    "to": "20260904000002_dev_task_108_trade_timing_notif_whitelist.sql",
+    "applied": true
+  },
+  {
+    "from": "20260905000001_dev_task_112_restore_admin_search_listings_v2.sql",
+    "to": "20260905000001_dev_task_112_restore_admin_search_listings_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "20260905000001_dev_task_116_education_section_delete.sql",
+    "to": "20260905000002_dev_task_116_education_section_delete.sql",
+    "applied": true
+  },
+  {
+    "from": "20260905000002_dev_task_113_enable_trades_realtime.sql",
+    "to": "20260905000003_dev_task_113_enable_trades_realtime.sql",
+    "applied": true
+  },
+  {
+    "from": "20260905000002_dev_task_116_fix_education_audit_columns.sql",
+    "to": "20260905000004_dev_task_116_fix_education_audit_columns.sql",
+    "applied": true
+  },
+  {
+    "from": "20260906000001_dev_task_121_billing_history_stripe_invoice_unique.sql",
+    "to": "20260906000001_dev_task_121_billing_history_stripe_invoice_unique.sql",
+    "applied": true
+  },
+  {
+    "from": "20260908000001_dev_task_7_dispute_pause_auto_complete.sql",
+    "to": "20260908000001_dev_task_7_dispute_pause_auto_complete.sql",
+    "applied": true
+  },
+  {
+    "from": "20260911000001_fix_task_16_charge_one_fee_per_bundle_data_type.sql",
+    "to": "20260911000001_fix_task_16_charge_one_fee_per_bundle_data_type.sql",
+    "applied": true
+  },
+  {
+    "from": "20260911000002_fix_task_19_cart_items_replica_identity.sql",
+    "to": "20260911000002_fix_task_19_cart_items_replica_identity.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000001_fix_tax_status_zero_amount_backfill.sql",
+    "to": "20260912000001_fix_tax_status_zero_amount_backfill.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000002_fix_tax_summary_gross_collected_reconcile.sql",
+    "to": "20260912000002_fix_tax_summary_gross_collected_reconcile.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000003_fix_tax_rule_overlap_price_bands_and_message.sql",
+    "to": "20260912000003_fix_tax_rule_overlap_price_bands_and_message.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000004_fix_tax_exempt_goods_unbounded.sql",
+    "to": "20260912000004_fix_tax_exempt_goods_unbounded.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000005_fix_tax_clothing_ct_bands.sql",
+    "to": "20260912000005_fix_tax_clothing_ct_bands.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000006_fix_tax_rule_precedence_deterministic.sql",
+    "to": "20260912000006_fix_tax_rule_precedence_deterministic.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000010_fix_task_24_expiry_rpc_voids_tax.sql",
+    "to": "20260912000010_fix_task_24_expiry_rpc_voids_tax.sql",
+    "applied": true
+  },
+  {
+    "from": "20260913000001_fix_task_28_sp_release_audit.sql",
+    "to": "20260913000001_fix_task_28_sp_release_audit.sql",
+    "applied": true
+  },
+  {
+    "from": "20260914000001_fix_task_35_capture_invariant_and_auto_complete_ids.sql",
+    "to": "20260914000001_fix_task_35_capture_invariant_and_auto_complete_ids.sql",
+    "applied": true
+  },
+  {
+    "from": "20260914000002_fix_task_32_competing_offer_notification_copy.sql",
+    "to": "20260914000002_fix_task_32_competing_offer_notification_copy.sql",
+    "applied": true
+  },
+  {
+    "from": "20260914000003_fix_task_36_auto_complete_capture_guard_and_cron_ef.sql",
+    "to": "20260914000003_fix_task_36_auto_complete_capture_guard_and_cron_ef.sql",
+    "applied": true
+  },
+  {
+    "from": "20260916000001_fix_task_37_release_pending_sp_cron_ef.sql",
+    "to": "20260916000001_fix_task_37_release_pending_sp_cron_ef.sql",
+    "applied": true
+  },
+  {
+    "from": "203_fix_notification_preferences_initialization.sql",
+    "to": "20260916000002_fix_notification_preferences_initialization.sql",
+    "applied": true
+  },
+  {
+    "from": "203_notif_v2_005_fix_quiet_hours_timezone.sql",
+    "to": "20260916000003_notif_v2_005_fix_quiet_hours_timezone.sql",
+    "applied": true
+  },
+  {
+    "from": "207_discovery_seller_info.sql",
+    "to": "20260916000004_discovery_seller_info.sql",
+    "applied": true
+  },
+  {
+    "from": "208_optimize_get_recommendations_performance.sql",
+    "to": "20260916000005_optimize_get_recommendations_performance.sql",
+    "applied": true
+  },
+  {
+    "from": "211_enhance_trade_notifications_push.sql",
+    "to": "20260916000006_enhance_trade_notifications_push.sql",
+    "applied": true
+  },
+  {
+    "from": "212_enhance_referral_notifications_push.sql",
+    "to": "20260916000007_enhance_referral_notifications_push.sql",
+    "applied": true
+  },
+  {
+    "from": "213_enhance_badge_notifications_push.sql",
+    "to": "20260916000008_enhance_badge_notifications_push.sql",
+    "applied": true
+  },
+  {
+    "from": "301_items_flagged_rejected_statuses.sql",
+    "to": "20260916000009_items_flagged_rejected_statuses.sql",
+    "applied": true
+  },
+  {
+    "from": "302_safety_p003_add_appeal_reason.sql",
+    "to": "20260916000010_safety_p003_add_appeal_reason.sql",
+    "applied": true
+  },
+  {
+    "from": "303_cpsc_cleanup.sql",
+    "to": "20260916000011_cpsc_cleanup.sql",
+    "applied": true
+  },
+  {
+    "from": "303_cpsc_recalls_schema.sql",
+    "to": "20260916000012_cpsc_recalls_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "304_platform_policies_tos.sql",
+    "to": "20260916000013_platform_policies_tos.sql",
+    "applied": true
+  },
+  {
+    "from": "304_schedule_cpsc_import.sql",
+    "to": "20260916000014_schedule_cpsc_import.sql",
+    "applied": true
+  },
+  {
+    "from": "305_item_safety_flags_and_cpsc_matching.sql",
+    "to": "20260916000015_item_safety_flags_and_cpsc_matching.sql",
+    "applied": true
+  },
+  {
+    "from": "306_ai_moderation_logs_table.sql",
+    "to": "20260916000016_ai_moderation_logs_table.sql",
+    "applied": true
+  },
+  {
+    "from": "306_fix_items_rls_for_trade_participants.sql",
+    "to": "20260916000017_fix_items_rls_for_trade_participants.sql",
+    "applied": true
+  },
+  {
+    "from": "307_liability_disclaimer_tracking.sql",
+    "to": "20260916000018_liability_disclaimer_tracking.sql",
+    "applied": true
+  },
+  {
+    "from": "310_faq_tables.sql",
+    "to": "20260916000019_faq_tables.sql",
+    "applied": true
+  },
+  {
+    "from": "311_support_messages.sql",
+    "to": "20260916000020_support_messages.sql",
+    "applied": true
+  },
+  {
+    "from": "313_prod_p1_node_isolation_hardening.sql",
+    "to": "20260916000021_prod_p1_node_isolation_hardening.sql",
+    "applied": true
+  },
+  {
+    "from": "314_prod_p1_security_definer_search_path_hardening.sql",
+    "to": "20260916000022_prod_p1_security_definer_search_path_hardening.sql",
+    "applied": true
+  },
+  {
+    "from": "315_fix_trades_bundle_id_and_cancel_rpc.sql",
+    "to": "20260916000023_fix_trades_bundle_id_and_cancel_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "316_charge_one_fee_per_bundle_config.sql",
+    "to": "20260916000024_charge_one_fee_per_bundle_config.sql",
+    "applied": true
+  },
+  {
+    "from": "317_payments_reconciliation_and_partial_refunds.sql",
+    "to": "20260916000025_payments_reconciliation_and_partial_refunds.sql",
+    "applied": true
+  },
+  {
+    "from": "SCHEMA_SMOKE_TEST.sql",
+    "to": "20260916000026_SCHEMA_SMOKE_TEST.sql",
+    "applied": true
+  },
+  {
+    "from": "VERIFY_20260606_D17_FIX.sql",
+    "to": "20260916000027_VERIFY_20260606_D17_FIX.sql",
+    "applied": true
+  },
+  {
+    "from": "007_add_member_count_to_nodes.sql",
+    "to": "20260916000028_add_member_count_to_nodes.sql",
+    "applied": true
+  },
+  {
+    "from": "008_unify_nodes_table.sql",
+    "to": "20260916000029_unify_nodes_table.sql",
+    "applied": true
+  },
+  {
+    "from": "020_upsert_admin_config_rpc.sql",
+    "to": "20260916000030_upsert_admin_config_rpc.sql",
+    "applied": true
+  },
+  {
+    "from": "030_reviews.sql",
+    "to": "20260916000031_reviews.sql",
+    "applied": true
+  },
+  {
+    "from": "031_review_reports.sql",
+    "to": "20260916000032_review_reports.sql",
+    "applied": true
+  },
+  {
+    "from": "032_review_admin_policies.sql",
+    "to": "20260916000033_review_admin_policies.sql",
+    "applied": true
+  },
+  {
+    "from": "033_add_reviewed_status_tracking.sql",
+    "to": "20260916000034_add_reviewed_status_tracking.sql",
+    "applied": true
+  },
+  {
+    "from": "042_admin_listing_force_delete_and_pause.sql",
+    "to": "20260916000035_admin_listing_force_delete_and_pause.sql",
+    "applied": true
+  },
+  {
+    "from": "060_trades_v2.sql",
+    "to": "20260916000036_trades_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "061_sp_ledger_and_trade_rpcs.sql",
+    "to": "20260916000037_sp_ledger_and_trade_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "062_fix_trades_v2_columns.sql",
+    "to": "20260916000038_fix_trades_v2_columns.sql",
+    "applied": true
+  },
+  {
+    "from": "063_fix_trades_fk.sql",
+    "to": "20260916000039_fix_trades_fk.sql",
+    "applied": true
+  },
+  {
+    "from": "065_fix_trade_rpcs_and_rls.sql",
+    "to": "20260916000040_fix_trade_rpcs_and_rls.sql",
+    "applied": true
+  },
+  {
+    "from": "066_add_seller_marked_completed_at.sql",
+    "to": "20260916000041_add_seller_marked_completed_at.sql",
+    "applied": true
+  },
+  {
+    "from": "068_add_cancellation_reason_to_trades.sql",
+    "to": "20260916000042_add_cancellation_reason_to_trades.sql",
+    "applied": true
+  },
+  {
+    "from": "070_allow_trade_participants_view_items.sql",
+    "to": "20260916000043_allow_trade_participants_view_items.sql",
+    "applied": true
+  },
+  {
+    "from": "071_enable_rls_and_policies_trades.sql",
+    "to": "20260916000044_enable_rls_and_policies_trades.sql",
+    "applied": true
+  },
+  {
+    "from": "073_seller_payouts.sql",
+    "to": "20260916000045_seller_payouts.sql",
+    "applied": true
+  },
+  {
+    "from": "073_verify_payout_schema.sql",
+    "to": "20260916000046_verify_payout_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "074_admin_payout_fee_config.sql",
+    "to": "20260916000047_admin_payout_fee_config.sql",
+    "applied": true
+  },
+  {
+    "from": "074_seller_balance_and_withdrawal.sql",
+    "to": "20260916000048_seller_balance_and_withdrawal.sql",
+    "applied": true
+  },
+  {
+    "from": "075_add_minimum_withdrawal_to_admin_config.sql",
+    "to": "20260916000049_add_minimum_withdrawal_to_admin_config.sql",
+    "applied": true
+  },
+  {
+    "from": "077_add_auto_payout_admin_config.sql",
+    "to": "20260916000050_add_auto_payout_admin_config.sql",
+    "applied": true
+  },
+  {
+    "from": "080_messages_table.sql",
+    "to": "20260916000051_messages_table.sql",
+    "applied": true
+  },
+  {
+    "from": "081_enable_realtime_messages.sql",
+    "to": "20260916000052_enable_realtime_messages.sql",
+    "applied": true
+  },
+  {
+    "from": "081_fix_messages_sender_id_fk.sql",
+    "to": "20260916000053_fix_messages_sender_id_fk.sql",
+    "applied": true
+  },
+  {
+    "from": "081_message_expiration.sql",
+    "to": "20260916000054_message_expiration.sql",
+    "applied": true
+  },
+  {
+    "from": "081_message_notifications_trigger.sql",
+    "to": "20260916000055_message_notifications_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "082_create_chat_images_bucket.sql",
+    "to": "20260916000056_create_chat_images_bucket.sql",
+    "applied": true
+  },
+  {
+    "from": "082_message_email_notifications.sql",
+    "to": "20260916000057_message_email_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "083_fix_chat_images_rls.sql",
+    "to": "20260916000058_fix_chat_images_rls.sql",
+    "applied": true
+  },
+  {
+    "from": "083_message_delivery_status.sql",
+    "to": "20260916000059_message_delivery_status.sql",
+    "applied": true
+  },
+  {
+    "from": "086_fix_notify_new_message_push_call.sql",
+    "to": "20260916000060_fix_notify_new_message_push_call.sql",
+    "applied": true
+  },
+  {
+    "from": "087_enable_pg_net_and_supabase_url_fallback.sql",
+    "to": "20260916000061_enable_pg_net_and_supabase_url_fallback.sql",
+    "applied": true
+  },
+  {
+    "from": "088_notify_new_message_add_auth_headers.sql",
+    "to": "20260916000062_notify_new_message_add_auth_headers.sql",
+    "applied": true
+  },
+  {
+    "from": "089_fix_trades_node_id_trigger.sql",
+    "to": "20260916000063_fix_trades_node_id_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "090_fix_trade_sp_credit_integrity.sql",
+    "to": "20260916000064_fix_trade_sp_credit_integrity.sql",
+    "applied": true
+  },
+  {
+    "from": "091_fix_user_badges_fkey.sql",
+    "to": "20260916000065_fix_user_badges_fkey.sql",
+    "applied": true
+  },
+  {
+    "from": "092_sp_config_table.sql",
+    "to": "20260916000066_sp_config_table.sql",
+    "applied": true
+  },
+  {
+    "from": "093_fix_sp_wallets_table_schema.sql",
+    "to": "20260916000067_fix_sp_wallets_table_schema.sql",
+    "applied": true
+  },
+  {
+    "from": "094_sp_earning_rpcs.sql",
+    "to": "20260916000068_sp_earning_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "095_fix_sp_wallet_column_rename.sql",
+    "to": "20260916000069_fix_sp_wallet_column_rename.sql",
+    "applied": true
+  },
+  {
+    "from": "096_listing_approval_and_starter_pack_eligibility.sql",
+    "to": "20260916000070_listing_approval_and_starter_pack_eligibility.sql",
+    "applied": true
+  },
+  {
+    "from": "096_sp_expiration_processing.sql",
+    "to": "20260916000071_sp_expiration_processing.sql",
+    "applied": true
+  },
+  {
+    "from": "097_listing_approval_trigger.sql",
+    "to": "20260916000072_listing_approval_trigger.sql",
+    "applied": true
+  },
+  {
+    "from": "098_items_enforce_pending_for_starter_pack.sql",
+    "to": "20260916000073_items_enforce_pending_for_starter_pack.sql",
+    "applied": true
+  },
+  {
+    "from": "099_create_admin_activity_log.sql",
+    "to": "20260916000074_create_admin_activity_log.sql",
+    "applied": true
+  },
+  {
+    "from": "100_items_require_reapproval_on_seller_update.sql",
+    "to": "20260916000075_items_require_reapproval_on_seller_update.sql",
+    "applied": true
+  },
+  {
+    "from": "114_trial_extension_system.sql",
+    "to": "20260916000076_trial_extension_system.sql",
+    "applied": true
+  },
+  {
+    "from": "126_admin_user_management.sql",
+    "to": "20260916000077_admin_user_management.sql",
+    "applied": true
+  },
+  {
+    "from": "143_badge_notifications.sql",
+    "to": "20260916000078_badge_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "145_trade_notifications.sql",
+    "to": "20260916000079_trade_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "175_referral_notifications_v2.sql",
+    "to": "20260916000080_referral_notifications_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "201_notifications_schema_v2.sql",
+    "to": "20260916000081_notifications_schema_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "20250117_fix_hardcoded_trial_days.sql",
+    "to": "20260916000082_fix_hardcoded_trial_days.sql",
+    "applied": true
+  },
+  {
+    "from": "20251217000001_seed_initial_nodes.sql",
+    "to": "20260916000083_seed_initial_nodes.sql",
+    "applied": true
+  },
+  {
+    "from": "20251230_create_admin_payouts_view.sql",
+    "to": "20260916000084_create_admin_payouts_view.sql",
+    "applied": true
+  },
+  {
+    "from": "20260105000000_fix_messages_expires_at_for_trade_completion.sql",
+    "to": "20260916000085_fix_messages_expires_at_for_trade_completion.sql",
+    "applied": true
+  },
+  {
+    "from": "20260110000001_badge_triggers.sql",
+    "to": "20260916000086_badge_triggers.sql",
+    "applied": true
+  },
+  {
+    "from": "20260112000000_badge_rls_fix.sql",
+    "to": "20260916000087_badge_rls_fix.sql",
+    "applied": true
+  },
+  {
+    "from": "20260121000000_create_referral_codes_for_existing_users.sql",
+    "to": "20260916000088_create_referral_codes_for_existing_users.sql",
+    "applied": true
+  },
+  {
+    "from": "20260201000000_fix_referral_rewards_v2_bridge.sql",
+    "to": "20260916000089_fix_referral_rewards_v2_bridge.sql",
+    "applied": true
+  },
+  {
+    "from": "20260202000000_referral_listing_bonus_v2.sql",
+    "to": "20260916000090_referral_listing_bonus_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "20260205000001_add_referral_listing_feature_toggle.sql",
+    "to": "20260916000091_add_referral_listing_feature_toggle.sql",
+    "applied": true
+  },
+  {
+    "from": "20260205000002_add_referral_trade_feature_toggle.sql",
+    "to": "20260916000092_add_referral_trade_feature_toggle.sql",
+    "applied": true
+  },
+  {
+    "from": "20260205000003_ultimate_test_alignment_fix.sql",
+    "to": "20260916000093_ultimate_test_alignment_fix.sql",
+    "applied": true
+  },
+  {
+    "from": "20260205000004_seed_referral_feature_toggles.sql",
+    "to": "20260916000094_seed_referral_feature_toggles.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000001_fix_config_table_mismatch_and_persistence.sql",
+    "to": "20260916000095_fix_config_table_mismatch_and_persistence.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000003_fix_sp_config_categories.sql",
+    "to": "20260916000096_fix_sp_config_categories.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000004_robust_referral_check.sql",
+    "to": "20260916000097_robust_referral_check.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000006_fix_referral_trade_completion_and_dashboard.sql",
+    "to": "20260916000098_fix_referral_trade_completion_and_dashboard.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000008_referral_constraint_and_repair.sql",
+    "to": "20260916000099_referral_constraint_and_repair.sql",
+    "applied": true
+  },
+  {
+    "from": "20260207000010_referral_logic_alignment.sql",
+    "to": "20260916000100_referral_logic_alignment.sql",
+    "applied": true
+  },
+  {
+    "from": "20260208000000_id_badge_verification_system.sql",
+    "to": "20260916000101_id_badge_verification_system.sql",
+    "applied": true
+  },
+  {
+    "from": "20260214000000_add_subscription_creation_to_signup.sql",
+    "to": "20260916000102_add_subscription_creation_to_signup.sql",
+    "applied": true
+  },
+  {
+    "from": "20260322000001_admin_v2_003_sp_wallet_rpcs.sql",
+    "to": "20260916000103_admin_v2_003_sp_wallet_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "20260323000001_enforce_wallet_state_on_spend_earn.sql",
+    "to": "20260916000104_enforce_wallet_state_on_spend_earn.sql",
+    "applied": true
+  },
+  {
+    "from": "20260429000012_admin_listing_search_category_email_filters.sql",
+    "to": "20260916000105_admin_listing_search_category_email_filters.sql",
+    "applied": true
+  },
+  {
+    "from": "20260528000010_trade_events.sql",
+    "to": "20260916000106_trade_events.sql",
+    "applied": true
+  },
+  {
+    "from": "20260601000002_fix_sp_wallet_admin_config_rls.sql",
+    "to": "20260916000107_fix_sp_wallet_admin_config_rls.sql",
+    "applied": true
+  },
+  {
+    "from": "20260606000001_fix_sp_ledger_missing_on_trade_complete.sql",
+    "to": "20260916000108_fix_sp_ledger_missing_on_trade_complete.sql",
+    "applied": true
+  },
+  {
+    "from": "20260607000002_hotfix_format_specifiers.sql",
+    "to": "20260916000109_hotfix_format_specifiers.sql",
+    "applied": true
+  },
+  {
+    "from": "20260706000000_wire_payout_on_trade_complete.sql",
+    "to": "20260916000110_wire_payout_on_trade_complete.sql",
+    "applied": true
+  },
+  {
+    "from": "20260727000001_add_seller_transaction_fee_cents.sql",
+    "to": "20260916000111_add_seller_transaction_fee_cents.sql",
+    "applied": true
+  },
+  {
+    "from": "20260801000003_create_admin_payments_view.sql",
+    "to": "20260916000112_create_admin_payments_view.sql",
+    "applied": true
+  },
+  {
+    "from": "20260802000001_review_moderation_status_and_notifications.sql",
+    "to": "20260916000113_review_moderation_status_and_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "20260803000001_fix_referral_sp_config_jsonb_casts.sql",
+    "to": "20260916000114_fix_referral_sp_config_jsonb_casts.sql",
+    "applied": true
+  },
+  {
+    "from": "20260804000001_remove_hardcoded_config_fallbacks.sql",
+    "to": "20260916000115_remove_hardcoded_config_fallbacks.sql",
+    "applied": true
+  },
+  {
+    "from": "20260809000005_n6_node_tagging.sql",
+    "to": "20260916000116_n6_node_tagging.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000005_r4_dispute_cost_accounting.sql",
+    "to": "20260916000117_r4_dispute_cost_accounting.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000006_n2_idempotency_audit.sql",
+    "to": "20260916000118_n2_idempotency_audit.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000007_admin_financial_audit_view.sql",
+    "to": "20260916000119_admin_financial_audit_view.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000008_r3_delayed_payout_buffer.sql",
+    "to": "20260916000120_r3_delayed_payout_buffer.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000009_tiered_buyer_fee_engine.sql",
+    "to": "20260916000121_tiered_buyer_fee_engine.sql",
+    "applied": true
+  },
+  {
+    "from": "20260810000011_n3_dispute_evidence.sql",
+    "to": "20260916000122_n3_dispute_evidence.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000003_referral_action_gating_and_notifications.sql",
+    "to": "20260916000123_referral_action_gating_and_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000004_r9_event_instrumentation.sql",
+    "to": "20260916000124_r9_event_instrumentation.sql",
+    "applied": true
+  },
+  {
+    "from": "20260811000005_r15_trade_extension.sql",
+    "to": "20260916000125_r15_trade_extension.sql",
+    "applied": true
+  },
+  {
+    "from": "20260817000001_node_scope_p1_item_node_id_guard_backfill.sql",
+    "to": "20260916000126_node_scope_p1_item_node_id_guard_backfill.sql",
+    "applied": true
+  },
+  {
+    "from": "20260821000005_backfill_approved_at_for_available_items.sql",
+    "to": "20260916000127_backfill_approved_at_for_available_items.sql",
+    "applied": true
+  },
+  {
+    "from": "20260826000002_support_messages_anon_contact.sql",
+    "to": "20260916000128_support_messages_anon_contact.sql",
+    "applied": true
+  },
+  {
+    "from": "20260826000003_support_message_replies.sql",
+    "to": "20260916000129_support_message_replies.sql",
+    "applied": true
+  },
+  {
+    "from": "20260826000004_support_guest_rate_limit.sql",
+    "to": "20260916000130_support_guest_rate_limit.sql",
+    "applied": true
+  },
+  {
+    "from": "20260828000001_recreate_sp_release_trigger_and_reconcile.sql",
+    "to": "20260916000131_recreate_sp_release_trigger_and_reconcile.sql",
+    "applied": true
+  },
+  {
+    "from": "20260828000002_dt19_reserve_ledger_and_cash_only_counter.sql",
+    "to": "20260916000132_dt19_reserve_ledger_and_cash_only_counter.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000001_dev_task_41_trade_row_sp_accounting_and_copy.sql",
+    "to": "20260916000133_dev_task_41_trade_row_sp_accounting_and_copy.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000009_dev_task_56b_revoke_sp_ledger_rpcs.sql",
+    "to": "20260916000134_dev_task_56b_revoke_sp_ledger_rpcs.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000010_dev_task_57_rpc_identity_lockdown.sql",
+    "to": "20260916000135_dev_task_57_rpc_identity_lockdown.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000011_dev_task_59_grant_lockdown.sql",
+    "to": "20260916000136_dev_task_59_grant_lockdown.sql",
+    "applied": true
+  },
+  {
+    "from": "20260830000012_dev_task_59_identity_fixes.sql",
+    "to": "20260916000137_dev_task_59_identity_fixes.sql",
+    "applied": true
+  },
+  {
+    "from": "20260903120000_dev_task_101_id_badge_screenshot_path_null.sql",
+    "to": "20260916000138_dev_task_101_id_badge_screenshot_path_null.sql",
+    "applied": true
+  },
+  {
+    "from": "20260905000003_dev_task_118_reconcile_seller_balance.sql",
+    "to": "20260916000139_dev_task_118_reconcile_seller_balance.sql",
+    "applied": true
+  },
+  {
+    "from": "20260906000002_dev_task_124_dispatch_manual_payouts.sql",
+    "to": "20260916000140_dev_task_124_dispatch_manual_payouts.sql",
+    "applied": true
+  },
+  {
+    "from": "20260907000001_fix_unique_active_node_zip.sql",
+    "to": "20260916000141_fix_unique_active_node_zip.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000007_fix_review_report_counter_trigger_security.sql",
+    "to": "20260916000142_fix_review_report_counter_trigger_security.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000008_fix_review_report_counters_backfill.sql",
+    "to": "20260916000143_fix_review_report_counters_backfill.sql",
+    "applied": true
+  },
+  {
+    "from": "20260912000009_fix_task_24_payments_derived_state.sql",
+    "to": "20260916000144_fix_task_24_payments_derived_state.sql",
+    "applied": true
+  },
+  {
+    "from": "20260913000000_base_schema_repair_deferred_constraints.sql",
+    "to": "20260916000145_base_schema_repair_deferred_constraints.sql",
+    "applied": true
+  },
+  {
+    "from": "20260914000001_fix_task_32_void_uncaptured_payment.sql",
+    "to": "20260916000146_fix_task_32_void_uncaptured_payment.sql",
+    "applied": true
+  },
+  {
+    "from": "202_push_delivery_engine_v2.sql",
+    "to": "20260916000147_push_delivery_engine_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "202_stabilize_auth_triggers.sql",
+    "to": "20260916000148_stabilize_auth_triggers.sql",
+    "applied": true
+  },
+  {
+    "from": "203_fix_badge_notification_constraints.sql",
+    "to": "20260916000149_fix_badge_notification_constraints.sql",
+    "applied": true
+  },
+  {
+    "from": "204_add_id_badge_submission_email_templates.sql",
+    "to": "20260916000150_add_id_badge_submission_email_templates.sql",
+    "applied": true
+  },
+  {
+    "from": "205_adjust_id_badge_message_templates.sql",
+    "to": "20260916000151_adjust_id_badge_message_templates.sql",
+    "applied": true
+  },
+  {
+    "from": "206_public_id_badge_status.sql",
+    "to": "20260916000152_public_id_badge_status.sql",
+    "applied": true
+  },
+  {
+    "from": "209_email_notifications_tracking.sql",
+    "to": "20260916000153_email_notifications_tracking.sql",
+    "applied": true
+  },
+  {
+    "from": "210_enhance_message_notifications_in_app.sql",
+    "to": "20260916000154_enhance_message_notifications_in_app.sql",
+    "applied": true
+  },
+  {
+    "from": "214_notification_analytics.sql",
+    "to": "20260916000155_notification_analytics.sql",
+    "applied": true
+  },
+  {
+    "from": "308_reviews_public_read_policy.sql",
+    "to": "20260916000156_reviews_public_read_policy.sql",
+    "applied": true
+  },
+  {
+    "from": "309_ensure_public_id_badge_approved_read.sql",
+    "to": "20260916000157_ensure_public_id_badge_approved_read.sql",
+    "applied": true
+  },
+  {
+    "from": "312_prod_p1_stage_security_lockdown.sql",
+    "to": "20260916000158_prod_p1_stage_security_lockdown.sql",
+    "applied": true
+  },
+  {
+    "from": "318_fix_generate_unsubscribe_token_pgcrypto_search_path.sql",
+    "to": "20260916000159_fix_generate_unsubscribe_token_pgcrypto_search_path.sql",
+    "applied": true
+  },
+  {
+    "from": "319_fix_generate_unsubscribe_token_hex_encoding.sql",
+    "to": "20260916000160_fix_generate_unsubscribe_token_hex_encoding.sql",
+    "applied": true
+  },
+  {
+    "from": "142_sp_notifications.sql",
+    "to": "20260916000161_sp_notifications.sql",
+    "applied": true
+  },
+  {
+    "from": "20260417000001_notification_channel_analytics_v2.sql",
+    "to": "20260916000162_notification_channel_analytics_v2.sql",
+    "applied": true
+  },
+  {
+    "from": "20260418000001_notif_analytics_channel_and_open_tracking_fix.sql",
+    "to": "20260916000163_notif_analytics_channel_and_open_tracking_fix.sql",
+    "applied": true
+  }
+]

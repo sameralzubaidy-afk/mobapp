@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-09-18T21:31:26.030Z",
+  "passes": [
+    {
+      "pass": 1,
+      "applied": 544,
+      "deferred": 0
+    }
+  ],
+  "pass1Applied": 544,
+  "pass1Deferred": 0,
+  "appliedCount": 544,
+  "unresolvedCount": 0,
+  "unresolved": []
+}

@@ -1,0 +1,36 @@
+{
+  "_comment": "FIX-Task-63 — LEGACY OUT-OF-BAND EXCEPTION RECORD. These are staging schema changes that were applied with NO committed migration file behind them (MCP `apply_migration` calls, dashboard SQL, or an in-session adaptation that was never written back). The goal is NOT to rewrite history — it is to make every exception VISIBLE and TIME-BOUNDED, so a future one cannot hide inside a pile of unexplained ledger rows. `scripts/migrations/ledger-audit.mjs` prints these instead of reporting the rows as unmanaged, and flags any entry past its `expiresAt`.",
+  "exceptions": [
+    {
+      "ledgerName": "fix_task_61_item_images_bucket_mime_alignment",
+      "version": "20260918170406",
+      "kind": "applied-without-file-matching-version",
+      "reason": "Ledger row whose `version` is an APPLY TIMESTAMP, not the filename prefix. The repo file is 20260918000009_fix_task_61_item_images_bucket_mime_alignment.sql and its effect was ALREADY live (allowed_mime_types contained heic/heif, file_size_limit 10485760) before the apply was requested. Provenance unresolved: a parallel session or a manual dashboard apply.",
+      "approvedBy": "samer",
+      "approvedAt": "2026-09-18",
+      "reconciliationTask": "FIX-Task-63 (record only — no re-apply; re-applying is a no-op by design)",
+      "reconciliation": "matched-to-file-by-NAME (the ledger's version column is not a filename prefix on this project)",
+      "expiresAt": "2027-03-18"
+    },
+    {
+      "ledgerName": "fix_task_62_admin_read_lockdown_adapted",
+      "version": null,
+      "kind": "applied-from-working-tree-not-committed",
+      "reason": "FIX-Task-62's lockdown migration failed on staging (its literal anchor did not match staging's wrapped body text), so a whitespace-tolerant ADAPTED body was applied in-session. No file of that name has ever existed in the repo (grep: 0 hits) — i.e. live staging was ahead of the chain.",
+      "approvedBy": "samer",
+      "approvedAt": "2026-09-18",
+      "reconciliationTask": "FIX-Task-63 Phase 3 — requires `20260918050000_...lockdown.sql` to be rewritten so it converges to the LIVE end state and is a no-op when re-applied",
+      "expiresAt": "2026-10-18"
+    },
+    {
+      "ledgerName": "20260918000005_fix_task_60_user_facing_rpc_grants",
+      "version": null,
+      "kind": "file-exists-but-never-applied",
+      "reason": "The FIX-Task-60 grants file FAILED on staging (atomic, nothing applied) because it targets public.search_listings(text,boolean,integer), a signature staging does not have. The chain has it; staging does not.",
+      "approvedBy": "samer",
+      "approvedAt": "2026-09-18",
+      "reconciliationTask": "FIX-Task-63 Phase 3 — per-signature existence guards, then apply",
+      "expiresAt": "2026-10-18"
+    }
+  ]
+}
