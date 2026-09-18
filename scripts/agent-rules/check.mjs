@@ -57,6 +57,8 @@ for (const f of ruleFiles) {
   for (const m of read(f).matchAll(pathRe)) {
     const p = m[1];
     if (/[*<>{}$]|\.\.\./.test(p)) continue;
+    // not verifiable in a fresh clone: gitignored local config, or the admin submodule when not initialized
+    if (/(^|\/)\.vscode\//.test(p) || (p.startsWith('p2p-kids-admin/') && !fs.existsSync(path.join(ROOT, 'p2p-kids-admin/package.json')))) continue;
     if (!fs.existsSync(path.join(ROOT, p)) && !(/^(scripts|src)\//.test(p) && fs.existsSync(path.join(ROOT, 'p2p-kids-marketplace', p)))) (missing.get(p) ?? missing.set(p, new Set()).get(p)).add(path.basename(f));
   }
 }
