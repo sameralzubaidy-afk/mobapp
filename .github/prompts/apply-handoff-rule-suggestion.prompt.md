@@ -1,42 +1,88 @@
 ---
-description: "Scan this entire chat for every 📦 Session Handoff block produced so far, collect all non-'none' 'Suggested to improve agent rules' entries, and apply each one to the correct file (Kids P2P App Builder.agent.md or the matching .github/instructions/*.instructions.md), following the repo's existing rule-consolidation conventions."
+description: "Rule intake for BOTH agents. Scan this chat for Dev (📦 Session Handoff) and QA (📋 QA Session Handoff) 'Suggested to improve agent rules' entries, triage each as RULE / FACT / INCIDENT, and file it in exactly ONE correct place, small, with a script-issued id, inside the file size budget. Run once per chat after the handoff(s)."
 mode: "agent"
 ---
 
-# Apply all Session Handoff rule suggestions from this chat
+# Apply rule suggestions from this chat (Dev + QA)
 
-Scan the ENTIRE conversation history in this chat (not just the latest response) and collect the 📦 **Session Handoff** block from EVERY response that produced one — this session may contain several fixes, each with its own handoff.
+Goal: every new rule lands in one right place, stays short, and never grows a file past its budget. The agent files are read on every request, so **every added line costs quality on every future task.** When in doubt, do not add.
 
-1. Build a list of every `Suggested to improve agent rules:` entry found across all those handoffs, in order.
-   - Drop any that say "none".
-   - If two or more entries are essentially the same suggestion (same rule, worded differently), merge them into one before proceeding.
-   - If the resulting list is empty, reply "No rule suggestions to apply." and stop — do not edit anything.
-   - Otherwise, list out each distinct suggestion you found (one line each, with which fix/response it came from) before making any edits, so I can see what you're about to apply.
-2. For EACH distinct suggestion, before adding anything:
-   - Use `grep_search` across `.github/agents/Kids P2P App Builder.agent.md` AND all files in `.github/instructions/` for wording that already covers this case. Do NOT create a duplicate — if an existing rule already covers it, propose extending that rule's wording instead of adding a new one, per this repo's duplicate-identifier/duplicate-rule discipline.
-   - **Check the retired/merged numbers first.** The Rule Indexes contain explicit tombstones (e.g. `BP-77: RETIRED (merged into BP-41, 2026-09-12)`). Never re-use a retired number and never add a second rule for a topic a tombstone already routes elsewhere — extend the surviving rule instead.
-3. Decide the correct destination for that suggestion:
-   - **Cross-cutting** (applies across mobile + Edge Functions + SQL + admin portal — e.g. MCP policy, Session Handoff contract, hardening/regression tiers, duplicate-identifier policy) → stays directly in `Kids P2P App Builder.agent.md`.
-     - Note: the main agent file's **body** (NON-NEGOTIABLE RULES, Hardening Protocol, Section 13/14) is the home for genuinely cross-cutting rules. The **appendix is a pointer-only index** — every entry there must end in “— full text moved to `.github/instructions/…`”. If a cross-cutting rule would otherwise only be eligible for the appendix, find a body section instead (step 5) rather than adding inline text to the appendix.
-   - **Postgres/migrations/RLS/RPC-specific** → `.github/instructions/supabase-sql.instructions.md`
-   - **Edge Function-specific** (Deno/TypeScript, auth/RLS in functions, deploy hygiene) → `.github/instructions/edge-functions.instructions.md`
-   - **Mobile client-specific** (screens/services/hooks, Realtime, caching, error parsing) → `.github/instructions/mobile-client.instructions.md`
-   - **Navigation-specific** (routes, auth/onboarding stack boundaries, params) → `.github/instructions/navigation.instructions.md`
-   - **Admin-portal-specific** (Next.js routes under `p2p-kids-admin/src/**`, `/api/admin/*` auth) → `.github/instructions/admin-portal.instructions.md` (created 2026-09-12; its `applyTo` covers `p2p-kids-admin/src/**`). Note the admin app is a **git submodule** — rules that belong to that submodule's own repo do not go here.
-   - If it doesn't cleanly fit any of the above, ask before creating a new file or section.
-4. If the target is one of the 4 instructions files:
-   - Assign the next available `BP-N` number — **never reuse a retired number** and never reuse a number already present in any file. Find the current highest by scanning ALL of `.github/agents/Kids P2P App Builder.agent.md`, the four `.github/instructions/*.instructions.md` files, and this prompt's own Rule Index references (grep `\bBP-[0-9]+\b` and take the max), then increment for each new rule added in this same pass so numbers don't collide across multiple suggestions. `BP-N` is a global namespace shared by the main agent file and all instructions files — a number must be unique across every one of them.
-   - Add the full rule (Problem / Rule / example, matching the style of neighboring rules) to the target instructions file.
-   - Add a one-line entry to that file's own "Rule Index" section at the top.
-   - Add a matching one-line pointer entry to the "🛡️ Appendix: Bug Prevention Rule Library" Rule Index in `Kids P2P App Builder.agent.md`, in the same pointer format used for other split-out BP rules.
-   - If the new rule maps to a recognizable bug symptom, also add or extend a "See also: BP-N" cross-reference under Section 9.2 in the main agent file.
-5. If the target is the main agent file directly (cross-cutting):
-   - Add it to the most relevant existing section (NON-NEGOTIABLE RULES, Hardening Protocol, or Section 13/14) instead of creating a new top-level section.
-   - Prefer extending an existing rule's wording over adding a new standalone block if the topic overlaps.
-6. After editing, report back a summary table covering ALL suggestions processed in this pass:
-   - Which fix/response each suggestion came from.
-   - Exactly which file(s) changed and the new rule's identifier (e.g., "added BP-44 to `mobile-client.instructions.md`" or "extended NON-NEGOTIABLE rule #7").
-   - The one-line summary of the rule as it now appears in the relevant Rule Index.
-   - Any suggestions you skipped because they duplicated an existing rule, and what you did instead (e.g., extended rule X).
-7. Do not touch any other content in these files beyond the additions described above.
-8. If, while doing step 2, you find that a rule you are about to add SUPERSEDES an existing rule (rather than merely extending it), do not leave both versions in the files — point it out in your summary table and propose the merge. Applying a merge is in scope here only with the user's explicit confirmation; otherwise leave the old rule untouched and flag it. Do not silently prune: pruning and validation are the job of `.github/prompts/consolidate-agent-rules.prompt.md`, which should be run periodically (roughly every 10 sessions or monthly).
+## Step 0 - Collect
+
+Scan the WHOLE chat for:
+- `📦 Session Handoff` blocks, field `Suggested to improve agent rules:` -> source **Dev**
+- `📋 QA Session Handoff` blocks, field `Suggested to Improve Agent Rules:` -> source **QA**
+- any rule the user states directly in chat -> source of the agent it is about
+
+Drop entries that say "none". Merge same-topic entries. If nothing is left, reply "No rule suggestions to apply." and stop without editing. Otherwise list each one line (source + which handoff) before editing.
+
+## Step 1 - Triage each entry
+
+| Kind | What it is | Where it goes |
+|---|---|---|
+| **RULE** | A behavior every future session must follow | Steps 2-6 |
+| **FACT** | An environment/tool quirk (a keyboard behavior, a simulator flag, a tool bug) | One bullet in the matching note in `docs/agent-memory/` (for QA: `simulator-keyboard-suppression.md` or the closest topic note). Not rule text |
+| **INCIDENT** | The story of what happened (dates, task ids, screenshots) | Only inside the one-line changelog entry (Step 5). Never inside a rule |
+
+Admit a RULE only if it prevented, or would have prevented, a real defect or 10+ wasted tool calls, AND it is not already covered. Money, security, data-loss and privacy lessons are admitted immediately. Any other first sighting: add a row to `docs/agent-memory/rule-candidates.md` and stop for that entry; if it is already in that file, raise its count and promote it to RULE (second sighting).
+
+## Step 2 - Extend before adding
+
+Search `.github/agents/`, `.github/instructions/` and the QA playbook for wording that already covers it, and check the tombstones (`RETIRED`, `UNASSIGNED`). If a rule covers it, **rewrite that rule in place** to include the new case. Do not append a dated "extension" paragraph. Never reuse a retired id; never open a second rule for a topic a tombstone points elsewhere.
+If the new rule replaces an old one, do not leave both: propose the merge and wait for confirmation.
+
+## Step 3 - Route (pick exactly one home)
+
+| It is | Home | Id |
+|---|---|---|
+| Dev, applies to mobile + backend + admin | `Kids P2P App Builder.agent.md` body (non-negotiables / hardening section), only as a one-line edit to an existing rule where possible | none |
+| Dev, Postgres / migrations / RLS / RPC | `supabase-sql.instructions.md` | BP-N |
+| Dev, Edge Functions | `edge-functions.instructions.md` | BP-N |
+| Dev, mobile screens / services / hooks | `mobile-client.instructions.md` | BP-N |
+| Dev, navigation | `navigation.instructions.md` | BP-N |
+| Dev, admin portal (`p2p-kids-admin/src/**`; the admin app is a git submodule, rules for the submodule's own repo do not go here) | `admin-portal.instructions.md` | BP-N |
+| QA, how to drive or judge a test | the QA playbook section that owns the topic (`QA-Test-Agent.instructions.md`, or its platform module if one exists) | R-N |
+| Never | `QA-Test-Agent.agent.md` and the appendix of the Builder file (both are role/scope/pointer only; the appendix holds one-line pointers for BP rules) | - |
+
+If no row fits, ask before creating a file or section.
+
+## Step 4 - Get ids from the script
+
+Never pick an id by hand:
+`node scripts/agent-rules/next-id.mjs BP` (Dev rule), `... R` (QA rule), `... S` (new QA section number - avoid; prefer extending a section).
+Take one id per new rule and run it again after writing so two rules never share a number.
+
+## Step 5 - Write once, small
+
+Rule body, max ~8 lines:
+
+```
+## BP-N: <short title>          (QA: **R-N - <short title>.**)
+**Rule:** <imperative, 1-2 sentences>
+**Why:** <one line> (<incident/task id>)
+**Check:** <one line: how to tell it was followed>
+```
+
+Not allowed in a rule: incident narratives ("Real evidence ..."), dates of sessions, screenshots, "see also" chains, restating another rule. Put evidence in the changelog line.
+
+Then, in this order:
+1. Add one index line (max 150 chars) to that file's own Rule Index. For BP rules also add the one-line pointer in the Builder appendix index (`- BP-N - title - full text in <file>`), and a "See also" under Section 9.2 only if it maps to a recognizable bug symptom (one line).
+2. Append ONE line to `docs/agent-memory/rule-changelog.md`: `date | id | file | summary (max 120 chars) | source task`.
+3. If the rule cites a longer evidence note, write it to `docs/agent-memory/<topic>.md`. No credentials, ever (README in that folder).
+
+## Step 6 - Budget gate (must pass before you report)
+
+Run `npm run agent-rules:check` from the repo root. Required: **0 FAIL**.
+- If the target file is over its size baseline, do NOT force it through and do NOT raise the baseline in `scripts/agent-rules/budgets.json`. Propose a **make-room swap**: name two existing rules in that file to merge or shorten (show the proposed wording) so the net size does not grow, and wait for the user's yes. Only lowering a baseline (`node scripts/agent-rules/check.mjs --ratchet`) is allowed.
+- Any dead path, unresolved `§5.x` citation or duplicate BP body definition the check reports must be fixed before you finish.
+
+## Step 7 - Report
+
+One table, one row per suggestion: source (Dev/QA) | kind (RULE/FACT/INCIDENT/deferred) | action (added / extended in place / merge proposed / candidate) | file | id | index line as written.
+Then: the pasted `agent-rules:check` summary line, remaining size budget for each file touched, and any suggestion skipped and why.
+
+## Guardrails
+
+- Touch nothing outside the additions above. No renumbering, no restyling of neighbors, no pruning (pruning is `consolidate-agent-rules.prompt.md`; run it about every 10 sessions or monthly).
+- Do not add anything to `.github/agents/*.agent.md` except an edit to an existing Builder rule.
+- If you are unsure about the kind or the home, ask one question instead of guessing.

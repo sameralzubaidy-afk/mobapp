@@ -45,7 +45,7 @@ Problem: App services catch errors and return undefined, making debugging imposs
 Rules:
 - Services MUST return typed results:
 ```typescript
-type ServiceResult<T> = 
+type ServiceResult<T> =
   | { success: true; data: T }
   | { success: false; error: { code: string; message: string } };
 ```
@@ -339,7 +339,7 @@ Problem: A bulk-edit tool that rewrites JSX without a real AST parser can insert
 
 Rules:
 1. After any scripted/bulk JSX prop-insertion edit (e.g., adding `accessible`/`accessibilityRole`/`accessibilityLabel` across many files at once), before considering the change complete:
-   (a) **Run typecheck** (`yarn typecheck`) — necessary but NOT sufficient.
+   (a) **Run typecheck** (`npm run typecheck`), necessary but NOT sufficient.
    (b) **Run a targeted grep** for the pattern of a bare prop-like line immediately followed by a JSX child — i.e., confirm the inserted text landed as a JSX attribute INSIDE the opening tag, not as rendered/child content. Example (also repeat for `accessibilityRole="..."`):
        `grep -rn -A1 -E '^[ ]*accessible$' --include="*.tsx" src` — any hit whose next line starts with `<` or `</` is corruption (a real prop is followed by another prop or `>`).
    (c) **Run Prettier/the formatter** and confirm it does NOT rewrite the affected regions unexpectedly — a formatter choking on, or silently reformatting, the inserted lines is itself a signal something is structurally wrong.
@@ -348,7 +348,7 @@ Rules:
 
 Detection checklist:
 - `grep -rn -A1 -E '^[ ]*accessible$' --include="*.tsx" src` → any match whose next line starts with `<` or `</` is a JSX-text-children corruption (should never happen for a real prop).
-- `yarn typecheck` passing is NOT proof of correctness for scripted JSX edits.
+- Passing `npm run typecheck` is NOT proof scripted JSX edits are correct.
 
 ## BP-61: Accessibility Props Must Be Attributes on the Opening Tag — Never Literal `<Text>` Children
 

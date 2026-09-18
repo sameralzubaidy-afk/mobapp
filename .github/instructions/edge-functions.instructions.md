@@ -79,9 +79,9 @@ Rules:
 - ALWAYS return structured errors:
 ```typescript
 return new Response(
-  JSON.stringify({ 
-    success: false, 
-    error: { 
+  JSON.stringify({
+    success: false,
+    error: {
       code: 'INVALID_REFERRAL_CODE',
       message: 'The referral code does not exist',
       details: { code: inputCode }

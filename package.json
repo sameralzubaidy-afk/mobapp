@@ -1,6 +1,8 @@
 {
   "scripts": {
     "verify:guides": "node scripts/check-guide-drift.mjs",
+    "agent-rules:check": "node scripts/agent-rules/check.mjs",
+    "agent-rules:next-id": "node scripts/agent-rules/next-id.mjs",
     "test:e2e": "bash test-automation/trade-flow-v2/scripts/run-suite.sh",
     "test:e2e:ios": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner maestro --platform ios",
     "test:e2e:android": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner maestro --platform android",
