@@ -17,3 +17,8 @@ local-control-*
 
 # Self-test scratch artifacts from the gate harness (never committed).
 zz-*
+
+# FIX-Task-64 self-test scratch (never committed).
+local-digest.txt
+local-digest-prev.txt
+ext-owned-names.txt

@@ -59,6 +59,9 @@ import {
 const CURRENT_FP_VERSION = FP_VERSION;
 const BASELINE_PATH = path.join(TOOLS_DIR, 'fidelity-baseline.json');
 const SNAPSHOT_PATH = path.join(STAGING_FP_DIR, 'snapshot.json');
+/** Kind-digest capture — the practical staging side (see tools/staging-fp/README.md). */
+const STAGING_DIGEST = path.join(STAGING_FP_DIR, 'staging-digest.json');
+const FP_DIGEST_SQL = path.join(TOOLS_DIR, 'fp-digest.sql');
 const PROBE_FAILURES = path.join(REPORTS_DIR, 'mig-probe-failures.json');
 const PROBE_ORDER = path.join(REPORTS_DIR, 'migration-order.txt');
 const FIDELITY_REPORT = path.join(REPORTS_DIR, 'fidelity-report.json');
@@ -113,6 +116,7 @@ function finish(code, message) {
     timings,
     notes,
     findings,
+    digestComparison: lastDigestRows.length ? lastDigestRows : undefined,
     message,
   };
   try {
@@ -263,6 +267,13 @@ function staticTier() {
     ok('S7 no orphaned migrations hold from an interrupted replay');
   }
 
+  // S8 — the digest query is GENERATED from the fingerprint queries. If they changed and
+  // it was not regenerated, the kind-digest comparison would silently compare an old
+  // shape against a new one — a false PASS, which is the worst possible outcome here.
+  const gen = spawnSync('node', [path.join(REPO_ROOT(), 'scripts', 'migrations', 'make-fp-digest.mjs'), '--check'], { encoding: 'utf8' });
+  if (gen.status !== 0) bad(`S8 ${(gen.stderr || gen.stdout || '').trim().replace(/^\[FAIL\] S8 /, '')}`);
+  else ok('S8 fp-digest.sql matches the current fingerprint queries');
+
   return hardFail ? VERDICT.FAIL : VERDICT.PASS;
 }
 
@@ -378,11 +389,17 @@ function fullTier() {
     // F4 — fidelity against the committed capture.
     const stagingPrefix = args['staging-prefix'] ?? path.join(STAGING_FP_DIR, 'staging-fp');
     if (!fs.existsSync(`${stagingPrefix}1.txt`)) {
+      // No per-object fingerprint committed. Fall back to the KIND-DIGEST comparison when a
+      // digest capture exists — see tools/staging-fp/README.md for the measurement that
+      // makes this the default path (the v2 fingerprint is ~1 MB and every MCP result
+      // travels through the model's context). An explicit --staging-prefix still demands
+      // the per-object files.
+      if (!args['staging-prefix'] && fs.existsSync(STAGING_DIGEST)) return digestTier(dsn, gitHash);
       throw {
         kind: VERDICT.BLOCKED,
         message:
-          `no committed staging fingerprint at ${path.relative(REPO_ROOT(), stagingPrefix)}1.txt. ` +
-          'Capture it with an APPROVED read-only staging query (see supabase/migrations/tools/staging-fp/README.md). ' +
+          `no committed staging fingerprint at ${path.relative(REPO_ROOT(), stagingPrefix)}1.txt and no kind-digest capture at ${path.relative(REPO_ROOT(), STAGING_DIGEST)}. ` +
+          'Capture one with an APPROVED read-only staging query (see supabase/migrations/tools/staging-fp/README.md). ' +
           'Fresh capture is never a CI step.',
       };
     }
@@ -449,6 +466,130 @@ function fullTier() {
 }
 
 /**
+ * KIND-DIGEST comparison.
+ *
+ * Both sides run the SAME query text (tools/fp-digest.sql, generated from fp*.sql) and each
+ * kind yields `count` + `md5` over its canonically-normalised lines. Equal digests mean that
+ * kind is byte-identical; a mismatch means real drift.
+ *
+ * FIDELITY TRADE-OFF, STATED PLAINLY: this names the KIND that moved, not each object. It is
+ * strictly equal for DETECTION (no object can change without its kind's digest changing) and
+ * coarser for ATTRIBUTION. Per-object detail is fetched on demand, only for the kind that
+ * moved — which is why the 1 MB capture is not on the critical path. The digest pair on both
+ * sides is frozen into the baseline, so a change on EITHER side fails.
+ */
+function digestTier(dsn, gitHash) {
+  const staging = readJson(STAGING_DIGEST, 'staging digest capture');
+  const local = localDigests(dsn);
+
+  // Freshness, from the digest capture's own metadata.
+  const fresh = digestFreshness(staging);
+  if (fresh.state === 'stale') return finish(VERDICT.STALE_BASELINE, fresh.message);
+  ok(`F5 digest capture ${fresh.message}`);
+
+  const baselineFile = args.baseline ?? BASELINE_PATH;
+  if (!fs.existsSync(baselineFile)) {
+    throw {
+      kind: VERDICT.BLOCKED,
+      message: `no fidelity baseline at ${path.relative(REPO_ROOT(), baselineFile)} — create it deliberately with --update-baseline --reason "<why>"`,
+    };
+  }
+  const baseline = readJson(baselineFile, 'baseline');
+  if (baseline.mode !== 'kind-digest') {
+    throw {
+      kind: VERDICT.BLOCKED,
+      message: `baseline at ${path.relative(REPO_ROOT(), baselineFile)} is mode "${baseline.mode ?? '(none)'}", not "kind-digest" — refusing to compare different modes`,
+    };
+  }
+
+  const kinds = [...new Set([...Object.keys(local), ...Object.keys(staging.digests ?? {})])].sort();
+  const rows = [];
+  for (const kind of kinds) {
+    const s = staging.digests?.[kind];
+    const l = local[kind];
+    const b = baseline.kindDigests?.[kind];
+    if (!s || !l) {
+      bad(`F6 ${kind}: present on only one side (staging=${s ? 'yes' : 'ABSENT'}, local=${l ? 'yes' : 'ABSENT'})`);
+      rows.push({ kind, verdict: 'ONE-SIDED' });
+      continue;
+    }
+    if (s.md5 === l.md5) {
+      rows.push({ kind, verdict: 'identical', count: l.count });
+      continue;
+    }
+    const known = b && b.staging?.md5 === s.md5 && b.local?.md5 === l.md5;
+    if (known) {
+      rows.push({ kind, verdict: 'known-residual', count: l.count, stagingCount: s.count, reason: b.reason });
+      continue;
+    }
+    bad(
+      `F6 NEW drift in ${kind}: staging ${String(s.md5).slice(0, 12)}… (${s.count}) vs local ${String(l.md5).slice(0, 12)}… (${l.count}); ` +
+        (b ? `baseline recorded staging ${String(b.staging?.md5).slice(0, 12)}… / local ${String(b.local?.md5).slice(0, 12)}…` : 'kind was NOT in the baseline at all')
+    );
+    rows.push({ kind, verdict: 'NEW-DRIFT', count: l.count, stagingCount: s.count });
+  }
+
+  const gone = Object.keys(baseline.kindDigests ?? {}).filter((k) => !local[k] && !staging.digests?.[k]);
+  if (gone.length) warn(`F6 baselined kind(s) no longer present on either side: ${gone.join(', ')} — refresh the baseline deliberately`);
+  const identical = rows.filter((r) => r.verdict === 'identical').length;
+  const residual = rows.filter((r) => r.verdict === 'known-residual').length;
+  if (!hardFail) ok(`F6 kind digests: ${identical}/${rows.length} identical, ${residual} known residual(s) matching the baseline`);
+
+  timings.push({ label: 'digest-compare', kinds: rows.length, identical, residual });
+  lastDigestRows = rows;
+
+  if (hardFail) return finish(VERDICT.FAIL, 'drift detected against the frozen kind-digest baseline — see [FAIL] lines above');
+  return finish(VERDICT.PASS, `static + full green (${staging.digests ? Object.keys(staging.digests).length : 0} kind digests compared, no new drift)`);
+}
+
+/** Local kind digests, via the SAME generated query the staging capture used. */
+function localDigests(dsn) {
+  const r = spawnSync('psql', [dsn, '-At', '-f', FP_DIGEST_SQL], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: Math.max(1000, remainingMs()) });
+  if (r.status !== 0) {
+    throw { kind: VERDICT.BLOCKED, message: `local digest query failed: ${(r.stderr || '').trim().split('\n')[0]}` };
+  }
+  const out = {};
+  for (const line of (r.stdout ?? '').split('\n').filter(Boolean)) {
+    const [kind, count, md5] = line.split('|');
+    if (kind) out[kind] = { count: Number(count), md5: String(md5).trim() };
+  }
+  if (!Object.keys(out).length) throw { kind: VERDICT.BLOCKED, message: 'local digest query returned no rows' };
+  return out;
+}
+
+function digestFreshness(staging) {
+  if (Number(staging.fpVersion) !== CURRENT_FP_VERSION) {
+    return { state: 'stale', message: `STALE BASELINE: digest capture is fpVersion ${staging.fpVersion}, this gate speaks v${CURRENT_FP_VERSION}` };
+  }
+  const sha = fpQueriesSha();
+  if (staging.fpQueriesSha && staging.fpQueriesSha !== sha) {
+    return { state: 'stale', message: `STALE BASELINE: digest capture was made with DIFFERENT fingerprint queries (capture ${String(staging.fpQueriesSha).slice(0, 12)}…, current ${sha.slice(0, 12)}…)` };
+  }
+  const capturedAt = Date.parse(staging.capturedAt ?? 0);
+  if (!Number.isFinite(capturedAt)) return { state: 'stale', message: 'STALE BASELINE: staging-digest.json has no parseable capturedAt' };
+  const ageDays = (Date.now() - capturedAt) / 86_400_000;
+  const limit = Number(staging.freshnessDays ?? 7);
+  if (ageDays > limit) {
+    return { state: 'stale', message: `STALE BASELINE: staging digest is ${ageDays.toFixed(1)} days old (limit ${limit}d, captured ${new Date(capturedAt).toISOString()}) — re-capture with an approved read-only query` };
+  }
+  const ddlAt = Date.parse(staging.lastApprovedStagingDDLAt ?? 0);
+  if (Number.isFinite(ddlAt) && ddlAt > capturedAt) {
+    return { state: 'stale', message: `STALE BASELINE: an approved staging DDL was applied at ${new Date(ddlAt).toISOString()}, after the capture at ${new Date(capturedAt).toISOString()}` };
+  }
+  return { state: 'fresh', message: `is ${ageDays.toFixed(2)} days old (limit ${limit}d)` };
+}
+
+/** md5 of the three fingerprint query files — the same value fidelity-check reports. */
+function fpQueriesSha() {
+  const h = crypto.createHash('md5');
+  for (const f of ['fp1-columns.sql', 'fp2-constraints.sql', 'fp3-objects.sql']) h.update(fs.readFileSync(path.join(TOOLS_DIR, f)));
+  return h.digest('hex');
+}
+
+/** Rows from the most recent digest comparison — used by --update-baseline. */
+let lastDigestRows = [];
+
+/**
  * Every delta key the comparison produced, INCLUDING `explained`.
  *
  * Rule 2's "explained" bucket means "present in the rebuild, absent from staging, with
@@ -462,7 +603,64 @@ function fullTier() {
  * set (it is in the baseline) while failing loudly on ANY change to it — which is the
  * property the whole task is about.
  */
-function findingKeys(report) {
+/**
+ * Freeze the CURRENT staging/local kind-digest pair for every kind that differs.
+ *
+ * Both sides' digests are stored, so drift on EITHER side fails: a new grant appears on
+ * staging -> staging's digest moves; a migration changes a body locally -> local's digest
+ * moves. Kinds whose digests already agree are not stored (they need no excuse).
+ */
+function updateDigestBaseline() {
+  const reason = args.reason;
+  if (!reason) {
+    return finish(VERDICT.BLOCKED, '--update-baseline requires --reason "<why this changed>" — an unexplained baseline move is exactly the drift this gate exists to catch');
+  }
+  const staging = readJson(STAGING_DIGEST, 'staging digest capture');
+  const dsn = args['scratch-dsn'] ?? process.env.SCRATCH_DSN ?? DEFAULT_SCRATCH_DSN;
+  assertScratchTarget(dsn);
+  const local = localDigests(dsn);
+  const baselineFile = args.baseline ?? BASELINE_PATH;
+  const prev = fs.existsSync(baselineFile) ? JSON.parse(fs.readFileSync(baselineFile, 'utf8')) : { kindDigests: {} };
+
+  const kindDigests = {};
+  const differing = [];
+  for (const kind of [...new Set([...Object.keys(local), ...Object.keys(staging.digests ?? {})])].sort()) {
+    const s = staging.digests?.[kind];
+    const l = local[kind];
+    if (!s || !l || s.md5 === l.md5) continue;
+    const prior = prev.kindDigests?.[kind];
+    kindDigests[kind] = {
+      staging: { count: s.count, md5: s.md5 },
+      local: { count: l.count, md5: l.md5 },
+      direction: prior?.direction ?? 'review-direction-before-backfilling',
+      reason: prior?.reason ?? 'pre-existing residual frozen at first real staging comparison — see the FIX-Task-60 classification (benign-by-design / deliberate / staging-looser)',
+      owningTask: prior?.owningTask ?? 'FIX-Task-64',
+    };
+    differing.push(`${kind} (staging ${String(s.md5).slice(0, 10)}… count ${s.count} | local ${String(l.md5).slice(0, 10)}… count ${l.count})`);
+  }
+
+  const identical = [...new Set([...Object.keys(local), ...Object.keys(staging.digests ?? {})])].filter((k) => local[k] && staging.digests?.[k] && local[k].md5 === staging.digests[k].md5);
+  log(`Digest baseline — ${Object.keys(local).length} kinds compared`);
+  log(`  identical (not stored, no excuse needed): ${identical.length}  ${identical.join(', ')}`);
+  log(`  differing (frozen with a reason):        ${differing.length}`);
+  for (const d of differing) log(`    ~ ${d}`);
+
+  const out = {
+    mode: 'kind-digest',
+    fpVersion: CURRENT_FP_VERSION,
+    fpQueriesSha: fpQueriesSha(),
+    generatedAt: new Date().toISOString(),
+    gitHash: currentGitHash(),
+    stagingCapturedAt: staging.capturedAt ?? null,
+    reason,
+    kindDigests,
+  };
+  ensureReportsDir();
+  fs.writeFileSync(baselineFile, JSON.stringify(out, null, 2) + '\n');
+  return finish(VERDICT.PASS, `kind-digest baseline written at ${path.relative(REPO_ROOT(), baselineFile)} (${differing.length} frozen kind(s), ${identical.length} identical, reason recorded)`);
+}
+
+function findingKeysFromMode(report) {
   const keys = [];
   for (const group of ['subsetMisses', 'unexplained', 'conflicts', 'explained']) {
     for (const item of report[group] ?? []) keys.push(item.key);
@@ -548,6 +746,8 @@ function currentGitHash() {
 // ===========================================================================
 
 function updateBaseline() {
+  const digestMode = !args['staging-prefix'] && fs.existsSync(STAGING_DIGEST) && !fs.existsSync(path.join(STAGING_FP_DIR, 'staging-fp1.txt'));
+  if (digestMode) return updateDigestBaseline();
   const report = readJson(FIDELITY_REPORT, 'fidelity-check');
   const baselineFile = args.baseline ?? BASELINE_PATH;
   const keys = [...findingKeys(report)].sort();
