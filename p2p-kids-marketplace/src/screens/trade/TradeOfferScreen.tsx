@@ -732,7 +732,12 @@ export default function TradeOfferScreen() {
                     setSpAmount(Math.min(num, maxSpToUse));
                   }}
                   placeholder="0"
-                  placeholderTextColor="#D97706"
+                  // FIX-Task-55 item 1 (2026-09-18): was Tailwind amber-600 #D97706 —
+                  // forbidden by BP-82, and a second, darker gold sitting beside the
+                  // canonical one. The Coins icon and the "SP" unit in this same wrapper
+                  // already use SP gold #F59E0B, so the placeholder now matches its own
+                  // control instead of contradicting it.
+                  placeholderTextColor="#F59E0B"
                   keyboardType="decimal-pad"
                   testID="sp-amount-input"
                   inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
@@ -741,6 +746,16 @@ export default function TradeOfferScreen() {
               </View>
               <Text style={styles.spHint}>
                 Max: {maxSpToUse} SP ({maxSpPercentage}% of price)
+              </Text>
+              {/* FIX-Task-55 item 6 (2026-09-18): the hint above states the SP ceiling
+                  but not what the buyer actually hands over in cash, so the buyer had to
+                  scroll to the "What you pay" card and subtract at commit time. This
+                  echoes that card's final figure live as the SP amount changes. It uses
+                  the SAME label ("Total cash") and the SAME expression (grandTotalCents)
+                  as that card's last row, so the two can never render two different
+                  numbers (BP-92 rule 1). */}
+              <Text style={styles.spCashHint} testID="sp-cash-total-hint">
+                Total cash: ${(grandTotalCents / 100).toFixed(2)}
               </Text>
             </View>
           )}
@@ -1175,6 +1190,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B6B6B',
     marginTop: 8,
+  },
+  // FIX-Task-55 item 6 — the live cash figure beside the SP input. Deliberately the
+  // primary text tier rather than hint gray: it is a money figure the buyer commits,
+  // and #6B6B6B would give it the same weight as the ceiling hint above it.
+  spCashHint: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginTop: 4,
   },
   // DEV-TASK-112 items 2+8 — frozen/suspended-wallet notice that replaces the
   // ADD SP OFFER input (info #5B8FB9 for frozen, error #E85D75 for suspended).

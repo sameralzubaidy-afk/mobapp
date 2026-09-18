@@ -1130,6 +1130,9 @@ CTA is DEPRECATED (Dev Task 86); G06 now targets the live PayoutSettings row.
 - Modal **Payment Method Required** shows `To withdraw your earnings, you need to add and verify a payout method first.` with **Add Payout Method** (opens the add flow) and **Cancel**.
 
 **Variant — an UNVERIFIED method already exists (FIX-Task-53 item 5, 2026-09-17; asserted by `PayoutSettingsScreen.test.tsx`):**
+
+**Fixture (FIX-Task-55 item 3, 2026-09-18):** `npm run qa:payout-fixture -- methods --scenario single-unverified-nonprimary`, then ensure a balance (`npm run qa:payout-fixture -- balance --amount <cents>`). Both commands act on the dedicated `qa-payout-seller` persona — the subcommand must be the **first** argument (`scripts/qa/payout-fixture.mjs` reads `process.argv[2]`), so any `--flag value` placed before `methods`/`balance` makes the script print its usage and do nothing. Use this scenario, **not** `single-unverified`: that older scenario sets `is_primary = true`, a state the server cannot produce (nothing auto-promotes a lone method — `set_primary_payout_method` requires `is_verified = true`), so it made `primaryMethodId` non-null and the guard was never entered at all. Only the guard is drivable from a synthetic account id — tapping **Continue Onboarding** reaches Stripe and needs a real `acct_...`.
+
 1. As a seller with a Stripe Connect method whose onboarding is still incomplete (no primary method), tap **Withdraw Now**.
 
 **Expected Result:**

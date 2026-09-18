@@ -19,12 +19,14 @@ Tier 0: typecheck PASS · lint 0 errors · 5 suites / 89 tests PASS · full suit
 | 12 | Item Detail Seller Info below fold | UX | **DEFERRED** (owner design decision) | — |
 
 ## Findings
-- **F1 [OPEN — owner decision, money]** Live buyer-fee resolver charged `test-grace` (`grace_period`) the **member** fee **$1.49**, contradicting `20260916000121_tiered_buyer_fee_engine.sql:122` ("trial or active ONLY") and `subscription.ts`'s `$2.99 for grace_period` doc/test. Fallback left behaviour-preserving; 5 comments corrected to state only verified facts; discrepancy reported rather than guessed.
+- **F1 [OPEN — owner decision, money]** Live buyer-fee resolver charged `test-grace` (`grace_period`) the **member** fee **$1.49**, contradicting `20260916000121_tiered_buyer_fee_engine.sql:122` ("trial or active ONLY") and `subscription.ts`'s `$2.99 for grace_period` doc/test. **Corroborated twice more on Android 2026-09-18** (`fee_cents: 149`, two items). Fallback left behaviour-preserving; 5 comments corrected to state only verified facts; discrepancy reported rather than guessed.
 - **F2 [INFO]** Tracker file-header `(newest)` marker is 2 rounds stale (pre-existing, not fixed — scope).
 - **F3 [INFO, pre-existing]** `verify:guides` exit 1 on 2 pre-existing TRD tracker contradictions (S15, T03); E04 index/body divergence verified **not** introduced here; ADM duplicate headings = documented baseline.
 
 ## Environment
-- **Android leg BLOCKED:** dev client wedged at "Bundling 100% / Loading from 10.0.2.2:8081…", no JS evaluation, no `ReactNativeJS` logs, ~1 s frame draws; two `npm run dev:android` attempts OOM-killed (exit 137). Harness/dev-tooling stall (R102 discriminator) → pivoted to iOS, which passed end-to-end. Android leg **owed, not failed**.
+- **Android:** dev client *appeared* wedged at "Bundling 100% / Loading from 10.0.2.2:8081…" (no JS eval logs, ~1 s frame draws) and two `npm run dev:android` attempts were OOM-killed (exit 137) → pivoted to iOS. **CORRECTED 2026-09-18:** the Metro log shows Android DID bundle (`Android Bundled 538ms/224ms`) and completed Make-Offer → 5 SP → `TradeSuccess` **twice** (items `fcddf9cf-…` $31, `18a41ad8-…` $28) before `expo start` was OOM-killed (exit 137). Attribution to `test-grace` is inferred (log carries `user_id …0011` on `view_recommendations`, not on the TradeOffer step) and there is no screenshot → **log-evidenced, one confirmation re-drive owed**. Host pressure confirmed by 16.5 s/28.8 s RPCs + a Realtime `CHANNEL_ERROR`/`TIMED_OUT` storm.
+- **NEW F4 [needs its own task]:** cold start logged `[AUTH] ❌ Failed to initialize auth: requestPromise.catch is not a function` → forced `loading=false` → Landing. Not investigated; would present to a user as a random logout.
+- **NEW F5 [INFO]:** `acct_dt118_fixture_unv` is a stale fixture Connect account the test key cannot access → payout screens log a warning each open.
 - **No Supabase MCP this session** → trade-row DB read-back **owed**; SP spend evidenced by the app's persisted timeline + wallet read-back only.
 - Full-suite 2 failures: `referral-analytics-admin.e2e.ts` `57014 statement timeout` (live staging DB) — environmental.
 - `.github/agents/QA-Test-Agent.agent.md` + `.github/instructions/QA-Test-Agent.instructions.md` show modified in `git status` — **pre-existing uncommitted changes, NOT from this task**.

@@ -898,7 +898,11 @@ export default function CartCheckoutScreen() {
                         value={spState.spApplied === 0 ? '' : spState.spApplied.toString()}
                         onChangeText={(text) => handleSpChange(item.listingId, text)}
                         placeholder="0"
-                        placeholderTextColor="#D97706"
+                        // FIX-Task-55 item 1 (2026-09-18), class sweep: this is the same
+                        // SP-gold input as TradeOfferScreen's, and it carried the same
+                        // Tailwind amber-600 #D97706 placeholder (forbidden — BP-82)
+                        // beside an #F59E0B Coins icon. Matched to the control's own gold.
+                        placeholderTextColor="#F59E0B"
                         keyboardType="decimal-pad"
                         testID={`sp-input-${item.listingId}`}
                         // Dev Task 77 item 3: expose the per-item SP input to the

@@ -123,7 +123,7 @@ Deferred to a design call (owner-approved), not implemented.
 
 ### F1 [OPEN — owner decision, money] The live buyer-fee resolver charges a grace user the MEMBER fee
 
-- **Observed on device:** `test-grace` (`subscriptions.status='grace_period'`) was charged **$1.49** — both on the Make Offer summary and on the created trade's timeline.
+- **Observed on device:** `test-grace` (`subscriptions.status='grace_period'`) was charged **$1.49** — both on the Make Offer summary and on the created trade's timeline. **Corroborated twice more on Android (Metro log, 2026-09-18):** `checkout_fee_shown {… "fee_cents": 149 …}` for the same persona on two separate items, while `Q04`'s documented value for `grace_period` is **$2.99** — so the discrepancy is reproducible across platforms and items, not a one-off.
 - **Contradicted by:** `supabase/migrations/20260916000121_tiered_buyer_fee_engine.sql:122` declares `status IN ('trial','active')` with an "owner decision 2026-08-09" comment.
 - **Also contradicted by:** `src/services/subscription.ts`'s doc/test, which expects **$2.99 for `grace_period`**.
 - **Why it matters:** the fee a grace-period buyer actually pays is a **revenue-policy** question, and the code, the migration comment and the unit test currently disagree. I did **not** guess: the fallback was left behaviour-preserving and the discrepancy is documented at each site so the owner can decide which behaviour is correct before anyone "fixes" it.
@@ -134,14 +134,32 @@ Deferred to a design call (owner-approved), not implemented.
 Line 7's note is labelled `(newest)` but is dated 2026-09-16, while Round 8 (2026-09-17) and now Round 9 sit in the SUB section. Pre-existing, cosmetic, and **not fixed** here (touching another round's note would be a scope breach). Flagged for a tracker-hygiene pass.
 
 ### F3 [INFO — pre-existing, not this round] `npm run verify:guides` exits 1 on 2 pre-existing TRD tracker contradictions
-
 `TRD-TC-S15` (status `PASS`, notes say still blocked) and `TRD-TC-T03` (notes record a superseding PASS, status cell still non-PASS). Neither is a SUB row and neither is attributable to this round. Also flagged (pre-existing, warning-level): `SUB-TC-E04`'s index row vs body heading diverge (verified **not** introduced by my edit — `git diff` contains no line mentioning that heading or index row), and 3 duplicate `ADM-TC-R01/R02/R03` headings (a documented baseline). I did **not** silently rewrite another round's TRD verdicts.
 
 ---
 
+### F4 [NEW — needs its own task, found in this log] Cold-start auth initialisation throws and drops the user to Landing
+
+```text
+WARN  [AUTH] ⚠️ Initialization taking too long, forcing loading to false
+ERROR [AUTH] ❌ Failed to initialize auth: {"message": "requestPromise.catch is not a function (it is undefined)", "name": "TypeError"}
+LOG   [NAV] route: Landing
+```
+
+- **Why it matters:** something handed to `.catch()` returned `undefined` (a Promise-shaped API that isn't one) — and the app's own timeout then forced `loading = false`, so the user lands on the unauthenticated **Landing** screen instead of their restored session. To a real user that presents as *"the app randomly logged me out"*.
+- **Status:** **not investigated and not fixed** in FIX-Task-53 (outside the 12-item brief). Flagged so it gets a dedicated task rather than being lost in a terminal buffer. The `[AUTH]` timeout path itself worked as designed (no hang), which is the only reason this is not higher severity.
+
+### F5 [INFO — stale fixture] A retired DT118 fixture Connect account still fails the payout-status sync
+
+```text
+WARN  Stripe Connect status sync failed: [Error: The provided key 'sk_test_…o5d0' does not have access to account 'acct_dt118_fixture_unv' (or that account does not exist). …]
+```
+
+A leftover fixture account (`acct_dt118_fixture_unv`) that the current test key cannot reach. **Fixture staleness, not an app defect** — but it makes the payout screens log a warning on every open, which is exactly the kind of noise that hides a real one. Worth a cleanup pass.
+
 ## 4. Environment / tooling
 
-**Android device leg BLOCKED this session.** After `npm run start:single` the Android dev client wedged at "Bundling 100% / Loading from 10.0.2.2:8081…" with **no JS ever evaluating** and **no `ReactNativeJS` logs**; device logs showed only severe frame drops (~1 s frame draws). Two earlier `npm run dev:android` attempts were OOM-killed (exit 137). Per R102's discriminator the issue is a **local dev-tooling/harness stall, not app behaviour** — so the device verification was pivoted to iOS, which succeeded end-to-end. The Android leg is **owed, not failed** (§6).
+**Android device leg — initially stalled, then RAN (CORRECTED 2026-09-18).** After `npm run start:single` the Android dev client *appeared* wedged at "Bundling 100% / Loading from 10.0.2.2:8081…" (no `ReactNativeJS` logs, ~1 s frame draws), and two earlier `npm run dev:android` attempts had been OOM-killed (exit 137) — so the device verification was pivoted to iOS, which succeeded end-to-end. **The Metro log tail (pasted 2026-09-18) shows that Android reading was wrong:** the Android client DID bundle and run (`Android Bundled 538ms` / `Android Bundled 224ms`) and completed the Make-Offer → 5 SP → `TradeSuccess` flow **twice** (see §6 item 1), then the host finally OOM-killed `expo start` (exit 137). So the earlier "no JS ever evaluated" observation was a **host-memory-pressure window, not a dead harness** — consistent with the same log showing 16.5 s and 28.8 s `get_subscription_status` RPC calls, a sustained Realtime `CHANNEL_ERROR`/`TIMED_OUT` storm (Profile/Wallet/Subscription/Cart channels), and `setLayoutAnimationEnabledExperimental is currently a no-op in the New Architecture` warnings. Per R102's discriminator this remains **tooling/host pressure, not app behaviour**.
 
 **No Supabase MCP tools were available this session**, so the DB read-back of the created trade row could not be run. The SP spend is evidenced by the app's own persisted timeline ("Swap Points Used: 5 SP") + the `qa:set-sp-balance` wallet read-back, **not** by a direct DB query — stated plainly rather than implied.
 
@@ -158,7 +176,7 @@ Line 7's note is labelled `(newest)` but is dated 2026-09-16, while Round 8 (202
 | `test-grace` SP wallet | **15 available** (fixture set 0→20; 5 reserved by open offer `0ba80809-9c04-4117-bc65-2fbd09613e42`) | Do **not** run `qa:set-sp-balance --amount 0` while that reservation is live (the script's own header warns it can desync reservation bookkeeping). Clear the reservation first, or leave it. |
 | `test-grace` Stripe | New customer `cus_VHK8BgDjkHjQ9k` + PM `pm_1UGlUC4I6kCJlvXoM77Rr38u` | None — test mode |
 | `qa-payout-seller` payout methods | Temporarily replaced with `--scenario none`, then **RESTORED** | **Done** — `npm run qa:express-complete -- create --replace` minted a fresh verified account `acct_1UGm4A3qQXHDi0B9` (`submitted=true payouts=true charges=true due=[]`). No leftover. |
-| Open trade | `0ba80809-9c04-4117-bc65-2fbd09613e42` — `pending`, 5 SP reserved, awaiting a seller response | None required; expire or leave. |
+| Open trade(s) | `0ba80809-9c04-4117-bc65-2fbd09613e42` — `pending`, 5 SP reserved, awaiting a seller response. **Plus two Android offers created 2026-09-18** on items `fcddf9cf-41b8-4cf3-94a8-bcb9ae8d6152` ($31.00) and `18a41ad8-9cfc-46d4-a6c0-54a2933fb5a9` ($28.00), each with **5 SP** (`checkout_started` → `TradeSuccess`) | **Clear/expire all of these BEFORE zeroing `test-grace`'s wallet** — the SP is now spread over up to 3 reservations, and `qa:set-sp-balance --amount 0` while reservations are live can desync the reservation bookkeeping (the script's own header warns of this) |
 | iOS simulator | Logged in as `qa-payout-seller`, on Payout Settings | Log out via `p2pkidsmarketplace://qa-logout` before the next run |
 | Metro | Still running on :8081 | Kill when finished |
 
@@ -166,7 +184,7 @@ Line 7's note is labelled `(newest)` but is dated 2026-09-16, while Round 8 (202
 
 ## 6. Known gaps / not tested (owed legs)
 
-1. **Item 1 — Android device leg.** Code fixed and driven PASS on **iOS**; the Android equivalent is owed. Recipe: `npm run start:single` → tap the `http://10.0.2.2:8081` row in the Expo Dev Launcher → `qa-login-as?persona=test-grace` → Discover → Show All Nodes → SP filter → first item → `request-to-buy-button` → assert **`sp-amount-input` present + `subscribe-upsell-card` absent** → 5 SP → Send Offer → accept disclaimer → assert "Trade Initiated!".
+1. **Item 1 — Android device leg (CORRECTED 2026-09-18: it RAN — log-evidenced, needs a 30-second confirmation to close).** The Metro log shows the Make-Offer → **5 SP** → `TradeSuccess` flow completing **twice** on Android, on items `fcddf9cf-…` ($31.00, `cash_amount_cents: 2749`) and `18a41ad8-…` ($28.00, `cash_amount_cents: 2449`), each preceded by `checkout_fee_shown` moving from `sp_amount: 0` → `sp_amount: 5` — i.e. the SP control rendered **and accepted input** for a `grace_period` account, which the pre-fix gate made impossible. **Caveats, stated plainly:** (a) the acting user is **inferred**, not printed — the log attaches `user_id …0011` (= `test-grace`, per `scripts/qa/set-sp-balance.mjs`) to `view_recommendations` in the same session and the steps match the item-1 recipe exactly, but the TradeOffer step itself logs no user; (b) there is **no screenshot**; (c) the bundle is **assumed** to be the post-fix one. Closing this needs one confirmation re-drive (or a screenshot) — not a full re-run. Recipe: `npm run start:single` → tap the `http://10.0.2.2:8081` row in the Expo Dev Launcher → `qa-login-as?persona=test-grace` → Discover → Show All Nodes → SP filter → first item → `request-to-buy-button` → assert **`sp-amount-input` present + `subscribe-upsell-card` absent** → 5 SP → Send Offer → accept disclaimer → assert "Trade Initiated!".
 2. **Item 11 — no device drive.** The `Cancelled At (historical)` label has **no unit test and no on-device drive** — it needs a row with `cancelled_at` set **and** a future `current_period_end`.
 3. **Item 5 — the unverified-method modal variant** is unit-tested but **not device-driven** (needs exactly one `stripe_connect` method with `stripe_onboarding_complete=false`).
 4. **Item 7 — Android re-check** not possible this session (§4); resolved on iOS with the fresh bundle instead.

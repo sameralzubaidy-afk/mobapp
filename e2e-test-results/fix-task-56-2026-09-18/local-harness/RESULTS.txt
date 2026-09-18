@@ -1,0 +1,35 @@
+FIX-Task-56 local rule harness — RESULTS (local scratch DB, never staging)
+Generated: 2026-09-18 08:15:43
+
+=== VERDICTS ===
+ test_id | verdict |                   observed                    
+---------+---------+-----------------------------------------------
+ T1      | PASS    | is_primary=t is_verified=t
+ T2      | PASS    | is_primary=f
+ T3      | PASS    | primary_count=1 chosen_still_primary=t
+ T4      | PASS    | primary_count=0 promote_returned=NULL
+ T5      | PASS    | after_promote=t after_unset=f
+ T6      | PASS    | promote_returned=NULL
+ T7      | PASS    | is_primary=t
+ T7-seed | INFO    | is_primary=f (expected FALSE before re-apply)
+(8 rows)
+
+=== TOTALS ===
+ checks | failures 
+--------+----------
+      7 |        0
+(1 row)
+
+=== TRIGGER ATTACHED ===
+                    tgname                    | tgenabled 
+----------------------------------------------+-----------
+ trg_auto_promote_sole_verified_payout_method | O
+(1 row)
+
+=== LIVE GRANTS (must be owner + service_role only) ===
+                   proname                   |                               acl                               
+---------------------------------------------+-----------------------------------------------------------------
+ fn_auto_promote_sole_verified_payout_method | sameralzubaidi=X/sameralzubaidi
+ promote_sole_verified_payout_method         | sameralzubaidi=X/sameralzubaidi | service_role=X/sameralzubaidi
+(2 rows)
+

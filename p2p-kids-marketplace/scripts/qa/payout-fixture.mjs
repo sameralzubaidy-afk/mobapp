@@ -23,7 +23,7 @@
  *   ensure [--dry-run]
  *       → create-or-reconcile the persona (auth user + profile + active sub +
  *         an empty reconciled seller_balance row + NO methods by default).
- *   methods --scenario none|single-verified|single-unverified|two|mixed [--dry-run]
+ *   methods --scenario none|single-verified|single-unverified|single-unverified-nonprimary|single-verified-nonprimary|two|mixed [--dry-run]
  *       → replace the persona's seller_payout_methods rows with the scenario:
  *           none              no methods (H04 no-method NoMethodModal)
  *           single-verified   one verified stripe_connect primary (F01/H02/H03 base)
@@ -110,7 +110,7 @@ function usage() {
   console.log(`qa:payout-fixture — DT-118 dedicated payout/withdraw seller persona
 
   ensure [--dry-run]
-  methods --scenario none|single-verified|single-unverified|two|mixed [--dry-run]
+  methods --scenario none|single-verified|single-unverified|single-unverified-nonprimary|single-verified-nonprimary|two|mixed [--dry-run]
   balance --amount <cents> [--dry-run]
   reconcile [--seller qa-payout-seller|test-seller] [--dry-run]
   stage-trade [--amount <cents>] [--buyer test-buyer] [--dry-run]
@@ -257,6 +257,38 @@ const METHOD_SCENARIOS = {
   ],
   'single-unverified': [
     { method_type: 'stripe_connect', is_primary: true, is_verified: false, stripe_onboarding_complete: false, stripe_payouts_enabled: false, stripe_charges_enabled: false, stripe_account_id: 'acct_dt118_fixture_unv' },
+  ],
+  // FIX-Task-55 items 2 + 3 (2026-09-18). `single-unverified` above describes a state
+  // the SERVER CANNOT PRODUCE: it marks an unverified method primary, but the only
+  // writer of is_primary = true is set_primary_payout_method(), which requires
+  // is_verified = true. Because is_primary was true, primaryMethodId was non-null and
+  // the withdraw guard was never even ENTERED — which is why the NoMethodModal
+  // "Verify Your Payout Method" variant had never fired on device despite being
+  // reachable in production. This scenario is the real post-abandonment state: one
+  // Stripe Connect method, NOT primary, not verified, onboarding incomplete ⇒
+  // primaryMethodId === null AND hasIncompleteOnboardingMethod === true ⇒ the guard
+  // enters and renders the unverified variant.
+  //
+  // Boundary: because the account id is synthetic, only the GUARD is drivable here
+  // (modal title/body/CTA + the add-flow fallback). Tapping "Continue Onboarding"
+  // calls create-stripe-account-link with this id and will fail at Stripe — proving
+  // the downstream hosted-link leg needs a real `acct_...`, not a fixture state.
+  'single-unverified-nonprimary': [
+    { method_type: 'stripe_connect', is_primary: false, is_verified: false, stripe_onboarding_complete: false, stripe_payouts_enabled: false, stripe_charges_enabled: false, stripe_account_id: 'acct_qa_unverified_nonprimary' },
+  ],
+  // FIX-Task-56 item 2 (2026-09-18) — the state that exercises the auto-promote
+  // rule: ONE method, VERIFIED, and NOT primary. Before the migration this was the
+  // silent end-state of every completed Stripe onboarding (nothing promoted it),
+  // which made the withdraw guard offer "Add Payout Method" (inviting a duplicate)
+  // and made rpc_create_payout_on_trade_complete park every payout as
+  // `requires_action`.
+  //
+  // EXPECTED RESULT once the FIX-Task-56 trigger is live: this scenario is
+  // self-correcting — the INSERT itself trips the trigger, so the row comes back
+  // `primary=true verified=true` on the very next read-back. A read-back showing
+  // `primary=false` here means the trigger is NOT attached. That is the test.
+  'single-verified-nonprimary': [
+    { method_type: 'stripe_connect', is_primary: false, is_verified: true, stripe_onboarding_complete: true, stripe_payouts_enabled: true, stripe_charges_enabled: false, stripe_account_id: 'acct_qa_verified_nonprimary' },
   ],
   two: [
     { method_type: 'stripe_connect', is_primary: true, is_verified: true, stripe_onboarding_complete: true, stripe_payouts_enabled: true, stripe_charges_enabled: false, stripe_account_id: 'acct_dt118_fixture_a' },

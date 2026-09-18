@@ -21,6 +21,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { isGraceStatus } from '@/services/subscriptionStatus';
+import { cancellationReasonLabel } from '@/utils/subscriptionCancellation';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -40,6 +41,9 @@ interface SubscriptionInfo {
   grace_ends_at: string | null;
   trial_end_date: string | null;
   cancelled_at: string | null;
+  // FIX-Task-55 item 7 (2026-09-18): the reason the user gave when they cancelled.
+  // Selecting it is what lets the Cancellation card explain itself in place.
+  cancel_reason: string | null;
   updated_at: string;
 }
 
@@ -121,7 +125,7 @@ export default function SubscriptionStatusScreen() {
       const { data, error: fetchError } = await supabase
         .from('subscriptions')
         .select(
-          'id, status, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, payment_retry_count, payment_failed_at, grace_started_at, grace_ends_at, trial_end_date, cancelled_at, updated_at'
+          'id, status, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, payment_retry_count, payment_failed_at, grace_started_at, grace_ends_at, trial_end_date, cancelled_at, cancel_reason, updated_at'
         )
         .eq('user_id', user.id)
         .maybeSingle();
@@ -270,10 +274,27 @@ export default function SubscriptionStatusScreen() {
         {info.cancelled_at && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Cancellation</Text>
-            <Row
-              label={cancellationIsHistorical ? 'Cancelled At (historical)' : 'Cancelled At'}
-              value={formatDate(info.cancelled_at)}
-            />
+            {/* FIX-Task-55 item 4 (2026-09-18): the "(historical)" qualifier used to sit
+                in the LABEL, which pushed "Cancelled At (historical)" past the label
+                column's one-third share and wrapped it onto a second line — roughly
+                doubling this row's height beside its single-line siblings in the other
+                cards. The qualifier is now an explanatory line under the rows, so every
+                row stays one line tall and the explanation reads more clearly than a
+                parenthetical did. */}
+            <Row label="Cancelled At" value={formatDate(info.cancelled_at)} />
+            {/* FIX-Task-55 item 7 (2026-09-18): surfacing the stored reason answers
+                "why did this cancel but still renew?" where the question is asked,
+                instead of leaving the reader to reconcile the two facts themselves.
+                The column stores an analytics ID, so it is mapped through the
+                canonical label list — verified on-device 2026-09-18, where the raw
+                column rendered as "too_expensive". Routed through Row so a null
+                reason keeps the standard "—" placeholder. */}
+            <Row label="Reason" value={cancellationReasonLabel(info.cancel_reason)} />
+            {cancellationIsHistorical && (
+              <Text style={styles.cancelHistoricalNote} testID="cancellation-historical-note">
+                This is when you cancelled. Your access continues until the period above ends.
+              </Text>
+            )}
           </View>
         )}
 
@@ -369,6 +390,9 @@ const styles = StyleSheet.create({
   rowLabel: { color: '#6B6B6B', fontSize: 13, flex: 1 },
   rowValue: { color: '#6B6B6B', fontSize: 13, flex: 2, textAlign: 'right' },
   rowValueHighlight: { color: '#5DBB8E', fontWeight: '600' },
+  // FIX-Task-55 items 4 + 7 — explains a historical cancellation now that the row
+  // label no longer carries the qualifier (which is what let the label wrap).
+  cancelHistoricalNote: { color: '#6B6B6B', fontSize: 12, marginTop: 6, lineHeight: 16 },
   warningText: { color: '#E85D75', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   retryButton: {
     backgroundColor: '#5DBB8E',

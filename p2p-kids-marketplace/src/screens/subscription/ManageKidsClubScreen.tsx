@@ -50,16 +50,13 @@ import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 import { loadEnd, loadStart, withLoadTiming } from '@/utils/loadTiming';
+import { CANCELLATION_REASONS } from '@/utils/subscriptionCancellation';
 
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
-const CANCELLATION_REASONS = [
-  { id: 'too_expensive', label: 'Too expensive' },
-  { id: 'not_using', label: 'Not using it enough' },
-  { id: 'child_lost_interest', label: 'My child lost interest' },
-  { id: 'found_alternative', label: 'Found an alternative' },
-  { id: 'technical_issues', label: 'Technical issues' },
-  { id: 'other', label: 'Other reason' },
-];
+// FIX-Task-55 item 7 (2026-09-18): the reason list lives in
+// @/utils/subscriptionCancellation now, so the Subscription Status screen can map
+// the SAME ids back to these labels — one canonical set, so the picker's copy and
+// the display copy cannot drift apart.
 
 // ─── Helper: Format date for display ──────────────────────────────────────────
 function formatDate(dateString: string | null | undefined): string {
