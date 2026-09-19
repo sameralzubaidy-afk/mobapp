@@ -102,7 +102,12 @@ describeE2E('FLOW-14 Messaging Integration (E2E)', () => {
         buyer_id: USER_1_ID,
         seller_id: USER_2_ID,
         listing_id: listingId,
-        status: 'active',
+        // FIX-Task-66 item 8 (2026-09-18): was 'active', which is NOT a legal
+        // trades.status value (CHECK: pending|payment_processing|payment_failed|
+        // in_progress|completed|cancelled). The insert failed with
+        // trades_status_check and set canRunSuite = false, silently self-skipping
+        // the ENTIRE FLOW-14 suite.
+        status: 'in_progress',
         cash_amount_cents: 2500,
         sp_amount: 0,
       })

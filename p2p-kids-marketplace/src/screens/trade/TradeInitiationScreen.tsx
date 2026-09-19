@@ -61,6 +61,8 @@ import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 // MODULE-15.3-PART3 TAX-011: tax preview row
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
@@ -940,7 +942,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 48,
+    // FIX-Task-66 item 3 (F3): the `confirm-trade-button` is the last control — it
+    // must clear the floating pill + Sell FAB (was 48).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   loadingContainer: {
     flex: 1,

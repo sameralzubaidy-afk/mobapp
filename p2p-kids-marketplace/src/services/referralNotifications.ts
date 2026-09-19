@@ -30,19 +30,31 @@ export interface NotificationStats {
  * @param userId - User ID to fetch notifications for
  * @param limit - Maximum number of notifications to return (default: 50)
  * @param offset - Number of notifications to skip (for pagination)
+ * @param category - FIX-Task-66 item 12: optional category filter. Applied
+ *                   SERVER-side so the filter spans the user's whole history rather
+ *                   than only the rows already fetched into the current page.
+ *                   Additive/optional — existing callers are unaffected.
  */
 export const getUserNotifications = async (
   userId: string,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
+  category: string | null = null
 ): Promise<{ success: boolean; data?: UserNotification[]; error?: string }> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('user_notifications')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+
+    // FIX-Task-66 item 12 (2026-09-18): `category` is the bounded filter dimension
+    // (8 values). Applying it before `.range()` keeps pagination correct.
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data, error } = await query.range(offset, offset + limit - 1);
 
     if (error) {
       console.error('[ReferralNotifications] Failed to fetch notifications:', error.message);

@@ -64,12 +64,16 @@ import ScreenLayout from '@/components/ScreenLayout';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+// FIX-Task-66 item 3: shared clearance constant (was a local literal here).
+import { TAB_BAR_FOOTER_CLEARANCE } from '@/constants/layout';
 
 type TradeOfferRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
 // FIX-Task-7 item 5a: height to reserve so the pinned Send Offer footer clears
 // the floating PersistentTabBar (pill top ≈ insets.bottom + ~72; + 12px gap).
-const TAB_BAR_FOOTER_CLEARANCE = 84;
+// FIX-Task-66 item 3 (2026-09-18): hoisted to constants/layout.ts so every
+// in-scope screen reserves the SAME measured clearance instead of drifting magic
+// numbers. Value unchanged (84).
 
 export default function TradeOfferScreen() {
   const route = useRoute<TradeOfferRouteProp>();

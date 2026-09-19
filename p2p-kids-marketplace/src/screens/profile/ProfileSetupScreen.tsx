@@ -23,6 +23,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { User, Camera, MapPin } from 'phosphor-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+// FIX-Task-66 item 4: single-source photo-picker failure copy.
+import { PHOTO_PICK_FAILED_COPY } from '@/constants/uiCopy';
 
 export default function ProfileSetupScreen({ navigation: _navigation }: any) {
   const { refreshSession } = useAuth();
@@ -165,7 +167,8 @@ export default function ProfileSetupScreen({ navigation: _navigation }: any) {
       captureException(error, {
         tags: { screen: 'ProfileSetupScreen', action: 'image_picker' },
       });
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      // FIX-Task-66 item 4: was 'Failed to pick image. Please try again.' (terse).
+      Alert.alert('Error', PHOTO_PICK_FAILED_COPY);
     }
   };
 

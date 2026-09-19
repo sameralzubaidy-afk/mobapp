@@ -24,6 +24,8 @@ import { isGraceStatus } from '@/services/subscriptionStatus';
 import { cancellationReasonLabel } from '@/utils/subscriptionCancellation';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -344,7 +346,8 @@ function Row({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
-  scroll: { padding: 16, paddingBottom: 40 },
+  // FIX-Task-66 item 3 (F3): the "Refresh Status" button is the last control (was 40).
+  scroll: { padding: 16, paddingBottom: TAB_BAR_PINNED_CLEARANCE },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   loadingText: { marginTop: 12, color: '#6B6B6B', fontSize: 14 },
   errorText: { color: '#E85D75', fontSize: 16, marginBottom: 12, textAlign: 'center' },

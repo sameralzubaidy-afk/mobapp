@@ -53,6 +53,8 @@ import { getErrorSearchText, getUserFacingError } from '@/utils/userFacingError'
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner, OTPInput } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 4: single-source photo-picker failure copy.
+import { PHOTO_PICK_FAILED_COPY } from '@/constants/uiCopy';
 import type { ProfileUpdateData } from '@/types/profile.types';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 // Temporary fallback: generated Database types may be missing in local dev.
@@ -348,7 +350,8 @@ export default function EditProfileScreen({ navigation, route }: any) {
       captureException(error, {
         tags: { screen: 'EditProfileScreen', action: 'image_picker' },
       });
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      // FIX-Task-66 item 4: was 'Failed to pick image. Please try again.' (terse).
+      Alert.alert('Error', PHOTO_PICK_FAILED_COPY);
     }
   };
 

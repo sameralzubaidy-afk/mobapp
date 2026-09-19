@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   FlatList,
   ListRenderItemInfo,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -56,6 +57,13 @@ import {
   type DeepLinkTarget,
   type NotificationDeepLinkData,
 } from '@/services/deepLink';
+// FIX-Task-66 item 2 (2026-09-18): force the header bell badge to re-read the
+// authoritative unread count after any read-state mutation.
+import { requestNotificationBadgeRefresh } from '@/services/notificationBadgeRefreshRegistry';
+// FIX-Task-66 item 3 (2026-09-18): shared clearance for the floating pill + Sell FAB.
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
+// FIX-Task-66 item 12: theme tokens for the new filter chips.
+import { colors } from '@/theme/colors';
 import ScreenLayout from '@/components/ScreenLayout';
 // FIX-Task-13 item 5c (2026-09-10): stable per-item emoji for scannable rows.
 import { getNotificationItemGlyph } from '@/utils/notificationItemGlyph';
@@ -282,6 +290,22 @@ const DEFAULT_ICON: NotificationIconConfig = {
   ...COLORS.grey,
 };
 
+// FIX-Task-66 item 12 (2026-09-18): the quick-filter chips, in display order.
+// `null` key = "All". `category` is the bounded dimension (these 8 values are the
+// only ones the app renders); `type` is open-ended (35+ values, no DB CHECK) so it
+// would make an unusable chip row.
+const CATEGORY_FILTER_CHIPS: Array<{ key: string | null; label: string }> = [
+  { key: null, label: 'All' },
+  { key: 'trades', label: 'Trades' },
+  { key: 'sp_events', label: 'Swap Points' },
+  { key: 'listings', label: 'Listings' },
+  { key: 'badges', label: 'Badges' },
+  { key: 'referrals', label: 'Referrals' },
+  { key: 'subscription', label: 'Kids Club+' },
+  { key: 'safety', label: 'Safety' },
+  { key: 'system', label: 'System' },
+];
+
 export function getNotificationIconConfig(item: UserNotification): NotificationIconConfig {
   // Type-specific icon takes priority for granular UX
   if (item.type && TYPE_ICONS[item.type]) {
@@ -418,6 +442,10 @@ export default function NotificationCenterScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // FIX-Task-66 item 12 (2026-09-18): per-category quick filter so a user facing a
+  // large unread backlog (289 was observed in MSG Round 2) can triage instead of
+  // only bulk-clearing. `null` = All.
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const offsetRef = useRef(0);
   const isLoadingMoreRef = useRef(false);
@@ -457,7 +485,8 @@ export default function NotificationCenterScreen() {
       const offset = reset ? 0 : offsetRef.current;
 
       try {
-        const result = await getUserNotifications(userId, PAGE_SIZE, offset);
+        // FIX-Task-66 item 12: the active category is applied SERVER-side.
+        const result = await getUserNotifications(userId, PAGE_SIZE, offset, activeCategory);
 
         if (!result.success) {
           // FIX-Task-15 item 5 (2026-09-10): the raw reason was previously rendered
@@ -490,7 +519,10 @@ export default function NotificationCenterScreen() {
         setError((err as Error).message);
       }
     },
-    [userId]
+    // FIX-Task-66 item 12: `activeCategory` is a dependency, so changing the filter
+    // rebuilds this callback — which re-runs the initial-load effect below and
+    // restarts pagination from offset 0 automatically (no stale-offset bug).
+    [userId, activeCategory]
   );
 
   useEffect(() => {
@@ -509,16 +541,23 @@ export default function NotificationCenterScreen() {
     }
 
     const unsubscribe = subscribeToNotifications(userId, (newNotification) => {
+      // FIX-Task-66 item 12: never inject a row the active filter excludes, or the
+      // filtered view would silently accumulate off-category rows.
+      if (activeCategory && newNotification.category !== activeCategory) {
+        return;
+      }
       setNotifications((prev) => mergeNotificationsById([newNotification], prev));
     });
 
     return unsubscribe;
-  }, [userId]);
+  }, [userId, activeCategory]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await loadNotifications(true);
     setIsRefreshing(false);
+    // FIX-Task-66 item 2: pull-to-refresh must also reconcile the header bell badge.
+    requestNotificationBadgeRefresh();
   }, [loadNotifications]);
 
   const handleLoadMore = useCallback(async () => {
@@ -549,6 +588,8 @@ export default function NotificationCenterScreen() {
         );
 
         await markNotificationAsRead(notification.id, userId);
+        // FIX-Task-66 item 2: keep the header bell badge in sync on a single read.
+        requestNotificationBadgeRefresh();
       }
 
       const notificationData = {
@@ -587,6 +628,12 @@ export default function NotificationCenterScreen() {
     );
 
     await markAllNotificationsAsRead(userId);
+    // FIX-Task-66 item 2 (2026-09-18): the DB now holds 0 unread, but nothing told
+    // the header badge to re-read — it stayed at "99+" until an app restart. Force
+    // every mounted badge instance (this screen's own header plus any background
+    // screen header) to re-read the authoritative count. Deliberately independent of
+    // the Realtime UPDATE event, which can miss.
+    requestNotificationBadgeRefresh();
   }, [userId]);
 
   const renderItem = useCallback(
@@ -598,21 +645,57 @@ export default function NotificationCenterScreen() {
 
   const keyExtractor = useCallback((item: UserNotification) => item.id, []);
 
-  const listHeader =
-    unreadCount > 0 ? (
-      <View style={styles.listHeaderContainer}>
-        <TouchableOpacity
-          testID="mark-all-read-link"
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Mark all read link"
-          style={styles.markAllLink}
-          onPress={handleMarkAllRead}
-        >
-          <Text style={styles.markAllLinkText}>Mark all read</Text>
-        </TouchableOpacity>
-      </View>
-    ) : null;
+  const listHeader = (
+    <View style={styles.listHeaderWrapper}>
+      {/* FIX-Task-66 item 12 (2026-09-18): category quick filter.
+          Filtering is SERVER-side (`getUserNotifications(..., category)`), so it
+          spans the user's entire history rather than only the fetched page. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterChipsRow}
+        testID="notification-category-filter"
+      >
+        {CATEGORY_FILTER_CHIPS.map((chip) => {
+          const isActive = activeCategory === chip.key;
+          return (
+            <TouchableOpacity
+              key={chip.key ?? 'all'}
+              testID={`notification-filter-${chip.key ?? 'all'}`}
+              accessible
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={`Filter: ${chip.label}`}
+              style={[styles.filterChip, isActive && styles.filterChipActive]}
+              onPress={() => setActiveCategory(chip.key)}
+            >
+              <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                {chip.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* NOTE (item 12): this link intentionally reflects the FILTERED unread count,
+          and the action itself marks EVERYTHING read (the server RPC is
+          unconditional). Use the "All" chip for an unfiltered bulk clear. */}
+      {unreadCount > 0 ? (
+        <View style={styles.listHeaderContainer}>
+          <TouchableOpacity
+            testID="mark-all-read-link"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Mark all read link"
+            style={styles.markAllLink}
+            onPress={handleMarkAllRead}
+          >
+            <Text style={styles.markAllLinkText}>Mark all read</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+    </View>
+  );
 
   const listEmpty = !isLoading ? (
     <View testID="empty-state" style={styles.emptyState}>
@@ -683,7 +766,9 @@ export default function NotificationCenterScreen() {
         onRefresh={handleRefresh}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
-        contentContainerStyle={notifications.length === 0 ? styles.emptyContainer : undefined}
+        contentContainerStyle={
+          notifications.length === 0 ? styles.emptyContainer : styles.listContent
+        }
         showsVerticalScrollIndicator={false}
         testID="notification-list"
       />
@@ -845,10 +930,42 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: 16,
   },
+  // FIX-Task-66 item 12 (2026-09-18): quick-filter chips. Theme tokens only.
+  listHeaderWrapper: {
+    paddingTop: 8,
+  },
+  filterChipsRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[100],
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary[500],
+  },
+  filterChipText: {
+    fontSize: 13,
+    color: colors.neutral[700],
+  },
+  filterChipTextActive: {
+    color: colors.neutral.white,
+    fontWeight: '600',
+  },
   listHeaderContainer: {
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
+  },
+  // FIX-Task-66 item 3 (F3, 2026-09-18): the populated list previously had NO
+  // contentContainer style at all, so the last notification row and the load-more
+  // control sat inside the Sell FAB's tappable band at max scroll.
+  listContent: {
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
 });

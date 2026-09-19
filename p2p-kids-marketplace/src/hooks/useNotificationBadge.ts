@@ -2,11 +2,13 @@
 // MODULE-14 TASK NOTIF-V2-006: Hook to track unread notification count for badge display
 
 import { useEffect, useState, useCallback } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import Constants from 'expo-constants';
 import {
   getUnreadNotificationCount,
   subscribeToNotifications,
 } from '@/services/referralNotifications';
+import { registerNotificationBadgeRefresh } from '@/services/notificationBadgeRefreshRegistry';
 import { supabase } from '@/config/supabase';
 
 interface UseNotificationBadgeResult {
@@ -43,6 +45,17 @@ export function useNotificationBadge(userId: string | undefined): UseNotificatio
       const result = await getUnreadNotificationCount(userId!);
       if (result?.success && typeof result.count === 'number') {
         setUnreadCount(result.count);
+        // FIX-Task-66 item 2 diagnostic: a stable log line proving the count read
+        // actually succeeded. When the badge is stale, this line tells you whether
+        // the read failed silently (value deliberately kept) or never ran.
+        if (__DEV__) {
+          console.log(`[useNotificationBadge] refresh ok count=${result.count}`);
+        }
+      } else if (__DEV__) {
+        console.warn(
+          '[useNotificationBadge] refresh returned no usable count — keeping previous value:',
+          result?.error
+        );
       }
     } catch (error) {
       console.warn('[useNotificationBadge] Failed to refresh unread count:', error);
@@ -56,6 +69,39 @@ export function useNotificationBadge(userId: string | undefined): UseNotificatio
       return;
     }
     refresh();
+  }, [userId, refresh]);
+
+  // FIX-Task-66 item 2 (2026-09-18): let a mutation surface force a re-read.
+  // Notification Center's "Mark all read" calls `requestNotificationBadgeRefresh()`
+  // after the write resolves; this registers the instance's own refresh so EVERY
+  // mounted header badge updates (each AppHeader owns a separate hook instance).
+  // Registered per instance on purpose — a single-slot registry would refresh only
+  // the most recently mounted header and leave the header you navigate back to stale.
+  useEffect(() => {
+    if (!isValidUserId(userId)) {
+      return;
+    }
+
+    return registerNotificationBadgeRefresh(refresh);
+  }, [userId, refresh]);
+
+  // FIX-Task-66 item 2: refetch-on-foreground safety net. A missed Realtime event,
+  // or a count read that failed while the app was backgrounded, self-heals when the
+  // user returns instead of persisting until the next mount / app restart. We use
+  // AppState rather than useFocusEffect so this hook stays usable outside a
+  // navigator (it is also consumed by the Discover-only header).
+  useEffect(() => {
+    if (!isValidUserId(userId)) {
+      return;
+    }
+
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        refresh();
+      }
+    });
+
+    return () => subscription.remove();
   }, [userId, refresh]);
 
   // Subscribe to realtime inserts to increment badge immediately
@@ -95,8 +141,19 @@ export function useNotificationBadge(userId: string | undefined): UseNotificatio
         table: 'user_notifications',
         filter: `user_id=eq.${userId}`,
       },
-      () => {
+      (payload: { new?: { id?: string } }) => {
         if (isDisposed) return;
+        // FIX-Task-66 item 2 diagnostic: proves whether the UPDATE event is actually
+        // delivered. If this line never appears while a notification is marked read
+        // (here or in another session), the real cause is Realtime delivery (b) — not
+        // just the missing app-side refresh (a).
+        if (__DEV__) {
+          console.log(
+            `[useNotificationBadge] realtime UPDATE delivered id=${
+              payload?.new?.id ?? 'unknown'
+            } — refreshing`
+          );
+        }
         refresh();
       }
     );

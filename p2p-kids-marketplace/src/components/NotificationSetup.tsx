@@ -7,13 +7,21 @@ import {
   Text,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
   Platform,
   ScrollView,
   Linking,
 } from 'react-native';
 import { supabase } from '@/config/supabase';
 import { colors } from '@/theme/colors';
+// FIX-Task-66 item 5 (2026-09-18): the screen inherited `headerShown: false` with no
+// headerLeft, so it had NO visible back affordance (Android hardware BACK only).
+// ScreenLayout renders the canonical detail header (44px back button +
+// `testID="back-button"`) used by every other detail screen.
+import ScreenLayout from '@/components/ScreenLayout';
+// ScreenLayout deliberately excludes the BOTTOM safe-area edge (the floating tab pill
+// normally overlays content), so this screen applies it to its pinned button bar
+// instead — note the pill is hidden on this route.
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui';
 import {
   registerForPushNotifications,
@@ -169,8 +177,12 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
     });
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container}>
+    // FIX-Task-66 item 5: header title is "Notifications" (not "Enable
+    // Notifications") so it does not duplicate the primary CTA's label verbatim.
+    <ScreenLayout variant="detail" title="Notifications">
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>🔔 Stay Connected</Text>
@@ -235,7 +247,7 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
       </ScrollView>
 
       {/* Action Buttons */}
-      <View style={styles.bottomSection}>
+      <View style={[styles.bottomSection, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {status !== 'success' && (
           <Button
             variant="primary"
@@ -275,7 +287,7 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
           </Button>
         )}
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 };
 

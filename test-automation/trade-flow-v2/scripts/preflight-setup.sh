@@ -267,7 +267,11 @@ fi
 if [[ "${TFV2_SEED_ANDROID_MEDIA:-0}" == "1" ]]; then
   if command -v adb >/dev/null 2>&1 && adb devices | awk 'NR>1 && $2=="device"' | grep -q .; then
     log "Seeding Android media library (TFV2_SEED_ANDROID_MEDIA=1)..."
-    (cd "$MOBILE_DIR" && bash scripts/qa/android-seed-media.sh) || \
+    # FIX-Task-66 item 9 (2026-09-18): pass --app so the script also force-stops the
+    # app after a VERIFIED registration. R98 step 4 requires the picker to be entered
+    # from a freshly mounted screen — without this the gallery can still render
+    # "No photos yet" and the real-photo cases stay blocked.
+    (cd "$MOBILE_DIR" && bash scripts/qa/android-seed-media.sh --app "${APP_ID:-com.sameralzubaidi.p2pmarketplace}") || \
       warn "Android media seeding failed — real-photo cases will be BLOCKED (QA playbook R98)."
   else
     warn "TFV2_SEED_ANDROID_MEDIA=1 but no Android device attached — skipping."

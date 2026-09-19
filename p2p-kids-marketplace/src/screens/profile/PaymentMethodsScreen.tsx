@@ -32,6 +32,8 @@ import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { supabase } from '@/config/supabase';
 import { retryFailedPayment } from '@/services/paymentRetry';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import { captureException } from '@/services/errorReporter';
 import { LoadingSpinner } from '@/components/ui';
 
@@ -440,7 +442,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    // FIX-Task-66 item 3 (F3): the update/remove buttons are the final controls
+    // (was 40).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   loadingContainer: {
     flex: 1,

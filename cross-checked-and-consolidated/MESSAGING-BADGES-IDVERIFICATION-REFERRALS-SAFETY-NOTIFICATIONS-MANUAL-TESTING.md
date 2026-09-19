@@ -21,7 +21,7 @@
 | | MSG-TC-A07 | Message length limit (2000 chars) |
 | | MSG-TC-A08 | Quick-reply meeting chips |
 | | MSG-TC-A09 | Safety meeting banner + Learn more |
-| | MSG-TC-A10 | Photo permission denied error |
+| | MSG-TC-A10 | Photo permission denied error — iOS only (Android 13+: NOT SUPPORTED) |
 | **B — Badges & Achievements** | MSG-TC-B01 | My Badges grid (earned vs locked) |
 | | MSG-TC-B02 | Badge detail modal |
 | | MSG-TC-B03 | Badge showcase on profile |
@@ -249,6 +249,8 @@
 
 **Expected Result:**
 - A "Permission Required" alert explains photo-library access is needed to share images; no crash occurs.
+
+> **Platform-conditional — iOS only (FIX-Task-66 item 10, 2026-09-18):** Android 13+ uses the permissionless system Photo Picker, so `requestMediaLibraryPermissionsAsync()` returns `granted` without ever prompting and this branch is **unreachable on Android**. Run the case on **iOS**; on Android record **NOT SUPPORTED (Android premise)** — never FAIL. The code path and copy are unchanged and still correct on iOS.
 
 > **Deferred (documented, not yet in UI):** in-chat report-message / report-user, block-user, automatic contact-info blocking, and profanity filtering are not surfaced in the current chat UI — do not treat their absence as a defect.
 

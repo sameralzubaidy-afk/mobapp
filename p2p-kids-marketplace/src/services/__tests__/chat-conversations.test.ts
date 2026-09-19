@@ -117,15 +117,23 @@ describe('chat.ts - Conversation Functions', () => {
         }
 
         if (table === 'messages') {
-          const mockMessagesChain = {
+          const mockMessagesChain: any = {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            is: jest.fn().mockReturnThis(),
+            is: jest.fn(),
             order: jest.fn().mockReturnThis(),
             limit: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue({ data: mockLastMessage, error: null }),
-            gte: jest.fn().mockResolvedValue({ data: mockUnreadMessages, error: null }),
           };
+          // FIX-Task-66 item 7 (2026-09-18): unread is now counted from the DB
+          // (`read_at IS NULL`) instead of a device-local AsyncStorage timestamp.
+          // Resolve on the read_at column so the earlier deleted_at filter still
+          // chains, and so the last-message query above is unaffected.
+          mockMessagesChain.is.mockImplementation((column: string) =>
+            column === 'read_at'
+              ? Promise.resolve({ data: mockUnreadMessages, error: null })
+              : mockMessagesChain
+          );
           return mockMessagesChain;
         }
 
@@ -223,12 +231,20 @@ describe('chat.ts - Conversation Functions', () => {
             single: jest.fn().mockResolvedValue({ data: mockTrade, error: null }),
           };
         } else if (table === 'messages') {
-          return {
+          const chain: any = {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            is: jest.fn().mockReturnThis(),
-            gte: jest.fn().mockResolvedValue({ data: mockUnreadMessages, error: null }),
+            is: jest.fn(),
           };
+          // FIX-Task-66 item 7 (2026-09-18): unread now comes from `read_at IS NULL`,
+          // and the deleted_at filter runs first — so chain on deleted_at and resolve
+          // only on read_at.
+          chain.is.mockImplementation((column: string) =>
+            column === 'read_at'
+              ? Promise.resolve({ data: mockUnreadMessages, error: null })
+              : chain
+          );
+          return chain;
         }
         return {};
       });

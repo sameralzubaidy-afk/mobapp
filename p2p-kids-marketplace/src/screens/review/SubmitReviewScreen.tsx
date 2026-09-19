@@ -24,6 +24,8 @@ import { StarRating } from '@/components/StarRating';
 // import { logEvent } from '@/services/analytics'; // TODO: uncomment when analytics service is available
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import { theme } from '@/theme';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 // DEV-TASK-96 (item 6): read the trade row to resolve the reviewee for the
@@ -418,7 +420,8 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
     flexGrow: 1,
-    paddingBottom: 48,
+    // FIX-Task-66 item 3 (F3): `skip-review-button` is the last control (was 48).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   loadingContainer: {
     flex: 1,

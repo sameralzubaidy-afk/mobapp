@@ -25,6 +25,8 @@ import { ShieldWarning } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
+// FIX-Task-66 item 15: theme tokens for the new read-only previous-appeal block.
+import { colors, textColors } from '@/theme/colors';
 
 type ListingSafetyRoute = RouteProp<RootStackParamList, 'ListingSafetyReview'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -65,7 +67,12 @@ export default function ListingSafetyReviewScreen() {
       }
 
       setListing(data);
-      setAppealReason(data.appeal_reason?.trim() || '');
+      // FIX-Task-66 item 15 (2026-09-18): do NOT seed the editable field with the
+      // previously-submitted appeal. Pre-filling made it trivial for a seller to
+      // resubmit stale boilerplate as a genuine appeal (and a QA run's sample text
+      // could be submitted verbatim as a real appeal). The prior appeal is now
+      // rendered READ-ONLY above the input, and this field always starts empty.
+      setAppealReason('');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load listing';
       setError(message);
@@ -113,7 +120,10 @@ export default function ListingSafetyReviewScreen() {
             setSubmitting(true);
             const updated = await submitListingAppeal(listing.id, session.user.id, trimmedReason);
             setListing(updated);
-            setAppealReason(updated.appeal_reason || '');
+            // FIX-Task-66 item 15: clear the field after a successful appeal — the
+            // submitted text now shows as read-only history below, and leaving it in
+            // the box invited an accidental duplicate submission.
+            setAppealReason('');
             Alert.alert('Appeal Submitted', 'Your listing is back under review.');
           } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to submit appeal';
@@ -313,6 +323,15 @@ export default function ListingSafetyReviewScreen() {
           {isRejected && (
             <View style={styles.appealBox}>
               <Text style={styles.appealTitle}>Appeal Reason for Admin Review</Text>
+              {/* FIX-Task-66 item 15 (2026-09-18): a PREVIOUS appeal is history, not
+                  editable input. Showing it read-only stops it being resubmitted as
+                  the seller's new appeal while keeping the context visible. */}
+              {listing.appeal_reason ? (
+                <View style={styles.previousAppealBox} testID="previous-appeal-note">
+                  <Text style={styles.previousAppealTitle}>Your previous appeal</Text>
+                  <Text style={styles.previousAppealText}>{listing.appeal_reason}</Text>
+                </View>
+              ) : null}
               <TextInput inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 value={appealReason}
                 onChangeText={setAppealReason}
@@ -324,6 +343,7 @@ export default function ListingSafetyReviewScreen() {
                 placeholder="Explain why this listing should be reviewed again..."
                 placeholderTextColor="#6B7280"
                 textAlignVertical="top"
+                testID="appeal-reason-input"
               />
               <Text style={styles.appealHelperText}>
                 {appealReason.trim().length}/500 characters
@@ -662,6 +682,26 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     color: '#111827',
     backgroundColor: '#FFFFFF',
+  },
+  // FIX-Task-66 item 15 (2026-09-18): a PREVIOUS appeal is history, not editable
+  // input — shown read-only so it can never be resubmitted verbatim as a new appeal.
+  previousAppealBox: {
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: colors.neutral[100],
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  previousAppealTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: textColors.primary,
+    marginBottom: 4,
+  },
+  previousAppealText: {
+    fontSize: 12,
+    color: textColors.secondary,
+    lineHeight: 18,
   },
   appealHelperText: {
     marginTop: 6,

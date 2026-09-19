@@ -42,6 +42,7 @@ import {
   Modal,
   Dimensions,
   Animated,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
@@ -49,6 +50,8 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
+// FIX-Task-66 item 3 (F6): shared clearance constant for the floating tab bar pill.
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import {
   PaperPlaneRight,
   PaperclipHorizontal,
@@ -133,7 +136,14 @@ export default function ChatScreen() {
   const [safetyModalVisible, setSafetyModalVisible] = useState(false);
   // TFV2-021: Quick-reply chips visible state (default on for in_progress)
   const [quickRepliesVisible, setQuickRepliesVisible] = useState(true);
+  // FIX-Task-66 item 3 (F6): keyboard visibility drives the composer's bottom
+  // clearance — see the `inputContainerKeyboardOpen` usage on the input bar.
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  // FIX-Task-66 item 13: true while the user is reading the NEWEST messages
+  // (offset 0 of an inverted list). Guards auto-scroll so new content cannot yank
+  // someone out of the history they are reading.
+  const isNearBottomRef = useRef(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingChannelRef = useRef<RealtimeChannel | null>(null);
   const seenMessageIdsRef = useRef(new Set<string>());
@@ -162,6 +172,27 @@ export default function ChatScreen() {
       })
       .catch(() => {});
   }, [tradeId]);
+
+  // FIX-Task-66 item 3 (F6, 2026-09-18): track keyboard visibility.
+  //
+  // On API 35+ the window is edge-to-edge, so the manifest's `adjustResize` no
+  // longer moves the app and the keyboard simply OVERLAYS it — which is why the
+  // composer was typing blind (the AX tree kept reporting `message-input-bar` at
+  // y 1902-2399 with the IME up). The composer therefore has to make room itself
+  // (via the KeyboardAvoidingView behaviour) and to relax its 120pt pill clearance,
+  // otherwise the user sees a dead grey strip between the input and the keyboard.
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   // MSG-009: Animate typing dots when indicator shows
   useEffect(() => {
@@ -552,6 +583,9 @@ export default function ChatScreen() {
         // Optimistically add message to UI immediately
         console.log('[ChatScreen] Message sent successfully, adding to UI:', result.message?.id);
         if (result.message) {
+          // FIX-Task-66 item 13: a sender always follows their own message, even if
+          // they had scrolled up into history.
+          isNearBottomRef.current = true;
           upsertMessageInState(result.message);
         }
       }
@@ -621,6 +655,8 @@ export default function ChatScreen() {
       } else {
         console.log('[ChatScreen.handleSendImage] Image sent successfully:', result.message?.id);
         if (result.message) {
+          // FIX-Task-66 item 13: a sender always follows their own message.
+          isNearBottomRef.current = true;
           upsertMessageInState(result.message);
         }
       }
@@ -854,9 +890,14 @@ export default function ChatScreen() {
       )}
 
       {/* Messages List */}
+      {/* FIX-Task-66 item 3 (F6, 2026-09-18): Android now gets a REAL behaviour.
+          `undefined` made KeyboardAvoidingView a no-op on Android (its render() falls
+          to the default branch, so `state.bottom` is never applied) — the keyboard
+          covered the composer. 'height' shrinks this view and lifts the composer,
+          chips and typing indicator that follow it in the column. */}
       <KeyboardAvoidingView
         style={styles.containerBody}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
@@ -866,13 +907,25 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesList}
-          // iOS-specific props for chat stability
-          maintainVisibleContentPosition={
-            Platform.OS === 'ios' ? { minIndexForVisible: 0 } : undefined
-          }
+          // FIX-Task-66 item 3 (F6): without this the first tap while the keyboard is
+          // up is swallowed dismissing the keyboard instead of hitting the control.
+          keyboardShouldPersistTaps="handled"
+          // FIX-Task-66 item 13 (2026-09-18): enabled on BOTH platforms. On an
+          // inverted list this pins the newest message when the viewport shrinks
+          // (keyboard opening) instead of jumping, so conversation context is not
+          // lost while typing.
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            // In an inverted list offset 0 is the newest message.
+            isNearBottomRef.current = event.nativeEvent.contentOffset.y < 80;
+          }}
           onContentSizeChange={() => {
-            // Ensure we stay at bottom when new messages come in
-            if (messages.length > 0) {
+            // FIX-Task-66 item 13: only follow new content when the user is already
+            // at the newest message. The previous code scrolled unconditionally,
+            // which yanked anyone reading history back to the bottom on EVERY
+            // content-size change.
+            if (messages.length > 0 && isNearBottomRef.current) {
               flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
             }
           }}
@@ -947,7 +1000,14 @@ export default function ChatScreen() {
 
         {/* Input bar: #F7F7F7 bg strip */}
         <View
-          style={[styles.inputContainer, !isTradeActive && styles.inputContainerFrozen]}
+          style={[
+            styles.inputContainer,
+            !isTradeActive && styles.inputContainerFrozen,
+            // FIX-Task-66 item 3 (F6): the pill clearance is meaningless while the
+            // keyboard covers the pill, so collapse it and sit directly above the
+            // keyboard instead of leaving a 120pt dead strip.
+            keyboardVisible && styles.inputContainerKeyboardOpen,
+          ]}
           testID="message-input-bar"
         >
           {/* PaperClip icon (20px, #6B6B6B) — disabled when trade frozen */}
@@ -1387,13 +1447,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingTop: 12,
     paddingHorizontal: 12,
-    // Clear the floating pill nav (PersistentTabBar now overlays the stack
-    // content): pill top sits ~110pt from the bottom (safe-area + spacing.sm +
-    // pill height), so the input must stay above it.
-    paddingBottom: 120,
+    // Clear the floating pill nav (PersistentTabBar overlays the stack content):
+    // pill top sits ~110pt from the bottom (safe-area + spacing.sm + pill height),
+    // so the input must stay above it.
+    // FIX-Task-66 item 3: named constant (was the literal 120).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
     backgroundColor: '#F7F7F7',
     alignItems: 'center',
     gap: 8,
+  },
+  // FIX-Task-66 item 3 (F6): while the keyboard is up the pill sits behind it, so
+  // the composer only needs a small gap above the IME.
+  inputContainerKeyboardOpen: {
+    paddingBottom: 8,
   },
   // PaperClip and Smiley icons (20px, #6B6B6B - NOT green)
   iconButton: {

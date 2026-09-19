@@ -36,6 +36,8 @@ import type { OAuthProvider, LinkedProvider } from '@/types/auth-v3';
 import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 
 // DT-119 (item 1 sweep): component needs no navigation/route props — destructured
 // `navigation` was unused (pre-existing lint error), removed (zero behavior change).
@@ -434,7 +436,9 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 32,
+    // FIX-Task-66 item 3 (F3): the provider link/unlink rows are the final
+    // controls (was 32).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   infoCard: {
     flexDirection: 'row',

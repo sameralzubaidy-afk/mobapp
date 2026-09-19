@@ -1463,22 +1463,120 @@ async function seedCancelledTradeConversationFixture(
  * The MSG guide assumes in-progress trades already carry a message thread; on
  * current staging data the QA agent found in-progress trades with NO messages,
  * which cost recon calls to discover. This fixture picks the buyer's
- * in_progress trade with the seller (falling back to any buyer/seller trade if
- * none is in_progress yet) and idempotently seeds a short two-message exchanged
- * thread (buyer then seller), so an in-progress trade reliably appears in the
- * conversation list with a real thread.
+ * in_progress trade with the seller and idempotently seeds a short two-message
+ * exchanged thread (buyer then seller), so an in-progress trade reliably appears
+ * in the conversation list with a real thread.
  *
- * Idempotent: if the target trade already has any message, it is a no-op.
+ * FIX-Task-66 item 8 (2026-09-18): this fixture now GUARANTEES an in_progress
+ * trade and CREATES one when absent. It previously searched for an in_progress
+ * trade and otherwise fell back to "any buyer/seller trade", which left the
+ * fixture satisfied by a PENDING trade — so MSG-TC-A08's quick-reply chips (gated
+ * on `trade.status === 'in_progress'` in ChatScreen) stayed BLOCKED even after a
+ * re-seed. test-buyer's normal state is 3 pending + cancelled trades and ZERO
+ * in_progress, so the fixture never delivered what the case needed.
+ *
+ * Idempotent + self-refreshing: the owned fixture trade is re-asserted to
+ * `in_progress` with a future `auto_complete_at` on every run, and the thread
+ * insert is skipped when messages already exist.
  */
-async function seedInProgressTradeThreadFixture(
+
+/** Fixture tag stamped on `trades.notes` so this trade is identifiable + reusable. */
+const IN_PROGRESS_TRADE_FIXTURE_NOTE = 'fixture:MSG-TC-A08';
+
+/**
+ * Idempotently fetch-or-create the dedicated listing the in-progress fixture
+ * trade points at (a trade needs a real `items` row for the embed ChatScreen uses).
+ */
+async function ensureInProgressFixtureListing(sellerId: string): Promise<{ id: string } | null> {
+  const title = 'QA In-Progress Trade Item';
+
+  const { data: existing } = await adminSupabase
+    .from('items')
+    .select('id')
+    .eq('seller_id', sellerId)
+    .eq('title', title)
+    .maybeSingle();
+
+  if (existing) {
+    return existing as { id: string };
+  }
+
+  const now = new Date().toISOString();
+  const { data: inserted, error: insertError } = await adminSupabase
+    .from('items')
+    .insert({
+      seller_id: sellerId,
+      title,
+      description: 'Fixture listing backing the MSG-TC-A08 in-progress trade.',
+      category_id: null,
+      condition: 'good',
+      price: 25.0,
+      status: 'pending',
+      approved_at: now,
+      accepts_swap_points: false,
+      seller_subscription_status_at_creation: 'active',
+      eligible_for_starter_pack: false,
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id')
+    .single();
+
+  if (insertError || !inserted) {
+    console.warn(`   ⚠️ A08 in-progress listing create failed: ${insertError?.message ?? 'unknown'}`);
+    return null;
+  }
+
+  return inserted as { id: string };
+}
+
+/**
+ * Fetch-or-create the owned in_progress trade for this buyer/seller pair.
+ *
+ * Re-asserts `status = 'in_progress'` and pushes `auto_complete_at` a month out on
+ * every run so the auto-complete cron can never retire the fixture mid-test.
+ */
+async function ensureInProgressTradeFixture(
   buyerId: string,
   sellerId: string
-): Promise<void> {
-  console.log('   ── DT-96 in-progress trade thread fixture ──');
+): Promise<{ id: string; status: string } | null> {
+  const now = new Date();
+  const autoCompleteAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const nowIso = now.toISOString();
 
-  // Prefer an in_progress trade (the guide's assumption); fall back to any
-  // buyer/seller trade if none is in_progress yet.
-  let { data: trade, error: tradeError } = await adminSupabase
+  // 1. Preferred: an in_progress trade already tagged as OURS.
+  const { data: owned } = await adminSupabase
+    .from('trades')
+    .select('id, status')
+    .eq('buyer_id', buyerId)
+    .eq('seller_id', sellerId)
+    .eq('notes', IN_PROGRESS_TRADE_FIXTURE_NOTE)
+    .maybeSingle();
+
+  if (owned) {
+    const { error: refreshError } = await adminSupabase
+      .from('trades')
+      .update({
+        status: 'in_progress',
+        auto_complete_at: autoCompleteAt,
+        completed_at: null,
+        cancelled_at: null,
+        updated_at: nowIso,
+      })
+      .eq('id', owned.id);
+
+    if (refreshError) {
+      console.warn(`   ⚠️ A08 in-progress trade refresh failed: ${refreshError.message}`);
+    } else {
+      console.log(`   ✓ A08 in-progress trade re-asserted (${owned.id})`);
+    }
+
+    return { id: owned.id, status: 'in_progress' };
+  }
+
+  // 2. Otherwise, adopt ANY existing in_progress trade for the pair (e.g. one
+  //    created by seedBundleTrades --extended) rather than creating a duplicate.
+  const { data: existingInProgress } = await adminSupabase
     .from('trades')
     .select('id, status')
     .eq('buyer_id', buyerId)
@@ -1488,28 +1586,65 @@ async function seedInProgressTradeThreadFixture(
     .limit(1)
     .maybeSingle();
 
-  if (tradeError || !trade) {
-    const fallback = await adminSupabase
+  if (existingInProgress) {
+    const { error: adoptError } = await adminSupabase
       .from('trades')
-      .select('id, status')
-      .eq('buyer_id', buyerId)
-      .eq('seller_id', sellerId)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (fallback.error || !fallback.data) {
-      console.warn(
-        `   ⚠️ DT-96: no buyer/seller trade found to attach a thread (${fallback.error?.message ?? 'none'})`
-      );
-      return;
+      .update({ auto_complete_at: autoCompleteAt, updated_at: nowIso })
+      .eq('id', existingInProgress.id);
+
+    if (adoptError) {
+      console.warn(`   ⚠️ A08 in-progress deadline refresh failed: ${adoptError.message}`);
     }
-    trade = fallback.data as any;
+
+    console.log(`   ✓ A08 adopted existing in_progress trade ${existingInProgress.id}`);
+    return { id: existingInProgress.id, status: 'in_progress' };
   }
 
-  // TS null-narrowing guard: `trade` is `X | null` after the fallback; the
-  // branches above return when no trade was found, so this is defensive.
+  // 3. None exists — CREATE the fixture trade so the chips are always drivable.
+  const listing = await ensureInProgressFixtureListing(sellerId);
+  if (!listing) {
+    return null;
+  }
+
+  const { data: created, error: createError } = await adminSupabase
+    .from('trades')
+    .insert({
+      buyer_id: buyerId,
+      seller_id: sellerId,
+      listing_id: listing.id,
+      status: 'in_progress',
+      cash_amount_cents: 2500,
+      sp_amount: 0,
+      buyer_transaction_fee_cents: 99,
+      auto_complete_at: autoCompleteAt,
+      created_at: nowIso,
+      updated_at: nowIso,
+      notes: IN_PROGRESS_TRADE_FIXTURE_NOTE,
+    })
+    .select('id, status')
+    .single();
+
+  if (createError || !created) {
+    console.warn(`   ⚠️ A08 in-progress trade create failed: ${createError?.message ?? 'unknown'}`);
+    return null;
+  }
+
+  console.log(`   ✓ A08 in-progress trade CREATED (${created.id})`);
+  return created as { id: string; status: string };
+}
+
+async function seedInProgressTradeThreadFixture(
+  buyerId: string,
+  sellerId: string
+): Promise<void> {
+  console.log('   ── DT-96 in-progress trade thread fixture ──');
+
+  const trade = await ensureInProgressTradeFixture(buyerId, sellerId);
+
   if (!trade) {
-    console.warn('   ⚠️ DT-96: no trade available to attach a thread (early exit)');
+    console.warn(
+      '   ⚠️ DT-96: could not find or create an in_progress trade for the thread fixture'
+    );
     return;
   }
 
@@ -2155,7 +2290,11 @@ async function seedBundleTrades(
   console.log('\n🔗 Seeding bundle trades...');
   if (listingIds.length < 3) return;
 
-  const bundleId = '00000000-0000-0000-0000-00000000bundle';
+  // FIX-Task-66 item 8 (2026-09-18): was '00000000-0000-0000-0000-00000000bundle'
+  // — NOT a valid UUID (the last group must be 12 HEX chars), so EVERY insert below
+  // failed against the `bundle_id uuid` column and seedBundleTrades could never
+  // create an in_progress bundle trade.
+  const bundleId = '00000000-0000-0000-0000-00000000b00d';
 
   // Use listings at indices 1 and 2 for the bundle
   const bundleListingIds = [listingIds[1], listingIds[2]];

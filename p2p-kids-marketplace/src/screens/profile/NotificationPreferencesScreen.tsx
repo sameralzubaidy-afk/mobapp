@@ -31,6 +31,10 @@ import {
   NotificationCategory,
 } from '@/services/notificationPreferences';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3 (2026-09-18): shared bottom clearance so the LAST control on
+// a scrollable screen can never sit under the floating pill + Sell FAB at max
+// scroll (this screen was the reported F3 defect).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 const CATEGORY_LABELS: Record<NotificationCategory, string> = {
@@ -478,7 +482,10 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 32,
+    // FIX-Task-66 item 3 (F3): was 32, which left `quiet-hours-save-button` inside
+    // the Sell FAB's tappable band at max scroll (tapping its own centre opened the
+    // Sell sheet). 120 clears the pill + FAB on every device safe-area inset.
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   sectionDescription: {
     fontSize: 14,

@@ -22,6 +22,10 @@ import { colors } from '@/theme/colors';
 import { LoadingSpinner } from '@/components/ui';
 import * as ImagePicker from 'expo-image-picker';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
+// FIX-Task-66 item 4: single-source photo-picker failure copy (the canonical wording).
+import { PHOTO_PICK_FAILED_COPY, PHOTO_TAKE_FAILED_COPY } from '@/constants/uiCopy';
 
 interface UploadState {
   selectedImage: string | null;
@@ -103,7 +107,8 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
       setState((prev) => ({
         ...prev,
         // FIX-Task-65 item 11 (symmetric): give the user an immediate next step.
-        error: 'Failed to pick image. Please try again, or use the camera.',
+        // FIX-Task-66 item 4: hoisted to constants/uiCopy.ts (single source).
+        error: PHOTO_PICK_FAILED_COPY,
       }));
     }
   };
@@ -134,7 +139,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
       setState((prev) => ({
         ...prev,
         // FIX-Task-65 item 11: was the terse 'Failed to take photo'.
-        error: 'Failed to take photo. Please try again, or upload a photo from your library.',
+        // FIX-Task-66 item 4: this is now the CANONICAL string, shared with
+        // ImagePickerGrid — hoisted to constants/uiCopy.ts.
+        error: PHOTO_TAKE_FAILED_COPY,
       }));
     }
   };
@@ -360,7 +367,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 48,
+    // FIX-Task-66 item 3 (F3): `id-verification-submit-btn` is the last control
+    // (was 48).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   centeredContainer: {
     flex: 1,

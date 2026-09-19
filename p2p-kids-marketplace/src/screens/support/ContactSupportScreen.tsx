@@ -18,6 +18,8 @@ import { supabase } from '@/config/supabase';
 import { captureException } from '@/services/errorReporter';
 import { useAuth } from '@/hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 interface ContactSupportScreenProps {
@@ -295,7 +297,8 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 24,
-    paddingBottom: 40,
+    // FIX-Task-66 item 3 (F3): `send-message-button` is the last control (was 40).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   intro: {
     fontSize: 15,

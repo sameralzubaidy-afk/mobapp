@@ -80,6 +80,8 @@ import ScreenLayout from '@/components/ScreenLayout';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import { registerQaScrollToHandler, scrollChildIntoView } from '@/services/qaScrollRegistry';
+// FIX-Task-66 item 3: shared clearance constant (was a local literal here).
+import { TAB_BAR_FOOTER_CLEARANCE } from '@/constants/layout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TradeTimelineRouteProp = RouteProp<RootStackParamList, 'TradeTimeline'>;
@@ -98,7 +100,8 @@ const QA_TOOLING_ENABLED: boolean =
 
 // FIX-Task-7 item 5a: the pinned "I Got It — Complete Trade" footer sits just
 // above the floating PersistentTabBar (pill top ≈ insets.bottom + ~72; + 12 gap).
-const TAB_BAR_FOOTER_CLEARANCE = 84;
+// FIX-Task-66 item 3 (2026-09-18): hoisted to constants/layout.ts so every
+// in-scope screen reserves the SAME measured clearance. Value unchanged (84).
 
 // FIX-Task-13 item 1 (2026-09-10): the vertical space the pinned footer needs.
 // Module-scope so the ScrollView padding AND the dev diagnostic below use the

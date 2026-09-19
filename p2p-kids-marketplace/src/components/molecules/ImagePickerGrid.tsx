@@ -27,6 +27,11 @@ import { Camera, Images, Plus } from 'phosphor-react-native';
 // Single source of truth — ItemCreate / Bulk Listing / EditListing all share the
 // same cap (photoService.MAX_FILE_SIZE_MB) so the surfaces can never drift again.
 import { MAX_FILE_SIZE_MB } from '../../services/photoService';
+// FIX-Task-66 item 4: single-source photo-picker failure copy (was two divergent strings).
+import {
+  PHOTO_PICK_FAILED_COPY,
+  PHOTO_TAKE_FAILED_COPY,
+} from '@/constants/uiCopy';
 // FIX-Task-29 item 7B: every colour comes from the Pass It Up token set, so no
 // future caller can re-introduce an off-brand (e.g. iOS system blue) button here.
 import { theme } from '../../theme';
@@ -117,7 +122,7 @@ export default function ImagePickerGrid({
       }
     } catch (error) {
       console.error('[ImagePickerGrid] pickFromGallery error:', error);
-      Alert.alert('Error', 'Failed to pick images. Please try again.');
+      Alert.alert('Error', PHOTO_PICK_FAILED_COPY);
     }
   };
 
@@ -160,7 +165,8 @@ export default function ImagePickerGrid({
       }
     } catch (error) {
       console.error('[ImagePickerGrid] pickFromCamera error:', error);
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      // FIX-Task-66 item 4: was the terse 'Failed to take photo. Please try again.'
+      Alert.alert('Error', PHOTO_TAKE_FAILED_COPY);
     }
   };
 

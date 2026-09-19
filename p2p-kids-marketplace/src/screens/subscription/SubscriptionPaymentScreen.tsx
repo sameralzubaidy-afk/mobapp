@@ -26,6 +26,8 @@ import { formatDollarAmount } from '@/utils/formatPrice';
 import { memberFeePaymentLine } from '@/utils/memberFeeCopy';
 import { captureException, captureMessage } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -239,7 +241,9 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 40,
+    // FIX-Task-66 item 3 (F3): the web-purchase CTA + terms are the final controls
+    // (was 40).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   header: {
     marginBottom: 24,

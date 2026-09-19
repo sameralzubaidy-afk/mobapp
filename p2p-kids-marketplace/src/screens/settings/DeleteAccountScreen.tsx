@@ -26,6 +26,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { captureException } from '@/services/errorReporter';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 const CONSEQUENCES = [
@@ -235,7 +237,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 32,
-    paddingBottom: 40,
+    // FIX-Task-66 item 3 (F3): the delete/cancel pair are the last controls (was 40).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
     alignItems: 'center',
   },
   iconContainer: {

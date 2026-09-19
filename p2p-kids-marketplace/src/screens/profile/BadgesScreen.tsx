@@ -10,6 +10,8 @@ import { UserBadge, Badge } from '../../types/badge';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 6: single-source locked-badge encouragement copy.
+import { LOCKED_BADGE_ENCOURAGEMENT } from '@/constants/uiCopy';
 
 interface BadgeModalData extends Badge {
   earned?: boolean;
@@ -134,7 +136,13 @@ const BadgesScreen = ({ navigation: _navigation }: any) => {
             <Text style={styles.modalDescription}>
               {selectedBadge?.earned
                 ? selectedBadge.description
-                : selectedBadge?.description || 'Keep going to unlock this badge!'}
+                : selectedBadge?.description
+                  ? // FIX-Task-66 item 6 (2026-09-18): guide MSG-TC-B02 expects a locked
+                    // badge to show the requirement AND encouragement. The encouragement
+                    // previously fell back in only when the description was empty, so a
+                    // locked badge with a requirement showed none at all.
+                    `${selectedBadge.description}\n${LOCKED_BADGE_ENCOURAGEMENT}`
+                  : LOCKED_BADGE_ENCOURAGEMENT}
             </Text>
             {selectedBadge?.earned && selectedBadge?.userBadgeInfo && (
               <Text style={styles.modalUnlockDate}>

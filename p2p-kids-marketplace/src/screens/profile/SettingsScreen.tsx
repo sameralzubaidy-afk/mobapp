@@ -30,6 +30,8 @@ import { sendTestPushNotification } from '../../services/pushDelivery';
 import { captureException } from '@/services/errorReporter';
 import { useAuth } from '../../hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 // QA-only render-crash trigger (ACC-TC-L01-L04) — inert in production builds
 // (see QaCrashProbe + devTestingService.getQaCrashTriggerMode gate).
 import QaCrashProbe from '@/components/QaCrashProbe';
@@ -299,7 +301,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    // FIX-Task-66 item 3 (F3): Sign Out is the last row (was 40).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   sectionHeader: {
     fontSize: 12,

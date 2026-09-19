@@ -11,6 +11,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
+// FIX-Task-66 item 1: single-source NaN-safe date helpers + the notification copy
+// builders (unit-tested in ../_shared/notification-dates.test.ts).
+import {
+  buildCancellationNotificationCopy,
+  buildRenewalNotificationCopy,
+  resolveNotificationDeadline,
+} from '../_shared/notification-dates.ts';
 
 // ─── Stripe client ────────────────────────────────────────────────────────────
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -252,16 +259,19 @@ async function handleSubscriptionUpdated(
   }
 
   // ── Fetch the subscription record ─────────────────────────────────────────
+  // FIX-Task-66 item 1: also read the fallback deadline columns — the Stripe
+  // payload's current_period_end is NULL for this environment (systemic), so the
+  // stored row is the last usable source before the copy must omit the date.
   let { data: sub, error: fetchError } = await supabase
     .from('subscriptions')
-    .select('id, user_id, status, current_period_end')
+    .select('id, user_id, status, current_period_end, next_billing_date, grace_ends_at')
     .eq('stripe_subscription_id', stripeSubId)
     .maybeSingle();
 
   if ((!sub || fetchError) && stripeCustomerId) {
     const fallback = await supabase
       .from('subscriptions')
-      .select('id, user_id, status, current_period_end')
+      .select('id, user_id, status, current_period_end, next_billing_date, grace_ends_at')
       .eq('stripe_customer_id', stripeCustomerId)
       .maybeSingle();
 
@@ -348,12 +358,29 @@ async function handleSubscriptionUpdated(
     !subscription.cancel_at_period_end &&
     periodAdvanced
   ) {
-    await sendSubscriptionRenewalNotification(sub.user_id, currentPeriodEnd || '');
+    await sendSubscriptionRenewalNotification(
+      sub.user_id,
+      resolveNotificationDeadline([currentPeriodEnd, sub.current_period_end, sub.next_billing_date]),
+    );
   }
 
   // 2. Subscription cancelled (cancel_at_period_end set to true)
   if (subscription.cancel_at_period_end && sub.status !== 'canceled') {
-    await sendCancellationConfirmationNotification(sub.user_id, currentPeriodEnd || '');
+    // FIX-Task-66 item 1 (2026-09-18): the webhook's current_period_end is NULL in
+    // this environment (systemic — DEV-TASK-88), which used to emit
+    // "You'll have access until Invalid Date". Fall back to the stored row; when
+    // nothing usable exists the notification omits the date clause entirely.
+    // grace_ends_at is LAST: at cancel-at-period-end the account is not yet in
+    // grace, so it is normally NULL here.
+    await sendCancellationConfirmationNotification(
+      sub.user_id,
+      resolveNotificationDeadline([
+        currentPeriodEnd,
+        sub.current_period_end,
+        sub.next_billing_date,
+        sub.grace_ends_at,
+      ]),
+    );
   }
 
   // If entering grace period, enter grace + sync SP wallet to 'grace_period' (R6)
@@ -1114,7 +1141,10 @@ async function handleInvoicePaymentSucceeded(
 /**
  * Send subscription renewal success notification
  */
-async function sendSubscriptionRenewalNotification(userId: string, nextBillingDate: string): Promise<void> {
+async function sendSubscriptionRenewalNotification(
+  userId: string,
+  nextBillingDate: string | null,
+): Promise<void> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -1124,11 +1154,10 @@ async function sendSubscriptionRenewalNotification(userId: string, nextBillingDa
   }
 
   try {
-    const formattedDate = new Date(nextBillingDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    // FIX-Task-66 item 1: never interpolate an unguarded date — an absent /
+    // unparseable value used to render the literal "Invalid Date". The guard and
+    // the copy live in _shared/notification-dates.ts so they are unit-tested.
+    const { body, pushBody } = buildRenewalNotificationCopy(nextBillingDate);
 
     // Create notification in database
     const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -1137,7 +1166,7 @@ async function sendSubscriptionRenewalNotification(userId: string, nextBillingDa
       category: 'subscription',
       type: 'subscription',
       title: 'Subscription Renewed ✅',
-      body: `Your Kids Club+ subscription has been renewed. Your next billing date is ${formattedDate}.`,
+      body,
       channels: ['push', 'in_app'],
       data: {
         event: 'subscription_renewed',
@@ -1157,7 +1186,7 @@ async function sendSubscriptionRenewalNotification(userId: string, nextBillingDa
       body: {
         user_id: userId,
         title: 'Subscription Renewed ✅',
-        body: `Your Kids Club+ subscription has been renewed. Next billing: ${formattedDate}.`,
+        body: pushBody,
         data: {
           type: 'subscription',
           event: 'subscription_renewed',
@@ -1260,7 +1289,10 @@ async function sendSubscriptionWelcomeNotification(userId: string, isTrial: bool
 /**
  * Send cancellation confirmation notification
  */
-async function sendCancellationConfirmationNotification(userId: string, accessUntil: string): Promise<void> {
+async function sendCancellationConfirmationNotification(
+  userId: string,
+  accessUntil: string | null,
+): Promise<void> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -1270,11 +1302,14 @@ async function sendCancellationConfirmationNotification(userId: string, accessUn
   }
 
   try {
-    const formattedDate = new Date(accessUntil).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    // FIX-Task-66 item 1 (2026-09-18): guard the date interpolation. This is the LIVE
+    // writer for the "Invalid Date" rows — `new Date('')` does not throw, it returns
+    // "Invalid Date", and Stripe reports NULL current_period_end for this environment's
+    // subscriptions (systemic — see handleSubscriptionUpdated). When no usable deadline
+    // exists the date clause is OMITTED: the sentence stays complete and natural, with
+    // no placeholder and no invented date. The FIX-Task-50 item 1 (R6 model) wording
+    // and the guard both live in _shared/notification-dates.ts so they are unit-tested.
+    const { body, pushBody } = buildCancellationNotificationCopy(accessUntil);
 
     // Create notification in database
     const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -1283,11 +1318,7 @@ async function sendCancellationConfirmationNotification(userId: string, accessUn
       category: 'subscription',
       type: 'subscription',
       title: 'Subscription Cancelled',
-      // FIX-Task-50 item 1 (class sweep, 2026-09-17): R6 model — during grace the wallet
-      // stays SPENDABLE and only new EARNING stops; it freezes when the grace window ends.
-      // The hardcoded "90-day" was dropped too: the window is
-      // admin_config.grace_period_days (30 on staging), so the copy must not assert it.
-      body: `Your Kids Club+ subscription has been cancelled. You'll have access until ${formattedDate}, then a grace period where you can still spend your Swap Points but won't earn new ones.`,
+      body,
       channels: ['push', 'in_app'],
       data: {
         event: 'subscription_cancelled',
@@ -1308,7 +1339,8 @@ async function sendCancellationConfirmationNotification(userId: string, accessUn
         user_id: userId,
         title: 'Subscription Cancelled',
         // FIX-Task-50 item 1 (class sweep): same R6 wording as the in-app copy above.
-        body: `You'll have access until ${formattedDate}. After that you can still spend your Swap Points, but you won't earn new ones.`,
+        // FIX-Task-66 item 1: date clause omitted when no usable deadline exists.
+        body: pushBody,
         data: {
           type: 'subscription',
           event: 'subscription_cancelled',

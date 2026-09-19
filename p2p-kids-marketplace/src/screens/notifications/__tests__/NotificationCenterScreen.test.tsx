@@ -2,12 +2,13 @@
 // MODULE-15.1 FLOW-17: Unit tests for Notifications redesign
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { IdentificationCard, Trophy } from 'phosphor-react-native';
 import NotificationCenterScreen, { getNotificationIconConfig } from '../NotificationCenterScreen';
 import { useAuth } from '@/hooks/useAuth';
 import * as referralNotifications from '@/services/referralNotifications';
 import * as deepLink from '@/services/deepLink';
+import * as notificationBadgeRefreshRegistry from '@/services/notificationBadgeRefreshRegistry';
 
 // Mock navigation
 const mockGoBack = jest.fn();
@@ -23,6 +24,9 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('@/hooks/useAuth');
 jest.mock('@/services/referralNotifications');
 jest.mock('@/services/deepLink');
+// FIX-Task-66 item 2: the screen must ask the header badge to re-read after any
+// read-state mutation. Mocked so the assertion is unambiguous.
+jest.mock('@/services/notificationBadgeRefreshRegistry');
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockGetUserNotifications = referralNotifications.getUserNotifications as jest.MockedFunction<
@@ -42,6 +46,9 @@ const mockParseNotificationDeepLink = deepLink.parseNotificationDeepLink as jest
 >;
 const mockGetFallbackRoute = deepLink.getFallbackRoute as jest.MockedFunction<
   typeof deepLink.getFallbackRoute
+>;
+const mockRequestNotificationBadgeRefresh = notificationBadgeRefreshRegistry.requestNotificationBadgeRefresh as jest.MockedFunction<
+  typeof notificationBadgeRefreshRegistry.requestNotificationBadgeRefresh
 >;
 
 describe('NotificationCenterScreen - MODULE-15.1 FLOW-17', () => {
@@ -161,6 +168,140 @@ describe('NotificationCenterScreen - MODULE-15.1 FLOW-17', () => {
       });
 
       expect(mockMarkAllNotificationsAsRead).toHaveBeenCalledWith('test-user-123');
+    });
+  });
+
+  describe('FIX-Task-66 item 2 — header badge reconciliation after read-state changes', () => {
+    beforeEach(() => {
+      mockRequestNotificationBadgeRefresh.mockClear();
+    });
+
+    it('asks the header badge to re-read after "Mark all read"', async () => {
+      const { getByTestId } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('mark-all-read-link')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('mark-all-read-link'));
+
+      await waitFor(() => {
+        expect(mockMarkAllNotificationsAsRead).toHaveBeenCalledWith('test-user-123');
+        // The DB now holds 0 unread — the header badge must be told to re-read it.
+        expect(mockRequestNotificationBadgeRefresh).toHaveBeenCalled();
+      });
+    });
+
+    it('asks the header badge to re-read after a single notification is read', async () => {
+      const { getByTestId } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('notification-item-notif-1')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('notification-item-notif-1'));
+
+      await waitFor(() => {
+        expect(mockMarkNotificationAsRead).toHaveBeenCalledWith('notif-1', 'test-user-123');
+        expect(mockRequestNotificationBadgeRefresh).toHaveBeenCalled();
+      });
+    });
+
+    it('asks the header badge to re-read on pull-to-refresh', async () => {
+      const { getByTestId } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('notification-list')).toBeTruthy();
+      });
+
+      const list = getByTestId('notification-list');
+      await act(async () => {
+        list.props.refreshControl.props.onRefresh();
+      });
+
+      expect(mockRequestNotificationBadgeRefresh).toHaveBeenCalled();
+    });
+
+    it('does NOT ask for a refresh when a read notification is tapped (no write happened)', async () => {
+      // notif-2 is already read — tapping it writes nothing, so it must not trigger
+      // a needless badge reconciliation.
+      const { getByTestId } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('notification-item-notif-2')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('notification-item-notif-2'));
+
+      await waitFor(() => {
+        expect(mockMarkNotificationAsRead).not.toHaveBeenCalled();
+      });
+      expect(mockRequestNotificationBadgeRefresh).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('FIX-Task-66 item 12 — category quick filter', () => {
+    it('renders the filter chips with All selected by default', async () => {
+      const { getByTestId } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('notification-category-filter')).toBeTruthy();
+      });
+
+      expect(getByTestId('notification-filter-all')).toBeTruthy();
+      expect(getByTestId('notification-filter-trades')).toBeTruthy();
+      expect(getByTestId('notification-filter-badges')).toBeTruthy();
+      // Default view is unfiltered (category = null).
+      expect(mockGetUserNotifications).toHaveBeenCalledWith('test-user-123', 20, 0, null);
+    });
+
+    it('requests the tapped category server-side and restarts pagination at offset 0', async () => {
+      const { getByTestId } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('notification-filter-trades')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('notification-filter-trades'));
+
+      await waitFor(() => {
+        expect(mockGetUserNotifications).toHaveBeenCalledWith('test-user-123', 20, 0, 'trades');
+      });
+    });
+
+    it('ignores a realtime notification that the active filter excludes', async () => {
+      const { getByTestId, queryByText } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('notification-filter-badges')).toBeTruthy();
+      });
+
+      // Switch to a filter whose category is NOT `trades`.
+      fireEvent.press(getByTestId('notification-filter-badges'));
+
+      await waitFor(() => {
+        expect(mockGetUserNotifications).toHaveBeenCalledWith('test-user-123', 20, 0, 'badges');
+      });
+
+      // The most recently registered subscription belongs to the filtered view.
+      const calls = mockSubscribeToNotifications.mock.calls;
+      const onRealtime = calls[calls.length - 1][1] as (n: any) => void;
+
+      onRealtime({
+        id: 'rt-off-category',
+        user_id: 'test-user-123',
+        category: 'trades',
+        type: 'trade_request',
+        title: 'Off-category realtime row',
+        body: 'should never appear under the Badges filter',
+        is_read: false,
+        created_at: new Date().toISOString(),
+        data: {},
+      });
+
+      await waitFor(() => {
+        expect(queryByText('Off-category realtime row')).toBeNull();
+      });
     });
   });
 

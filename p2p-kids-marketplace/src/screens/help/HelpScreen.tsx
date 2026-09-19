@@ -13,6 +13,8 @@ import { EducationSectionAccordion } from '../../components/education/EducationS
 import { SPCalculator } from '../../components/education/SPCalculator';
 import { BonusCategoriesList } from '../../components/education/BonusCategoriesList';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 
 interface HelpScreenProps {
   navigation: any;
@@ -240,7 +242,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 32,
+    // FIX-Task-66 item 3 (F3): the FAQ rows / contact CTA are the final controls
+    // (was 32).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   hero: {
     backgroundColor: '#F0FAF5',

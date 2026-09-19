@@ -43,6 +43,9 @@ import { supabase } from '@/config/supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance so the last conversation row and the
+// load-more control clear the floating pill + Sell FAB.
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 import { KEYBOARD_DONE_ACCESSORY_ID } from '@/components/shared/KeyboardDoneAccessory';
 
 export default function ConversationsListScreen() {
@@ -518,7 +521,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingBottom: 16,
+    // FIX-Task-66 item 3 (F3): was 16 — the final row / load-more sat in the FAB band.
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   loadMoreButton: {
     alignSelf: 'center',

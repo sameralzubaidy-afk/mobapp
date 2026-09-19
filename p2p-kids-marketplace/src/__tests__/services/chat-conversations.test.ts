@@ -176,14 +176,20 @@ describe('chat.ts - getUnreadCount', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         is: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
         single: jest.fn(),
       };
 
       if (table === 'trades') {
         chain.single.mockResolvedValue({ data: mockTrade, error: null });
       } else if (table === 'messages') {
-        chain.gte.mockResolvedValue({ data: mockUnreadMessages, error: null });
+        // FIX-Task-66 item 7 (2026-09-18): unread is now counted from the DB
+        // (`read_at IS NULL`, terminal) instead of a device-local AsyncStorage stamp.
+        // Chain on the deleted_at filter and resolve only on read_at.
+        chain.is.mockImplementation((column: string) =>
+          column === 'read_at'
+            ? Promise.resolve({ data: mockUnreadMessages, error: null })
+            : chain
+        );
       }
 
       return chain;

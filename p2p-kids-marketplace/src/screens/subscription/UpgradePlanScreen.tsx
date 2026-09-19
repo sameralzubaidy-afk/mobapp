@@ -22,6 +22,8 @@ import {
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// FIX-Task-66 item 3: shared bottom clearance (pill + Sell FAB overlay the content).
+import { TAB_BAR_PINNED_CLEARANCE } from '@/constants/layout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -263,7 +265,8 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    // FIX-Task-66 item 3 (F3): the last plan's CTA is the final control (was 40).
+    paddingBottom: TAB_BAR_PINNED_CLEARANCE,
   },
   header: {
     alignItems: 'center',

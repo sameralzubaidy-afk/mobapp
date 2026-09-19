@@ -385,27 +385,26 @@ export async function getConversations(
           );
         }
 
-        // Get unread count based on last time user viewed this trade
-        // Uses AsyncStorage timestamp set by markAsRead() (client-only MVP; no DB schema changes).
+        // FIX-Task-66 item 7 (2026-09-18): unread is now read from the SAME source of
+        // truth as the header chat badge (`messages.read_at IS NULL`, maintained by the
+        // `mark_trade_messages_read` RPC when a chat is opened).
+        //
+        // Previously this counted messages newer than a DEVICE-LOCAL AsyncStorage
+        // `last_viewed_*` timestamp, which is why the header badge (1) and the list
+        // rows (9 across 7 conversations) could disagree on the same screen: the two
+        // surfaces used different definitions, and the device-local stamp is lost on
+        // reinstall / never written when a chat is read on another device.
         let unreadCount = 0;
         try {
-          const lastViewedKey = `last_viewed_${userId}_${trade.id}`;
-          const lastViewedStr = await AsyncStorage.getItem(lastViewedKey);
-          const lastViewedMs = parseLastViewedMs(lastViewedStr);
-
           const { data: unreadMessages } = await supabase
             .from('messages')
-            .select('id, created_at')
+            .select('id')
             .eq('trade_id', trade.id)
             .eq('sender_id', otherUserId)
             .is('deleted_at', null)
-            .gte('created_at', new Date(lastViewedMs).toISOString());
+            .is('read_at', null);
 
-          unreadCount =
-            unreadMessages?.filter((msg: { id: string; created_at: string }) => {
-              const msgTime = new Date(msg.created_at).getTime();
-              return Number.isFinite(msgTime) && msgTime > lastViewedMs;
-            }).length ?? 0;
+          unreadCount = unreadMessages?.length ?? 0;
         } catch {
           console.warn(
             '[chat.getConversations] Could not compute unread count for trade:',
@@ -460,11 +459,6 @@ export async function getUnreadCount(tradeId: string, userId: string): Promise<n
   }
 
   try {
-    // Get the last time this user viewed this trade's messages
-    const lastViewedKey = `last_viewed_${userId}_${tradeId}`;
-    const lastViewedStr = await AsyncStorage.getItem(lastViewedKey);
-    const lastViewed = parseLastViewedMs(lastViewedStr);
-
     // Get trade to determine other user
     const { data: trade } = await supabase
       .from('trades')
@@ -478,23 +472,19 @@ export async function getUnreadCount(tradeId: string, userId: string): Promise<n
 
     const otherUserId = trade.buyer_id === userId ? trade.seller_id : trade.buyer_id;
 
-    // Count messages from other user that arrived AFTER last view time
+    // FIX-Task-66 item 7 (2026-09-18): count counterparty messages that are still
+    // UNREAD in the DB (`read_at IS NULL`) — the same source of truth the header chat
+    // badge uses. The previous device-local AsyncStorage `last_viewed_*` comparison
+    // disagreed with the header whenever the stamp was missing or stale.
     const { data: unreadMessages } = await supabase
       .from('messages')
-      .select('id, created_at')
+      .select('id')
       .eq('trade_id', tradeId)
       .eq('sender_id', otherUserId)
       .is('deleted_at', null)
-      .gte('created_at', new Date(lastViewed).toISOString());
+      .is('read_at', null);
 
-    // Filter messages that are actually after the last viewed time
-    const actualUnread =
-      unreadMessages?.filter((msg: { id: string; created_at: string }) => {
-        const msgTime = new Date(msg.created_at).getTime();
-        return Number.isFinite(msgTime) && msgTime > lastViewed;
-      }) || [];
-
-    return actualUnread.length;
+    return unreadMessages?.length ?? 0;
   } catch (error) {
     // FIX-Task-15 item 6 (2026-09-10): background badge count — non-critical,
     // so console.warn (a console.error here raised a dev LogBox on a normal path).
@@ -581,7 +571,11 @@ export async function markAsRead(tradeId: string, userId: string): Promise<void>
   }
 
   try {
-    // Store the current timestamp as when this user last viewed this trade
+    // FIX-Task-66 item 7 (2026-09-18): NOTE — this device-local stamp is NO LONGER what
+    // read-state is derived from. Unread counts now come from `messages.read_at`
+    // (`mark_trade_messages_read`, called by ChatScreen when a chat opens), so this
+    // write is advisory only and kept for backwards compatibility with existing
+    // callers. Do not reintroduce a read-state comparison against it.
     const lastViewedKey = `last_viewed_${userId}_${tradeId}`;
     const now = new Date().toISOString();
     await AsyncStorage.setItem(lastViewedKey, now);
