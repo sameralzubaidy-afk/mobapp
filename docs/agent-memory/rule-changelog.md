@@ -11,3 +11,4 @@ Format: `date | id | file | summary (max 120 chars) | source task`
 | 2026-09-19 | §9.1i | docs/agent-ref/troubleshooting.md | Added: size a data defect by COUNTING the whole set, never from the sample query that demonstrated it | FIX-Task-66 (2026-09-18) |
 | 2026-09-19 | — | docs/agent-ref/mcp-and-tooling.md | Added: a deployment can be STALE — check the deployed revision before hypothesising a hidden writer | FIX-Task-66 (2026-09-18) |
 | 2026-09-19 | — | .github/agents/Kids P2P App Builder.agent.md | Swapped: compressed the §9.1 title index in place to make room for 9.1i (net size shrink) | FIX-Task-66 (2026-09-18) |
+| 2026-09-19 | §9.1i | docs/agent-ref/troubleshooting.md | Extended: when the defect IS the value (garbled glyphs), count the CORRUPTION token, not the intended text | FIX-Task-67 (2026-09-19) |

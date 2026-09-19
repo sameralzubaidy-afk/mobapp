@@ -225,6 +225,8 @@
 **Expected Result:**
 - The chip text is inserted/sent as a message; chips include: "📅 Available today", "📆 Available tomorrow", "🗓 Suggest times", "📍 Public place only", "⏰ Running late" (with a "+ More" expander).
 
+> **Updated 2026-09-19 (FIX-Task-67 item 3 / MSG Round 3 finding N2):** the row used to be a **horizontal scroller**, so on Android the 3rd chip's label was clipped and the "+ More" expander sat off-screen. It now **wraps onto a second line** — expect 3 chips **plus** `quick-reply-chip-more` all fully visible without any scrolling, and all 5 chips visible after tapping "+ More".
+
 ### MSG-TC-A09 · Safety meeting banner + modal
 
 **Actors:** test-buyer
@@ -635,6 +637,8 @@
 **Expected Result:**
 - The edit saves inline and shows a green "✓ Saved successfully" confirmation line (not a dialog); the updated copy is used for users.
 
+> **Updated 2026-09-19 (FIX-Task-67 item 8 / MSG Round 3 UX):** the confirmation line used to auto-clear after **3 s**, which made the save state ambiguous. It now **stays on screen until the next edit or save of that row**, so a QA round should assert the line is still present after a wait (do **not** treat "still visible" as stale UI).
+
 ### MSG-TC-E06 · New submission creates admin alert notification
 
 **Actors:** admin, new-user
@@ -680,6 +684,8 @@
 **Expected Result:**
 - A "Copied!" confirmation ("Referral code copied to clipboard") appears.
 
+> **Noted 2026-09-19 (FIX-Task-67 item 1):** the copy icon copies the **bare 8-character code**, not a URL — a recipient still has to paste the code into **Referral Code** on Create Account (case F06). The hand-off that carries the link is **Share** (F03), so the two cases are not interchangeable.
+
 ### MSG-TC-F03 · Share referral code
 
 **Actors:** test-referrer
@@ -688,9 +694,18 @@
 
 **Steps:**
 1. Tap **Share**.
+2. Read the link inside the share sheet preview and check it opens the app (device recipe below).
 
 **Expected Result:**
 - The native share sheet opens with a message containing the code and link (and dynamic bonus text when trade/listing bonuses are enabled).
+- The link is **`p2pkidsmarketplace://signup?ref=<code>`** — the app scheme that is actually registered (iOS `Info.plist` `CFBundleURLSchemes`, Android `AndroidManifest.xml` intent-filter and `app.json` `scheme`), **not** the retired `kidsclub://` scheme. A link built on an unregistered scheme cannot be opened by any app.
+
+> ✅ **Corrected 2026-09-19 (FIX-Task-67 item 1 / MSG Round 3 finding N1).** Until this fix every shared link was **dead on both platforms** (`kidsclub://` was registered nowhere), so the referral program's only viral channel handed recipients an unopenable link. Copy in the share sheet is now built from the registered scheme.
+
+**Device verification recipe (the case's real acceptance criterion):**
+- iOS: `xcrun simctl openurl booted "p2pkidsmarketplace://signup?ref=<code>"`
+- Android: `adb shell am start -a android.intent.action.VIEW -d "p2pkidsmarketplace://signup?ref=<code>"`
+- Expected: the app opens the **Create Account** screen with the **Referral Code** field already filled with `<code>` (case F06) — that is what makes the shared link work end-to-end. Run it **logged out** (the `Signup` route only exists outside the authenticated stack).
 
 ### MSG-TC-F04 · Active rewards display
 
@@ -727,6 +742,7 @@
 
 **Expected Result:**
 - A valid code is accepted and the referral is created in pending status; an invalid code prompts "Invalid Referral Code … Would you like to fix it or continue without a code?" with **Fix it** / **Continue anyway**.
+- **Opening a shared referral link (case F03) pre-fills the field**: `p2pkidsmarketplace://signup?ref=<code>` lands on Create Account with **Referral Code** already containing `<code>`, so the recipient only completes the form. (FIX-Task-67 item 1, 2026-09-19 — before the fix the link did not open at all, and even with a valid scheme the code would have been dropped.)
 
 ### MSG-TC-F07 · Program paused banner + disabled share
 
@@ -777,16 +793,29 @@
 
 ### MSG-TC-G02 · Appeal a flagged/rejected listing
 
+> ✅ **Corrected 2026-09-19 (MSG Round 3 finding N4 → FIX-Task-67 item 4).** Two things about this case were wrong: (1) the **empty-reason limb is unreachable** — the `Appeal This Decision` CTA is `disabled` until a reason is typed, so the "Please explain why you are appealing this decision." alert can never fire; (2) the flow has an **undocumented edit-first gate** — the server (`submitListingAppeal`) rejects any appeal until the seller has edited the rejected listing (`edited_since_rejection`), answering *"Please edit your listing before submitting an appeal."* The steps and expected result below now describe what actually ships, and the screen now carries a one-line helper (`appeal-edit-gate-hint`: *"Appeal becomes available after you edit the listing."*) so the CTA is not a silent dead-end.
+
 **Actors:** test-seller
 
-**Objective:** Verify the appeal flow and validation.
+**Objective:** Verify the appeal flow, its validation, and the edit-first requirement.
 
 **Steps:**
-1. On the Safety Review screen tap **Appeal**.
-2. Submit with an empty reason, then with under 10 characters, then with a valid explanation.
+1. Open the **Safety Review** screen of a **rejected** listing that has **not** been edited since rejection.
+2. Observe the appeal area with the reason field empty (do **not** expect an alert — the CTA is disabled), then tap **Edit Listing**, change the description, and **Save** (this satisfies the edit-first gate).
+3. Return to **Safety Review**, enter a reason under 10 characters, and tap **Appeal This Decision**.
+4. Enter a valid explanation (≥10 characters) and confirm.
 
 **Expected Result:**
-- Empty shows "Please explain why you are appealing this decision."; under 10 chars shows the minimum-length message; a valid appeal shows "Appeal Submitted — Your listing is back under review." (appeals are limited to the configured max).
+- Open the case on a **rejected** listing that has not been edited since rejection: the appeal CTA is **disabled while the reason field is empty** (no alert fires) and the helper line *"Appeal becomes available after you edit the listing."* renders above it. The empty-reason alert ("Please explain why you are appealing this decision.") exists in code but is unreachable through the UI — do not file it as a defect.
+- After editing the listing (step 2) the helper line disappears, because the edit-first gate is satisfied.
+- Under 10 characters shows the minimum-length message ("Appeal Reason Too Short" / "Please provide at least 10 characters so admin can review context."); a valid appeal shows "Appeal Submitted — Your listing is back under review." (appeals are limited to the configured max).
+
+**Locator hints:**
+- Appeal reason field → `appeal-reason-input` · edit-first helper (shown only while the gate is unmet) → `appeal-edit-gate-hint` · appeal CTA → the **Appeal This Decision** button (disabled until the reason field is non-empty).
+- Skipping step 2 on a **fresh** rejection produces the server error *"Error / Please edit your listing before submitting an appeal."* — that path is the gate working, not a bug.
+
+**Dependencies:**
+- Editing the listing on a rejected item sets `items.edited_since_rejection` (via `updateListing` / the image-sync path); the appeal RPC is refused until it is set. Fixture note: a rejection created by `qa:r41-moderation` starts with `edited_since_rejection = false`, so an edit-first hop is always required before a valid-appeal drive.
 
 ### MSG-TC-G03 · Resubmit a "needs edits" listing
 

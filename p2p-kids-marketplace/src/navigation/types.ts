@@ -3,7 +3,12 @@ export type RootStackParamList = {
   Home: undefined;
   Discover: undefined;
   Login: undefined;
-  Signup: undefined;
+  /**
+   * FIX-Task-67 item 1: the shared referral link is
+   * `p2pkidsmarketplace://signup?ref=<code>`, so the route accepts the referral
+   * code as a param (SignupScreen pre-fills the optional Referral Code field).
+   */
+  Signup: { ref?: string } | undefined;
   SuspendedAccount: undefined;
   PhoneVerification: undefined;
   ProfileSetup: undefined;

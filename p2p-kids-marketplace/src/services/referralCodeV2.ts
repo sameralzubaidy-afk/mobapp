@@ -146,10 +146,24 @@ export class ReferralCodeServiceV2 {
 
   /**
    * Get shareable referral link (deep link format)
+   *
+   * FIX-Task-67 item 1 (MSG Round 3 finding N1): the scheme MUST be one the app
+   * actually registers, otherwise every shared link is dead. `kidsclub://` was
+   * registered nowhere — Android (`AndroidManifest.xml` + `app.json`) and iOS
+   * (`Info.plist`) both register `p2pkidsmarketplace` — so the referral program's
+   * only viral channel handed recipients a link no app could open. The `signup`
+   * path is registered in the `AppNavigator` linking config and
+   * `SignupScreen` reads the `ref` query param.
+   *
+   * TODO(question): if the long-term intent is an https universal link
+   * (e.g. `https://<domain>/signup?ref=<code>`) that needs a real domain, an
+   * associated-domains / asset-links setup and a web landing page before it can
+   * ship — the mobile app cannot open an https link today, so it would be dead
+   * exactly like the old scheme.
    */
   static getReferralLink(code: string): string {
-    const baseUrl = 'kidsclub://signup';
-    return `${baseUrl}?ref=${code}`;
+    const baseUrl = 'p2pkidsmarketplace://signup';
+    return `${baseUrl}?ref=${encodeURIComponent(code)}`;
   }
 
   /**

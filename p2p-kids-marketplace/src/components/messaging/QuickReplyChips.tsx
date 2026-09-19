@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 interface Chip {
   id: string;
@@ -53,12 +53,7 @@ export function QuickReplyChips({ onChipPress }: Props) {
   const visibleChips = expanded ? CHIPS : CHIPS.slice(0, INITIAL_VISIBLE);
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.scroll}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <View style={styles.row} testID="quick-reply-chips-row">
       {visibleChips.map((chip) => (
         <TouchableOpacity
           key={chip.id}
@@ -86,20 +81,23 @@ export function QuickReplyChips({ onChipPress }: Props) {
           <Text style={styles.moreLabel}>+ More</Text>
         </TouchableOpacity>
       )}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 0,
-  },
-  contentContainer: {
+  // FIX-Task-67 item 3 (MSG Round 3 finding N2): this was a horizontal ScrollView,
+  // which let the chips overflow the Android viewport — the 3rd label was clipped
+  // and `quick-reply-chip-more` sat off-screen with no scroll affordance, so half
+  // the chip set was unreachable. The row now WRAPS instead of scrolling: every
+  // chip and the expander stay on screen (2 short rows collapsed, 2–3 expanded).
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    gap: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   chip: {
     backgroundColor: '#F0F0F0',

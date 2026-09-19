@@ -272,9 +272,17 @@ export function SubmitReviewScreen() {
     }
   };
 
+  // FIX-Task-67 item 2 (MSG Round 3 finding N3): on the `/submit-review?tradeId=`
+  // deep-link entry the reviewee name is only resolved after the eligibility check,
+  // so `Review ${revieweeName}` rendered the raw "Review undefined" title while
+  // loading. ONE derived title for the header + body: plain "Review" until a real
+  // name exists, never an interpolated undefined.
+  const resolvedRevieweeName = revieweeName?.trim();
+  const reviewTitle = resolvedRevieweeName ? `Review ${resolvedRevieweeName}` : 'Review';
+
   if (loading) {
     return (
-      <ScreenLayout variant="detail" title={`Review ${revieweeName}`}>
+      <ScreenLayout variant="detail" title={reviewTitle}>
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Checking review eligibility...</Text>
@@ -288,7 +296,7 @@ export function SubmitReviewScreen() {
   }
 
   return (
-    <ScreenLayout variant="detail" title={`Review ${revieweeName}`}>
+    <ScreenLayout variant="detail" title={reviewTitle}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -299,7 +307,7 @@ export function SubmitReviewScreen() {
           keyboardShouldPersistTaps="handled"
           testID="submit-review-screen"
         >
-          <Text style={styles.title}>Review {revieweeName}</Text>
+          <Text style={styles.title}>{reviewTitle}</Text>
           <Text style={styles.subtitle}>Share your experience with this trade</Text>
 
           {/* Rating Section */}

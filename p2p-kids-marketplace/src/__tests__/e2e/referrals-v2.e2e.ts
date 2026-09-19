@@ -357,7 +357,9 @@ d('Referrals V2 E2E', () => {
 
       const link = ReferralCodeServiceV2.getReferralLink(referralCode);
 
-      expect(link).toBe(`kidsclub://signup?ref=${referralCode}`);
+      // FIX-Task-67 item 1 (MSG Round 3 finding N1): the app registers
+      // `p2pkidsmarketplace`, not the old unregistered `kidsclub://` scheme.
+      expect(link).toBe(`p2pkidsmarketplace://signup?ref=${referralCode}`);
     });
   });
 
@@ -423,7 +425,9 @@ d('Referrals V2 E2E', () => {
         return;
       }
 
-      const deepLink = `kidsclub://signup?ref=${referralCode}`;
+      // FIX-Task-67 item 1 (MSG Round 3 finding N1): same link shape the referral
+      // screen shares — built from the registered app scheme.
+      const deepLink = `p2pkidsmarketplace://signup?ref=${referralCode}`;
 
       // Parse deep link (simulated)
       const url = new URL(deepLink);

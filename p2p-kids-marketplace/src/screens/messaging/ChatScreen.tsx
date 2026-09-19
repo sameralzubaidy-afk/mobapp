@@ -125,7 +125,11 @@ export default function ChatScreen() {
   } | null>(null);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
-  const [imageViewerImages, setImageViewerImages] = useState<{ uri: string }[]>([]);
+  // FIX-Task-67 UX item: each opened image now carries a caption (sender + time),
+  // so the full-screen viewer is not an anonymous picture with no context.
+  const [imageViewerImages, setImageViewerImages] = useState<
+    { uri: string; caption: string }[]
+  >([]);
   // MSG-009: Typing indicator state
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const otherUserTyping = Object.entries(typingUsers).some(
@@ -670,12 +674,25 @@ export default function ChatScreen() {
     }
   };
 
-  const handleImagePress = (imageUrl: string, allImages: string[]) => {
-    const images = allImages.map((url) => ({ uri: url }));
-    const index = allImages.findIndex((url) => url === imageUrl);
+  // FIX-Task-67 UX item (MSG Round 3): the full-screen viewer rendered the image
+  // alone — no sender, no timestamp, no counter context. Each image now carries a
+  // caption built from the message it came from.
+  const handleImagePress = (pressed: Message, allImageMessages: Message[]) => {
+    const captionFor = (message: Message) => {
+      const senderLabel =
+        message.sender_id === session?.user?.id ? 'You' : partnerProfile?.name || 'Trading partner';
+      return `${senderLabel} · ${new Date(message.created_at).toLocaleString()}`;
+    };
 
-    setImageViewerImages(images);
-    setImageViewerIndex(Math.max(0, index));
+    const imageMessages = allImageMessages.filter((msg) => !!msg.image_url);
+
+    setImageViewerImages(
+      imageMessages.map((msg) => ({
+        uri: msg.image_url as string,
+        caption: captionFor(msg),
+      }))
+    );
+    setImageViewerIndex(Math.max(0, imageMessages.findIndex((msg) => msg.id === pressed.id)));
     setImageViewerVisible(true);
   };
 
@@ -725,11 +742,10 @@ export default function ChatScreen() {
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === session?.user?.id;
 
-    // Get all image URLs from messages for image viewer
+    // Get all image messages for image viewer (captions use the whole set)
     const allImageMessages = messages.filter(
       (msg) => msg.message_type === 'image' && msg.image_url
     );
-    const allImageUrls = allImageMessages.map((msg) => msg.image_url!);
 
     return (
       <View
@@ -745,7 +761,7 @@ export default function ChatScreen() {
         >
           {item.message_type === 'image' && item.image_url ? (
             <TouchableOpacity
-              onPress={() => handleImagePress(item.image_url!, allImageUrls)}
+              onPress={() => handleImagePress(item, allImageMessages)}
               activeOpacity={0.8}
             >
               <Image source={{ uri: item.image_url }} style={styles.chatImage} resizeMode="cover" />
@@ -1138,6 +1154,13 @@ export default function ChatScreen() {
               resizeMode="contain"
             />
           )}
+
+          {/* FIX-Task-67 UX item: sender + timestamp caption for the opened image. */}
+          {imageViewerImages[imageViewerIndex]?.caption ? (
+            <Text style={styles.imageViewerCaption} testID="image-viewer-caption">
+              {imageViewerImages[imageViewerIndex].caption}
+            </Text>
+          ) : null}
 
           {imageViewerImages.length > 1 && (
             <>
@@ -1538,6 +1561,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+  },
+  // FIX-Task-67 UX item: sender + timestamp caption for the open image. Sits above
+  // the "n / m" counter so both are readable on one screen.
+  imageViewerCaption: {
+    position: 'absolute',
+    bottom: 88,
+    alignSelf: 'center',
+    maxWidth: '90%',
+    textAlign: 'center',
+    color: '#FFFFFF',
+    fontSize: 13,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   // TFV2-020: Safety banner styles (redesigned to match SafeMeetupCard)
   safetyBanner: {

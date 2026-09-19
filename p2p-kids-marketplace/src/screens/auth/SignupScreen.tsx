@@ -83,6 +83,26 @@ export default function SignupScreen() {
     hasPassword: false,
   });
 
+  // FIX-Task-67 item 1 (MSG Round 3 finding N1): pre-fill the optional referral
+  // code when the app is opened from a shared referral link
+  // (`p2pkidsmarketplace://signup?ref=<code>` — see
+  // ReferralCodeServiceV2.getReferralLink). Without this the link opened the app
+  // but silently dropped the code, so the referral was never attributed.
+  // Mirrors the param-consumption precedent used by `/submit-review?tradeId=`.
+  useEffect(() => {
+    const params = (route as any).params as
+      | { ref?: string; prefillTestUserId?: string }
+      | undefined;
+    // The dev fixture autofill below owns the form when it is requested.
+    if (params?.prefillTestUserId) return;
+
+    const incomingCode = typeof params?.ref === 'string' ? params.ref.trim() : '';
+    if (!incomingCode) return;
+
+    // Never clobber a code the user already typed.
+    setFormData((prev) => (prev.referralCode ? prev : { ...prev, referralCode: incomingCode }));
+  }, [route]);
+
   useEffect(() => {
     const params = (route as any).params as { prefillTestUserId?: string } | undefined;
     if (!__DEV__ || !params?.prefillTestUserId) return;

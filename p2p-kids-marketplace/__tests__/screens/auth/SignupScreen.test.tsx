@@ -7,6 +7,9 @@ import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+// FIX-Task-67 item 1 (MSG Round 3 finding N1): mutable route params so a test can
+// simulate the shared referral deep link `p2pkidsmarketplace://signup?ref=<code>`.
+let mockRouteParams: Record<string, unknown> = {};
 
 // SignupScreen now shows branded dialogs via useGlobalAlert (native Alert.alert
 // is no longer used for user-facing messages). Mock the hook to assert payloads.
@@ -23,7 +26,7 @@ jest.mock('@react-navigation/native', () => {
       navigate: mockNavigate,
       goBack: mockGoBack,
     }),
-    useRoute: () => ({ params: {} }),
+    useRoute: () => ({ params: mockRouteParams }),
   };
 });
 
@@ -64,6 +67,7 @@ describe('SignupScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockShowAlert.mockClear();
+    mockRouteParams = {};
     mockCheckCodeExists.mockResolvedValue(true as any);
   });
 
@@ -85,6 +89,18 @@ describe('SignupScreen', () => {
     expect(getByTestId('signup-submit-button')).toBeTruthy();
     expect(getByTestId('signup-social-buttons')).toBeTruthy();
     expect(getAllByText('Create Account').length).toBeGreaterThan(0);
+  });
+
+  // FIX-Task-67 item 1 (MSG Round 3 finding N1): the shared referral link is
+  // `p2pkidsmarketplace://signup?ref=<code>`. The screen must pre-fill the optional
+  // Referral Code field from that param — otherwise the link opens the app and
+  // silently drops the code, so the referral is never attributed.
+  it('pre-fills the referral code from the referral deep link', () => {
+    mockRouteParams = { ref: 'abc12345' };
+
+    const { getByTestId } = renderScreen();
+
+    expect(getByTestId('referralCode-input').props.value).toBe('abc12345');
   });
 
   it('shows field validation errors when submitting empty form', async () => {

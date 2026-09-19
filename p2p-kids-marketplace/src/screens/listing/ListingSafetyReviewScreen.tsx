@@ -235,6 +235,13 @@ export default function ListingSafetyReviewScreen() {
   const isRejected = listing.status === 'rejected';
   const isFlagged = listing.status === 'flagged';
   const needsEdits = listing.status === 'needs_edits';
+  // FIX-Task-67 item 4 (MSG Round 3 finding N4): the server gate in
+  // `submitListingAppeal` refuses an appeal until the seller has edited the
+  // rejected listing (`edited_since_rejection`), but the screen said nothing about
+  // it — the seller only found out via an error dialog. Pre-announce the gate.
+  // Only an explicit `false` from the API triggers the hint (if the field is
+  // missing we cannot claim the seller must edit first).
+  const appealEditGateBlocked = listing.edited_since_rejection === false;
   const appealsSubmitted = Number.isFinite(Number(listing.appeal_count))
     ? Number(listing.appeal_count)
     : 0;
@@ -420,6 +427,15 @@ export default function ListingSafetyReviewScreen() {
             >
               <Text style={styles.dangerButtonText}>Remove Listing</Text>
             </TouchableOpacity>
+
+            {/* FIX-Task-67 item 4 (MSG Round 3 finding N4): one-line explanation of
+                the edit-first requirement, so the appeal CTA is never a silent
+                dead-end. Copy mirrors the server message in `submitListingAppeal`. */}
+            {appealEditGateBlocked && (
+              <Text style={styles.appealGateHint} testID="appeal-edit-gate-hint">
+                Appeal becomes available after you edit the listing.
+              </Text>
+            )}
 
             <TouchableOpacity
               style={[
@@ -708,6 +724,15 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     fontSize: 12,
     textAlign: 'right',
+  },
+  // FIX-Task-67 item 4 (MSG Round 3 finding N4): explains the server-side
+  // edit-first gate next to the appeal CTA.
+  appealGateHint: {
+    marginTop: 10,
+    marginBottom: 4,
+    color: '#6B6B6B',
+    fontSize: 12,
+    lineHeight: 18,
   },
   infoBox: {
     marginTop: 12,

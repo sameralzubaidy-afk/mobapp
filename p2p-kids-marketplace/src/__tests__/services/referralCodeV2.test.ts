@@ -287,7 +287,10 @@ describe('ReferralCodeServiceV2', () => {
       const code = 'ABC123XY';
       const result = ReferralCodeServiceV2.getReferralLink(code);
 
-      expect(result).toBe('kidsclub://signup?ref=ABC123XY');
+      // FIX-Task-67 item 1 (MSG Round 3 finding N1): the scheme must be one the app
+      // registers (`p2pkidsmarketplace` in app.json / AndroidManifest.xml / Info.plist),
+      // not the previously shipped, unregistered `kidsclub://`.
+      expect(result).toBe('p2pkidsmarketplace://signup?ref=ABC123XY');
     });
   });
 

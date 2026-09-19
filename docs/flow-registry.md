@@ -451,8 +451,8 @@ Review Offer's 20s offer-load timeout → retry card).
 
 **Steps.**
 1. A qualified user views **ReferralDashboard** and gets/copies their unique referral code.
-2. They share the code/link with a new signup.
-3. The new user applies the code at signup (or via a deep link); `apply_referral_code` validates it (no self-referral, single use, abuse rules).
+2. They share the code/link with a new signup. The shared link is the registered app scheme — `p2pkidsmarketplace://signup?ref=<code>` — built by `ReferralCodeServiceV2.getReferralLink` (the copy icon copies the bare code only; the link is shared via **Share**).
+3. The new user applies the code at signup (or via the shared deep link, which opens **Signup** with the Referral Code field pre-filled); `apply_referral_code` validates it (no self-referral, single use, abuse rules).
 4. On qualifying actions (signup, first listing, first trade) the referral rewards are awarded to both parties (`award_referral_sp`, `award_listing_referral_sp`) with notifications.
 5. The dashboard reflects updated reward state; admins see program config/usage.
 
