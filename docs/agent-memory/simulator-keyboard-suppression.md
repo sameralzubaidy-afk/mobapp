@@ -80,3 +80,17 @@ Fixed in: `helpers/tfv2-login-seller.yaml`, `helpers/tfv2-login-buyer.yaml`,
 `helpers/tfv2-dismiss-system-dialogs.yaml`,
 `module-15.1.2-full-trade-flow-v2.yaml`. The remaining ~45 `hideKeyboard` calls
 in other `.maestro` flows carry the same latent hard-failure — flag for a sweep.
+
+## Android emulator — Gboard "Try out your stylus" first-run overlay (2026-09-18, MSG Round 2)
+On `Medium_Phone_API_36.1`, Gboard presents a **"Try out your stylus" / "Write here"** first-run
+tutorial on text-field focus. It is a **separate window that covers the lower input area and silently
+swallows taps** — a tap at a tree-reported coordinate lands on the tutorial and the app shows no
+error, so it reads as a dead button.
+
+- **Symptom shape:** the tap produces a **byte-identical AX tree**, and the cause is visible **only in a
+  screenshot** — the tutorial is not in the app's accessibility tree.
+- **Permanent fix — apply at Android round START (pre-flight), not reactively:**
+  `adb -s <serial> shell settings put secure stylus_handwriting_enabled 0`
+- **Dismiss when already showing:** press **BACK** (verified to close it without leaving the screen).
+- **Cost when missed:** ~4 calls plus two misread "the button is dead" observations
+  (MSG Round 2 — D01 paperclip, A10, J04 save).

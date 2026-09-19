@@ -4,3 +4,5 @@ First-sighting rule suggestions that did not involve money, security, data loss 
 
 | First seen | Suggestion (one line) | Agent | Source task | Seen count |
 |---|---|---|---|---|
+| 2026-09-18 | Exhaust every credential pair the persona registry documents for that env before declaring an admin-login BLOCKED — a stale pair is not a credentials gap (it cost 4 admin cases a premature BLOCKED) | QA | MSG Round 2 (qa-msg-round2-android-2026-09-18) | 1 |
+| 2026-09-18 | When AX coords place a control under the keyboard or a floating layer AND a screenshot confirms it, treat the occlusion as a candidate PRODUCT finding (missing insets), not only a driving hazard — how F6-class bugs go uncaught | QA | MSG Round 2 (qa-msg-round2-android-2026-09-18) | 1 |
