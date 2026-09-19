@@ -55,6 +55,23 @@ if lsof -i :$ANDROID_PORT -sTCP:LISTEN -t &>/dev/null; then
   sleep 1
 fi
 
+# ── Start Metro FIRST, in the background ─────────────────────────────────────
+# The dev client fetches its bundle the instant it launches and never retries on
+# its own, so the app must only be launched once Metro is listening — otherwise
+# the first fetch fails and the app hangs on splash. Metro also has to be up
+# before the emulator boot / APK install below, so the deep link near the end of
+# this script always lands on a live server. See scripts/wait-for-metro.sh.
+echo "=== Starting Metro on port $ANDROID_PORT (Ctrl+C to stop) ==="
+echo "    iOS Metro stays on 8081 — both can run simultaneously."
+# Own Metro cache — lets `npm run dev:ios` (:8081) run at the same time without
+# this session's `--clear` wiping the iOS instance's cache. See metro.config.js.
+EXPO_METRO_CACHE_TAG=android npx expo start --port $ANDROID_PORT --clear &
+METRO_PID=$!
+trap 'kill "$METRO_PID" 2>/dev/null || true' EXIT INT TERM
+
+# ── Wait until Metro is actually serving ─────────────────────────────────────
+bash scripts/wait-for-metro.sh "$ANDROID_PORT"
+
 # ── Optional: build the APK ───────────────────────────────────────────────────
 if [[ "$MODE" == "--build" ]]; then
   echo "=== Building Android Debug APK ==="
@@ -98,7 +115,12 @@ if [[ "${DEVICES:-0}" -eq 0 ]]; then
   fi
 
   echo "=== No emulator detected — booting $DEFAULT_AVD ==="
-  nohup emulator -avd "$DEFAULT_AVD" -no-snapshot-load -wipe-data -partition-size 4096 > /tmp/android-emulator.log 2>&1 &
+  # The AVD ships with hw.cpu.ncore = 1 and hw.ramSize = 2048, which is not
+  # enough to load the JS bundle: System UI gets starved and ANRs ("System UI
+  # isn't responding"), stealing focus from the app. Override both so every boot
+  # in this session has headroom.
+  nohup emulator -avd "$DEFAULT_AVD" -no-snapshot-load -wipe-data -partition-size 4096 \
+    -memory 4096 -cores 4 > /tmp/android-emulator.log 2>&1 &
   EMU_PID=$!
   echo "    Emulator PID: $EMU_PID  (log: /tmp/android-emulator.log)"
 
@@ -144,7 +166,8 @@ while [[ "$INSTALL_ATTEMPT" -lt "$MAX_INSTALL_ATTEMPTS" ]]; do
     sleep 3
 
     echo "=== Booting $DEFAULT_AVD with -wipe-data ==="
-    nohup emulator -avd "$DEFAULT_AVD" -no-snapshot-load -wipe-data -partition-size 4096 > /tmp/android-emulator.log 2>&1 &
+    nohup emulator -avd "$DEFAULT_AVD" -no-snapshot-load -wipe-data -partition-size 4096 \
+      -memory 4096 -cores 4 > /tmp/android-emulator.log 2>&1 &
     echo "    Waiting for device to connect..."
     adb wait-for-device
     echo "    Waiting for boot to complete..."
@@ -201,17 +224,13 @@ DEEPLINK_URL="${DEV_CLIENT_SCHEME}://expo-development-client/?url=http%3A%2F%2Fl
   fi
 ) &
 AUTO_CONNECT_PID=$!
-trap "kill $AUTO_CONNECT_PID 2>/dev/null || true" EXIT
+trap "kill $AUTO_CONNECT_PID 2>/dev/null || true; kill $METRO_PID 2>/dev/null || true" EXIT
 
 echo ""
 echo "=== App launched on Android device ==="
 echo ""
 
-# ── Start Metro on Android port ───────────────────────────────────────────────
-echo "=== Starting Metro on port $ANDROID_PORT (Ctrl+C to stop) ==="
-echo "    iOS Metro stays on 8081 — both can run simultaneously."
-# Own Metro cache — lets `npm run dev:ios` (:8081) run at the same time without
-# this session's `--clear` wiping the iOS instance's cache. See metro.config.js.
-EXPO_METRO_CACHE_TAG=android npx expo start --port $ANDROID_PORT --clear
+# ── Keep Metro in the foreground until Ctrl+C ─────────────────────────────────
+wait "$METRO_PID"
 
 
