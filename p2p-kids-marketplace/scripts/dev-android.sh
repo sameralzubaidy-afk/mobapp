@@ -15,7 +15,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP_PACKAGE="com.sameralzubaidi.p2pmarketplace"
-APP_SCHEME="p2pkidsmarketplace"   # expo.scheme in app.json
+# expo-dev-client registers `exp+<slug>` on Android (see
+# android/app/src/main/AndroidManifest.xml), NOT `exp+<app.json scheme>`:
+#   <data android:scheme="exp+p2p-kids-marketplace"/>
+# Read the slug from app.json so this cannot drift again.
+APP_SLUG="$(node -p "require('./app.json').expo.slug" 2>/dev/null || echo p2p-kids-marketplace)"
+DEV_CLIENT_SCHEME="exp+${APP_SLUG}"
 APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
 ANDROID_PORT=8082
 DEFAULT_AVD="Medium_Phone_API_36.1"   # from: emulator -list-avds
@@ -170,13 +175,30 @@ echo "=== Launching app ==="
 adb shell am start -n "$APP_PACKAGE/.MainActivity"
 
 # ── Schedule auto-connect deep link 6 s after Metro is ready ──────────────────
-DEEPLINK_URL="exp+${APP_SCHEME}://expo-development-client/?url=http%3A%2F%2Flocalhost%3A${ANDROID_PORT}"
+DEEPLINK_URL="${DEV_CLIENT_SCHEME}://expo-development-client/?url=http%3A%2F%2Flocalhost%3A${ANDROID_PORT}"
 (
+  connect() {
+    OUT=$(adb shell am start \
+      -a android.intent.action.VIEW \
+      -d "$DEEPLINK_URL" \
+      --activity-single-top 2>&1 || true)
+    case "$OUT" in
+      *"unable to resolve"*|*"Error:"*) return 1 ;;
+      *) return 0 ;;
+    esac
+  }
   sleep 6
-  adb shell am start \
-    -a android.intent.action.VIEW \
-    -d "$DEEPLINK_URL" \
-    --activity-single-top 2>/dev/null || true
+  # One retry: right after a fresh install the dev launcher can still be starting
+  # when the first attempt lands, and the intent is then dropped.
+  if ! connect; then
+    sleep 6
+    if ! connect; then
+      echo ""
+      echo "!! Android auto-connect to Metro :$ANDROID_PORT failed."
+      echo "   Tap the 'http://localhost:$ANDROID_PORT' row in the dev launcher."
+      echo ""
+    fi
+  fi
 ) &
 AUTO_CONNECT_PID=$!
 trap "kill $AUTO_CONNECT_PID 2>/dev/null || true" EXIT
@@ -188,6 +210,8 @@ echo ""
 # ── Start Metro on Android port ───────────────────────────────────────────────
 echo "=== Starting Metro on port $ANDROID_PORT (Ctrl+C to stop) ==="
 echo "    iOS Metro stays on 8081 — both can run simultaneously."
-npx expo start --port $ANDROID_PORT --clear
+# Own Metro cache — lets `npm run dev:ios` (:8081) run at the same time without
+# this session's `--clear` wiping the iOS instance's cache. See metro.config.js.
+EXPO_METRO_CACHE_TAG=android npx expo start --port $ANDROID_PORT --clear
 
 

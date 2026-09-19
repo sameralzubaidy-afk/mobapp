@@ -351,6 +351,32 @@ xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_simulat
 ```
 Confirm arming via console (Hermes CDP): `[QaDevToggleDeepLink] Armed push_simulation=token`. The toggle auto-expires after 60 min (TTL safety net) and is cleared on logout — so a logout-then-different-persona run starts clean.
 
+## QA push-registration failure-reason toggle — MSG-TC-I01/I02 (FIX-Task-65 item 3) — SESSION-LOCAL since 2026-09-18
+
+Closes the "four causes, one misleading string" finding and makes every failure copy observable **on a simulator**. `registerForPushNotifications()` (`src/services/notifications.ts`) now returns a discriminated `{ ok: true, token } | { ok: false, reason }`, where `reason` ∈ `not_device | expo_go | permission_denied | token_error`; `NotificationSetup` renders one cause-specific message per reason (exported as `PUSH_FAILURE_COPY`). Implemented in `src/services/devTestingService.ts` (`getPushRegistrationReasonOverride`), read at the **top** of `registerForPushNotifications`. Fail-closed: release builds / toggle unset / expired (TTL) / unknown value → the real path always runs.
+
+**Why it is needed:** the real causes are unreachable on a simulator — `!Device.isDevice` short-circuits **before** the permission check, so `permission_denied` and `token_error` can never be produced there; `expo_go` needs Expo Go; the **success** leg needs a physical device. An armed toggle returns the forced reason **without** requesting permissions, calling Expo, or writing a notification channel (so it also proves the null-token path really short-circuits).
+
+**Deep link key (short name):** `push_registration_reason` → AsyncStorage key `qa_local_push_registration_reason`. Values `not_device` | `expo_go` | `permission_denied` | `token_error` | `none`.
+
+**Arm / disarm (QA agent — self-service, session-local, no DB write):**
+```
+# ARM (one deep link per cause)
+xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=not_device"
+xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=expo_go"
+xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=permission_denied"
+xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=token_error"
+# DISARM (after the run)
+xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=none"
+```
+Then open `p2pkidsmarketplace://notification-setup` and tap `notification-enable-button`.
+
+**Locators added by FIX-Task-65 item 4** (tap by locator — the 2026-09-18 round had to derive tree coordinates): `notification-enable-button`, `notification-maybe-later-button`, `notification-continue-button`, `notification-error-message`, `notification-error-section`, `notification-open-settings-button`. The **Open Settings** button renders **only** for `permission_denied`.
+
+**Optional variant (item 4 extra):** `p2pkidsmarketplace://notification-setup?isOptional=1` makes **Maybe Later** render — the route passes no props, so that branch was dead UI before FIX-Task-65.
+
+**Side-effect check (R24):** with the toggle armed nothing is persisted — `push_tokens` must stay at **0 rows** for the persona.
+
 **QA usage:** dev build → Login → Settings → Test Push Notification:
 - `token` → "Test Notification Sent" (normal leg; repeat taps within 1 min hit dedup → "Notification Queued").
 - `rate_limited` → "Rate Limited" alert.

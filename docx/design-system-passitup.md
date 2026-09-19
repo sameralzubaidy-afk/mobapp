@@ -32,10 +32,32 @@ Text & UI:
 ### Semantic Colors
 ```
 Success: #5DBB8E (same as primary green)
-Error: #E85D75 (soft red, validation errors)
+Error: #E85D75 (soft red — error fills, borders, icons)
+Error text: #C91D39 (AA-safe error TEXT on light surfaces; see below)
 Warning: #FFA726 (caution states)
 Info: #5B8FB9 (informational messages)
 ```
+
+### Error — Text on Light Surfaces
+
+`#E85D75` is a **surface / icon** red: it measures only 3.36:1 on white and 3.04:1 on the
+`#FFF0F2` error tint, so it fails WCAG AA (4.5:1) for normal text. Error *messages* must
+use the darker sibling:
+
+```
+Error text on light surfaces:  #C91D39   (error-700 · 5.65:1 on white · 5.16:1 on #FEF2F2 · 5.11:1 on #FFF0F2)
+Error surface tint:            #FFF0F2   (error-100)
+Error fill / border / icon:    #E85D75   (error-500)
+```
+
+- **Code**: `colors.error[700]`, `colors.error[100]`, `colors.error[500]` in
+  `src/theme/colors.ts`.
+- This closes **Open Enhancement #1** (§6) and satisfies issue `sameralzubaidy-afk/mobapp#21`
+  (FIX-Task-65). Canonical instances: the `NotificationSetup` error banner and the ID
+  Verification inline error. The §6 Item Detail carve-out is now legacy and may migrate to
+  `colors.error[700]` on that screen's next touch.
+- Note `textColors.error` deliberately still resolves to `error[500]` (fills/borders); use
+  `colors.error[700]` explicitly wherever the colour is *text*.
 
 ### Warning — Dark Text & Borders on Tinted Surfaces
 
@@ -586,25 +608,30 @@ Deliberate, reviewed deviations from the token set. These are **not** oversights
 
 | Surface | Token a naive audit expects | What actually ships | Why |
 |---|---|---|---|
-| Item Detail load-error title (`ItemDetailScreen` → `errorTitle`) | `colors.error[500]` = `#E85D75` | `#c62828` | On this screen's `#f9f9f9` background `#c62828` measures **5.34:1** (AA pass) while the brand error token measures only **3.19:1** (AA fail for the 18px bold title). Accessibility wins over token uniformity here; the durable fix is enhancement #1 below. |
+| Item Detail load-error title (`ItemDetailScreen` → `errorTitle`) | `colors.error[500]` = `#E85D75` | `#c62828` | On this screen's `#f9f9f9` background `#c62828` measures **5.34:1** (AA pass) while the brand error token measures only **3.19:1** (AA fail for the 18px bold title). Accessibility wins over token uniformity here; the durable fix is enhancement #1 below. **Update (FIX-Task-65, 2026-09-18): the durable fix has landed — `colors.error[700]` = `#C91D39` (5.36:1 on `#f9f9f9`). This carve-out is therefore LEGACY: migrate it to `colors.error[700]` on that screen's next touch, and do not cite it as precedent for a new per-screen red.** |
 
 ### Open Enhancement Requests
 
-Unresolved design-system gaps found during audits. **Owner decision required — no code
-change has been made for any of these.**
+Unresolved design-system gaps found during audits.
 
-1. **AA-safe error-red variant for text on light backgrounds.** `colors.error[500]`
-   (`#E85D75`) measures only **3.36:1 on white** and **3.19:1 on `#f9f9f9`**, so it fails
-   WCAG AA (4.5:1) for normal text — every screen that renders an error *message* in the
-   brand error token inherits the tension Item Detail hit. Proposed: add a darker sibling
-   for text-on-light use (e.g. `#C91D39` — same hue family as the brand red, darkened to
-   **5.65:1 on white** / **5.36:1 on `#f9f9f9`**), keeping `#E85D75` for fills, icons and
-   dark backgrounds. Filed as `sameralzubaidy-afk/mobapp#21`.
+1. ~~**AA-safe error-red variant for text on light backgrounds.**~~ **IMPLEMENTED —
+   FIX-Task-65 (2026-09-18).** Shipped as `colors.error[700]` = `#C91D39`
+   (5.65:1 on white · 5.16:1 on `#FEF2F2` · 5.11:1 on `#FFF0F2`); see §1
+   "Error — Text on Light Surfaces", which is now the authoritative spec. Applied to the
+   `NotificationSetup` error banner and the ID Verification inline error. Original request
+   (kept for context): `colors.error[500]` (`#E85D75`) measures only **3.36:1 on white**
+   and **3.19:1 on `#f9f9f9`**, so it fails WCAG AA (4.5:1) for normal text — every screen
+   that renders an error *message* in the brand error token inherits the tension Item
+   Detail hit. Filed as `sameralzubaidy-afk/mobapp#21` (**satisfied by this change —
+   closable**).
 2. **Brand green used as a text/surface color.** `#5DBB8E` measures **2.34:1 on white**,
    and white text on `#5DBB8E` measures the same **2.34:1** — below AA for *all* text
    sizes, including large text (3:1). In practice the brand green ships as a button/hero
    *surface* carrying white text, so resolving this is a brand-level decision rather than
-   a token swap. Flagged for the owner; no change made under FIX-Task-49.
+   a token swap. Flagged for the owner; no change made under FIX-Task-49. **Still open as
+   of 2026-09-18** — restated here because FIX-Task-65's new primary CTA (a `#5DBB8E` pill
+   with white 16px semibold text) is the canonical instance of this tension; it ships as
+   the design system specifies and inherits this open item.
 
 ---
 
@@ -816,6 +843,7 @@ Use this template when asking AI to create/update screens:
 | 1.0 | May 4, 2026 | Initial design system based on Whisk inspiration. Covers colors, typography, buttons, inputs, OTP, social login. |
 | 1.1 | Sep 16, 2026 | Added §4.2b **Inverse-Hero Pill Button** (white pill on a primary-green hero card) as a canonical variant, with the Payout Settings balance hero as its reference implementation — previously undocumented, so it risked being mis-filed as a design deviation (FIX-Task-41 item 10). |
 | 1.2 | Sep 17, 2026 | Added §1 **Warning — Dark Text & Borders on Tinted Surfaces** (`warning-900 #78350F`, `warning-800 #92400E`, `warning-400 #FBBF24`) and applied them to the Item Detail "Price Breakdown" card, which previously carried one-off amber hexes; added §6 **Documented Token Exceptions** (Item Detail's intentional `#c62828` error title) and §6 **Open Enhancement Requests** (AA-safe error-red variant; brand-green contrast); corrected the §6 verified-contrast figures, which were inaccurate (FIX-Task-49). |
+| 1.3 | Sep 18, 2026 | Added §1 **Error — Text on Light Surfaces**: `error[700] #C91D39` is the canonical error-TEXT token (5.65:1 white / 5.16:1 `#FEF2F2` / 5.11:1 `#FFF0F2`), closing Open Enhancement #1; `#E85D75` is now scoped to fills/borders/icons. Marked the Item Detail error-title carve-out LEGACY and restated Open Enhancement #2 (white on brand green) as **still open** — FIX-Task-65's new primary CTA is its canonical instance (FIX-Task-65). |
 
 ---
 

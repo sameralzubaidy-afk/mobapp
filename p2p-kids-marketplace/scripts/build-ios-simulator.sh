@@ -106,8 +106,9 @@ if [ "$BOOTED" -eq 0 ]; then
   xcrun simctl boot "$UDID"
   echo "=== Waiting for simulator to finish booting ==="
   sleep 15
-  # Open Simulator.app for visibility
-  open -a Simulator
+  # Open the simulator UI for visibility. Xcode 27+ replaced Simulator.app with
+  # Device Hub, which registers the devices:// scheme; fall back for Xcode <= 26.
+  open "devices://device/open?id=$UDID" 2>/dev/null || open -a Simulator 2>/dev/null || true
   sleep 5
 fi
 

@@ -536,9 +536,9 @@ Review Offer's 20s offer-load timeout → retry card).
 1. Events fire server-side (trade state changes, subscription webhooks, reminders, badge/referral/ID events) and produce rows in `user_notifications` with `channels` (`push`/`in_app`/`email`), a category/type, and a deep link.
 2. Push delivery: `send-push-notification` fans out to registered Expo tokens (respecting quiet hours/rate limits and per-category preferences, except mandatory safety alerts).
 3. The header bell shows unread counts; **Notification Center** lists notifications grouped by type with read/unread handling; tapping one routes via its deep link.
-4. Users manage categories and channels in **Notification Preferences** (email/push/in-app per type); the app prompts to **enable push** on first run.
+4. Users manage categories and channels in **Notification Preferences** (email/push/in-app per type); the app prompts to **enable push** on first run. The prompt's primary CTA is the design-system pill, and when registration cannot proceed it reports the **cause** (not a physical device / Expo Go / permission denied / token error) with an **Open Settings** shortcut when the OS permission is the cause. The optional variant (`notification-setup?isOptional=1`) renders a **Maybe Later** action.
 5. Email notifications include an unsubscribe path (`Unsubscribe`); preference state is stored server-side and honored by the senders.
-6. QA can simulate push/rate-limit/quiet-hours and preference-save failures via dev toggles.
+6. QA can simulate push/rate-limit/quiet-hours and preference-save failures, and force each push-**registration** failure cause, via session-local dev toggles (fail-closed outside dev/test).
 
 **Mobile screens.**
 - `Notifications` — `screens/notifications/NotificationCenterScreen.tsx` — in-app notification center (deep link `notifications`).
@@ -546,7 +546,7 @@ Review Offer's 20s offer-load timeout → retry card).
 - `NotificationSetup` — `components/NotificationSetup` — enable-push onboarding prompt (full-screen route).
 - `Unsubscribe` — `screens/UnsubscribeScreen.tsx` — email unsubscribe (deep link `unsubscribe`).
 
-**Functions/features.** Edge Functions: `send-push-notification`, `send-trade-notifications`, `send-email`, `email-unsubscribe`, `grace-period-cron`, `trial-reminders`, `send-offer-reminders`, `send-auto-complete-reminders`, `send-pickup-reminders`, `id-badge-notifications`, `award-tenure-badges`; DB: `user_notifications`, `notification_preferences`, triggers that create notification rows; client: `services/notifications.ts`, `notificationPreferences.ts`, `pushDelivery.ts`, `badgeNotifications.ts`, `referralNotifications.ts`, `subscriptionNotifications.ts`, `tradeNotifications.ts`, `emailNotifications.ts`, `notificationAnalytics.ts`; QA toggles (`qa_push_simulation`, `qa_force_pref_save_failure`).
+**Functions/features.** Edge Functions: `send-push-notification`, `send-trade-notifications`, `send-email`, `email-unsubscribe`, `grace-period-cron`, `trial-reminders`, `send-offer-reminders`, `send-auto-complete-reminders`, `send-pickup-reminders`, `id-badge-notifications`, `award-tenure-badges`; DB: `user_notifications`, `notification_preferences`, triggers that create notification rows; client: `services/notifications.ts`, `notificationPreferences.ts`, `pushDelivery.ts`, `badgeNotifications.ts`, `referralNotifications.ts`, `subscriptionNotifications.ts`, `tradeNotifications.ts`, `emailNotifications.ts`, `notificationAnalytics.ts`; QA toggles (`qa_push_simulation`, `qa_force_pref_save_failure`, `qa_push_registration_reason`).
 
 **References.** `cross-checked-and-consolidated/MESSAGING-BADGES-IDVERIFICATION-REFERRALS-SAFETY-NOTIFICATIONS-MANUAL-TESTING.md` (notification groups) + subscription guide (subscription-event notifications).
 
@@ -634,7 +634,7 @@ Review Offer's 20s offer-load timeout → retry card).
 **Description.** Everything that answers "who is this person and can I trust them": government-ID verification (submit → admin review → decision), the verified/trust indicators, badges & achievements (with tenure awards and showcase on Profile/SellerProfile/Dashboard), the **public seller profile**, and the **reviews** system (submit after a trade, display on the seller profile, and admin moderation). This is the identity/reputation layer the trade and discovery flows surface (verified pills, badge rows, review counts).
 
 **Steps.**
-1. **ID verification**: a user submits their ID from `IDVerificationUpload` (`id-badge-verification-requests`); admins review in the portal queue (`/id-badges`, `review`, `details`); approval marks the identity verified (verified pill/trust level) and notifies the user (decision/message notifications).
+1. **ID verification**: a user submits their ID from `IDVerificationUpload` (`id-badge-verification-requests`); admins review in the portal queue (`/id-badges`, `review`, `details`); approval marks the identity verified (verified pill/trust level) and notifies the user (decision/message notifications). The upload state offers **Use Camera** with an **or choose from your library** fallback on the same row, and a failed capture reports an actionable inline error (try again / upload from the library) instead of dead-ending.
 2. **Badges**: badges are earned/auto-awarded (e.g., tenure via `award-tenure-badges`) and shown on Profile, the public Seller Profile, and the Home dashboard; a badge-detail modal explains each badge; a badge showcase links to the full Badges grid.
 3. **Public seller profile**: `SellerProfile` (deep link `seller-profile/:userId`) shows the seller's name/photo, verified/trust pill (from ID verification), badge showcase, **reviews**, and their items; discovery surfaces link here.
 4. **Reviews**: after a trade completes (FLOW-08) the buyer/seller is prompted to submit a review (`SubmitReview`, deep link `submit-review`); reviews render on the seller profile; admins moderate abusive reviews on `/reviews`.

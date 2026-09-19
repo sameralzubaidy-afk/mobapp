@@ -25,4 +25,7 @@ bash scripts/reinstall-ios.sh "$MODE"
 
 # ── Start Metro on iOS port ───────────────────────────────────────────────────
 echo "=== Starting Metro on port $IOS_PORT (Ctrl+C to stop) ==="
-npx expo start --port $IOS_PORT --clear
+# Own Metro cache — lets `npm run dev:android` (:8082) run at the same time
+# without this session's `--clear` wiping the Android instance's cache.
+# See metro.config.js.
+EXPO_METRO_CACHE_TAG=ios npx expo start --port $IOS_PORT --clear

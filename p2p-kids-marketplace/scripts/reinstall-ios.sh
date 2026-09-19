@@ -60,7 +60,9 @@ if [[ "$BOOTED" -eq 0 ]]; then
   xcrun simctl boot "$UDID"
   echo "Waiting for simulator to boot..."
   sleep 10
-  open -a Simulator
+  # Xcode 27+ replaced Simulator.app with Device Hub (Simulator.app no longer exists).
+  # Device Hub registers the devices:// scheme; fall back for Xcode <= 26.
+  open "devices://device/open?id=$UDID" 2>/dev/null || open -a Simulator 2>/dev/null || true
   sleep 3
 else
   BOOTED_NAME=$(xcrun simctl list devices booted 2>/dev/null | grep "Booted" | head -1 | sed 's/ (.*//')  

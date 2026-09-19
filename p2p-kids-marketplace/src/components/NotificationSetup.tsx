@@ -5,35 +5,83 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Button,
   ActivityIndicator,
   StyleSheet,
   SafeAreaView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { supabase } from '@/config/supabase';
 import { colors } from '@/theme/colors';
+import { Button } from '@/components/ui';
 import {
   registerForPushNotifications,
   savePushToken,
   createNotificationObserver,
   sendLocalNotification,
 } from '@/services/notifications';
+import type { PushRegistrationFailureReason } from '@/services/notifications';
 
 interface NotificationSetupProps {
   onComplete?: () => void;
   isOptional?: boolean;
+  /** Injected by the navigator; used as the completion fallback. */
+  navigation?: { goBack?: () => void };
+  /** Deep-link params — `notification-setup?isOptional=1` drives the optional variant. */
+  route?: { params?: { isOptional?: string | boolean } };
 }
+
+/**
+ * FIX-Task-65 item 3 — one cause-specific message per registration-failure reason.
+ *
+ * Before: a single iOS string ("Make sure you granted permissions") was shown for
+ * four unrelated causes, so a simulator / Expo Go run told the user to check
+ * notification permissions — the wrong remedy.
+ */
+export const PUSH_FAILURE_COPY: Record<PushRegistrationFailureReason, string> = {
+  not_device: 'Push notifications need a physical device. This is a simulator/emulator.',
+  expo_go: "Push notifications aren't available in Expo Go. Use a development build.",
+  permission_denied:
+    'Notifications are turned off for Pass It Up. Enable them in Settings › Notifications.',
+  token_error: 'Could not obtain push notification token. Make sure you granted permissions.',
+};
+
+/**
+ * Resolve the user-facing copy for a failure reason. Platform-aware so the Android
+ * google-services hint (token_error) and the web message are preserved.
+ */
+export const getPushFailureCopy = (
+  reason: PushRegistrationFailureReason,
+  platform: string = Platform.OS
+): string => {
+  if (platform === 'web') {
+    return 'Push notifications are not available on web';
+  }
+  if (reason === 'token_error' && platform === 'android') {
+    return 'Could not obtain push token. Ensure this is a development build (not Expo Go), add google-services.json, and rebuild Android.';
+  }
+  return PUSH_FAILURE_COPY[reason];
+};
 
 export const NotificationSetup: React.FC<NotificationSetupProps> = ({
   onComplete,
   isOptional = false,
+  navigation,
+  route,
 }) => {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'requesting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [failureReason, setFailureReason] = useState<PushRegistrationFailureReason | null>(null);
+
+  // FIX-Task-65: `isOptional` may come as a prop (legacy callers) or as the deep-link
+  // param `notification-setup?isOptional=1`. The route renders this screen with no
+  // props, so the "Maybe Later" branch was previously unreachable/dead UI.
+  const optional =
+    isOptional || route?.params?.isOptional === '1' || route?.params?.isOptional === true;
+  const complete = onComplete ?? (() => navigation?.goBack?.());
 
   // Get current user on mount
   useEffect(() => {
@@ -63,23 +111,23 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
     setLoading(true);
     setStatus('requesting');
     setErrorMessage(null);
+    setFailureReason(null);
 
     try {
-      // Step 1: Request permissions and get push token
-      const token = await registerForPushNotifications();
+      // Step 1: Request permissions and get push token.
+      // FIX-Task-65 item 3: the service reports WHICH cause failed so the screen
+      // stops blaming permissions for a simulator / Expo Go run.
+      const registration = await registerForPushNotifications();
 
-      if (!token) {
+      if (!registration.ok) {
         setStatus('error');
-        setErrorMessage(
-          Platform.OS === 'web'
-            ? 'Push notifications are not available on web'
-            : Platform.OS === 'android'
-              ? 'Could not obtain push token. Ensure this is a development build (not Expo Go), add google-services.json, and rebuild Android.'
-              : 'Could not obtain push notification token. Make sure you granted permissions.'
-        );
+        setFailureReason(registration.reason);
+        setErrorMessage(getPushFailureCopy(registration.reason));
         setLoading(false);
         return;
       }
+
+      const token = registration.token;
 
       // Step 2: Save token to database
       const result = await savePushToken(user.id, token);
@@ -111,6 +159,14 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // FIX-Task-65 item 8: when the failure cause is a denied OS permission, give the
+  // user a one-tap route into this app's settings instead of a manual hunt.
+  const handleOpenSettings = () => {
+    Linking.openSettings().catch((err: Error) => {
+      console.warn('[NotificationSetup] Unable to open settings:', err.message);
+    });
   };
 
   return (
@@ -146,10 +202,24 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
         )}
 
         {status === 'error' && errorMessage && (
-          <View style={styles.errorSection}>
-            <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
-            {!isOptional && (
+          <View style={styles.errorSection} testID="notification-error-section">
+            <Text style={styles.errorText} testID="notification-error-message">
+              ⚠️ {errorMessage}
+            </Text>
+            {!optional && (
               <Text style={styles.errorSubtext}>Please try again or contact support</Text>
+            )}
+            {failureReason === 'permission_denied' && (
+              <Button
+                variant="secondary"
+                size="medium"
+                testID="notification-open-settings-button"
+                accessibilityLabel="Open Settings"
+                style={styles.openSettingsButton}
+                onPress={handleOpenSettings}
+              >
+                Open Settings
+              </Button>
             )}
           </View>
         )}
@@ -168,19 +238,41 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
       <View style={styles.bottomSection}>
         {status !== 'success' && (
           <Button
-            title={loading ? 'Setting up...' : 'Enable Notifications'}
+            variant="primary"
+            size="large"
+            testID="notification-enable-button"
+            accessibilityLabel="Enable Notifications"
             onPress={handleEnableNotifications}
             disabled={loading}
-            color={colors.success[500]}
-          />
+            loading={loading}
+          >
+            Enable Notifications
+          </Button>
         )}
 
-        {isOptional && status !== 'success' && (
-          <Button title="Maybe Later" onPress={onComplete} color="#999" disabled={loading} />
+        {optional && status !== 'success' && (
+          <Button
+            variant="secondary"
+            size="large"
+            testID="notification-maybe-later-button"
+            accessibilityLabel="Maybe Later"
+            onPress={complete}
+            disabled={loading}
+          >
+            Maybe Later
+          </Button>
         )}
 
         {status === 'success' && (
-          <Button title="Continue" onPress={onComplete} color={colors.success[500]} />
+          <Button
+            variant="primary"
+            size="large"
+            testID="notification-continue-button"
+            accessibilityLabel="Continue"
+            onPress={complete}
+          >
+            Continue
+          </Button>
         )}
       </View>
     </SafeAreaView>
@@ -202,11 +294,14 @@ const BenefitItem: React.FC<BenefitItemProps> = ({ icon, text }) => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.neutral.white,
   },
   content: {
+    // FIX-Task-65 item 9: let the content container claim the leftover height so the
+    // Privacy box (marginTop:'auto') can sit against the pinned CTA.
+    flexGrow: 1,
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   header: {
     marginBottom: 30,
@@ -216,11 +311,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#333',
+    color: colors.neutral[900],
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.neutral[700],
   },
   benefitsSection: {
     marginBottom: 30,
@@ -229,7 +324,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#333',
+    color: colors.neutral[900],
   },
   benefitItem: {
     flexDirection: 'row',
@@ -245,7 +340,7 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: 14,
-    color: '#555',
+    color: colors.neutral[700],
     flex: 1,
   },
   loadingSection: {
@@ -255,10 +350,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: colors.neutral[700],
   },
   successSection: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.success[100],
     borderRadius: 8,
     padding: 16,
     marginBottom: 20,
@@ -267,48 +362,56 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2E7D32',
+    color: colors.success[500],
     marginBottom: 4,
   },
   successSubtext: {
     fontSize: 14,
-    color: '#558B2F',
+    color: colors.success[500],
   },
   errorSection: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: colors.error[100],
     borderRadius: 8,
     padding: 16,
     marginBottom: 20,
   },
   errorText: {
     fontSize: 14,
-    color: '#C62828',
+    color: colors.error[700],
     marginBottom: 4,
   },
   errorSubtext: {
     fontSize: 12,
-    color: '#D32F2F',
+    color: colors.error[700],
+  },
+  openSettingsButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
   },
   infoBox: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.neutral[50],
     borderRadius: 8,
     padding: 16,
     marginBottom: 20,
+    // FIX-Task-65 item 9: absorb the leftover space ABOVE the Privacy box so it anchors
+    // to the pinned CTA instead of leaving ~300pt of void between the two. Auto margins
+    // collapse to 0 when the content is taller than the viewport, so this stays scrollable.
+    marginTop: 'auto',
   },
   infoTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: colors.neutral[900],
     marginBottom: 8,
   },
   infoText: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#666',
+    color: colors.neutral[700],
   },
   bottomSection: {
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
+    borderTopColor: colors.neutral[200],
     padding: 16,
     gap: 12,
   },

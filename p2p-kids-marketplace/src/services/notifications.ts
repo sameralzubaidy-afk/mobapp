@@ -7,6 +7,8 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { parseNotificationDeepLink } from './deepLink';
+import { getPushRegistrationReasonOverride } from './devTestingService';
+import { colors } from '@/theme/colors';
 import { navigationRef } from '@/navigation/AppNavigator';
 
 const isExpoGo = Constants?.appOwnership === 'expo';
@@ -47,22 +49,47 @@ export interface NotificationData {
 }
 
 /**
- * Register for push notifications
- * Requests user permissions and returns the push token
- *
- * @returns Push token string or null if registration failed
+ * Why push registration failed. FIX-Task-65 item 3 — the caller needs the CAUSE so it
+ * can render cause-specific copy; previously all four collapsed into a bare `null` and
+ * the screen told simulator users to "make sure you granted permissions".
  */
-export const registerForPushNotifications = async (): Promise<string | null> => {
+export type PushRegistrationFailureReason =
+  | 'expo_go'
+  | 'not_device'
+  | 'permission_denied'
+  | 'token_error';
+
+export type PushRegistrationResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: PushRegistrationFailureReason };
+
+/**
+ * Register for push notifications
+ * Requests user permissions and returns the push token, or a discriminated failure
+ * reason (FIX-Task-65 item 3).
+ *
+ * @returns `{ ok: true, token }` on success, else `{ ok: false, reason }`.
+ */
+export const registerForPushNotifications = async (): Promise<PushRegistrationResult> => {
+  // QA/dev-only override (FIX-Task-65 item 3): lets a simulator drive every failure
+  // copy without a physical device. Fail-closed — release builds always read 'none',
+  // and an armed toggle performs no permission request, no token call and no channel write.
+  const forcedReason = await getPushRegistrationReasonOverride();
+  if (forcedReason !== 'none') {
+    console.warn(`[notifications] Push registration failure forced by QA toggle: ${forcedReason}`);
+    return { ok: false, reason: forcedReason };
+  }
+
   const Notifications = getNotificationsModule();
   if (!Notifications) {
     console.warn('[notifications] Expo Go detected. Push registration is disabled; use a dev build.');
-    return null;
+    return { ok: false, reason: 'expo_go' };
   }
 
   // Only works on physical devices
   if (!Device.isDevice) {
     console.warn('Push notifications only work on physical devices');
-    return null;
+    return { ok: false, reason: 'not_device' };
   }
 
   // Check existing permissions
@@ -77,7 +104,7 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
 
   if (finalStatus !== 'granted') {
     console.warn('Failed to get push notification permissions');
-    return null;
+    return { ok: false, reason: 'permission_denied' };
   }
 
   // Configure Android notification channel (required for Android 8+)
@@ -86,7 +113,8 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
       name: 'default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#4CAF50',
+      // FIX-Task-65 item 6: was the Material Green 500 literal '#4CAF50'.
+      lightColor: colors.primary[500],
       sound: 'default',
     });
   }
@@ -97,7 +125,7 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
       projectId: Constants.expoConfig?.extra?.eas?.projectId,
     });
 
-    return tokenData.data;
+    return { ok: true, token: tokenData.data };
   } catch (err) {
     const error = err as Error;
     const message = error.message || '';
@@ -113,7 +141,7 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
       console.error('[notifications] Failed to get Expo push token:', message);
     }
 
-    return null;
+    return { ok: false, reason: 'token_error' };
   }
 };
 

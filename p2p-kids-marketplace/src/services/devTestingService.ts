@@ -805,6 +805,7 @@ export async function clearQaLocalValues(): Promise<void> {
   try {
     await AsyncStorage.multiRemove([
       QA_PUSH_SIMULATION_KEY,
+      QA_PUSH_REGISTRATION_REASON_KEY,
       QA_FORCE_PREF_SAVE_FAILURE_KEY,
       QA_LINK_EMAIL_MISMATCH_KEY,
       QA_CRASH_TRIGGER_KEY,
@@ -872,6 +873,62 @@ export async function getPushSimulationMode(): Promise<
     case 'token':
     case 'rate_limited':
     case 'quiet_hours':
+      return value;
+    default:
+      return 'none';
+  }
+}
+
+// ========================================
+// QA PUSH-REGISTRATION FAILURE REASON (FIX-Task-65 item 3 — dev-only)
+// ========================================
+
+/**
+ * Session-local AsyncStorage key that FORCES a specific push-registration failure cause
+ * so each cause-specific message can be observed on a simulator.
+ * Absence, 'none', or any unknown value = no override (fail-closed).
+ * Values: 'not_device' | 'expo_go' | 'permission_denied' | 'token_error' | 'none'
+ *
+ * Why this exists: `registerForPushNotifications` (src/services/notifications.ts) returns
+ * `{ ok:false, reason:'not_device' }` as soon as `Device.isDevice` is false — which is
+ * ALWAYS true on a simulator — so `permission_denied`, `token_error` and `expo_go` are
+ * unreachable there, and the success leg needs a physical device. Dev/test builds read
+ * this SESSION-LOCAL toggle (AsyncStorage, armed via the `qa-dev-toggle` deep link) and
+ * return the forced reason WITHOUT requesting permissions, calling Expo, or writing a
+ * notification channel.
+ *
+ * FAIL-CLOSED (never active outside dev/test):
+ *  - `isDevEnvironment()` gates the whole read — release builds return 'none' immediately
+ *    and the real registration path always runs.
+ *  - Toggle unset / expired (TTL) / storage error / unknown value → 'none'.
+ *
+ * Arming (QA agent, self-service, session-local):
+ *   xcrun simctl openurl booted "p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=permission_denied"
+ *   values: not_device | expo_go | permission_denied | token_error | none
+ */
+export const QA_PUSH_REGISTRATION_REASON_KEY = 'qa_local_push_registration_reason';
+
+export type QaPushRegistrationReasonMode =
+  | 'not_device'
+  | 'expo_go'
+  | 'permission_denied'
+  | 'token_error'
+  | 'none';
+
+/**
+ * FIX-Task-65 item 3: read the forced push-registration failure reason.
+ * Fail-closed — see the key's doc comment above.
+ */
+export async function getPushRegistrationReasonOverride(): Promise<QaPushRegistrationReasonMode> {
+  if (!isDevEnvironment()) {
+    return 'none';
+  }
+  const value = await readQaLocalValue(QA_PUSH_REGISTRATION_REASON_KEY);
+  switch (value) {
+    case 'not_device':
+    case 'expo_go':
+    case 'permission_denied':
+    case 'token_error':
       return value;
     default:
       return 'none';
@@ -1596,6 +1653,7 @@ export async function getSimulatedPayoutLoadStall(): Promise<QaPayoutLoadStallMo
  */
 export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
   push_simulation: QA_PUSH_SIMULATION_KEY,
+  push_registration_reason: QA_PUSH_REGISTRATION_REASON_KEY,
   pref_save_failure: QA_FORCE_PREF_SAVE_FAILURE_KEY,
   link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
   crash_trigger: QA_CRASH_TRIGGER_KEY,
@@ -1617,6 +1675,13 @@ export const QA_TOGGLE_SHORT_NAMES: Record<string, string> = {
 /** Allowed arming values per QA toggle (AsyncStorage key → accepted values). */
 const QA_TOGGLE_ALLOWED_VALUES: Record<string, string[]> = {
   [QA_PUSH_SIMULATION_KEY]: ['token', 'rate_limited', 'quiet_hours', 'none'],
+  [QA_PUSH_REGISTRATION_REASON_KEY]: [
+    'not_device',
+    'expo_go',
+    'permission_denied',
+    'token_error',
+    'none',
+  ],
   [QA_FORCE_PREF_SAVE_FAILURE_KEY]: ['save_failure', 'none'],
   [QA_LINK_EMAIL_MISMATCH_KEY]: ['google', 'facebook', 'apple', 'all', 'none'],
   [QA_CRASH_TRIGGER_KEY]: ['once', 'persist', 'none'],
@@ -1693,6 +1758,9 @@ export default {
 
   // QA Push Simulation (A03)
   getPushSimulationMode,
+
+  // QA Push-registration failure reason override (FIX-Task-65 item 3)
+  getPushRegistrationReasonOverride,
 
   // QA Notification-Pref Save-Failure Simulation (D02)
   getSimulatedNotificationPrefSaveError,

@@ -3,8 +3,10 @@
 // Coverage: all 3 visual states + interactions + business logic preservation
 
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import IDVerificationUploadScreen from '../IDVerificationUploadScreen';
+import { colors } from '@/theme/colors';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -206,6 +208,91 @@ describe('IDVerificationUploadScreen', () => {
 
       await waitFor(() => {
         expect(getByTestId('id-verification-take-photo-btn')).toBeTruthy();
+      });
+    });
+
+    // ── FIX-Task-65 ────────────────────────────────────────────────────────────
+    it('offers a library fallback next to Use Camera (item 10)', async () => {
+      setupMocks({ status: 'none' });
+      const ImagePicker = require('expo-image-picker');
+
+      const { getByTestId } = render(<IDVerificationUploadScreen navigation={mockNavigation} />);
+      await waitFor(() => getByTestId('id-verification-take-photo-btn'));
+
+      const libraryLink = getByTestId('id-verification-choose-library-btn');
+      expect(libraryLink.props.accessibilityRole).toBe('button');
+      expect(libraryLink.props.accessibilityLabel).toBe('Or choose from your library');
+
+      await act(async () => {
+        fireEvent.press(libraryLink);
+      });
+
+      expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
+      expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
+    });
+
+    it('uses the AA-safe error-text token for the inline error (item 5)', async () => {
+      setupMocks({ status: 'none' });
+      const ImagePicker = require('expo-image-picker');
+      ImagePicker.launchCameraAsync.mockRejectedValueOnce(new Error('no camera'));
+
+      const { getByTestId, getByText } = render(
+        <IDVerificationUploadScreen navigation={mockNavigation} />
+      );
+      await waitFor(() => getByTestId('id-verification-take-photo-btn'));
+
+      await act(async () => {
+        fireEvent.press(getByTestId('id-verification-take-photo-btn'));
+      });
+
+      await waitFor(() => {
+        const errorText = getByText(/Failed to take photo/);
+        expect(StyleSheet.flatten(errorText.props.style).color).toBe(colors.error[700]);
+        expect(colors.error[700]).toBe('#C91D39');
+      });
+    });
+
+    it('gives an actionable next step when the camera capture fails (item 11)', async () => {
+      setupMocks({ status: 'none' });
+      const ImagePicker = require('expo-image-picker');
+      ImagePicker.launchCameraAsync.mockRejectedValueOnce(new Error('no camera'));
+
+      const { getByTestId, getByText } = render(
+        <IDVerificationUploadScreen navigation={mockNavigation} />
+      );
+      await waitFor(() => getByTestId('id-verification-take-photo-btn'));
+
+      await act(async () => {
+        fireEvent.press(getByTestId('id-verification-take-photo-btn'));
+      });
+
+      await waitFor(() => {
+        expect(
+          getByText(
+            'Failed to take photo. Please try again, or upload a photo from your library.'
+          )
+        ).toBeTruthy();
+      });
+    });
+
+    it('gives an actionable next step when the library pick fails (item 11)', async () => {
+      setupMocks({ status: 'none' });
+      const ImagePicker = require('expo-image-picker');
+      ImagePicker.launchImageLibraryAsync.mockRejectedValueOnce(new Error('picker died'));
+
+      const { getByTestId, getByText } = render(
+        <IDVerificationUploadScreen navigation={mockNavigation} />
+      );
+      await waitFor(() => getByTestId('id-verification-upload-area'));
+
+      await act(async () => {
+        fireEvent.press(getByTestId('id-verification-upload-area'));
+      });
+
+      await waitFor(() => {
+        expect(
+          getByText('Failed to pick image. Please try again, or use the camera.')
+        ).toBeTruthy();
       });
     });
   });

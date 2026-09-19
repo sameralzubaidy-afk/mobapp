@@ -18,6 +18,8 @@ import {
   getSimulatedProviderOutage,
   QA_PUSH_SIMULATION_KEY,
   getPushSimulationMode,
+  QA_PUSH_REGISTRATION_REASON_KEY,
+  getPushRegistrationReasonOverride,
   QA_FORCE_PREF_SAVE_FAILURE_KEY,
   getSimulatedNotificationPrefSaveError,
   QA_LINK_EMAIL_MISMATCH_KEY,
@@ -158,6 +160,59 @@ describe('devTestingService — getPushSimulationMode (AUTH-TC-A03, session-loca
     await AsyncStorage.setItem(QA_PUSH_SIMULATION_KEY, expired);
 
     await expect(getPushSimulationMode()).resolves.toBe('none');
+  });
+});
+
+describe('devTestingService — getPushRegistrationReasonOverride (FIX-Task-65 item 3, session-local)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+  });
+
+  it('returns "none" when the toggle is unset (fail-closed)', async () => {
+    await expect(getPushRegistrationReasonOverride()).resolves.toBe('none');
+  });
+
+  it('returns each of the four forced failure reasons', async () => {
+    for (const reason of ['not_device', 'expo_go', 'permission_denied', 'token_error'] as const) {
+      await setQaLocalValue(QA_PUSH_REGISTRATION_REASON_KEY, reason);
+      await expect(getPushRegistrationReasonOverride()).resolves.toBe(reason);
+    }
+  });
+
+  it('returns "none" for unknown values (fail-closed)', async () => {
+    await setQaLocalValue(QA_PUSH_REGISTRATION_REASON_KEY, 'random_junk');
+    await expect(getPushRegistrationReasonOverride()).resolves.toBe('none');
+  });
+
+  it('expires the toggle after the TTL (fail-closed)', async () => {
+    const expired = JSON.stringify({
+      value: 'permission_denied',
+      setAt: new Date(Date.now() - 61 * 60 * 1000).toISOString(),
+    });
+    await AsyncStorage.setItem(QA_PUSH_REGISTRATION_REASON_KEY, expired);
+
+    await expect(getPushRegistrationReasonOverride()).resolves.toBe('none');
+  });
+
+  it('is cleared by clearQaLocalValues (no cross-persona leakage)', async () => {
+    await setQaLocalValue(QA_PUSH_REGISTRATION_REASON_KEY, 'permission_denied');
+    await clearQaLocalValues();
+
+    await expect(getPushRegistrationReasonOverride()).resolves.toBe('none');
+    await expect(AsyncStorage.getItem(QA_PUSH_REGISTRATION_REASON_KEY)).resolves.toBeNull();
+  });
+
+  it('accepts only the documented values through the deep-link validator', () => {
+    expect(isValidQaToggleValue(QA_PUSH_REGISTRATION_REASON_KEY, 'not_device')).toBe(true);
+    expect(isValidQaToggleValue(QA_PUSH_REGISTRATION_REASON_KEY, 'expo_go')).toBe(true);
+    expect(isValidQaToggleValue(QA_PUSH_REGISTRATION_REASON_KEY, 'permission_denied')).toBe(true);
+    expect(isValidQaToggleValue(QA_PUSH_REGISTRATION_REASON_KEY, 'token_error')).toBe(true);
+    expect(isValidQaToggleValue(QA_PUSH_REGISTRATION_REASON_KEY, 'none')).toBe(true);
+    expect(isValidQaToggleValue(QA_PUSH_REGISTRATION_REASON_KEY, 'nope')).toBe(false);
+    expect(QA_TOGGLE_SHORT_NAMES.push_registration_reason).toBe(
+      QA_PUSH_REGISTRATION_REASON_KEY
+    );
   });
 });
 
@@ -346,6 +401,8 @@ describe('devTestingService — session-local QA toggle storage + validation', (
   it('QA_TOGGLE_SHORT_NAMES maps each deep-link key to its storage key', () => {
     expect(QA_TOGGLE_SHORT_NAMES).toEqual({
       push_simulation: QA_PUSH_SIMULATION_KEY,
+      // FIX-Task-65 item 3 — push-registration failure-reason override.
+      push_registration_reason: QA_PUSH_REGISTRATION_REASON_KEY,
       pref_save_failure: QA_FORCE_PREF_SAVE_FAILURE_KEY,
       link_email_mismatch: QA_LINK_EMAIL_MISMATCH_KEY,
       crash_trigger: QA_CRASH_TRIGGER_KEY,

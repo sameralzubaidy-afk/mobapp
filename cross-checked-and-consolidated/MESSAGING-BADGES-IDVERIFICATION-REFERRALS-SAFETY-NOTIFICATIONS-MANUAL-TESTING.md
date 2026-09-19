@@ -435,7 +435,8 @@
 2. Tap **Tap to upload ID photo** and select an image; observe the preview.
 
 **Expected Result:**
-- The initial state shows "Verify Your Identity" with the privacy disclaimer ("We will not store your ID image. It will be deleted after verification."), a **Use Camera** option, and a submit button (default "Submit for Verification") with tips about a clear, well-lit, in-focus photo. The selected image previews with a **Change Image** option.
+- The initial state shows "Verify Your Identity" with the privacy disclaimer (config-driven `upload_disclaimer`; staging copy: *"We will not store or keep your ID image. Your image will be permanently deleted after we approve or reject your verification request."*), a **Use Camera** pill **with an "or choose from your library" fallback on the same row**, and a submit button (default "Submit for Verification") with tips about a clear, well-lit, in-focus photo. The selected image previews with a **Change Image** option.
+  - *(Copy corrected 2026-09-18, FIX-Task-65 item 7: this row previously quoted the short in-code fallback string as though it were the shipped copy, and omitted the library fallback.)*
 
 ### MSG-TC-D02 · Capture ID with camera
 
@@ -448,6 +449,11 @@
 
 **Expected Result:**
 - The captured image becomes the preview. If camera permission is denied, a "Permission Required. Please allow camera access." alert appears.
+- If the capture itself fails (e.g. on a simulator, which has no camera), an inline error reads **"Failed to take photo. Please try again, or upload a photo from your library."** The library fallback sits on the same row as **Use Camera**.
+
+**Dependencies:**
+- **In-app `GlobalAlertProvider` (report confirmation) — this dialog is NOT a native `Alert.alert`** (doc corrected 2026-09-18, FIX-Task-65 item 7): `IDVerificationUploadScreen.tsx` calls `Alert.alert('Permission Required', …)`, but `GlobalAlertProvider` globally patches `Alert.alert`, so the dialog renders through its branded queue and IS AX-instrumentable — resolve `global-alert-button-0` from the AX tree per §5.4. Same class as MSG-TC-C06.
+- **Camera-less environments:** `Use Camera` is always rendered (the screen has no device-capability probe), so on a simulator the correct expected result is the inline "Failed to take photo…" error, never a crash; the capture-success limb needs real camera hardware.
 
 ### MSG-TC-D03 · Submit creates a pending request
 
@@ -806,7 +812,9 @@
 
 ### MSG-TC-G05 · Recall safety alert notification
 
-> ⚠️ **Needs re-verification (2026-08-12):** The term "Recall Alert" was not found in the UI source; the notification may use different wording (e.g., "Safety Alert"). Verify the actual title.
+> ✅ **Resolved (2026-09-18, MSG Round 1 → FIX-Task-65 item 7):** the shipped user-facing name is **"Safety Alerts"**, not "Recall Alert". `NotificationSettingsScreen` renders a **Safety Alerts** row with the always-on note *"Critical safety alerts (product recalls) are always delivered regardless of your preferences."* Use "Safety Alerts" throughout.
+>
+> ⚠️ **The notification limb is currently UNPRODUCIBLE — product decision pending, not a code bug.** `notification_category` (enum) has **no `safety` value** and there is **no producer** that emits a recall/safety notification (live: 0 `recall_alert` rows; `create_notification` hardcodes `'system'`). The client's red alert treatment exists (`NotificationCenterScreen` `CATEGORY_ICONS.safety`) but its `safety` branch is unreachable, so the red **Safety Alerts** card this case describes cannot be observed today. Owner decision required: add the missing category value + a producer, or reword this case to match what ships. The **banner** leg passes and is unaffected.
 
 **Actors:** test-seller
 
@@ -882,7 +890,7 @@
 3. If a borderline fixture is available, lower `cpsc_match_threshold` and repeat.
 
 **Expected Result:**
-- With recall checking disabled, no automated recall alert/banner is generated for the exact recall fixture.
+- With recall checking disabled, no automated safety-alert banner is generated for the exact recall fixture.
 - With recall checking enabled, the exact recall fixture generates the safety alert and review banner.
 - Lowering the threshold makes borderline fixtures flag more aggressively; raising it reduces false positives.
 

@@ -60,8 +60,14 @@ export const colors = {
     100: '#FFF3E0', // Warning banner backgrounds
   },
 
+  // FIX-Task-65: `700` is the accessible step for error TEXT on light surfaces.
+  // `error[500]` stays for fills/borders/icons — it measures only 3.04:1 on the
+  // error tint (#FFF0F2) and 3.36:1 on white, so it fails WCAG AA (4.5:1) as normal
+  // text. This implements design-system §6 "Open Enhancement #1" (the proposed
+  // #C91D39; filed as sameralzubaidy-afk/mobapp#21).
   error: {
-    500: '#E85D75', // Error messages, CPSC recalls — MODULE-15.1 spec
+    500: '#E85D75', // Error fills, borders and icons, CPSC recalls — MODULE-15.1 spec
+    700: '#C91D39', // Error TEXT on light surfaces — 5.11:1 on #FFF0F2 · 5.16:1 on #FEF2F2 · 5.65:1 on white (AA)
     100: '#FFF0F2', // Error banner backgrounds
   },
 
@@ -104,7 +110,10 @@ export const borderColors = {
   default: colors.neutral[300],
   focus: colors.primary[500],
   error: colors.error[500],
-  divider: colors.neutral[300],
+  // FIX-Task-65: canonical dividers are #E0E0E0 (design-system §1 — "Border:
+  // #E0E0E0 (dividers, subtle borders)"). `divider` resolves to neutral[200] now;
+  // `default` stays neutral[300] for stronger borders.
+  divider: colors.neutral[200],
   subtle: colors.neutral[100],
 } as const;
 

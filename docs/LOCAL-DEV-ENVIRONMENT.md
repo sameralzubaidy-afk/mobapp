@@ -7,9 +7,14 @@
 
 ## 1. The rule (one line)
 
-**Exactly ONE Metro instance may run, and it must own `:8081`.**
+**For a single-platform session, exactly ONE Metro instance may run, and it must own `:8081`.**
 Run `npm run metro:kill` **before** you start a session, and start Metro with
 `npm run start:single`.
+
+> **Scope:** this rule exists to stop *stray / accidental* duplicate Metros (see §2).
+> The deliberate two-instance case — iOS `:8081` **and** Android `:8082` running at
+> the same time via `npm run dev:ios` + `npm run dev:android` — is supported and
+> documented in **§7**.
 
 ---
 
@@ -75,8 +80,8 @@ lsof -nP -iTCP:8081 -sTCP:LISTEN    # should print exactly one process
 lsof -nP -iTCP:8082 -sTCP:LISTEN    # should print NOTHING
 ```
 
-If `:8082` has a listener, you have the duplicate-Metro condition — run
-`npm run metro:kill` and restart.
+If `:8082` has a listener **and you did not start a dual session (§7)**, you have
+the duplicate-Metro condition — run `npm run metro:kill` and restart.
 
 The Metro output line `Metro waiting on exp://…:8081` (not `:8082`) is the
 quick visual check.
@@ -104,9 +109,64 @@ METRO_PORTS="8081" bash scripts/kill-stray-metro.sh
 
 - **Don't** leave a Metro running in a second terminal "just in case" — that is
   the duplicate.
-- **Don't** start Metro twice from two shells; the second one lands on `:8082`
-  without warning.
-- **Don't** launch the dev client while `:8082` holds a listener — it may pick
-  the stale server.
+- **Don't** start a *second Metro for the same platform* from another shell — run
+  `expo start` with no `--port` and the second one silently lands on `:8082`
+  instead of failing. (Two *deliberate* instances, one per platform, are fine — §7.)
+- **Don't** launch the dev client while a *stale* `:8082` holds a listener — it may
+  pick that server. In the dual session of §7 each client is pinned to its own
+  port, so this hazard does not apply.
 - **Don't** work around a slow cold connect by wiping the app data; kill the
   stray Metro instead.
+
+---
+
+## 7. Dual session — iOS and Android at the same time
+
+Supported by design. Each script owns one port and hands its dev client an
+explicit server URL, so the two never compete:
+
+| Command | Metro | Target | How that app finds its Metro |
+|---|---|---|---|
+| `npm run dev:ios` | `:8081` | iOS Simulator | Expo CLI opens the dev client with `…?url=http://<lan-ip>:8081` |
+| `npm run dev:android` | `:8082` | Android Emulator | `adb reverse tcp:8082` + deep link `…?url=http://localhost:8082` |
+
+Run each in its **own terminal**. Neither script touches the other's port —
+`dev-ios.sh` only clears `:8081`, `dev-android.sh` only clears `:8082`. Because
+each dev client is given one explicit URL, the F9 ambiguity in §2 cannot occur.
+
+### Cache isolation (required for this to be clean)
+
+Both scripts start Metro with `EXPO_METRO_CACHE_TAG=ios|android`, which
+`metro.config.js` turns into a per-instance cache root:
+
+- iOS → `$TMPDIR/metro-cache-ios`
+- Android → `$TMPDIR/metro-cache-android`
+
+Without this, both instances share Expo's single `$TMPDIR/metro-cache`
+(`@expo/metro-config` overrides Metro's own stores with that one root), and
+`--clear` on the second instance wipes the cache the first is actively using —
+a cold re-bundle mid-session.
+
+### Verify both are up
+
+```bash
+lsof -nP -iTCP:8081 -sTCP:LISTEN    # iOS Metro
+lsof -nP -iTCP:8082 -sTCP:LISTEN    # Android Metro
+```
+
+Both printing a PID is the healthy dual-session state.
+
+### Commands that will KILL a dual session
+
+These are single-session **reset** helpers — they kill listeners on
+`8081 8082 8083` and take down the other platform with them:
+
+- `npm run metro:kill`
+- `npm run start:single` / `npm run start:fresh`
+- `npm run ios:fresh` / `npm run android:fresh`
+
+Do not run them while a dual session is live. To reset only one side:
+
+```bash
+METRO_PORTS="8081" bash scripts/kill-stray-metro.sh
+```

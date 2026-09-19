@@ -20,6 +20,8 @@ import {
   getQaPolicyLoadFailureMode,
   getSimulatedPaymentCardPreference,
   QA_PUSH_SIMULATION_KEY,
+  QA_PUSH_REGISTRATION_REASON_KEY,
+  getPushRegistrationReasonOverride,
   QA_FORCE_PREF_SAVE_FAILURE_KEY,
   QA_LINK_EMAIL_MISMATCH_KEY,
   QA_PAYMENT_CARD_KEY,
@@ -121,6 +123,35 @@ describe('QaDevToggleDeepLinkHandler', () => {
     });
   });
 
+  it('arms push_registration_reason = permission_denied via the deep link (FIX-Task-65 item 3)', async () => {
+    parseAs('push_registration_reason', 'permission_denied');
+    render(<QaDevToggleDeepLinkHandler />);
+
+    triggerUrl(
+      'p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=permission_denied'
+    );
+
+    await waitFor(async () => {
+      expect(await getPushRegistrationReasonOverride()).toBe('permission_denied');
+    });
+    await expect(AsyncStorage.getItem(QA_PUSH_REGISTRATION_REASON_KEY)).resolves.toContain(
+      'permission_denied'
+    );
+  });
+
+  it('rejects an invalid push_registration_reason — nothing written (fail-closed)', async () => {
+    parseAs('push_registration_reason', 'totally_made_up');
+    render(<QaDevToggleDeepLinkHandler />);
+
+    triggerUrl(
+      'p2pkidsmarketplace://qa-dev-toggle?key=push_registration_reason&value=totally_made_up'
+    );
+
+    await new Promise((r) => setTimeout(r, 20));
+    await expect(AsyncStorage.getItem(QA_PUSH_REGISTRATION_REASON_KEY)).resolves.toBeNull();
+    await expect(getPushRegistrationReasonOverride()).resolves.toBe('none');
+  });
+
   it('rejects an invalid value — nothing written (fail-closed)', async () => {
     parseAs('push_simulation', 'nope');
     render(<QaDevToggleDeepLinkHandler />);
@@ -143,6 +174,7 @@ describe('QaDevToggleDeepLinkHandler', () => {
     await expect(AsyncStorage.getItem(QA_PUSH_SIMULATION_KEY)).resolves.toBeNull();
     await expect(AsyncStorage.getItem(QA_FORCE_PREF_SAVE_FAILURE_KEY)).resolves.toBeNull();
     await expect(AsyncStorage.getItem(QA_LINK_EMAIL_MISMATCH_KEY)).resolves.toBeNull();
+    await expect(AsyncStorage.getItem(QA_PUSH_REGISTRATION_REASON_KEY)).resolves.toBeNull();
   });
 
   it('ignores unrelated deep links', async () => {

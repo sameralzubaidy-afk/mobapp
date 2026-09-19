@@ -18,6 +18,7 @@ import { IdentificationCard, Camera, CheckCircle, Clock } from 'phosphor-react-n
 import { idBadgeService, IDVerificationStatus } from '@/services/idBadge';
 import { captureException } from '@/services/errorReporter';
 import { getCurrentUser } from '@/services/supabase/auth';
+import { colors } from '@/theme/colors';
 import { LoadingSpinner } from '@/components/ui';
 import * as ImagePicker from 'expo-image-picker';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -101,7 +102,8 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
     } catch {
       setState((prev) => ({
         ...prev,
-        error: 'Failed to pick image',
+        // FIX-Task-65 item 11 (symmetric): give the user an immediate next step.
+        error: 'Failed to pick image. Please try again, or use the camera.',
       }));
     }
   };
@@ -131,7 +133,8 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
     } catch {
       setState((prev) => ({
         ...prev,
-        error: 'Failed to take photo',
+        // FIX-Task-65 item 11: was the terse 'Failed to take photo'.
+        error: 'Failed to take photo. Please try again, or upload a photo from your library.',
       }));
     }
   };
@@ -284,16 +287,33 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          testID="id-verification-take-photo-btn"
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Id verification take photo btn"
-          style={styles.cameraButton}
-          onPress={takePhoto}
-        >
-          <Text style={styles.cameraButtonText}>Use Camera</Text>
-        </TouchableOpacity>
+        <View style={styles.cameraRow}>
+          <TouchableOpacity
+            testID="id-verification-take-photo-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Id verification take photo btn"
+            style={styles.cameraButton}
+            onPress={takePhoto}
+          >
+            <Text style={styles.cameraButtonText}>Use Camera</Text>
+          </TouchableOpacity>
+
+          {/* FIX-Task-65 item 10: "Use Camera" is offered even where no camera exists
+              (simulator / some devices) and dead-ends the user. Offer the library
+              path on the same row instead of forcing them to hunt for it. */}
+          <TouchableOpacity
+            testID="id-verification-choose-library-btn"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Or choose from your library"
+            style={styles.libraryLink}
+            onPress={pickImage}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.libraryLinkText}>or choose from your library</Text>
+          </TouchableOpacity>
+        </View>
 
         {state.error && (
           <View style={styles.errorBox} testID="id-verification-error">
@@ -365,11 +385,16 @@ const styles = StyleSheet.create({
   },
   rejectedNoteText: {
     fontSize: 14,
-    color: '#B45309',
+    // FIX-Task-65 item 5: was the raw Tailwind amber #B45309.
+    color: colors.warning[800],
     lineHeight: 20,
   },
 
   // ── Header ───────────────────────────────────────────────────────────────────
+  // NOTE (FIX-Task-65): headerRow / headerBackButton / headerTitle / safeArea below are
+  // DEAD styles — nothing in this file references them (the header is rendered by
+  // ScreenLayout). Kept for now; the divider hex was tokenized anyway so the dead block
+  // no longer carries off-token colour.
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -377,7 +402,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.neutral[200],
     minHeight: 56,
   },
   headerBackButton: {
@@ -467,19 +492,40 @@ const styles = StyleSheet.create({
   },
 
   // ── Camera Button ─────────────────────────────────────────────────────────────
+  // FIX-Task-65 item 10: the camera pill and a library fallback share one row, so the
+  // pill is no longer full-width (it carries its own horizontal padding) and the row
+  // owns the bottom margin. Both controls keep a >=44pt touch target.
+  cameraRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
   cameraButton: {
     borderWidth: 1.5,
-    borderColor: '#5DBB8E',
+    borderColor: colors.primary[500],
     borderRadius: 26,
     height: 48,
+    paddingHorizontal: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
   },
   cameraButtonText: {
     fontSize: 15,
-    color: '#5DBB8E',
+    color: colors.primary[500],
     fontWeight: '500',
+  },
+  libraryLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  libraryLinkText: {
+    fontSize: 14,
+    color: colors.primary[500],
+    textDecorationLine: 'underline',
   },
 
   // ── Error ────────────────────────────────────────────────────────────────────
@@ -491,7 +537,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: '#EF4444',
+    // FIX-Task-65 item 5: was the raw Tailwind red #EF4444 (a 3.44:1 fail on the
+    // #FEF2F2 tint). error[700] is the AA-safe error-TEXT step — 5.16:1 here.
+    color: colors.error[700],
   },
 
   // ── Submit Button ─────────────────────────────────────────────────────────────

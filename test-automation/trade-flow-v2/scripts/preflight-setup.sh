@@ -92,7 +92,9 @@ if command -v xcrun &>/dev/null; then
     else
       log "Booting override simulator $EXPLICIT_IOS_UDID..."
       xcrun simctl boot "$EXPLICIT_IOS_UDID"
-      open -a Simulator &>/dev/null || true
+      # Xcode 27+ replaced Simulator.app with Device Hub (devices:// scheme);
+      # fall back to Simulator.app for Xcode <= 26.
+      open "devices://device/open?id=$EXPLICIT_IOS_UDID" &>/dev/null || open -a Simulator &>/dev/null || true
       log "Waiting for simulator to finish booting (20s)..."
       sleep 20
       BOOTED_UDID="$EXPLICIT_IOS_UDID"
@@ -132,7 +134,9 @@ if command -v xcrun &>/dev/null; then
 
     log "Booting simulator $AVAIL_UDID..."
     xcrun simctl boot "$AVAIL_UDID"
-    open -a Simulator &>/dev/null || true
+    # Xcode 27+ replaced Simulator.app with Device Hub (devices:// scheme);
+    # fall back to Simulator.app for Xcode <= 26.
+    open "devices://device/open?id=$AVAIL_UDID" &>/dev/null || open -a Simulator &>/dev/null || true
     log "Waiting for simulator to finish booting (20s)..."
     sleep 20
     BOOTED_UDID="$AVAIL_UDID"
